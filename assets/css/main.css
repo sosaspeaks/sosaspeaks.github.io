@@ -101,6 +101,8 @@ body.light-theme{
 
 .d-grid{
     display: grid;
+    grid-template-columns: 61rem 61rem;
+    grid-gap: 5px;
 
 }
 
