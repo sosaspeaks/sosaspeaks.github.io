@@ -469,6 +469,16 @@ body.light-theme{
     display: block;
 }
 
+.blog-post-image img{
+      border: solid var(--light-color) 5px;
+}
+
+.citation {
+    font-size: 10pt;
+    text-align: center;
+    text-indent: 0;
+}
+
 .blog-post-title{
     font-size: clamp(3rem,5vw, 6rem);
     margin-bottom: 2rem;
