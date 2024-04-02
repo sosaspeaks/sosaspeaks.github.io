@@ -463,8 +463,8 @@ body.light-theme{
 .blog-post-image{
     width: 50%;
     height: 50%;
-    align-items: right;
-    text-align: right;
+    align-items: center;
+    text-align: center;
     margin: auto;
     display: block;
 }
