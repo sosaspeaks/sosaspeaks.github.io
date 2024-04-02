@@ -445,6 +445,17 @@ body.light-theme{
 /* Newsletter */
 
 /* Footer */
+
+.footer {
+    text-align: center;
+    line-height: 35px;
+}
+.footer-list {
+    text-align: center;
+    display: inline;
+    line-height: 25px;
+}
+
 .footer-container {
     text-align: center;
     display:inline-block;
@@ -599,10 +610,17 @@ body.light-theme{
 
 .footer {
     text-align: center;
+    line-height: 35px;
 }
 .footer-list {
     text-align: center;
     display: inline;
+    line-height: 25px;
+}
+
+.footer-container {
+    text-align: center;
+    display:inline-block;
 }
 
 
