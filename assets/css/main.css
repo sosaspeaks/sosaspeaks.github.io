@@ -445,7 +445,10 @@ body.light-theme{
 /* Newsletter */
 
 /* Footer */
-
+.footer-container {
+    text-align: center;
+    display:inline-block;
+}
 /* Scrollbar styles */
 
 /* Blog post */
