@@ -124,7 +124,7 @@ header.shadow .logo{
 .home{
     width: 100%;
     min-height: 200px;
-    background-image: url(/assets/images/homeheader1.jpg);
+    background-image: url(/assets/images/homepics/homeheader1.jpg);
     display: grid;
     justify-content: center;
     align-items: center;
@@ -233,6 +233,21 @@ header.shadow .logo{
     line-height: 1.5rem;
     margin: 5px 0 10px;
     font-style: italic;
+    text-align: left;
+     /* To Remain Title In 3 lines */
+     display: -webkit-box;
+     -webkit-line-clamp: 3;
+     -webkit-box-orient: vertical;
+     overflow: hidden;
+}
+
+.post-description2{
+    font-family: "Plus Jakarta Sans", sans-serif;
+    color: var(--second-color);
+    font-size: 0.9rem;
+    line-height: 1.5rem;
+    margin: 5px 0 10px;
+    font-style: italic;
     text-align: center;
      /* To Remain Title In 3 lines */
      display: -webkit-box;
@@ -314,6 +329,8 @@ header.shadow .logo{
     height: 420px;
     object-fit: cover;
     object-position: center;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 14px hsl(355deg 25% 15% / 10%);
 }
 
 .post-content{
@@ -341,10 +358,24 @@ a {
     text-indent: 25px;
 }
 
+.image-caption{
+    font-size: 0.6rem;
+    line-height: 1.7rem;
+    font-style: italic;
+    text-align: center;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    color: var(--container-color);
+}
+
 .post-image-content{
     width: 100%;
     object-fit: cover;
     object-position: center;
+    box-shadow: 0 4px 14px hsl(355deg 25% 15% / 10%);
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    width: 73%;
 }
 
 /* Responsive */
@@ -365,6 +396,9 @@ a {
     .post-container{
         margin: 0 auto;
         width: 95%;
+    }
+    .post-description{
+        text-align: center;
     }
 }
 
@@ -396,6 +430,9 @@ a {
     .post-header{
         height: 435px;
     }
+    .post-description{
+        text-align: center;
+    }
 
     .post-content{
         margin-top: 9rem !important;
@@ -417,6 +454,9 @@ a {
         padding: 20px 0;
         text-align: center;
     }
+    .post-description{
+        text-align: center;
+    }
 }
 @media (max-width: 396px){
     .home-title{
@@ -430,6 +470,9 @@ a {
     }
     .post-box{
         padding: 10px;
+    }
+    .post-description{
+        text-align: center;
     }
     .header-title{
         font-size: 1.4rem;
