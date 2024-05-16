@@ -526,4 +526,17 @@ mark {
         line-height: 1.5rem;
         margin: 10px 0;
     }
+    .source {
+        font-size: 0.5rem;
+        line-height: 1.0rem;
+        margin: 10px 0;
+    } 
+    .quote-text{
+        font-size: 0.95rem;
+        line-height: 2.2rem;
+        text-align: center;
+        font-family: "Plus Jakarta Sans", sans-serif;
+        margin: 14px 0;
+        font-style: italic;
+    }
 }
