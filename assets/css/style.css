@@ -51,6 +51,9 @@
     --second-color:  #98c994;
     --text-color: #172317;
     --bg-color: #fff;
+    --dark-bg-color: #101113;
+    --dark-text-color: #d9eaddd5;
+    --dark-filter-color: #86ae83;
 }
 
 ::selection{
@@ -76,6 +79,11 @@ section{
     padding: 3rem 0 2rem;
 }
 
+button{
+    background: #ffffff00;
+    border-color: #ffffff00;
+}
+
 .container{
     max-width: 1068px;
     margin: auto;
@@ -94,7 +102,7 @@ header{
 header.shadow{
     background: var(--bg-color);
     box-shadow:0 1px 4px hsl(0 4% 14% / 10%);
-    transition: 0.4s;
+    transition: 0.2s;
 }
 
 header.shadow .logo{
@@ -116,6 +124,7 @@ header.shadow .logo{
     margin-left: 0.5rem;
 }
 
+
 .logo span{
     color: var(--second-color);
 }
@@ -131,6 +140,7 @@ header.shadow .logo{
     justify-content: center;
     background: var(--second-color);
     transition: opacity 0.75s visibility 0.75s;
+    z-index: 99;
 }
 
 .loader::after {
@@ -157,6 +167,7 @@ header.shadow .logo{
     opacity: 0;
     visibility: hidden;
 }
+    
 /* Home */
 .home{
     width: 100%;
@@ -166,8 +177,6 @@ header.shadow .logo{
     justify-content: center;
     align-items: center;
 }
-
-
 
 .home-text{
     font-family: "Plus Jakarta Sans", sans-serif;
@@ -187,6 +196,7 @@ header.shadow .logo{
     font-weight: 600;
     font-size: 1.5rem;
 }
+
 
 /* Post Filter */
 .post-filter{
@@ -210,6 +220,142 @@ header.shadow .logo{
     padding: 4px 10px;
     border-radius: 4px;
 }
+
+.hide-button {
+    display: none;
+}
+
+i.bx{
+    cursor: pointer;
+    transition: 0.4s;
+}
+
+i.bx-moon{
+    color: var(--text-color);
+    margin-right: 0.5rem;
+}
+
+i.bx-sun{
+    color: var(--dark-text-color);
+}
+
+.dark-mode {
+    transition: 0.4s;
+    background: var(--dark-bg-color);
+    .post-box {
+    background: var(--dark-bg-color);
+    box-shadow: 0 4px 14px hsla(114, 24%, 84%, 0.1);
+    padding: 15px;
+    border-radius: 0.5rem;
+    }
+    .post-title{
+    color: var(--dark-text-color);
+    }
+    .post-date{
+    color: var(--dark-text-color);
+    }
+    .post-description{
+    color: var(--dark-text-color);
+    }
+    .profile-name{
+    color: var(--dark-text-color);
+    }
+    header.shadow{
+    background: var(--dark-bg-color);
+    box-shadow:0 1px 4px hsla(0, 1%, 81%, 0.018);
+    }
+    .logo {
+    color: var(--dark-text-color)
+    
+    }
+    .active-filter{
+    color: var(--dark-bg-color);
+    background: var(--second-color);
+    padding: 4px 10px;
+    border-radius: 4px;
+    }
+    .post{
+    display: grid;
+    grid-template-columns: repeat(auto-fit,minmax(280px,auto));
+    justify-content: center;
+    gap:1.5rem;
+    }
+    .post-filter{
+    color: var(--dark-text-color);
+    font-family: "Plus Jakarta Sans", sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    column-gap: 1.5rem;
+    margin-top: 2rem !important;
+    }
+    .filter-item{
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    }
+    .category{
+        font-size: 1.3rem;
+        font-family: "Jersey 15", sans-serif;
+        font-weight: 300;
+        color: var(--dark-filter-color);
+        padding: 0;
+        margin: 0;
+    }
+    
+    .home-title{
+    color: var(--dark-text-color);
+    }
+    .home-subtitle{
+    color: var(--dark-text-color)
+    }
+    header.shadow .logo{
+    color: var(--dark-text-color);
+    }
+    .sub-heading{
+        color: var(--dark-text-color);
+    }
+    .post-text{
+        color: var(--dark-text-color);
+    }
+    .image-caption{
+        color: var(--dark-text-color);
+    }
+    .source{
+        color: var(--dark-text-color);
+    }
+    .header-title{
+        color: var(--dark-text-color);
+    }
+    .post-date{
+        color: var(--dark-text-color);
+    }
+ 
+   .post-img{
+        filter: brightness(80%);
+    }
+    .loader{
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--second-color);
+    transition: opacity 0.75s visibility 0.75s;
+    z-index: 99;
+    }
+    .footer{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 30px 0;
+        text-align: center;
+        color: var(--second-color);
+    }
+    }
 
 /* Posts */
 .post{
@@ -319,6 +465,7 @@ header.shadow .logo{
     justify-content: space-between;
     align-items: center;
     padding: 30px 0;
+    text-align: center;
 }
 .footer p{
     font-size: 0.938;
@@ -564,9 +711,11 @@ mark {
         margin: 10px 0;
     }
     .source {
-        font-size: 0.5rem;
+        font-size: 0.8rem;
         line-height: 1.0rem;
         margin: 10px 0;
+        padding-left: 0.7rem;
+        text-indent: -0.7rem;
     } 
     .quote-text{
         font-size: 0.95rem;

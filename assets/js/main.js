@@ -37,3 +37,51 @@ window.addEventListener("load", () => {
         document.body.removeChild(loader);
     });
 });
+
+// // Dark Mode
+
+// themeToggleBtn.addEventListener('click', () => {
+//     document.body.classList.toggle('dark-mode');
+//     themeToggleBtn.classList.toggle("hide-button");
+//     themeToggleBtn.classList.toggle('bx-sun')});
+
+// check for saved 'darkMode' in localStorage
+let darkMode = localStorage.getItem('darkMode'); 
+
+const themeToggleBtn = document.querySelector('.theme-toggle');
+
+const enableDarkMode = () => {
+  // 1. Add the class to the body
+  document.body.classList.add('dark-mode');
+  themeToggleBtn.classList.add('bx-sun');
+  // 2. Update darkMode in localStorage
+  localStorage.setItem('darkMode', 'enabled');
+}
+
+const disableDarkMode = () => {
+  // 1. Remove the class from the body
+  document.body.classList.remove('dark-mode');
+  themeToggleBtn.classList.remove('bx-sun');
+  // 2. Update darkMode in localStorage 
+  localStorage.setItem('darkMode', null);
+}
+ 
+// If the user already visited and enabled darkMode
+// start things off with it on
+if (darkMode === 'enabled') {
+  enableDarkMode();
+}
+
+// When someone clicks the button
+themeToggleBtn.addEventListener('click', () => {
+  // get their darkMode setting
+  darkMode = localStorage.getItem('darkMode'); 
+  
+  // if it not current enabled, enable it
+  if (darkMode !== 'enabled') {
+    enableDarkMode();
+  // if it has been enabled, turn it off  
+  } else {  
+    disableDarkMode(); 
+  }
+});
