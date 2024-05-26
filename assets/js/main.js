@@ -85,3 +85,20 @@ themeToggleBtn.addEventListener('click', () => {
     disableDarkMode(); 
   }
 });
+
+
+// Scroll to Top Button
+
+const toTop = document.querySelector(".to-top");
+window.addEventListener("scroll", () => {
+    if(window.scrollY > 50) {
+        toTop.classList.add("active");
+    } else {
+        toTop.classList.remove("active");
+    }
+})
+
+toTop.addEventListener('click', () => {
+    document.documentElement.scrollTop = 0;
+}
+)
