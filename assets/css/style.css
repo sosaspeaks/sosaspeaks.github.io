@@ -334,8 +334,13 @@ i.bx-sun{
     .post-date{
         color: var(--dark-text-color);
     }
- 
+    .quote-text{
+        color: var(--dark-text-color);
+    }
    .post-img{
+        filter: brightness(80%);
+    }
+    .post-image-content{
         filter: brightness(80%);
     }
     .loader{
@@ -582,7 +587,6 @@ mark {
 }
 
 .post-image-content{
-    width: 100%;
     object-fit: cover;
     object-position: center;
     box-shadow: 0 4px 14px hsl(355deg 25% 15% / 10%);
