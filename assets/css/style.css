@@ -72,7 +72,7 @@ a{
 }
 
 li{
-    list-style: none;
+    list-style-type: circle;
 }
 
 img{
@@ -758,7 +758,7 @@ mark {
     }
     .post-text {
         font-size: 0.875rem;
-        line-height: 1.5rem;
+        line-height: 1.7rem;
         margin: 10px 0;
     }
     .source {
@@ -769,8 +769,8 @@ mark {
         text-indent: -0.7rem;
     } 
     .quote-text{
-        font-size: 0.95rem;
-        line-height: 2.2rem;
+        font-size: 0.92rem;
+        line-height:0rem;
         text-align: center;
         font-family: "Plus Jakarta Sans", sans-serif;
         margin: 14px 0;
