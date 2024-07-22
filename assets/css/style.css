@@ -94,6 +94,21 @@ button .bx{
     width: 100%;
 }
 
+/* Pseudo-classes */
+a:link { 
+    text-decoration: none; 
+  } 
+  a:visited { 
+    text-decoration: none; 
+  } 
+  a:hover { 
+    text-decoration: var(--second-color)  underline 0.085rem; 
+  } 
+  a:active { 
+    text-decoration: none; 
+  }
+  
+
 /* Header */
 header{
     position: fixed;
@@ -101,6 +116,7 @@ header{
     left: 0;
     width: 100%;
     z-index: 200;
+    
 }
 
 header.shadow{
@@ -110,6 +126,10 @@ header.shadow{
 }
 
 header.shadow .logo{
+    color: var(--text-color);
+}
+
+header.shadow .bx-moon{
     color: var(--text-color);
 }
 
@@ -235,8 +255,10 @@ i.bx{
 }
 
 i.bx-moon{
-    color: var(--text-color);
+    color: var(--bg-color);
     margin-right: 0.5rem;
+    transition: 0.2s;
+    
 }
 
 i.bx-sun{
@@ -770,10 +792,27 @@ mark {
     } 
     .quote-text{
         font-size: 0.92rem;
-        line-height:0rem;
+        line-height: 0rem;
         text-align: center;
         font-family: "Plus Jakarta Sans", sans-serif;
         margin: 14px 0;
         font-style: italic;
     }
+}
+
+
+label {
+    font-size: 1.05rem;
+    line-height: 1rem;
+    margin: 1rem;
+    text-align: justify;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    text-indent: 25px;
+}
+
+form{
+    align-items: center;
+    text-align: center;
+    margin-top: 15rem;
+    margin-bottom: 15rem;
 }
