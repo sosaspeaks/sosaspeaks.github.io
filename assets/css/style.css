@@ -69,7 +69,7 @@ html{
 
 
 a{
-    text-decoration: none;
+    text-decoration: var(--second-color) underline 0.085rem;
 }
 
 li{
@@ -101,10 +101,10 @@ body{
 
 /* Pseudo-classes */
 a:link { 
-    text-decoration: none; 
+    text-decoration: var(--second-color) underline 0.085rem; 
   } 
   a:visited { 
-    text-decoration: none; 
+    text-decoration: var(--second-color)  underline 0.085rem; 
   } 
   a:hover { 
     text-decoration: var(--second-color)  underline 0.085rem; 
