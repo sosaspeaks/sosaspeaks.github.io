@@ -102,16 +102,16 @@ body{
 
 /* Pseudo-classes */
 a:link { 
-    text-decoration: var(--second-color) underline 0.085rem; 
+    text-decoration: var(--second-color) underline 0.085rem !important; 
   } 
   a:visited { 
-    text-decoration: var(--second-color)  underline 0.085rem; 
+    text-decoration: var(--second-color)  underline 0.085rem !important; 
   } 
   a:hover { 
-    text-decoration: var(--second-color)  underline 0.085rem; 
+    text-decoration: var(--second-color)  underline 0.085rem !important; 
   } 
   a:active { 
-    text-decoration: none; 
+    text-decoration: var(--second-color) underline 0.085rem !important; 
   }
   
 
