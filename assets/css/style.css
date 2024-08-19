@@ -69,7 +69,8 @@ html{
 
 
 a{
-    text-decoration: var(--second-color) underline 0.085rem;
+    color: inherit;
+    text-decoration: var(--second-color) underline 0.085rem !important;
 }
 
 li{
@@ -584,8 +585,7 @@ i.bx-sun{
 
 a {
      color: inherit; 
-     text-decoration: underline;
-     text-decoration: var(--second-color) underline 0.085rem; 
+     text-decoration: var(--second-color) underline 0.085rem !important; 
     } 
 
 .post-text{
