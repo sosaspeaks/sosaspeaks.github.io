@@ -69,7 +69,7 @@ html{
 
 
 a{
-    color: inherit;
+    color: inherit !important;
     text-decoration: var(--second-color) underline 0.085rem !important;
 }
 
@@ -100,21 +100,6 @@ button .bx{
 body{
     margin:0
 }
-
-/* Pseudo-classes */
-/* a:link { 
-    text-decoration: var(--second-color) underline 0.085rem !important; 
-  } 
-  a:visited { 
-    text-decoration: var(--second-color)  underline 0.085rem !important; 
-  } 
-  a:hover { 
-    text-decoration: var(--second-color)  underline 0.085rem !important; 
-  } 
-  a:active { 
-    text-decoration: var(--second-color) underline 0.085rem !important; 
-  }
-   */
 
 /* Header */
 header{
@@ -582,13 +567,6 @@ i.bx-sun{
     font-weight: 600;
     font-family: "Plus Jakarta Sans", sans-serif;
 }
-
-a {
-     color: inherit; 
-     text-decoration:underline var(--second-color)!important;
-     text-decoration-thickness: 0.085rem !important; 
-     text-decoration-color: var(--second-color) !important;
-    } 
 
 .post-text{
     font-size: 1.05rem;
