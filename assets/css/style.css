@@ -95,6 +95,10 @@ button .bx{
     width: 100%;
 }
 
+body{
+    margin:0
+}
+
 /* Pseudo-classes */
 a:link { 
     text-decoration: none; 
