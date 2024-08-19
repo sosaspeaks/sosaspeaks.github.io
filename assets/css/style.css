@@ -305,6 +305,9 @@ i.bx-sun{
     padding: 4px 10px;
     border-radius: 4px;
     }
+    .read-time{
+        color: var(--dark-text-color);
+    }
     .post{
     display: grid;
     grid-template-columns: repeat(auto-fit,minmax(280px,auto));
@@ -575,6 +578,31 @@ a {
     line-height: 2.2rem;
     margin: 0.9rem 0;
     text-align: justify;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    text-indent: 25px;
+}
+
+.toc-box{
+    background: var(--dark-text-color);
+    padding: 0.6rem;
+    height: auto;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 14px hsl(355deg 25% 15% / 10%);
+    align-items: center;
+    text-align: center;
+    display: flex;
+    margin-bottom: 3rem;
+    margin-top: 2rem;
+    width: 37rem;
+    margin-left: auto;
+    margin-right: auto;
+ 
+}
+.toc{
+    font-size: 1.05rem;
+    line-height: 2.2rem;
+    margin: 1.5rem;
+    text-align: left;
     font-family: "Plus Jakarta Sans", sans-serif;
     text-indent: 25px;
 }
