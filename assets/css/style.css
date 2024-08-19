@@ -102,7 +102,7 @@ body{
 }
 
 /* Pseudo-classes */
-a:link { 
+/* a:link { 
     text-decoration: var(--second-color) underline 0.085rem !important; 
   } 
   a:visited { 
@@ -114,7 +114,7 @@ a:link {
   a:active { 
     text-decoration: var(--second-color) underline 0.085rem !important; 
   }
-  
+   */
 
 /* Header */
 header{
@@ -585,7 +585,7 @@ i.bx-sun{
 
 a {
      color: inherit; 
-     text-decoration:underline !important;
+     text-decoration:underline var(--second-color)!important;
      text-decoration-thickness: 0.085rem !important; 
      text-decoration-color: var(--second-color) !important;
     } 
