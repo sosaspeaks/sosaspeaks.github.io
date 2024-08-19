@@ -802,8 +802,14 @@ mark {
     .header-title{
         font-size: 1.4rem;
     }
+    .post-description2{
+        margin: 0.3rem 0.55rem;
+    }
     .header-img{
         height: 240px;
+    }
+    .post-image-content{
+        width: 90%;
     }
     .post-header{
         height: 335px;
@@ -813,8 +819,11 @@ mark {
     }
     .post-text {
         font-size: 0.875rem;
-        line-height: 1.7rem;
-        margin: 10px 0;
+        line-height: 2rem;
+        margin: 14px 0.5rem;
+    }
+    .sub-heading{
+        margin-left: 0.3rem;
     }
     .source {
         font-size: 0.8rem;
@@ -825,11 +834,40 @@ mark {
     } 
     .quote-text{
         font-size: 0.92rem;
-        line-height: 0rem;
+        line-height: 2.2rem !important;
         text-align: center;
         font-family: "Plus Jakarta Sans", sans-serif;
-        margin: 14px 0;
+        margin: 16px !important;
         font-style: italic;
+    }
+    .toc-box{
+        background: var(--dark-text-color);
+        padding: 0.6rem;
+        height: auto;
+        border-radius: 0.5rem;
+        box-shadow: 0 4px 14px hsl(355deg 25% 15% / 10%);
+        align-items: center;
+        text-align: center;
+        display: block;
+        margin-bottom: 3rem;
+        margin-top: 2rem;
+        width: 20rem;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    .toc{
+        font-size: 1rem;
+        line-height: 2.2rem;
+        margin: 1.5rem;
+        text-align: left;
+        font-family: "Plus Jakarta Sans", sans-serif;
+        text-indent: 25px;
+    }
+    .bxs-quote-left{
+        font-size: 1.2rem;
+    }
+    .bxs-quote-right{
+        font-size: 1.2rem;
     }
 }
 
