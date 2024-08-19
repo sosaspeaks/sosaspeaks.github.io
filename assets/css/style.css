@@ -585,6 +585,7 @@ i.bx-sun{
 a {
      color: inherit; 
      text-decoration: underline;
+     text-decoration: var(--second-color) underline 0.085rem; 
     } 
 
 .post-text{
@@ -796,6 +797,10 @@ mark {
 }
 
 @media (max-width: 396px){
+    a {
+        color: inherit; 
+        text-decoration: var(--second-color) underline 0.085rem !important; 
+       } 
     .home-title{
         font-size: 2.7rem;
     }
