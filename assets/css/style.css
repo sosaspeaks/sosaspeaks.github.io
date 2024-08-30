@@ -55,6 +55,7 @@
     --dark-text-color: #d9eaddd5;
     --dark-filter-color: #86ae83;
     --read-time-color: #319122;
+    
 }
 
 ::selection{
@@ -69,8 +70,7 @@ html{
 
 
 a{
-    color: inherit !important;
-    text-decoration: var(--second-color) underline 0.085rem !important;
+    text-decoration: var(--second-color) underline 0.085rem;
 }
 
 li{
@@ -100,6 +100,25 @@ button .bx{
 body{
     margin:0
 }
+
+/* Pseudo-classes */
+a:link { 
+    text-decoration: var(--second-color) underline 0.085rem; 
+  } 
+  a:visited { 
+    text-decoration: var(--second-color)  underline 0.085rem; 
+  } 
+  a:hover { 
+    text-decoration: var(--second-color)  underline 0.085rem; 
+  } 
+  a:active { 
+    text-decoration: none; 
+  }
+
+  a.logo{
+    text-decoration: none;
+  }
+  
 
 /* Header */
 header{
@@ -323,7 +342,6 @@ i.bx-sun{
         padding: 0;
         margin: 0;
     }
-    
     .home-title{
     color: var(--dark-text-color);
     }
@@ -374,7 +392,7 @@ i.bx-sun{
     z-index: 99;
     }
     .footer{
-        display: flex;
+        display: inline;
         justify-content: center;
         align-items: center;
         padding: 0.6rem;
@@ -434,6 +452,7 @@ i.bx-sun{
     text-transform: uppercase;
     font-weight: 500;
     margin-top: 4px;
+    margin-bottom: 2px;
 }
 
 .read-time{
@@ -462,6 +481,7 @@ i.bx-sun{
      -webkit-box-orient: vertical;
      overflow: hidden;
 }
+
 
 .post-description2{
     font-family: "Plus Jakarta Sans", sans-serif;
@@ -567,6 +587,11 @@ i.bx-sun{
     font-weight: 600;
     font-family: "Plus Jakarta Sans", sans-serif;
 }
+
+a {
+     color: inherit; 
+     text-decoration: underline;
+    } 
 
 .post-text{
     font-size: 1.05rem;
@@ -677,7 +702,69 @@ mark {
     bottom: 0.5rem;
 }
 
+/* Profile */
 
+.profile-box{
+    background: var(--bg-color);
+    box-shadow: 0 4px 14px hsl(355deg 25% 15% / 10%);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 0.8rem;
+}
+
+.about-name{
+    font-size: 1.9rem;
+    font-weight: 800;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    color: var(--text-color);
+    margin-left: 10rem;
+    margin-top: -7rem;
+}
+
+.profile-desc{
+    font-size: 1.1rem;
+    line-height: 2.2rem;
+    margin: 0.9rem 0;
+    text-align: justify;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    text-indent: 25px;
+    margin-left: 8.6rem;
+    margin-top: -0.8rem;
+}
+
+.about-img{
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    margin: 3rem;
+    border: 1.5px solid var(--second-color);
+    scale: 320%;
+}
+
+.about-subtitle{
+    font-size: 1.3rem;
+    font-weight: 800;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    color: var(--text-color);
+    margin-left: 1.8rem;
+    margin-top: 2.2rem;
+}
+
+.about-media{
+    height:13rem;
+    width: 9rem;
+    border-radius: 5%;
+    margin-top: 0rem;
+    margin-left: 2.5rem;
+    box-shadow: 0 4px 14px hsl(355deg 25% 15% / 10%);
+}
+
+.abouts{
+    display: grid;
+    grid-template-columns: 35rem 35rem;
+    justify-content: center;
+    gap:1.5rem;
+}
 /* Responsive */
 @media (max-width: 1060px) {
     .container {
@@ -806,6 +893,9 @@ mark {
     .post-image-content{
         width: 90%;
     }
+    .image-caption{
+        line-height: 1.3rem;
+    }
     .post-header{
         height: 335px;
     }
@@ -829,8 +919,8 @@ mark {
     } 
     .quote-text{
         font-size: 0.92rem;
-        line-height: 2.2rem !important;
         text-align: center;
+        line-height:2.2rem !important;
         font-family: "Plus Jakarta Sans", sans-serif;
         margin: 16px !important;
         font-style: italic;
