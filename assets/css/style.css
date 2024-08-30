@@ -785,6 +785,10 @@ mark {
         text-align: center;
         overflow-wrap: break-word;
     }
+    a {
+        color: inherit; 
+        text-decoration: underline;
+       } 
 }
 
 @media (max-width: 800px) {
@@ -803,6 +807,10 @@ mark {
         text-align: center;
         overflow-wrap: break-word;
     }
+    a {
+        color: inherit; 
+        text-decoration: underline;
+       } 
 }
 
 @media (max-width: 768px) {
@@ -838,6 +846,10 @@ mark {
     .post-content{
         margin-top: 9rem !important;
     }
+    a {
+        color: inherit; 
+        text-decoration: underline;
+       } 
 }
 @media (max-width: 570px){
     .post-header {
@@ -863,6 +875,10 @@ mark {
         padding: 20px 0;
         text-align: center;
     }
+    a {
+        color: inherit; 
+        text-decoration: underline;
+       } 
 
 }
 
@@ -957,6 +973,10 @@ mark {
     .bxs-quote-right{
         font-size: 1.2rem;
     }
+    a {
+        color: inherit; 
+        text-decoration: underline;
+       } 
 }
 
 
