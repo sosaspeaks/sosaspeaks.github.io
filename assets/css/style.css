@@ -879,6 +879,10 @@ mark {
         text-align: center;
         overflow-wrap: break-word;
     }
+    .bx-moon{
+        margin-left: 0rem;
+        margin-right: 10rem;
+    }
 }
 
 @media (max-width: 800px) {
@@ -964,6 +968,12 @@ mark {
     .home-title{
         font-size: 2.7rem;
     }
+    .bx-star{
+        margin-left: 1rem;
+    }
+    .to-top{
+        margin-left: -10rem;
+    }
     .home-subtitle{
         font-size: 1.1rem;
         margin-left: 1.5rem;
@@ -972,11 +982,38 @@ mark {
         text-align: center;
         overflow-wrap: break-word;
     }
+    .about-home{
+    background-size: 90%;
+    background-position-x: -20rem;
+    }
     .home{
         min-height: 300px;
     }
     .post-box{
         padding: 10px;
+    }
+    .abouts{
+        display: grid;
+        grid-template-columns: 22rem;
+        justify-content: center;
+        gap:1.5rem;
+    }
+    .about-img{
+        width: 2rem;
+        height: 2rem;
+        margin-top: 3rem;
+        margin-left: 9.2rem;
+    }
+    .about-name{
+        margin-left: 2rem;
+        margin-top: -1.8rem;
+    }
+    .profile-desc{
+        width: 17.5rem;
+        line-height: 1.8rem;
+        margin-top: -0.6rem;
+        margin-left: 2rem;
+        margin-right: 0rem;
     }
     .header-title{
         font-size: 1.4rem;
