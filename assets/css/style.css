@@ -282,20 +282,14 @@ i.bx{
 
 i.bx-moon{
     color: var(--bg-color);
-    margin-right: 1rem;
+    margin-right: 0.5rem;
     transition: 0.3s;
-    position:fixed;
-    right: 6rem;
 }
 
 .bx-star{
     color: var(--bg-color);
-    margin-left: 48rem;
     transition: 0.3s;
     text-decoration: none !important;
-    position:fixed;
-    right: 10rem;
-   
 }
 
 i.bx-sun{
@@ -422,10 +416,6 @@ i.bx-sun{
     }
     .bx-star{
         color: var(--dark-text-color);
-        margin-left: 48rem;
-        transition: 0.3s;
-        text-decoration: none !important;
-        
     }
     header.shadow .bx-moon{
         color: var(--dark-text-color);
