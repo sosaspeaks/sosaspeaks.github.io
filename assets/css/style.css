@@ -102,23 +102,17 @@ body{
 }
 
 /* Pseudo-classes */
-a:link { 
-    text-decoration: var(--second-color) underline 0.085rem !important; 
-  } 
-  a:visited { 
-    text-decoration: var(--second-color)  underline 0.085rem; 
-  } 
-  a:hover { 
-    text-decoration: var(--second-color)  underline 0.085rem; 
-  } 
-  a:active { 
-    text-decoration: none; 
-  }
-
+a:link a:hover a:visited a:active{
+    color: inherit;
+}
   a.logo{
     text-decoration: none;
   }
   
+  a.bx-star{
+    text-decoration: none;
+  }
+
 
 /* Header */
 header{
@@ -290,7 +284,7 @@ i.bx-moon{
 .bx-star{
     color: var(--bg-color);
     transition: 0.3s;
-    text-decoration: none !important;
+    text-decoration: none;
     margin-left: 48rem;
 }
 
