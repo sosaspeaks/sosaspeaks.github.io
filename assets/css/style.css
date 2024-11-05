@@ -103,8 +103,9 @@ body{
 
 /* Pseudo-classes */
 a:link a:hover a:visited a:active{
-    color: inherit;
+    color: inherit !important;
 }
+
   a.logo{
     text-decoration: none;
   }
