@@ -301,6 +301,10 @@ i.bx-sun{
     padding: 15px;
     border-radius: 0.5rem;
     }
+    a{
+        text-decoration: var(--second-color) underline 0.085rem;
+        color: var(--text-color);
+    }
     .toc-box{
         background:  #1a321a;
     }
