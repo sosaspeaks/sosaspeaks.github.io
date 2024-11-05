@@ -317,6 +317,9 @@ i.bx-sun{
     .toc{
         color: var(--dark-text-color);
     }
+    #toctitle{
+        color: var(--dark-text-color)
+    }
     .bxs-quote-left{
         color: var(--second-color);
     }
@@ -325,9 +328,6 @@ i.bx-sun{
     }
     .post-title{
     color: var(--dark-text-color);
-    }
-    #toctitle{
-        color: var(--container-color);
     }
     .post-date{
     color: var(--dark-text-color);
