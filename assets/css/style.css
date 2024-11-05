@@ -282,9 +282,10 @@ i.bx{
 
 i.bx-moon{
     color: var(--bg-color);
-    margin-right: 0.5rem;
+    margin-right: 1rem;
     transition: 0.3s;
-    
+    position:fixed;
+    right: 6rem;
 }
 
 .bx-star{
@@ -292,7 +293,9 @@ i.bx-moon{
     margin-left: 48rem;
     transition: 0.3s;
     text-decoration: none !important;
-    
+    position:fixed;
+    right: 10rem;
+   
 }
 
 i.bx-sun{
@@ -307,6 +310,18 @@ i.bx-sun{
     box-shadow: 0 4px 14px hsla(114, 24%, 84%, 0.1);
     padding: 15px;
     border-radius: 0.5rem;
+    }
+    .toc-box{
+        background:  #1a321a;
+    }
+    .toc{
+        color: var(--dark-text-color);
+    }
+    .bxs-quote-left{
+        color: var(--second-color);
+    }
+    .bxs-quote-right{
+        color: var(--second-color);
     }
     .post-title{
     color: var(--dark-text-color);
@@ -447,6 +462,7 @@ i.bx-sun{
     }
     .post-image-content{
         filter: brightness(80%);
+        box-shadow: 0 4px 14px hsla(114, 24%, 84%, 0.199);
     }
     .loader{
     position: fixed;
@@ -680,7 +696,7 @@ a {
     box-shadow: 0 4px 14px hsl(355deg 25% 15% / 10%);
     align-items: center;
     text-align: center;
-    display: flex;
+    display: block;
     margin-bottom: 3rem;
     margin-top: 2rem;
     width: 37rem;
@@ -879,10 +895,8 @@ mark {
         text-align: center;
         overflow-wrap: break-word;
     }
-    .bx-moon{
-        margin-left: 0rem;
-        margin-right: 10rem;
-    }
+
+
 }
 
 @media (max-width: 800px) {
@@ -941,6 +955,7 @@ mark {
     .post-header {
         height: 390px;
     }
+
     .home-subtitle{
         font-size: 1.1rem;
         margin-left: 1.5rem;
@@ -968,12 +983,6 @@ mark {
     .home-title{
         font-size: 2.7rem;
     }
-    .bx-star{
-        margin-left: 1rem;
-    }
-    .to-top{
-        margin-left: -10rem;
-    }
     .home-subtitle{
         font-size: 1.1rem;
         margin-left: 1.5rem;
@@ -983,7 +992,8 @@ mark {
         overflow-wrap: break-word;
     }
     .about-home{
-    background-size: 90%;
+        min-width: 300px;
+    background-size: 100%;
     background-position-x: -20rem;
     }
     .home{
@@ -997,6 +1007,7 @@ mark {
         grid-template-columns: 22rem;
         justify-content: center;
         gap:1.5rem;
+
     }
     .about-img{
         width: 2rem;
@@ -1088,6 +1099,7 @@ mark {
     .bxs-quote-right{
         font-size: 1.2rem;
     }
+    
 }
 
 
