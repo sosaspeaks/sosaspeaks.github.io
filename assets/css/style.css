@@ -290,6 +290,7 @@ i.bx-moon{
     color: var(--bg-color);
     transition: 0.3s;
     text-decoration: none !important;
+    margin-left: 48rem;
 }
 
 i.bx-sun{
@@ -885,7 +886,33 @@ mark {
         text-align: center;
         overflow-wrap: break-word;
     }
+    .bx-star{
+        margin-left: 35rem
+    }
+    .abouts{
+        display: grid;
+        grid-template-columns: 38rem;
+        justify-content: center;
+        gap:1.5rem;
 
+    }
+    .about-img{
+        width: 2rem;
+        height: 2rem;
+        margin-top: 3rem;
+        margin-left: 6rem;
+    }
+    .about-name{
+        margin-left: 2rem;
+        margin-top: -1.8rem;
+    }
+    .profile-desc{
+        width: 30rem;
+        line-height: 1.8rem;
+        margin-top: -0.6rem;
+        margin-left: 2rem;
+        margin-right: 0rem;
+    }
 
 }
 
@@ -904,6 +931,9 @@ mark {
         margin-top: 0.5rem;
         text-align: center;
         overflow-wrap: break-word;
+    }
+    .bx-star{
+        margin-left: 29rem
     }
 }
 
@@ -936,7 +966,9 @@ mark {
         height: 435px;
     }
 
-
+    .bx-star{
+        margin-left: 28rem
+    }
     .post-content{
         margin-top: 9rem !important;
     }
@@ -965,6 +997,15 @@ mark {
         row-gap: 1rem;
         padding: 20px 0;
         text-align: center;
+    }
+    .bx-star{
+        margin: 0rem;
+    }
+    .bx-moon{
+        margin: 0rem;
+    }
+    .bx-sun{
+        margin-right: 10rem;
     }
 
 }
