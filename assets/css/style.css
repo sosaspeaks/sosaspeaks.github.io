@@ -153,6 +153,7 @@ header.shadow .bx-star{
     align-items: center;
     justify-content: space-between;
     padding: 18px 0;
+    flex-direction: row;
 }
 
 .logo{
@@ -967,7 +968,10 @@ mark {
     }
 
     .bx-star{
-        margin-left: 28rem
+        margin-left: 0rem
+    }
+    .bx-moon{
+        margin-left: -19rem;
     }
     .post-content{
         margin-top: 9rem !important;
@@ -999,7 +1003,8 @@ mark {
         text-align: center;
     }
     .bx-star{
-        margin: 0rem;
+        padding-left:5rem;
+        margin: 0rem !important;
     }
     .bx-moon{
         margin: 0rem;
@@ -1021,6 +1026,10 @@ mark {
         margin-top: 0.5rem;
         text-align: center;
         overflow-wrap: break-word;
+    }
+    .bx-star{
+        padding-left:0rem;
+        margin-left:6rem !important;
     }
     .about-home{
         min-width: 300px;
