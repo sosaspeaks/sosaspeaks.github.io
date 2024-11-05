@@ -70,7 +70,7 @@ html{
 
 
 a{
-    text-decoration: var(--second-color) underline 0.085rem;
+    text-decoration: var(--second-color) underline 0.085rem !important;
 }
 
 li{
@@ -103,7 +103,7 @@ body{
 
 /* Pseudo-classes */
 a:link { 
-    text-decoration: var(--second-color) underline 0.085rem; 
+    text-decoration: var(--second-color) underline 0.085rem !important; 
   } 
   a:visited { 
     text-decoration: var(--second-color)  underline 0.085rem; 
@@ -665,11 +665,6 @@ i.bx-sun{
     font-weight: 600;
     font-family: "Plus Jakarta Sans", sans-serif;
 }
-
-a {
-     color: inherit; 
-     text-decoration: underline;
-    } 
 
 .post-text{
     font-size: 1.05rem;
