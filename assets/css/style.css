@@ -1100,6 +1100,7 @@ mark {
     .profile-desc{
         width: 17.5rem;
         line-height: 1.8rem;
+        margin-bottom: 0rem !important;
         margin-top: -0.6rem;
         margin-left: 2rem;
         margin-right: 0rem;
