@@ -70,9 +70,12 @@ html{
 
 
 a{
-    text-decoration: var(--second-color) underline 0.085rem !important;
+    text-decoration: var(--second-color) underline 0.085rem;
 }
 
+.textdecor{
+    text-decoration: var(--second-color) underline 0.085rem;
+}
 li{
     list-style-type: circle;
 }
@@ -102,15 +105,14 @@ body{
 }
 
 /* Pseudo-classes */
-a:link a:hover a:visited a:active{
-    color: inherit;
-}
   a.logo{
-    text-decoration: none;
+    text-decoration: none !important;
+    color: var(--bg-color);
   }
   
   a.bx-star{
-    text-decoration: none;
+    text-decoration: none !important;
+    color: var(--bg-color);
   }
 
 
@@ -782,13 +784,14 @@ mark {
     border-radius: 0.5rem;
     margin-bottom: 0.8rem;
 }
-
+/* Abouts */
 .abouts{
     display: grid;
     grid-template-columns: 60rem;
     justify-content: center;
     gap:1.5rem;
 }
+
 .about-name{
     font-size: 1.8rem;
     font-weight: 800;
@@ -863,6 +866,41 @@ mark {
     scroll-snap-align: center;
 }
 
+/* Supply */
+.supply{
+    display: grid;
+    grid-template-columns: 20rem 20rem 20rem;
+    justify-content: center;
+    gap:1rem;
+    padding: 4rem;
+}
+
+.supply-hat{
+    display: grid;
+    grid-template-columns: 15rem 15rem 15rem;
+    justify-content: center;
+    gap:7rem;
+    padding: 2rem;
+} 
+
+.supply-image-content{
+    object-fit: cover;
+    object-position: center;
+    box-shadow: 0 2px 10px hsla(125, 76%, 74%, 0.479);
+    margin-left: auto;
+    margin-right: auto;
+    width: 80%;
+    transition: transform .4s; /* Animation */
+}
+
+.supply-image-hat{
+    transform: scale(1.5);
+}
+
+
+.supply-image-content:hover{
+    transform: scale(1.3);
+}
 /* Responsive */
 @media (max-width: 1060px) {
     .container {
