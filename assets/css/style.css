@@ -1,4 +1,5 @@
 /* Google Fonts */
+
 @import url('https://fonts.googleapis.com/css2?family=Jersey+15&family=Noto+Sans+Mono:wght@100..900&family=Odibee+Sans&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
 .jersey-15-regular {
     font-family: "Jersey 15", sans-serif;
@@ -10,6 +11,10 @@
     scroll-padding-top: 2rem;
     box-sizing: border-box;
   }
+  html,body
+{
+    overflow-x: hidden; 
+}
 .odibee-sans-regular {
     font-family: "Odibee Sans", sans-serif;
     font-weight: 400;
@@ -765,6 +770,7 @@ mark {
     background: var(--dark-text-color);
     border: none;
     margin: 1.5rem;
+    margin-right: 1.5rem !important;
     transition: 0.5s ease-out;
 }
 
