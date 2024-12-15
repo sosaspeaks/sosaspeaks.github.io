@@ -13,8 +13,7 @@
   }
   html,body
 {
-    overflow-x: hidden; 
-    height:auto;
+    overflow-x: initial; 
 }
 .odibee-sans-regular {
     font-family: "Odibee Sans", sans-serif;
