@@ -115,7 +115,7 @@ body{
     color: var(--bg-color);
   }
   
-  a.bx-star{
+  a.bxs-group{
     text-decoration: none !important;
     color: var(--bg-color);
   }
@@ -145,7 +145,7 @@ header.shadow .bx-moon{
     color: var(--text-color);
 }
 
-header.shadow .bx-star{
+header.shadow .bxs-group{
     color: var(--text-color);
 }
 
@@ -292,7 +292,7 @@ i.bx-moon{
     transition: 0.3s;
 }
 
-.bx-star{
+.bxs-group{
     color: var(--bg-color);
     transition: 0.3s;
     text-decoration: none;
@@ -428,10 +428,10 @@ i.bx-sun{
     header.shadow .logo{
     color: var(--dark-text-color);
     }
-    header.shadow .bx-star{
+    header.shadow .bxs-group{
         color: var(--dark-text-color);
     }
-    .bx-star{
+    .bxs-group{
         color: var(--dark-text-color);
     }
     header.shadow .bx-moon{
@@ -958,7 +958,7 @@ mark {
         text-align: center;
         overflow-wrap: break-word;
     }
-    .bx-star{
+    .bxs-group{
         margin-left: 35rem
     }
     .abouts{
@@ -1005,7 +1005,7 @@ mark {
         text-align: center;
         overflow-wrap: break-word;
     }
-    .bx-star{
+    .bxs-group{
         margin-left: 29rem
     }
 }
@@ -1039,7 +1039,7 @@ mark {
         height: 435px;
     }
 
-    .bx-star{
+    .bxs-group{
         margin-left: 0rem
     }
     .bx-moon{
@@ -1074,7 +1074,7 @@ mark {
         padding: 20px 0;
         text-align: center;
     }
-    .bx-star{
+    .bxs-group{
         padding-left:5rem;
         margin: 0rem !important;
     }
@@ -1099,7 +1099,7 @@ mark {
         text-align: center;
         overflow-wrap: break-word;
     }
-    .bx-star{
+    .bxs-group{
         padding-left:0rem;
         margin-left:6rem !important;
     }
