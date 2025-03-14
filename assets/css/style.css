@@ -391,6 +391,9 @@ i.bx-sun{
     .read-time{
         color: var(--dark-text-color);
     }
+    .review-rating{
+        color: var(--second-color);
+    }
     .post{
     display: grid;
     grid-template-columns: repeat(auto-fit,minmax(280px,auto));
@@ -559,6 +562,20 @@ i.bx-sun{
     text-transform: lowercase;
     margin-left:5px;
     opacity: 60%;
+}
+
+.review-rating{
+    font-family: "Plus Jakarta Sans", sans-serif;
+    display: flex;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+
+    color: var(--read-time-color);
+    font-weight: 430;
+    text-transform: lowercase;
+    margin-left:5px;
+    opacity: 60%;
+    margin-top:2px
 }
 
 .post-description{
