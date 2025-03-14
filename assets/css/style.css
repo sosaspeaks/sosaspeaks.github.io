@@ -389,7 +389,7 @@ i.bx-sun{
     border-radius: 4px;
     }
     .read-time{
-        color: var(--dark-text-color);
+        color: var(--dark-text-color); 
     }
     .review-rating{
         color: var(--second-color);
