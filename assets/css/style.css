@@ -569,7 +569,6 @@ i.bx-sun{
     display: flex;
     font-size: 0.8rem;
     text-transform: uppercase;
-
     color: var(--read-time-color);
     font-weight: 430;
     text-transform: lowercase;
