@@ -11,10 +11,7 @@
     scroll-padding-top: 2rem;
     box-sizing: border-box;
   }
-  html,body
-{
-    overflow-x: clip; 
-}
+
 .odibee-sans-regular {
     font-family: "Odibee Sans", sans-serif;
     font-weight: 400;
@@ -149,7 +146,7 @@ header.shadow .bxs-group{
     color: var(--text-color);
 }
 
-header.shadow .bx-dna{
+header.shadow .bx-collection{
     color: var(--text-color);
 }
 
@@ -299,7 +296,7 @@ i.bx-moon{
     margin-left: 48rem;
 }
 
-.bx-dna{
+.bx-collection{
     color: var(--bg-color);
     transition: 0.3s;
     text-decoration: none;
@@ -389,7 +386,7 @@ i.bx-sun{
     border-radius: 4px;
     }
     .read-time{
-        color: var(--dark-text-color); 
+        color: var(--dark-text-color);
     }
     .review-rating{
         color: var(--second-color);
@@ -569,6 +566,7 @@ i.bx-sun{
     display: flex;
     font-size: 0.8rem;
     text-transform: uppercase;
+
     color: var(--read-time-color);
     font-weight: 430;
     text-transform: lowercase;
