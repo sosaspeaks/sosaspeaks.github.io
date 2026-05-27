@@ -309,6 +309,13 @@ header.shadow .bxs-group{
     display: none;
 }
 
+.nav-right-group {
+    display: flex;
+    align-items: center;
+    gap: 3rem;
+    margin-right: 0.5rem;
+}
+
 i.bx{
     cursor: pointer;
     transition: 0.4s;
@@ -324,7 +331,6 @@ i.bx-moon{
     color: var(--bg-color);
     transition: 0.3s;
     text-decoration: none;
-    margin-left: 48rem;
 }
 
 .bx-collection{
