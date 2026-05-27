@@ -1,6 +1,6 @@
 /* Google Fonts */
-
 @import url('https://fonts.googleapis.com/css2?family=Jersey+15&family=Noto+Sans+Mono:wght@100..900&family=Odibee+Sans&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
 .jersey-15-regular {
     font-family: "Jersey 15", sans-serif;
     font-weight: 400;
@@ -32,7 +32,7 @@
     scroll-behavior: smooth;
     scroll-padding-top: 2rem;
     box-sizing: border-box;
-  }    
+  }
 .noto-sans-mono {
     font-family: "Noto Sans Mono", monospace;
     font-optical-sizing: auto;
@@ -46,6 +46,11 @@
     scroll-padding-top: 2rem;
     box-sizing: border-box;
   }
+.vt323-regular {
+  font-family: "VT323", monospace;
+  font-weight: 400;
+  font-style: normal;
+}
 
 /* Variables */
 :root{
@@ -57,7 +62,7 @@
     --dark-text-color: #d9eaddd5;
     --dark-filter-color: #86ae83;
     --read-time-color: #319122;
-    
+
 }
 
 ::selection{
@@ -111,7 +116,7 @@ body{
     text-decoration: none !important;
     color: var(--bg-color);
   }
-  
+
   a.bxs-group{
     text-decoration: none !important;
     color: var(--bg-color);
@@ -125,13 +130,33 @@ header{
     left: 0;
     width: 100%;
     z-index: 200;
-    
+    background: transparent;
+    border-bottom: 1px solid transparent;
+    /* Aero frosting entry */
+    transition: background 0.3s ease, backdrop-filter 0.3s ease, border-color 0.3s ease, padding 0.3s ease;
+}
+
+header.shadow .nav {
+    padding: 12px 0;
+    transition: 0.2s;
 }
 
 header.shadow{
     background: var(--bg-color);
     box-shadow:0 1px 4px hsl(0 4% 14% / 10%);
     transition: 0.2s;
+    /* Subtle white sheen background */
+    background: rgba(255, 255, 255, 0.05);
+
+    /* Hardware accelerated glass blur */
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+
+    /* Translucent bottom window divider edge */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+
+    /* OS window shadow */
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
 }
 
 header.shadow .logo{
@@ -146,9 +171,6 @@ header.shadow .bxs-group{
     color: var(--text-color);
 }
 
-header.shadow .bx-collection{
-    color: var(--text-color);
-}
 
 .nav{
     display: flex;
@@ -158,19 +180,14 @@ header.shadow .bx-collection{
     flex-direction: row;
 }
 
-.logo{
-    font-family: "Jersey 15", sans-serif;
-    font-weight: 350;
-    font-size: 2.4rem;
-    color: var(--bg-color);
-    margin-left: 0.5rem;
+.logo-icon{
+    height: 42px;
+    width: auto;
+    display: inline-block;
+    vertical-align: middle;
 }
 
-
-.logo span{
-    color: var(--second-color);
-}
-
+/* Loader */
 .loader{
     position: fixed;
     top: 0;
@@ -209,15 +226,17 @@ header.shadow .bx-collection{
     opacity: 0;
     visibility: hidden;
 }
-    
+
 /* Home */
 .main-home{
     width: 100%;
     min-height: 200px;
-    background-image: url(/assets/images/homepics/homeheader1.jpg);
+    background-image: url(/assets/images/homepics/homeheader4.png);
     display: grid;
     justify-content: center;
-    align-items: center;
+    background-size: 100%;
+    background-position: center;
+    background-repeat: no-repeat;
 }
 
 .about-home{
@@ -245,9 +264,21 @@ header.shadow .bx-collection{
     padding: 0;
 }
 
+.center-logo{
+    display: block;
+    margin: 0  auto 15px auto;
+    max-width: 500px;
+    width: 100%;
+    height: auto;
+}
+
 .home-subtitle{
-    font-weight: 600;
-    font-size: 1.5rem;
+    font-family: "VT323", monospace;
+    font-weight: 400;
+    font-size: 2rem;
+    font-style: italic;
+    text-shadow: 0 0 4px rgba(255, 255, 255, 0.8),
+                 0 0 12px rgba(0, 230, 118, 0.5);
 }
 
 
@@ -377,7 +408,7 @@ i.bx-sun{
     }
     .logo {
     color: var(--dark-text-color)
-    
+
     }
     .active-filter{
     color: var(--dark-bg-color);
@@ -718,7 +749,7 @@ i.bx-sun{
     width: 37rem;
     margin-left: auto;
     margin-right: auto;
- 
+
 }
 .toc{
     font-size: 1.05rem;
@@ -927,7 +958,7 @@ mark {
 .supply-gallery img{
     box-shadow: 0 3px 14px hsla(0, 0%, 0%, 0.078);
 }
- 
+
 .supply-section-name{
     font-size: 4rem;
     color: var(--dark-filter-color);
@@ -948,7 +979,7 @@ mark {
     justify-content: center;
     gap:7rem;
     padding: 2rem;
-} 
+}
 
 .supply-image-hat{
     transform: scale(1.5);
@@ -1025,6 +1056,10 @@ mark {
 }
 
 @media (max-width: 768px) {
+    .main-home {
+        background-size: cover !important;
+        background-position: center !important;
+    }
     .nav {
         padding: 10px 0;
     }
@@ -1062,20 +1097,44 @@ mark {
     .post-content{
         margin-top: 9rem !important;
     }
+        .bxs-group{
+        padding-left:5rem;
+        margin: 0rem !important;
+    }
+    .bx-moon{
+        margin: 0rem;
+    }
+    .bx-sun{
+        margin-right: 10rem;
+    }
 }
-@media (max-width: 570px){
+@media (max-width: 600px){
     .post-header {
         height: 390px;
     }
-
+    .main-home {
+        background-size: cover !important;
+        background-position: center !important;
+    }
     .home-subtitle{
-        font-size: 1.1rem;
-        margin-left: 1.5rem;
-        margin-right: 1.5rem;
-        margin-top: 0.5rem;
+        font-size: 0.9rem !important;
+        line-height: 1.4;
+        width: 90%;
+        margin: 0 auto;
+    }
+    .home-text.container {
+        padding-top: 80px !important;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         text-align: center;
-        overflow-wrap: break-word;
-        }
+    }
+    .center-logo {
+        max-width: 300px;
+        width: 100%;
+        height: auto;
+        margin-bottom: 15px;
+    }
     .header-title{
         width: 100%;
     }
@@ -1182,7 +1241,7 @@ mark {
         margin: 10px 0;
         padding-left: 0.7rem;
         text-indent: -0.7rem;
-    } 
+    }
     .quote-text{
         font-size: 0.92rem;
         text-align: center;
@@ -1219,46 +1278,6 @@ mark {
     }
     .bxs-quote-right{
         font-size: 1.2rem;
-    }
-    .supply-body{
-        display: grid;
-        padding-top: 3.5rem;
-        justify-content: center;
-        align-items: start;
-        grid-template-columns:30rem;
-        gap: 1rem;
-        padding-bottom: 2.5rem;
-        background-color: var(--dark-text-color);
-    }
-    .supply-gallery{
-        display: grid;
-        justify-content: center;
-        align-items:start;
-        grid-template-columns: 10rem 10rem;
-        gap: 0.8rem;
-    }
-    .supply-section-name{
-        font-size: 3rem;
-        color: var(--dark-filter-color);
-        text-align: center;
-        margin: auto;
-        margin-top: 6rem;
-        margin-bottom: 1.5rem;
-        font-family: "Jersey 15", sans-serif;
-        font-weight: 900;
-    }
-    
-    .supply-hat{
-        display: grid;
-        grid-template-columns: 15rem;
-        justify-content: center;
-        gap:3rem;
-        padding: 1rem;
-        padding-top: 4rem;
-    } 
-    
-    .supply-image-hat{
-        transform: scale(1.5);
     }
 }
 
