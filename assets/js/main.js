@@ -46,24 +46,35 @@ window.addEventListener("load", () => {
 //     themeToggleBtn.classList.toggle('bx-sun')});
 
 // check for saved 'darkMode' in localStorage
-let darkMode = localStorage.getItem('darkMode'); 
+let darkMode = localStorage.getItem('darkMode');
 
-const themeToggleBtn = document.querySelector('.theme-toggle');
+const themeToggleBtn = document.querySelector('#theme-button-toggle');
+const themeIconImg = document.querySelector('#theme-icon-img');
 
 const enableDarkMode = () => {
-// 1. Add the class to the body
-document.body.classList.add('dark-mode');
-themeToggleBtn.classList.add('bx-sun');
-// 2. Update darkMode in localStorage
-localStorage.setItem('darkMode', 'enabled');
+    // 1. Add the class to the body
+    document.body.classList.add('dark-mode');
+
+    // 2. SWAP THE ICON TO YOUR CUSTOM SUN PNG
+    if (themeIconImg) {
+        themeIconImg.src = 'assets/images/homepics/vista-sun.ico';
+    }
+
+    // 3. Update darkMode in localStorage
+    localStorage.setItem('darkMode', 'enabled');
 }
 
 const disableDarkMode = () => {
-// 1. Remove the class from the body
-document.body.classList.remove('dark-mode');
-themeToggleBtn.classList.remove('bx-sun');
-// 2. Update darkMode in localStorage 
-localStorage.setItem('darkMode', null);
+    // 1. Remove the class from the body
+    document.body.classList.remove('dark-mode');
+
+    // 2. SWAP THE ICON BACK TO YOUR CUSTOM MOON PNG
+    if (themeIconImg) {
+        themeIconImg.src = 'assets/images/homepics/vista-moon.ico';
+    }
+
+    // 3. Update darkMode in localStorage
+    localStorage.setItem('darkMode', null);
 }
 
 // If the user already visited and enabled darkMode
@@ -75,14 +86,14 @@ enableDarkMode();
 // When someone clicks the button
 themeToggleBtn.addEventListener('click', () => {
 // get their darkMode setting
-darkMode = localStorage.getItem('darkMode'); 
+darkMode = localStorage.getItem('darkMode');
 
 // if it not current enabled, enable it
 if (darkMode !== 'enabled') {
   enableDarkMode();
-// if it has been enabled, turn it off  
-} else {  
-  disableDarkMode(); 
+// if it has been enabled, turn it off
+} else {
+  disableDarkMode();
 }
 });
 
