@@ -301,7 +301,7 @@ header.shadow .bxs-group{
     border-radius: 4px;
 }
 
-/* Aero Filter
+
 button.filter-item {
     font-family: "Plus Jakarta Sans", sans-serif;
     font-size: 0.9rem;
@@ -342,10 +342,10 @@ button.filter-item {
 
     font-weight: 600 !important;
 }
-*/
+
 .active-filter{
     background: var(--second-color);
-    color: var(--bg-color);
+    color: var(--dark-bg-color);
     padding: 4px 10px;
     border-radius: 4px;
 }
@@ -599,9 +599,10 @@ i.bx-sun{
 /* Posts */
 .post{
     display: grid;
-    grid-template-columns: repeat(auto-fit,minmax(280px,auto));
+    grid-template-columns: repeat(auto-fill,minmax(280px,1fr));
     justify-content: center;
     gap:1.5rem;
+    width: 100%;
 }
 
 .post-box{
