@@ -1,23 +1,34 @@
 // Filter Js
-$(document).ready(function(){
-  $('.filter-item').click(function() {
-      const value = $(this).attr('data-filter');
-      if (value == 'all') {
-          $('.post-box').show('1000');
-      }
-      else{
-      $('.post-box')
-          .not("." + value)
-          .hide('1000')
-      $('.post-box')
-      .filter('.' + value)
-      .show('1000');
-      }
-  });
-  // Add active to btn
-  $('.filter-item').click(function(){
-      $(this).addClass('active-filter').siblings().removeClass('active-filter');
-  })
+$(document).ready(function () {
+    const duration = 250;
+
+    $('.filter-item').on('click', function () {
+        const value = $(this).attr('data-filter');
+
+        $('.filter-item').removeClass('active-filter');
+        $(this).addClass('active-filter');
+
+        const postGrid = $('.post');
+
+        postGrid.addClass('is-filtering');
+
+        setTimeout(() => {
+            $('.post-box').each(function () {
+                const box = $(this);
+                const shouldShow = value === 'all' || box.hasClass(value);
+
+                if (shouldShow) {
+                    box.removeClass('is-hidden');
+                } else {
+                    box.addClass('is-hidden');
+                }
+            });
+
+            requestAnimationFrame(() => {
+                postGrid.removeClass('is-filtering');
+            });
+        }, duration);
+    });
 });
 
 //Header Background Change On Scroll
@@ -46,7 +57,7 @@ window.addEventListener("load", () => {
 //     themeToggleBtn.classList.toggle('bx-sun')});
 
 // check for saved 'darkMode' in localStorage
-let darkMode = localStorage.getItem('darkMode'); 
+let darkMode = localStorage.getItem('darkMode');
 
 const themeToggleBtn = document.querySelector('.theme-toggle');
 
@@ -62,7 +73,7 @@ const disableDarkMode = () => {
 // 1. Remove the class from the body
 document.body.classList.remove('dark-mode');
 themeToggleBtn.classList.remove('bx-sun');
-// 2. Update darkMode in localStorage 
+// 2. Update darkMode in localStorage
 localStorage.setItem('darkMode', null);
 }
 
@@ -75,14 +86,14 @@ enableDarkMode();
 // When someone clicks the button
 themeToggleBtn.addEventListener('click', () => {
 // get their darkMode setting
-darkMode = localStorage.getItem('darkMode'); 
+darkMode = localStorage.getItem('darkMode');
 
 // if it not current enabled, enable it
 if (darkMode !== 'enabled') {
   enableDarkMode();
-// if it has been enabled, turn it off  
-} else {  
-  disableDarkMode(); 
+// if it has been enabled, turn it off
+} else {
+  disableDarkMode();
 }
 });
 
