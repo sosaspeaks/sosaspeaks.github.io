@@ -310,20 +310,29 @@ button.filter-item {
     padding: 6px 14px;
     color: var(--text-color) !important;
 
-    background: rgba(255, 255, 255, 0.08) !important;
+    background: rgba(255,255,255,0.55) !important;
     border: 1px solid rgba(255, 255, 255, 0.2) !important;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
 
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    transition: all 0.2s ease;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: all 0.22s ease;
 }
 
 .filter-item:hover {
-    background: rgba(255, 255, 255, 0.25);
-    border-color: rgba(255, 255, 255, 0.45);
-    box-shadow: 0 0 10px rgba(0, 230, 118, 0.35);
-    color: var(--text-color);
+    background: rgba(170, 255, 210, 0.16) !important;
+
+    border-color: rgba(120, 255, 190, 0.7) !important;
+
+    color: #145c34 !important;
+
+    box-shadow:
+        0 0 8px rgba(120,255,190,0.32),
+        0 0 18px rgba(120,255,190,0.18),
+        inset 0 1px 0 rgba(255,255,255,0.45);
+
+    transform: translateY(-1px);
+    transition: all 0.22s ease;
 }
 
 .post-filter .filter-item.active-filter {
@@ -341,13 +350,6 @@ button.filter-item {
         0 0 14px rgba(0, 230, 118, 0.6) !important;
 
     font-weight: 600 !important;
-}
-
-.active-filter{
-    background: var(--second-color);
-    color: var(--dark-bg-color);
-    padding: 4px 10px;
-    border-radius: 4px;
 }
 
 .hide-button {
@@ -370,6 +372,19 @@ i.bx-moon{
     color: var(--bg-color);
     margin-right: 0.5rem;
     transition: 0.3s;
+    transition: transform 0.2s ease;
+    object-fit: contain;
+    filter:
+        drop-shadow(0 0 2px rgba(255,255,255,0.9))
+        drop-shadow(0 0 6px rgba(190,230,255,0.9))
+        drop-shadow(0 0 12px rgba(120,200,255,0.65))
+        drop-shadow(0 0 18px rgba(120,200,255,0.35));
+}
+
+i.bx-up-arrow-alt {
+    color: #06150d;
+    filter:
+        drop-shadow(0 1px 0 rgba(255,255,255,0.6));
 }
 
 .bxs-group{
@@ -385,6 +400,11 @@ i.bx-moon{
     padding: 0;
     display: inline-flex;
     align-items: center;
+
+}
+
+i.bx-moon:hover {
+    transform: scale(1.1);
 }
 
 .nav-custom-icon {
@@ -398,6 +418,18 @@ i.bx-moon{
     transform: scale(1.1);
 }
 
+.msngr-icon {
+    filter:
+        brightness(1.16)
+        saturate(0.58)
+        contrast(1.08)
+        hue-rotate(8deg)
+        drop-shadow(0 0 2px rgba(255,255,255,0.9))
+        drop-shadow(0 0 6px rgba(190,230,255,0.9))
+        drop-shadow(0 0 12px rgba(120,200,255,0.65))
+        drop-shadow(0 0 18px rgba(120,200,255,0.35));
+}
+
 .bx-collection{
     color: var(--bg-color);
     transition: 0.3s;
@@ -406,6 +438,8 @@ i.bx-moon{
 
 i.bx-sun{
     color: var(--dark-text-color);
+    transition: transform 0.2s ease;
+    object-fit: contain;
 }
 
 .dark-mode {
@@ -481,12 +515,6 @@ i.bx-sun{
     color: var(--dark-text-color)
 
     }
-    .active-filter{
-    color: var(--dark-bg-color);
-    background: var(--second-color);
-    padding: 4px 10px;
-    border-radius: 4px;
-    }
     .read-time{
         color: var(--dark-text-color);
     }
@@ -495,7 +523,7 @@ i.bx-sun{
     }
     .post{
     display: grid;
-    grid-template-columns: repeat(auto-fit,minmax(280px,auto));
+    grid-template-columns: repeat(auto-fill,minmax(280px,1fr));
     justify-content: center;
     gap:1.5rem;
     }
@@ -505,7 +533,7 @@ i.bx-sun{
     display: flex;
     justify-content: center;
     align-items: center;
-    column-gap: 1.5rem;
+    column-gap: 12px;
     margin-top: 2rem !important;
     }
     .filter-item{
@@ -513,6 +541,17 @@ i.bx-sun{
     font-weight: 500;
     cursor: pointer;
     }
+    .filter-item:hover {
+    background: rgba(120, 255, 180, 0.12) !important;
+    border-color: rgba(120, 255, 180, 0.35) !important;
+    color: var(--dark-text-color) !important;
+
+    box-shadow:
+        0 0 8px rgba(120, 255, 180, 0.18),
+        inset 0 1px 0 rgba(255,255,255,0.08);
+
+    transition: all 0.2s ease;
+}
     .category{
         font-size: 1.3rem;
         font-family: "Jersey 15", sans-serif;
@@ -610,6 +649,56 @@ i.bx-sun{
     box-shadow: 0 4px 14px hsl(355deg 25% 15% / 10%);
     padding: 15px;
     border-radius: 0.5rem;
+        opacity: 1;
+    transform: translateY(0);
+    transition:
+        opacity 0.28s ease,
+        transform 0.28s ease;
+    will-change: opacity, transform;
+}
+
+
+.post-box.hide-post {
+    opacity: 0;
+    transform: translateY(14px);
+    pointer-events: none;
+    display: none;
+}
+
+.post-box.show-post {
+    opacity: 1;
+    transform: translateY(0);
+    display: block;
+    animation: postFadeSlide 0.28s ease both;
+}
+
+.post {
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.post.is-filtering {
+    opacity: 0;
+    transform: translateY(12px);
+}
+
+.post-box {
+    display: block;
+}
+
+.post-box.is-hidden {
+    display: none;
+}
+
+@keyframes postFadeSlide {
+    from {
+        opacity: 0;
+        transform: translateY(14px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .post-img{
@@ -894,12 +983,28 @@ mark {
     width: 3rem;
     height: 3rem;
     opacity: 0;
-    background: var(--dark-text-color);
-    border: none;
+    background:
+            radial-gradient(circle at 30% 25%,
+            rgba(255,255,255,0.95) 0%,
+            rgba(215,255,235,0.75) 28%,
+            rgba(120,255,190,0.38) 65%,
+            rgba(80,200,150,0.3) 100%
+        );
+    border: 1px solid rgba(255,255,255,0.75);
     margin: 1.5rem;
     margin-right: 1.5rem !important;
     transition: 0.5s ease-out;
+    box-shadow:
+        inset 0 2px 5px rgba(255,255,255,0.9),
+        inset 0 -8px 14px rgba(80,180,130,0.18),
+        0 3px 8px rgba(0,0,0,0.18),
+        0 0 14px rgba(120,255,190,0.35);
+
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+
 }
+
 
 .to-top.active{
     transition: 0.5s ease-in;

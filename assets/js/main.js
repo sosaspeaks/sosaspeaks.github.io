@@ -1,23 +1,34 @@
 // Filter Js
-$(document).ready(function(){
-  $('.filter-item').click(function() {
-      const value = $(this).attr('data-filter');
-      if (value == 'all') {
-          $('.post-box').show('1000');
-      }
-      else{
-      $('.post-box')
-          .not("." + value)
-          .hide('1000')
-      $('.post-box')
-      .filter('.' + value)
-      .show('1000');
-      }
-  });
-  // Add active to btn
-  $('.filter-item').click(function(){
-      $(this).addClass('active-filter').siblings().removeClass('active-filter');
-  })
+$(document).ready(function () {
+    const duration = 250;
+
+    $('.filter-item').on('click', function () {
+        const value = $(this).attr('data-filter');
+
+        $('.filter-item').removeClass('active-filter');
+        $(this).addClass('active-filter');
+
+        const postGrid = $('.post');
+
+        postGrid.addClass('is-filtering');
+
+        setTimeout(() => {
+            $('.post-box').each(function () {
+                const box = $(this);
+                const shouldShow = value === 'all' || box.hasClass(value);
+
+                if (shouldShow) {
+                    box.removeClass('is-hidden');
+                } else {
+                    box.addClass('is-hidden');
+                }
+            });
+
+            requestAnimationFrame(() => {
+                postGrid.removeClass('is-filtering');
+            });
+        }, duration);
+    });
 });
 
 //Header Background Change On Scroll
@@ -48,33 +59,22 @@ window.addEventListener("load", () => {
 // check for saved 'darkMode' in localStorage
 let darkMode = localStorage.getItem('darkMode');
 
-const themeToggleBtn = document.querySelector('#theme-button-toggle');
-const themeIconImg = document.querySelector('#theme-icon-img');
+const themeToggleBtn = document.querySelector('.theme-toggle');
 
 const enableDarkMode = () => {
-    // 1. Add the class to the body
-    document.body.classList.add('dark-mode');
-
-    // 2. SWAP THE ICON TO YOUR CUSTOM SUN PNG
-    if (themeIconImg) {
-        themeIconImg.src = 'assets/images/homepics/vista-sun.ico';
-    }
-
-    // 3. Update darkMode in localStorage
-    localStorage.setItem('darkMode', 'enabled');
+// 1. Add the class to the body
+document.body.classList.add('dark-mode');
+themeToggleBtn.classList.add('bx-sun');
+// 2. Update darkMode in localStorage
+localStorage.setItem('darkMode', 'enabled');
 }
 
 const disableDarkMode = () => {
-    // 1. Remove the class from the body
-    document.body.classList.remove('dark-mode');
-
-    // 2. SWAP THE ICON BACK TO YOUR CUSTOM MOON PNG
-    if (themeIconImg) {
-        themeIconImg.src = 'assets/images/homepics/vista-moon.ico';
-    }
-
-    // 3. Update darkMode in localStorage
-    localStorage.setItem('darkMode', null);
+// 1. Remove the class from the body
+document.body.classList.remove('dark-mode');
+themeToggleBtn.classList.remove('bx-sun');
+// 2. Update darkMode in localStorage
+localStorage.setItem('darkMode', null);
 }
 
 // If the user already visited and enabled darkMode
