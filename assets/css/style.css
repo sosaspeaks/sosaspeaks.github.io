@@ -1080,6 +1080,19 @@ i.bx-sun{
     border-bottom: 1px solid #00aa66;
 }
 
+.post-description2 a {
+    color: #245e43;
+    text-decoration: none;
+    border-bottom: 1px dashed rgba(36, 94, 67, 0.4);
+    transition: all 0.2s ease;
+}
+.post-description2 a:hover {
+    color: #00aa66;
+    border-bottom: 1px solid #00aa66;
+}
+
+
+
 .toc-box {
     background: var(--glass-tint-bg);
     border: 1px solid var(--glass-hover-border);
@@ -1124,6 +1137,36 @@ i.bx-sun{
 .toc a:hover {
     color: rgba(0, 200, 100, 1) !important;
     transform: translateX(4px);
+}
+
+.toc .toc-nested-link {
+    padding-left: 1.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #4a5d54 !important;
+    opacity: 0.75;
+    border-bottom: 1px dashed rgba(0, 230, 118, 0.25);
+    display: inline-block;
+    margin: 0.15rem 0;
+}
+
+.toc .toc-nested-link:hover {
+    color: rgba(0, 200, 100, 1) !important;
+    opacity: 1;
+    border-bottom: 1px solid rgba(0, 200, 100, 1);
+    transform: translateX(4px);
+}
+
+.nested-heading {
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 1.2rem;
+    line-height: 1.7rem;
+    font-weight: 700;
+    color: #2c3a32;
+    margin: 1.75rem 0 0.75rem 0 !important;
+    padding-bottom: 2px;
+    letter-spacing: -0.01em;
+    display: block;
 }
 
 .quote-text {
