@@ -887,13 +887,14 @@ i.bx-sun{
 
 .post-description2{
     font-family: "Plus Jakarta Sans", sans-serif;
-    color: var(--second-color);
-    font-size: 0.9rem;
-    line-height: 1.5rem;
-    margin: 5px 0 10px;
+    color: var(--glass-hover-text-color);
+    font-size: 1rem;
+    line-height: 1.6rem;
+    max-width: 680px;
+    margin: 0 auto 1.5rem auto !important;
     font-style: italic;
     text-align: center;
-     /* To Remain Title In 3 lines */
+     /* Description will display in 3 lines */
      display: -webkit-box;
      -webkit-line-clamp: 3;
      line-clamp: 3;
@@ -974,137 +975,218 @@ i.bx-sun{
 }
 
 /* Post Content */
-.post-header{
+.post-header {
     width: 100%;
-    height: 435px;
-    background: var(--container-color);
+    padding: 3rem 0 3rem 0;
+
+    /* Smoothly blends your soft brand green into absolute transparency */
+    background: linear-gradient(
+        180deg,
+        rgba(176, 255, 221, 0.674) 0%,   /* The subtle light green starting point */
+        rgba(242, 252, 248, 0.2) 65%,  /* Letting it dial back smoothly */
+        transparent 100%               /* Dissolves completely into the page base */
+    );
+    border: none !important;
+    box-shadow: none !important;
 }
 
 .post-container{
-    max-width: 800px;
-    margin: auto;
+    max-width: 760px;
+    margin: 0 auto;
     width: 100%;
+    padding: 0 1.25rem;
+    box-sizing: border-box;
 }
 
-.header-content{
+.header-content {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-top: 4rem !important;
+    margin-top: 2rem !important;
 }
 
-.back-home{
-    color: var(--second-color);
-    font-size: 0.9rem;
+.back-home {
+    color: var(--glass-hover-text-color);
+    font-size: 0.85rem;
     font-family: "Plus Jakarta Sans", sans-serif;
-}
-
-.header-title{
-    width: 90%;
-    font-size: 2.6rem;
-    color: var(--bg-color);
-    text-align: center;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-decoration: none;
+    transition: color 0.2s ease;
     margin-bottom: 1rem;
-    font-family: "Plus Jakarta Sans", sans-serif;
-    font-weight: 900;
+}
+.back-home:hover {
+    color: var(--second-color);
 }
 
-.header-img{
+.header-title {
     width: 100%;
-    height: 420px;
+    font-size: 2.5rem;
+    line-height: 3.2rem;
+    color: #111111;
+    text-align: center;
+    margin: 0 0 0.5rem 0;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-weight: 800;
+}
+
+.header-img {
+    width: 100%;
+    height: 400px;
     object-fit: cover;
     object-position: center;
-    border-radius: 0.5rem;
-    box-shadow: 0 4px 14px hsl(355deg 25% 15% / 10%);
+    border-radius: 0.75rem;
+    padding: 4px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.65) 0%, rgba(200,225,215,0.3) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 12px 32px rgba(10, 40, 25, 0.12),
+                inset 0 1px 1px rgba(255, 255, 255, 0.85);
+    margin-top: 1.5rem;
 }
 
-.post-content{
-    margin-top: 10rem !important;
+.post-content {
+    margin-top: 2rem !important;
 }
 
-.sub-heading{
-    font-size: 1.5rem;
-    line-height: 2.1rem;
-    font-weight: 600;
+.sub-heading {
+    font-size: 1.4rem;
+    line-height: 2rem;
+    font-weight: 800;
     font-family: "Plus Jakarta Sans", sans-serif;
+    color: #111111;
+    margin: 2.5rem 0 1rem 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    padding-bottom: 4px;
 }
 
-.post-text{
-    font-size: 1.05rem;
-    line-height: 2.2rem;
-    margin: 0.9rem 0;
+.post-text {
+    font-size: 1.025rem;
+    line-height: 1.85rem;
+    margin: 1.25rem 0;
     text-align: justify;
     font-family: "Plus Jakarta Sans", sans-serif;
-    text-indent: 25px;
+    color: #222222;
 }
 
-.toc-box{
-    background: var(--dark-text-color);
-    padding: 0.6rem;
-    height: auto;
-    border-radius: 0.5rem;
-    box-shadow: 0 4px 14px hsl(355deg 25% 15% / 10%);
-    align-items: center;
-    text-align: center;
-    display: block;
-    margin-bottom: 3rem;
-    margin-top: 2rem;
-    width: 37rem;
-    margin-left: auto;
-    margin-right: auto;
-
+.post-text a {
+    color: #245e43;
+    text-decoration: none;
+    border-bottom: 1px dashed rgba(36, 94, 67, 0.4);
+    transition: all 0.2s ease;
 }
-.toc{
-    font-size: 1.05rem;
-    line-height: 2.2rem;
-    margin: 1.5rem;
+.post-text a:hover {
+    color: #00aa66;
+    border-bottom: 1px solid #00aa66;
+}
+
+.toc-box {
+    background: var(--glass-tint-bg);
+    border: 1px solid var(--glass-hover-border);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 12px 28px rgba(10, 40, 25, 0.06),
+                inset 0 1px 0px rgba(255, 255, 255, 0.9);
+    max-width: 550px;
+    width: 100%;
+    margin: 2.5rem auto;
+    box-sizing: border-box;
+}
+
+#toctitle {
+    font-size: 1.15rem;
+    font-weight: 800;
+    margin: 0 0 0.75rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #111111;
+}
+
+.toc {
+    font-size: 0.95rem;
+    line-height: 2rem;
+    margin: 0;
     text-align: left;
     font-family: "Plus Jakarta Sans", sans-serif;
-    text-indent: 25px;
+    text-indent: 0;
 }
 
-.quote-text{
-    font-size: 1.1rem;
-    line-height: 3.8rem;
+.toc a {
+    color: #2c3e35 !important;
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-block;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.toc a:hover {
+    color: rgba(0, 200, 100, 1) !important;
+    transform: translateX(4px);
+}
+
+.quote-text {
+    position: relative;
+    font-size: 1.05rem;
+    line-height: 1.75rem;
+    text-align: left;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-style: italic;
+    color: #2b3a32;
+    /* Glass */
+    background: rgba(255, 255, 255, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    padding: 1.5rem 2rem 1.5rem 3.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 15px rgba(10, 40, 25, 0.04),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    margin: 2rem 0 !important;
+}
+
+.bxs-quote-left {
+    position: absolute;
+    top: 1.25rem;
+    left: 1rem;
+    font-size: 1.8rem;
+    color: rgba(0, 230, 118, 0.45);
+    margin: 0;
+}
+
+.bxs-quote-right {
+    display: none;
+}
+
+.image-caption {
+    font-size: 0.75rem;
+    line-height: 1.4rem;
+    font-style: italic;
     text-align: center;
     font-family: "Plus Jakarta Sans", sans-serif;
-    margin: 1rem;
-    font-style: italic;
+    color: #555555;
+    margin: 0.4rem 0 2rem 0 !important;
 }
 
-.bxs-quote-left{
-    font-size: 2.1rem;
-    color: var(--text-color);
-    margin-right: 2rem;
+.post-image-wrapper {
+    position: relative;
+    width: 100%;
+    margin: 2rem 0 0.5rem 0;
+    padding: 3px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(200,225,215,0.2) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 0.6rem;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.07),
+                inset 0 1px 1px rgba(255, 255, 255, 0.85);
 }
 
-mark {
-    background-color: var(--second-color);
-}
-
-.bxs-quote-right{
-    font-size: 2.1rem;
-    color: var(--text-color);
-    margin-left: 2rem;
-}
-
-.image-caption{
-    font-size: 0.6rem;
-    line-height: 1.7rem;
-    font-style: italic;
-    text-align: center;
-    font-family: "Plus Jakarta Sans", sans-serif;
-    color: var(--container-color);
-}
-
-.post-image-content{
-    object-fit: cover;
-    object-position: center;
-    box-shadow: 0 4px 14px hsl(355deg 25% 15% / 10%);
+.post-image-content {
     display: block;
-    margin-left: auto;
-    margin-right: auto;
-    width: 73%;
+    width: 100%;
+    height: auto;
+    max-height: 480px;
+    object-fit: cover;
+    border-radius: 0.4rem;
+    border: 1px solid rgba(0, 0, 0, 0.12);
 }
 
 .source{
