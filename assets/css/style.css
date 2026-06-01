@@ -56,7 +56,7 @@
 :root{
     --container-color: #1a1e21;
     --second-color:  #98c994;
-    --text-color: #11301c;
+    --text-color: #141715;
     --bg-color: #fff;
     --dark-bg-color: #101113;
     --dark-text-color: #d9eaddd5;
@@ -78,7 +78,7 @@
     --glass-bg: rgba(255, 255, 255, 0.55);
     --glass-border: 1px solid rgba(255, 255, 255, 0.2);
     --glass-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
-    --glass-tint-bg: rgba(170, 255, 210, 0.16);
+    --glass-tint-bg: rgba(170, 255, 210, 0.073);
     --glass-complex-bg:
         linear-gradient(#fff 0 0) 0 0/8px 20px,
         linear-gradient(#fff 0 0) 100% 0/8px 20px,
@@ -749,11 +749,29 @@ i.bx-sun{
 
 .post-img{
     width: 100%;
-    height: 200px;
+    height: 100%;
     object-fit: cover;
     object-position: center;
     border-radius: 0.5rem;
 }
+
+.img-wrapper {
+    position: relative;
+    overflow: hidden;
+    border-radius: 0.5rem;
+    width: 100%;
+    height: 200px;
+    z-index: 1;
+}
+
+.img-wrapper .post-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block; /* Removes any baseline inline spacing issues */
+}
+
 
 .category{
     font-size: 1.2rem;
@@ -855,16 +873,54 @@ i.bx-sun{
 .profile{
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+    margin-top: 12px;
+    padding-top: 8px;
+}
+
+.profile-img-frame {
+    position: relative;
+    width: 38px;
+    height: 38px;
+    border-radius: 6px;
+    padding: 2px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.65) 0%, rgba(200,225,215,0.4) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 2px 5px rgba(10, 35, 20, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.profile-img-frame .aero-glare {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.55) 0%,
+        rgba(255, 255, 255, 0.1) 100%
+    );
+    border-radius: 4px 4px 0 0;
+    pointer-events: none;
+    overflow: hidden;
+    display: block;
+    box-sizing: border-box;
 }
 
 .profile-img{
-    width: 35px;
-    height: 35px;
-    border-radius: 50%;
+    width: 100%;
+    height: 100%;
+    border-radius: 4px;
     object-fit: cover;
     object-position: center;
-    border: 2px solid var(--second-color);
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    box-sizing: border-box;
+    display: block;
 }
 
 .profile-name{
