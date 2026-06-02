@@ -557,6 +557,10 @@ i.bx-sun{
                 inset 0 1px 1px rgba(255, 255, 255, 0.2) !important;
 }
 
+.dark-mode .about-media {
+    scrollbar-color: rgba(255, 255, 255, 0.2) rgba(255, 255, 255, 0.02) !important;
+}
+
 .dark-mode .profile-socials a {
     color: var(--dark-text-color) !important;
     opacity: 0.8;
@@ -1503,6 +1507,9 @@ i.bx-sun{
     max-width: 100%;
     scroll-snap-type: x mandatory;
     scrollbar-width: thin;
+    scrollbar-color: rgba(0, 230, 118, 0.25) rgba(0, 40, 25, 0.03);
+    perspective: 1000px;
+    perspective-origin: center;
 }
 
 .about-media-img {
@@ -1533,313 +1540,163 @@ i.bx-sun{
 }
 
 /* Responsive / Different display sizes */
+
+/* Tablet View */
 @media (max-width: 1060px) {
-    .container {
+    .container,
+    .post-container {
+        width: 92%;
         margin: 0 auto;
-        width: 95%;
-    }
-    .home-text{
-        width: 100%;
-    }
-    .home-subtitle{
-        font-size: 1.5rem;
-        margin-left: 1.5rem;
-        margin-right: 1.5rem;
-        margin-top: 0.5rem;
-        text-align: center;
-        overflow-wrap: break-word;
-    }
-    .bxs-group{
-        margin-left: 35rem
-    }
-    .abouts{
-        display: grid;
-        grid-template-columns: 38rem;
-        justify-content: center;
-        gap:1.5rem;
-
-    }
-    .about-img{
-        width: 2rem;
-        height: 2rem;
-        margin-top: 3rem;
-        margin-left: 6rem;
-    }
-    .about-name{
-        margin-left: 2rem;
-        margin-top: -1.8rem;
-    }
-    .profile-desc{
-        width: 30rem;
-        line-height: 1.8rem;
-        margin-bottom: 0rem !important;
-        margin-top: -0.6rem;
-        margin-left: 2rem;
-        margin-right: 0rem;
     }
 
-}
-
-@media (max-width: 800px) {
-    .nav {
-        padding: 14px 0;
-    }
-    .post-container{
-        margin: 0 auto;
-        width: 95%;
-    }
-    .home-subtitle{
-        font-size: 1.1rem;
-        margin-left: 1.5rem;
-        margin-right: 1.5rem;
-        margin-top: 0.5rem;
-        text-align: center;
-        overflow-wrap: break-word;
-    }
-    .bxs-group{
-        margin-left: 29rem
+    .abouts {
+        max-width: 100%;
+        padding: 0 1rem;
     }
 }
 
+/* Smartphone / Small Tablet View*/
 @media (max-width: 768px) {
-    .main-home {
-        background-size: cover !important;
-        background-position: center !important;
+    section {
+        padding: 1.5rem 0;
     }
-    .nav {
-        padding: 10px 0;
+    .home-title {
+        font-size: 2.6rem;
     }
-    section{
-        padding: 2rem 0;
-    }
-    .header-content{
-        margin-top: 3rem !important;
-    }
-    .home{
-        min-height: 380px;
-    }
-    .home-title{
-        font-size: 3rem;
-    }
-
-    .header-title{
+    .header-title {
         font-size: 2rem;
-    }
-
-    .header-img{
-        height: 370px;
-    }
-
-    .post-header{
-        height: 435px;
-    }
-
-    .bxs-group{
-        margin-left: 0rem
-    }
-    .bx-moon{
-        margin-left: -19rem;
-    }
-    .post-content{
-        margin-top: 9rem !important;
-    }
-        .bxs-group{
-        padding-left:5rem;
-        margin: 0rem !important;
-    }
-    .bx-moon{
-        margin: 0rem;
-    }
-    .bx-sun{
-        margin-right: 10rem;
-    }
-}
-@media (max-width: 600px){
-    .post-header {
-        height: 390px;
+        line-height: 2.6rem;
+        padding: 0 0.5rem;
     }
     .main-home {
+        height: auto !important;
+        min-height: 200px !important;
+        padding: 85px 0 35px 0 !important;
         background-size: cover !important;
-        background-position: center !important;
+        background-position: center center !important;
     }
-    .home-subtitle{
-        font-size: 0.9rem !important;
-        line-height: 1.4;
-        width: 90%;
-        margin: 0 auto;
+    .home-subtitle {
+        font-size: 1.5rem !important;
+        width: 85% !important;
+        margin: 0 auto !important;
+        line-height: 1.4 !important;
     }
     .home-text.container {
-        padding-top: 80px !important;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
+        padding-top: 0 !important;
+        margin-top: 0 !important;
+    }
+    .header-img {
+        height: 320px;
+    }
+    .nav-right-group {
+        gap: 15px;
+    }
+    .profile-box {
+        grid-template-columns: 1fr;
+        justify-items: center;
         text-align: center;
+        row-gap: 0.75rem;
+        padding: 1.25rem;
+    }
+
+    .profile-box .about-img {
+        grid-column: 1;
+        grid-row: auto;
+        margin: 0 auto 0.5rem auto !important;
+    }
+    .profile-box > h2,
+    .profile-box > .profile-socials,
+    .profile-box > p,
+    .profile-box > h3,
+    .profile-box > .about-media {
+        grid-column: 1;
+    }
+    .post-filter {
+        flex-wrap: wrap;
+        row-gap: 12px;
+        column-gap: 8px;
+        padding: 0 10px;
+    }
+    .filter-item {
+        padding: 6px 12px;
+        text-align: center;
+        white-space: nowrap;
+    }
+    .about-name {
+        justify-content: center;
+    }
+    .profile-socials {
+        justify-content: center;
+        margin: 0 0 0.5rem 0 !important;
+    }
+    .profile-desc {
+        padding-right: 0;
+    }
+}
+/* Smartphone/portrait view */
+@media (max-width: 600px) {
+    .home-title {
+        font-size: 2.2rem;
+    }
+    .header-img {
+        height: 260px;
+    }
+    .main-home {
+        padding: 75px 0 25px 0 !important;
     }
     .center-logo {
-        max-width: 300px;
+        max-width: 280px !important;
+        width: 80% !important;
+        height: auto !important;
+    }
+    .home-subtitle {
+        font-size: 1.2rem !important;
+        line-height: 1.4 !important;
+        width: 90% !important;
+    }
+    .home-text.container {
+        padding-top: 0 !important;
+        margin-top: 0 !important;
+    }
+    .toc-box {
         width: 100%;
-        height: auto;
-        margin-bottom: 15px;
+        padding: 1.25rem;
+        margin: 2rem 0;
     }
-    .header-title{
-        width: 100%;
+    .toc {
+        font-size: 0.9rem;
+        line-height: 1.8rem;
     }
-    .header-img{
-        height: 340px;
-    }
-    .footer{
-        flex-direction: column;
-        row-gap: 1rem;
-        padding: 20px 0;
-        text-align: center;
-    }
-    .bxs-group{
-        padding-left:5rem;
-        margin: 0rem !important;
-    }
-    .bx-moon{
-        margin: 0rem;
-    }
-    .bx-sun{
-        margin-right: 10rem;
-    }
-
 }
 
-@media (max-width: 396px){
-    .home-title{
-        font-size: 2.7rem;
+/* Ultra compact phone/mobile view */
+@media (max-width: 400px) {
+    .home-title {
+        font-size: 1.9rem;
     }
-    .home-subtitle{
-        font-size: 1.1rem;
-        margin-left: 1.5rem;
-        margin-right: 1.5rem;
-        margin-top: 0.5rem;
-        text-align: center;
-        overflow-wrap: break-word;
+    .header-title {
+        font-size: 1.5rem;
+        line-height: 2rem;
     }
-    .bxs-group{
-        padding-left:0rem;
-        margin-left:6rem !important;
+    .post-description2 {
+        font-size: 0.9rem;
+        line-height: 1.4rem;
     }
-    .home{
-        min-height: 300px;
-    }
-    .post-box{
-        padding: 10px;
-    }
-    .abouts{
-        display: grid;
-        grid-template-columns: 22rem;
-        justify-content: center;
-        gap:1.5rem;
-
-    }
-    .about-img{
-        width: 2rem;
-        height: 2rem;
-        margin-top: 3rem;
-        margin-left: 9.2rem;
-    }
-    .about-name{
-        margin-left: 2rem;
-        margin-top: -1.8rem;
-    }
-    .profile-desc{
-        width: 17.5rem;
-        line-height: 1.8rem;
-        margin-top: -0.6rem;
-        margin-left: 2rem;
-        margin-right: 0rem;
-    }
-    .header-title{
-        font-size: 1.4rem;
-    }
-    .post-description2{
-        margin: 0.3rem 0.55rem;
-    }
-    .header-img{
-        height: 240px;
-    }
-    .post-image-content{
-        width: 90%;
-    }
-    .image-caption{
-        line-height: 1.3rem;
-    }
-    .post-header{
-        height: 335px;
-    }
-    .post-content{
-        margin-top: 5rem !important;
+    .header-img {
+        height: 200px;
     }
     .post-text {
-        font-size: 0.875rem;
-        line-height: 2rem;
-        margin: 14px 0.5rem;
+        font-size: 0.95rem;
+        line-height: 1.7rem;
     }
-    .sub-heading{
-        margin-left: 0.3rem;
+    .quote-text {
+        font-size: 0.95rem;
+        line-height: 1.6rem;
+        padding: 1.25rem 1rem 1.25rem 2.5rem;
     }
-    .source {
-        font-size: 0.8rem;
-        line-height: 1.0rem;
-        margin: 10px 0;
-        padding-left: 0.7rem;
-        text-indent: -0.7rem;
+    .quote-text .bxs-quote-left {
+        font-size: 1.3rem;
+        top: 1rem;
+        left: 0.75rem;
     }
-    .quote-text{
-        font-size: 0.92rem;
-        text-align: center;
-        line-height:2.2rem !important;
-        font-family: "Plus Jakarta Sans", sans-serif;
-        margin: 16px !important;
-        font-style: italic;
-    }
-    .toc-box{
-        background: var(--dark-text-color);
-        padding: 0.6rem;
-        height: auto;
-        border-radius: 0.5rem;
-        box-shadow: 0 4px 14px hsl(355deg 25% 15% / 10%);
-        align-items: center;
-        text-align: center;
-        display: block;
-        margin-bottom: 3rem;
-        margin-top: 2rem;
-        width: 20rem;
-        margin-left: auto;
-        margin-right: auto;
-    }
-    .toc{
-        font-size: 1rem;
-        line-height: 2.2rem;
-        margin: 1.5rem;
-        text-align: left;
-        font-family: "Plus Jakarta Sans", sans-serif;
-        text-indent: 25px;
-    }
-    .bxs-quote-left{
-        font-size: 1.2rem;
-    }
-    .bxs-quote-right{
-        font-size: 1.2rem;
-    }
-}
-
-
-label {
-    font-size: 1.05rem;
-    line-height: 1rem;
-    margin: 1rem;
-    text-align: justify;
-    font-family: "Plus Jakarta Sans", sans-serif;
-    text-indent: 25px;
-}
-
-form{
-    align-items: center;
-    text-align: center;
-    margin-top: 15rem;
-    margin-bottom: 15rem;
 }
