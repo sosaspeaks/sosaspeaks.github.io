@@ -484,6 +484,11 @@ i.bx-sun{
     background: var(--dark-bg-color);
 }
 
+.dark-mode .author-avatar-column .profile-img-frame {
+    border-color: rgba(255, 255, 255, 0.15) !important;
+    background: #141916 !important;
+}
+
 .dark-mode .post {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -1133,6 +1138,206 @@ i.bx-sun{
     font-weight: 800;
 }
 
+/* Post Metadata */
+.article-metadata-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 18px;
+    margin: 1.2rem 0 1.8rem 0;
+    width: fit-content;
+    padding: 6px 14px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.article-metadata-row:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 4px 15px rgba(10, 35, 20, 0.04),
+                inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.author-avatar-column .profile-img-frame {
+    width: 38px;
+    height: 38px;
+    border-radius: 6px;
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow: 0 2px 6px rgba(10, 35, 20, 0.1),
+                inset 0 1px 1px rgba(255, 255, 255, 0.9);
+    overflow: hidden;
+    background: #fff;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.author-avatar-column .aero-glare {
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 200%;
+    height: 100%;
+    background: linear-gradient(
+        120deg,
+        rgba(255, 255, 255, 0) 30%,
+        rgba(255, 255, 255, 0.6) 40%,
+        rgba(255, 255, 255, 0.6) 45%,
+        rgba(255, 255, 255, 0) 55%
+    );
+    z-index: 3;
+    pointer-events: none;
+    transition: left 0.6s ease;
+}
+
+.article-metadata-row:hover .profile-img-frame {
+    transform: scale(1.04);
+}
+
+.avatar-cluster {
+    /* Multiple Authors */
+    display: flex;
+    align-items: center;
+}
+
+.author-avatar-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.post-author-tile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.author-avatar-column .profile-img-frame {
+    width: 38px;
+    height: 38px;
+    border-radius: 6px;
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow: 0 2px 6px rgba(10, 35, 20, 0.1),
+                inset 0 1px 1px rgba(255, 255, 255, 0.9);
+    overflow: hidden;
+    background: #fff;
+}
+
+.author-avatar-column .aero-glare {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.1) 100%);
+    z-index: 2;
+    pointer-events: none;
+}
+
+.author-avatar-column .profile-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 4px;
+    display: block;
+}
+
+.post-author-tile .author-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.post-author-tile .author-label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #607066;
+    font-weight: 600;
+    font-family: "Plus Jakarta Sans", sans-serif;
+}
+
+.post-author-tile .profile-name {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-color);
+    line-height: 1.2;
+    font-family: "Plus Jakarta Sans", sans-serif;
+}
+
+.metadata-divider {
+    width: 1px;
+    height: 34px;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.metadata-details-column {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.metadata-details-column .category-group {
+    margin-top: 0;
+    margin-bottom: 0;
+    display: flex;
+    gap: 7px;
+    flex-wrap: wrap;
+}
+
+.metadata-details-column .category {
+    font-size: 0.75rem;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    color: var(--text-color);
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow: 0 1px 3px rgba(10, 35, 20, 0.08),
+                inset 0 1px 0px rgba(255, 255, 255, 0.9);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+}
+
+.metadata-details-column .category {
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.1), box-shadow 0.2s ease;
+}
+
+/* Give the index tags an extra floating dimension on row hover */
+.article-metadata-row:hover .category {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(10, 35, 20, 0.12),
+                inset 0 1px 0px rgba(255, 255, 255, 0.9);
+}
+
+/* Stagger the tag lift slightly if there are two categories */
+.article-metadata-row:hover .category:nth-child(2) {
+    transition-delay: 0.04s;
+}
+
+.metadata-details-column .read-time {
+    font-size: 0.78rem;
+    color: var(--text-color);
+    font-weight: 600;
+    opacity: 0.75;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    display: flex;
+    align-items: center;
+}
+
+.metadata-details-column .read-time i {
+    font-size: 0.88rem;
+    margin-right: 3px;
+}
+
+
 .header-img {
     width: 100%;
     height: 400px;
@@ -1674,6 +1879,35 @@ i.bx-sun{
     .toc {
         font-size: 0.9rem;
         line-height: 1.8rem;
+    }
+    .article-metadata-row {
+        width: 100%;
+        max-width: 100%;
+        flex-direction: row;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 12px;
+        padding: 4px 6px;
+    }
+    .author-avatar-column {
+        flex-direction: row;
+        gap: 4px;
+    }
+    .author-avatar-column .profile-img-frame {
+        width: 32px;
+        height: 32px;
+    }
+    .metadata-divider {
+        height: 28px;
+        margin: 0 2px;
+        opacity: 0.7;
+    }
+    .post-author-tile .profile-name {
+        font-size: 0.82rem;
+    }
+    .metadata-details-column .category-group .category {
+        font-size: 0.7rem;
+        padding: 2px 6px;
     }
 }
 
