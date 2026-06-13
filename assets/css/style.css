@@ -1494,6 +1494,27 @@ i.bx-sun{
     margin: 2rem 0 !important;
 }
 
+.quote-attribution {
+    display: block;
+    text-align: right;
+    margin-top: 0.85rem;        /* Breathing room below the quote */
+    font-size: 0.85rem;         /* Clean, secondary typography scale */
+    color: rgba(43, 58, 50, 0.7); /* Deep moss color dialed back for premium look */
+}
+
+.quote-author {
+    font-style: normal;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+/* The Source Work styling */
+.quote-source {
+    font-style: italic;         /* Correct editorial styling for book/essay titles */
+    font-weight: 400;           /* Lighter font weight to contrast against the author */
+    opacity: 0.85;              /* Extra visual layer to separate it from the name */
+}
+
 .bxs-quote-left {
     position: absolute;
     top: 1.25rem;
