@@ -1019,7 +1019,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     if (previewImg) previewImg.src = item.cover_url || "placeholder.png";
     document.getElementById("logGenres").value = (item.genres || []).join(", ");
     document.getElementById("logDescriptors").value = (item.descriptors || []).join(", ");
-    document.getElementById("logFavTracks").value = (item.fav_tracks || []).join(", ");
+    document.getElementById("logFavTracks").value = (item.fav_tracks || []).join("; ");
     document.getElementById("logMemo").value = item.memo || "";
     if (trackRatingsList) {
     trackRatingsList.innerHTML = "";
@@ -1085,7 +1085,10 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         descriptors: parseList(document.getElementById("logDescriptors").value),
         cover_url: finalCoverUrl,
         review_url: logReviewUrl && logReviewUrl.value.trim() ? logReviewUrl.value.trim() : null,
-        fav_tracks: parseList(document.getElementById("logFavTracks").value),
+        fav_tracks: (document.getElementById("logFavTracks").value || "")
+          .split(";")
+          .map(s => s.trim())
+          .filter(Boolean),
         memo: document.getElementById("logMemo").value.trim(),
         relisten: isRelistenChecked,
         track_ratings: trackRatings,
