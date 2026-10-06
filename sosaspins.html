@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE-edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SosaSpins</title>
+    <meta name="description" content="“How it is we have so much information, but know so little?”">
+    <link rel="icon" type="favicon" href="/assets/images/homepics/Sosa-Icon-V3.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/images/homepics/apple-touch-icon.png?v=20260527" />
+    <meta name="apple-mobile-web-app-title" content="SosaSpeaks" />
+    <link rel="manifest" href="/assets/images/homepics/site.webmanifest?v=20260527" />
+    <!-- Link to CSS -->
+    <link rel="stylesheet" href="assets/css/style.css">
+    <!-- Box icons -->
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <!-- Nav -->
+        <div class="nav container">
+            <!-- Logo -->
+            <a href="index.html" class="nav-logo-link">
+                <img src="assets/images/homepics/Sosa-Icon-V3.png" alt="SosaSpeaks Icon" class="logo-icon">
+            </a>
+            <div class="nav-right-group">
+                <button type="button" id="adminTriggerBtn" class="nav-custom-btn" title="Admin Login">
+                    <i class="bx bxs-lock-alt"></i>
+                </button>
+                <a href="about.html" class="nav-custom-link" title="About">
+                    <img src="assets/images/homepics/msgsres_1.ico" class="nav-custom-icon msngr-icon" alt="About">
+                </a>
+                <i class='bx bx-moon theme-toggle' style="scale: 155%;" title="Theme"></i>
+            </div>
+        </div>
+    </header>
+    <!-- Header -->
+    <section class="main-home" id="home">
+        <div class="home-text container">
+            <h2 class="home-title">SosaSpins</h2>
+            <span class="home-subtitle">"When Sosa Speaks, <i>we listen</i>."</span>
+        </div>
+    </section>
+    <!-- Filters -->
+    <div class="post-filter container" id="formatFilters">
+    <button type="button" class="filter-item active-filter" data-filter="all">All</button>
+        <button type="button" class="filter-item" data-filter="Album">Albums</button>
+        <button type="button" class="filter-item" data-filter="EP">EPs</button>
+        <button type="button" class="filter-item" data-filter="Single">Singles</button>
+        <button type="button" class="filter-item" data-filter="Mixtape">Mixtapes</button>
+        <button type="button" class="filter-item" data-filter="Music Video">Music Videos</button>
+    </div>
+    <!-- Profiles -->
+    <section class="spins-layout-grid container">
+        <div class="spins-feed-column">
+            <div class="feed-status-bar">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span class="status-heading" id="feedFilterLabel">All Spins</span>
+          <button type="button" id="clearFilterBtn" class="filter-item" style="display: none; padding: 2px 8px; font-size: 0.75rem;">✕ Clear</button>
+        </div>
+        <button type="button" id="composerPrompt" class="filter-item admin-only" style="display: none; font-weight: 600;">
+          <i class="bx bx-plus"></i> Log a Spin
+        </button>
+      </div>
+      <section id="timelineFeed" class="timeline-continuous-sheet">
+        <div style="padding: 2rem; text-align: center; color: var(--text-color); opacity: 0.7;">Loading archive...</div>
+      </section>
+    </div>
+
+    <!-- RIGHT COLUMN: 25% Width Sidebar -->
+    <!-- RIGHT COLUMN: 25% Width Sidebar -->
+    <aside class="spins-sidebar-column">
+      <!-- 1. Search -->
+      <div class="sidebar-card">
+        <h3 class="sidebar-heading">Search</h3>
+        <input type="text" id="searchInput" placeholder="Search spins..." class="sosa-search-input">
+      </div>
+
+      <!-- 2. Genres (First) -->
+      <div class="sidebar-card">
+        <h3 class="sidebar-heading">Top Genres</h3>
+        <div class="category-group" id="genreCloud"></div>
+      </div>
+
+      <!-- 3. Descriptors (Middle) -->
+      <div class="sidebar-card">
+        <h3 class="sidebar-heading">Descriptors</h3>
+        <div class="category-group" id="descriptorCloud"></div>
+      </div>
+
+      <!-- 4. Release Years (Last) -->
+      <div class="sidebar-card">
+        <h3 class="sidebar-heading">Release Years</h3>
+        <div class="category-group" id="yearCloud"></div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- MODAL: Add / Edit Spin -->
+  <div id="modalOverlay" class="sosa-modal-backdrop" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalTitle">Log a Spin</h3>
+        <button type="button" id="closeModalBtn" class="modal-close-btn">&times;</button>
+      </div>
+
+      <form id="spinForm" class="modal-form" autocomplete="off">
+        <div class="modal-top-section">
+          <div class="modal-cover-preview">
+            <img id="previewImg" src="placeholder.png" alt="Preview">
+            <button type="button" id="fetchCoverBtn" class="review-action-btn" style="width: 100%; justify-content: center;">Fetch Art</button>
+          </div>
+
+          <div class="modal-main-inputs">
+            <div class="input-row">
+              <input type="text" id="logArtist" placeholder="Artist" required class="sosa-search-input">
+              <input type="text" id="logTitle" placeholder="Release Title" required class="sosa-search-input">
+            </div>
+
+            <div class="input-row triple">
+              <select id="logType" class="sosa-search-input">
+                <option value="Album">Album</option>
+                <option value="EP">EP</option>
+                <option value="Single">Single</option>
+                <option value="Mixtape">Mixtape</option>
+                <option value="Music Video">Music Video</option>
+              </select>
+              <input type="number" id="logYear" placeholder="Year" class="sosa-search-input">
+              <input type="number" id="logRating" placeholder="Rating (0.5–5.0)" min="0.5" max="5.0" step="0.5" class="sosa-search-input">
+            </div>
+
+            <div class="input-row">
+              <input type="text" id="logDate" placeholder="Date (MM/DD/YY)" class="sosa-search-input">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <label style="display: flex; align-items: center; gap: 4px; font-size: 0.8rem; cursor: pointer;">
+                  <input type="checkbox" id="logRelisten">
+                  <span>Relisten?</span>
+                </label>
+                <input type="number" id="logPrevRating" placeholder="Old Score" min="0.5" max="5.0" step="0.5" class="sosa-search-input" style="display: none; width: 85px;">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cover Carousel -->
+        <div id="artCandidatesContainer" style="display: none; flex-direction: column; gap: 0.35rem; padding: 0.5rem; background: var(--glass-tint-bg); border: 1px solid var(--second-color); border-radius: 6px;">
+          <span style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase;">Select Artwork:</span>
+          <div id="artThumbnailsRow" style="display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 2px;"></div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 0.45rem;">
+          <input type="text" id="logCoverUrl" list="coverPathSuggestions" placeholder="Cover Path / URL" class="sosa-search-input" autocomplete="new-password">
+          <datalist id="coverPathSuggestions"></datalist>
+
+          <input type="text" id="logGenres" placeholder="Genres (comma separated)" class="sosa-search-input">
+          <input type="text" id="logDescriptors" placeholder="Descriptors (comma separated)" class="sosa-search-input">
+          <input type="text" id="logFavTracks" placeholder="Favorite Tracks (comma separated)" class="sosa-search-input">
+          <input type="text" id="logReviewUrl" placeholder="Full Review URL (e.g. reviews/cork_tree.html)" class="sosa-search-input">
+          <textarea id="logMemo" placeholder="Notes & Thoughts..." rows="3" class="sosa-search-input" style="resize: vertical;"></textarea>
+        </div>
+        <!-- Track Ratings Manager -->
+        <div class="modal-form-group">
+        <label style="font-weight: 700; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center;">
+            Track Ratings
+            <button type="button" id="addTrackRatingRowBtn" class="add-track-btn">+ Add Track</button>
+        </label>
+        <div id="trackRatingsList" class="track-ratings-editor-list">
+            <!-- Dynamic rows will inject here -->
+        </div>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(0,0,0,0.1);">
+          <button type="button" id="downloadArtBtn" class="review-action-btn" style="display: none;">⬇ Download Art</button>
+          <button type="submit" class="filter-item active-filter" id="modalSubmitBtn" style="border: none;">Save Spin</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+    </section>
+    <!-- Footer -->
+    <footer class="footer container">
+        <p class="footer-copyright">
+            &#169; SosaSpeaks. All non-quoted material is the original writing of SosaSpeaks and its authors.
+        </p>
+
+        <p class="footer-links">
+            <a href="https://github.com/sosaspeaks/sosaspeaks.github.io" target="_blank" rel="noopener">
+                <i class='bx bxl-github'></i> Source code via GitHub
+            </a>
+            <span class="footer-divider">&middot;</span>
+            <a href="mailto:sosa@sosaspeaks.org">
+                <i class='bx bx-envelope'></i> sosa@sosaspeaks.org
+            </a>
+        </p>
+    </footer>
+    <!-- Aero Glass Mini-Player Dock -->
+    <div id="miniPlayerDock" class="aero-player-dock" style="display: none;">
+    <div id="miniPlayerBg" class="aero-player-bg"></div>
+    <div class="aero-player-titlebar">
+        <div class="aero-now-playing-indicator">
+        <span class="aero-equalizer-bars">
+            <span></span><span></span><span></span>
+        </span>
+        <span class="aero-status-text">NOW PLAYING</span>
+        </div>
+        <button type="button" class="aero-player-close" onclick="closeMiniPlayer()" title="Close Player">✕</button>
+    </div>
+
+    <div class="aero-player-meta">
+        <div id="miniPlayerTrack" class="aero-meta-track">Track Title</div>
+        <div class="aero-meta-sub">
+        <span id="miniPlayerArtist" class="aero-meta-artist">Artist</span>
+        <span class="aero-meta-sep">•</span>
+        <span id="miniPlayerAlbum" class="aero-meta-album">Album</span>
+        </div>
+    </div>
+
+    <div id="miniPlayerFrameWrap" class="aero-player-frame-wrap"></div>
+    </div>
+    <!-- JQuery Link -->
+    <script
+			  src="https://code.jquery.com/jquery-3.7.1.js"
+			  integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4="
+			  crossorigin="anonymous"></script>
+    <!-- Link to JS -->
+    <button class="to-top"><i class='bx bx-up-arrow-alt' style="scale: 250%;"></i></button>
+    <script src="assets/js/archive.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</body>
+</html>
