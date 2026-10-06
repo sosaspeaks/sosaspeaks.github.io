@@ -11,6 +11,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const yearCloud = document.getElementById("yearCloud");
   const genreCloud = document.getElementById("genreCloud");
   const descriptorCloud = document.getElementById("descriptorCloud");
+  const topArtistsList = document.getElementById("topArtistsList");
 
   // Modal & Composer Controls
   const modalOverlay = document.getElementById("modalOverlay");
@@ -741,6 +742,9 @@ if (addTrackRatingRowBtn && trackRatingsList) {
   // ============================================================
   // SIDEBAR CLOUDS & FILTERS
   // ============================================================
+ // ============================================================
+  // SIDEBAR CLOUDS & FILTERS
+  // ============================================================
   function buildSidebarWidgets(entries) {
     if (!yearCloud || !genreCloud || !descriptorCloud) return;
 
@@ -768,6 +772,57 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     descriptorCloud.innerHTML = sortedDescs.map(([d]) => `
       <span class="category cloud-tag" data-type="descriptor" data-val="${d}" style="cursor: pointer;" onclick="setSidebarFilter('descriptor', '${d}')">${d}</span>
     `).join("");
+
+    // --- Aggregate Top Artists by Average Score ---
+    const topArtistsEl = document.getElementById("topArtistsList");
+    if (topArtistsEl) {
+      const artistStats = {};
+
+      entries.forEach(e => {
+        if (!e.artist || e.rating === null || e.rating === undefined || e.rating === "") return;
+        const name = e.artist.trim();
+        if (!artistStats[name]) {
+          artistStats[name] = { totalRating: 0, count: 0 };
+        }
+        artistStats[name].totalRating += parseFloat(e.rating);
+        artistStats[name].count += 1;
+      });
+
+      // Filter: Prefer artists with >= 2 spins, fallback to >= 1 spin if your catalog is small
+      let qualified = Object.entries(artistStats)
+        .filter(([_, stats]) => stats.count >= 2);
+
+      if (qualified.length === 0) {
+        qualified = Object.entries(artistStats).filter(([_, stats]) => stats.count >= 1);
+      }
+
+      const topArtists = qualified
+        .map(([name, stats]) => ({
+          name,
+          avg: stats.totalRating / stats.count,
+          count: stats.count
+        }))
+        .sort((a, b) => b.avg - a.avg || b.count - a.count)
+        .slice(0, 10);
+
+      if (topArtists.length === 0) {
+        topArtistsEl.innerHTML = `<span style="font-size: 0.75rem; opacity: 0.6; padding: 4px;">No rated artists yet.</span>`;
+      } else {
+        topArtistsEl.innerHTML = topArtists.map((a, idx) => `
+          <div class="top-artist-row cloud-tag" data-type="artist" data-val="${a.name}" onclick="setSidebarFilter('artist', '${a.name.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')">
+            <div class="top-artist-left">
+              <span class="top-artist-rank">${idx + 1}.</span>
+              <span class="top-artist-name">${a.name}</span>
+              <span class="top-artist-spins">(${a.count})</span>
+            </div>
+            <div class="top-artist-right">
+              <span class="top-artist-stars">${getStarString(a.avg)}</span>
+              <span class="top-artist-score">${a.avg.toFixed(1)}</span>
+            </div>
+          </div>
+        `).join("");
+      }
+    }
   }
 
   window.setSidebarFilter = function(type, val) {
@@ -796,8 +851,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     document.querySelectorAll(".cloud-tag").forEach(tag => {
       const match = tag.getAttribute("data-type") === activeFilter.type &&
                     tag.getAttribute("data-val") === String(activeFilter.value);
-      tag.style.background = match ? "var(--second-color)" : "";
-      tag.style.color = match ? "#fff" : "";
+      tag.classList.toggle("active-aero-tag", match);
     });
   }
 
@@ -824,6 +878,9 @@ if (addTrackRatingRowBtn && trackRatingsList) {
                      (i.secondary_genres && i.secondary_genres.includes(activeFilter.value));
       } else if (activeFilter.type === "descriptor") {
         matchesTag = i.descriptors && i.descriptors.includes(activeFilter.value);
+      }
+        else if (activeFilter.type === "artist") {
+        matchesTag = i.artist && i.artist.toLowerCase() === activeFilter.value.toLowerCase();
       }
       return matchesSearch && matchesFormat && matchesTag;
     });

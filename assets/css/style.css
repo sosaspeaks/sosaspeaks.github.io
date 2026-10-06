@@ -1898,6 +1898,135 @@ i.bx-sun{
   background: transparent !important;
 }
 
+.cloud-tag {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+/* Glassy Aero Active / Selected Pill */
+.cloud-tag.active-aero-tag {
+  background: linear-gradient(180deg, #34d399 0%, #059669 100%) !important;
+  color: #ffffff !important;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.65) !important;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.8),    /* Top inner glass glare */
+    inset 0 -1px 2px rgba(0, 0, 0, 0.25),         /* Bottom bevel depth */
+    0 2px 8px rgba(16, 185, 129, 0.45);          /* Ambient Aero aura */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  transform: translateY(-1px);
+}
+
+/* Dark mode tweak */
+body.dark-mode .cloud-tag.active-aero-tag {
+  background: linear-gradient(180deg, #10b981 0%, #047857 100%) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.6),
+    0 2px 10px rgba(52, 211, 153, 0.35);
+}
+
+.top-artists-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.6rem;
+}
+
+.top-artist-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  text-decoration: none;
+}
+
+.top-artist-row:hover {
+  background: var(--glass-tint-bg, rgba(16, 185, 129, 0.08));
+  border-color: rgba(16, 185, 129, 0.3);
+  transform: translateX(3px);
+}
+
+body.dark-mode .top-artist-row {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .top-artist-row:hover {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(52, 211, 153, 0.3);
+}
+
+.top-artist-row.active-aero-tag {
+  background: linear-gradient(180deg, #34d399 0%, #059669 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.7) !important;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.8),
+    0 2px 8px rgba(16, 185, 129, 0.45);
+  transform: translateY(-1px);
+}
+
+.top-artist-row.active-aero-tag .top-artist-name,
+.top-artist-row.active-aero-tag .top-artist-spins,
+.top-artist-row.active-aero-tag .top-artist-stars i,
+.top-artist-row.active-aero-tag .top-artist-score {
+  color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.top-artist-left {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.top-artist-rank {
+  font-family: 'Noto Sans Mono', monospace;
+  font-size: 0.72rem;
+  opacity: 0.5;
+  width: 14px;
+}
+
+.top-artist-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-color, #111);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 135px;
+}
+
+.top-artist-spins {
+  font-size: 0.68rem;
+  opacity: 0.55;
+}
+
+.top-artist-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.top-artist-stars {
+  font-size: 0.75rem;
+  color: #fbbf24;
+}
+
+.top-artist-score {
+  font-family: 'Noto Sans Mono', monospace;
+  font-weight: 700;
+  font-size: 0.76rem;
+  color: #fbbf24;
+}
+
 /* Cover Image Frame */
 .spin-cover-wrap {
   float: left !important;
