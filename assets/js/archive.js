@@ -8,12 +8,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   const SUPABASE_ANON_KEY = "sb_publishable_tgeBo35B4k__uyfMyaxXnA_O5KUKlL7";
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+
+  // Filter widgets
   const yearCloud = document.getElementById("yearCloud");
   const genreCloud = document.getElementById("genreCloud");
   const descriptorCloud = document.getElementById("descriptorCloud");
-  const topArtistsList = document.getElementById("topArtistsList");
+  const ratingCloud = document.getElementById("ratingCloud");
 
-  // Modal & Composer Controls
+  // Modal & composer controls
   const modalOverlay = document.getElementById("modalOverlay");
   const modalTitle = document.getElementById("modalTitle");
   const modalSubmitBtn = document.getElementById("modalSubmitBtn");
@@ -22,7 +24,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const spinForm = document.getElementById("spinForm");
   const adminTriggerBtn = document.getElementById("adminTriggerBtn");
 
-  // Form Inputs
+  // Form inputs
   const fetchCoverBtn = document.getElementById("fetchCoverBtn");
   const previewImg = document.getElementById("previewImg");
   const logCoverUrl = document.getElementById("logCoverUrl");
@@ -475,6 +477,58 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     // Inject the extracted hex via %23 + dynamicHex
     wrap.innerHTML = `<iframe src="https://w.soundcloud.com/player/?url=${encoded}&color=%23${dynamicHex}&auto_play=true&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false"></iframe>`;
   }
+
+  // 4. Direct HTML5 Video (.mp4 / .webm)
+else if (url.match(/\.(mp4|webm)(\?.*)?$/i)) {
+  wrap.innerHTML = `
+    <video src="${url}" controls autoplay style="width:100%; height:100%; border-radius: 6px; background:#000;"></video>
+  `;
+}
+
+// Bandcamp Match
+  else if (url.includes("bandcamp.com/EmbeddedPlayer") || url.includes("bandcamp.com")) {
+    const dynamicHex = await getDominantColorFromImg(coverUrl);
+
+    // Check if user pasted the raw EmbeddedPlayer source URL
+    if (url.includes("EmbeddedPlayer")) {
+      // Inject transparent background and our dynamic Aero accent color
+      let playerSrc = url;
+      if (!playerSrc.includes("transparent=")) playerSrc += "/transparent=true";
+      if (playerSrc.includes("linkcol=")) {
+        playerSrc = playerSrc.replace(/linkcol=[^/&]+/, `linkcol=${dynamicHex}`);
+      } else {
+        playerSrc += `/linkcol=${dynamicHex}`;
+      }
+
+      wrap.innerHTML = `
+        <iframe
+          style="border: 0; width: 100%; height: 120px;"
+          src="${playerSrc}"
+          seamless>
+        </iframe>`;
+    } else {
+      // If a regular bandcamp link is passed, fall back to opening in Bandcamp
+      window.open(url, "_blank");
+      return;
+    }
+  }
+
+  else if (url.includes("vimeo.com")) {
+    const vimeoMatch = url.match(/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+)/);
+    if (vimeoMatch && vimeoMatch[3]) {
+      const vimeoId = vimeoMatch[3];
+      const dynamicHex = await getDominantColorFromImg(coverUrl);
+      wrap.innerHTML = `
+        <iframe
+          src="https://player.vimeo.com/video/${vimeoId}?autoplay=1&color=${dynamicHex}&dnt=1"
+          allow="autoplay; fullscreen; picture-in-picture"
+          allowfullscreen>
+        </iframe>`;
+    } else {
+      window.open(url, "_blank");
+      return;
+    }
+  }
   // 3. Fallback
   else {
     window.open(url, "_blank");
@@ -773,6 +827,35 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       <span class="category cloud-tag" data-type="descriptor" data-val="${d}" style="cursor: pointer;" onclick="setSidebarFilter('descriptor', '${d}')">${d}</span>
     `).join("");
 
+    // --- Rating Counts & Filter Cloud ---
+    if (ratingCloud) {
+      const ratingCounts = {};
+
+      entries.forEach(e => {
+        if (e.rating !== null && e.rating !== undefined && e.rating !== "") {
+          const rKey = Number(e.rating).toFixed(1);
+          ratingCounts[rKey] = (ratingCounts[rKey] || 0) + 1;
+        }
+      });
+
+      // Sort scores descending: 5.0, 4.5, 4.0, etc.
+      const sortedRatings = Object.keys(ratingCounts).sort((a, b) => parseFloat(b) - parseFloat(a));
+
+      if (sortedRatings.length === 0) {
+        ratingCloud.innerHTML = `<span style="font-size: 0.75rem; opacity: 0.6; padding: 4px;">No ratings yet.</span>`;
+      } else {
+        ratingCloud.innerHTML = sortedRatings.map(r => `
+          <div class="rating-filter-row cloud-tag" data-type="rating" data-val="${r}" onclick="setSidebarFilter('rating', '${r}')">
+            <div class="rating-row-left">
+              <span class="rating-row-stars">${getStarString(r)}</span>
+              <span class="rating-row-num">(${r})</span>
+            </div>
+            <span class="rating-row-count">${ratingCounts[r]}</span>
+          </div>
+        `).join("");
+      }
+    }
+
     // --- Aggregate Top Artists by Average Score ---
     const topArtistsEl = document.getElementById("topArtistsList");
     if (topArtistsEl) {
@@ -881,6 +964,9 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       }
         else if (activeFilter.type === "artist") {
         matchesTag = i.artist && i.artist.toLowerCase() === activeFilter.value.toLowerCase();
+      }
+        else if (activeFilter.type === "rating") {
+        matchesTag = i.rating !== null && i.rating !== undefined && Number(i.rating).toFixed(1) === activeFilter.value;
       }
       return matchesSearch && matchesFormat && matchesTag;
     });

@@ -1,4 +1,3 @@
-/* Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Jersey+15&family=Noto+Sans+Mono:wght@100..900&family=Odibee+Sans&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
 .jersey-15-regular {
@@ -52,7 +51,7 @@
   font-style: normal;
 }
 
-/* Variables */
+
 :root{
     --container-color: #1a1e21;
     --second-color:  #98c994;
@@ -62,7 +61,7 @@
     --dark-text-color: #d9eaddd5;
     --dark-filter-color: #86ae83;
     --read-time-color: #319122;
-    /* Aero background gradient */
+
     --bg-gradient: radial-gradient(
         circle at 80% 20%,
         rgba(46, 204, 113, 0.28) 0%,
@@ -172,19 +171,13 @@ body{
     background-color: var(--bg-color)
 }
 
-/* Pseudo-classes */
-  a.logo{
-    text-decoration: none !important;
-    color: var(--bg-color);
-  }
 
-  a.bxs-group{
-    text-decoration: none !important;
-    color: var(--bg-color);
-  }
+  a.logo, a.bxs-group {
+  text-decoration: none !important;
+  color: var(--bg-color);
+}
 
 
-/* Header */
 header{
     position: fixed;
     top: 0;
@@ -193,7 +186,7 @@ header{
     z-index: 200;
     background: transparent;
     border-bottom: 1px solid transparent;
-    /* Aero frosting entry */
+
     transition: background 0.3s ease, backdrop-filter 0.3s ease, border-color 0.3s ease, padding 0.3s ease;
 }
 
@@ -240,7 +233,7 @@ header.shadow .bxs-group{
     filter: var(--aero-glow)
 }
 
-/* Loader */
+
 .loader{
     position: fixed;
     top: 0;
@@ -280,7 +273,7 @@ header.shadow .bxs-group{
     visibility: hidden;
 }
 
-/* Home */
+
 .main-home{
     position: relative;
     width: 100%;
@@ -336,7 +329,7 @@ header.shadow .bxs-group{
 }
 
 
-/* Post filter */
+
 .post-filter{
     font-family: "Plus Jakarta Sans", sans-serif;
     display: flex;
@@ -393,7 +386,7 @@ button.filter-item {
     display: none;
 }
 
-/* Nav/header elements*/
+
 .nav-right-group {
     display: flex;
     align-items: center;
@@ -421,10 +414,10 @@ i.bx-up-arrow-alt {
         drop-shadow(0 1px 0 rgba(255,255,255,0.6));
 }
 
-.bxs-group{
-    color: var(--bg-color);
-    transition: 0.3s;
-    text-decoration: none;
+.bxs-group, .bx-collection {
+  color: var(--bg-color);
+  transition: 0.3s;
+  text-decoration: none;
 }
 
 .nav-custom-btn, #adminTriggerBtn {
@@ -462,13 +455,6 @@ i.bx-moon:hover {
         drop-shadow(0 0 8px rgba(120,200,255,0.32))
         drop-shadow(0 0 12px rgba(120,200,255,0.18));
 }
-
-.bx-collection{
-    color: var(--bg-color);
-    transition: 0.3s;
-    text-decoration: none;
-}
-
 i.bx-sun{
     color: var(--dark-text-color);
     transition: transform 0.2s ease;
@@ -476,7 +462,7 @@ i.bx-sun{
     filter: var(--aero-glow)
 }
 
-/* Dark mode */
+
 
 .dark-mode {
     transition: background 0.4s ease-in-out, color 0.4s ease-in-out;
@@ -529,7 +515,7 @@ i.bx-sun{
     border-bottom: 1px solid #ffffff;
 }
 
-/* Dark mode about page changes */
+
 
 .dark-mode .profile-box {
     background: rgba(20, 25, 22, 0.45) !important;
@@ -575,7 +561,7 @@ i.bx-sun{
     opacity: 1;
 }
 
-/* Dark mode table of contents (toc) changes */
+
 
 .dark-mode .toc-box {
     background: #111613 !important;
@@ -604,7 +590,7 @@ i.bx-sun{
     border-bottom: 1px solid var(--second-color);
 }
 
-/* Dark mode header changes */
+
 
 .dark-mode header.shadow {
     background: var(--dark-bg-color);
@@ -626,7 +612,7 @@ i.bx-sun{
     color: var(--dark-text-color) !important;
 }
 
-/* Dark mode quote changes */
+
 
 .dark-mode .quote-text {
     background: rgba(255, 255, 255, 0.03) !important;
@@ -638,7 +624,7 @@ i.bx-sun{
     color: rgba(255, 255, 255, 0.85) !important;
 }
 
-/* Dark mode image changes */
+
 
 .dark-mode .post-img,
 .dark-mode .about-img,
@@ -653,7 +639,7 @@ i.bx-sun{
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4) !important;
 }
 
-/* Dark mode text changes */
+
 
 .dark-mode .logo,
 .dark-mode .bxs-group,
@@ -683,7 +669,7 @@ i.bx-sun{
     color: var(--second-color);
 }
 
-/* Dark mode footer changes */
+
 .dark-mode .footer-copyright {
     color: rgba(255, 255, 255, 0.5) !important;
 }
@@ -702,7 +688,7 @@ i.bx-sun{
     color: rgba(255, 255, 255, 0.15);
 }
 
-/* Dark mode category and filter changes */
+
 .dark-mode .category {
     background: rgba(255, 255, 255, 0.07) !important;
     border: 1px solid rgba(255, 255, 255, 0.15) !important;
@@ -733,7 +719,7 @@ i.bx-sun{
     border: 1px solid rgba(120, 255, 190, 0.4) !important;
 }
 
-/* Posts */
+
 .post{
     display: grid;
     grid-template-columns: repeat(auto-fill,minmax(280px,1fr));
@@ -878,7 +864,7 @@ i.bx-sun{
     font-weight: 800;
     font-family: "Plus Jakarta Sans", sans-serif;
     color: var(--text-color);
-    /* Keeping post title in two lines */
+
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -887,7 +873,7 @@ i.bx-sun{
 }
 
 .post-title.is-long {
-    /* For longer post titles */
+
     -webkit-line-clamp: 3;
     line-clamp: 3;
 }
@@ -937,7 +923,7 @@ i.bx-sun{
     margin: 5px 0 10px;
     font-style: italic;
     text-align: left;
-    /* Description will display in 3 lines */
+
     display: -webkit-box;
     -webkit-line-clamp: 3;
     line-clamp: 3;
@@ -955,7 +941,7 @@ i.bx-sun{
     margin: 0 auto 1.5rem auto !important;
     font-style: italic;
     text-align: center;
-     /* Description will display in 3 lines */
+
      display: -webkit-box;
      -webkit-line-clamp: 3;
      line-clamp: 3;
@@ -1021,7 +1007,7 @@ i.bx-sun{
     font-size: 0.875rem;
     font-weight: 550;
 }
-/* Footer */
+
 
 .footer {
     display: flex;
@@ -1082,7 +1068,7 @@ i.bx-sun{
     user-select: none;
 }
 
-/* Post Content */
+
 .post-header {
     width: 100%;
     padding: 3rem 0 3rem 0;
@@ -1137,7 +1123,7 @@ i.bx-sun{
     font-weight: 800;
 }
 
-/* Post Metadata */
+
 .article-metadata-row {
     display: flex;
     align-items: center;
@@ -1196,7 +1182,7 @@ i.bx-sun{
 }
 
 .avatar-cluster {
-    /* Multiple Authors */
+
     display: flex;
     align-items: center;
 }
@@ -1309,14 +1295,14 @@ i.bx-sun{
     transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.1), box-shadow 0.2s ease;
 }
 
-/* Give the index tags an extra floating dimension on row hover */
+
 .article-metadata-row:hover .category {
     transform: translateY(-1px);
     box-shadow: 0 3px 6px rgba(10, 35, 20, 0.12),
                 inset 0 1px 0px rgba(255, 255, 255, 0.9);
 }
 
-/* Stagger the tag lift slightly if there are two categories */
+
 .article-metadata-row:hover .category:nth-child(2) {
     transition-delay: 0.04s;
 }
@@ -1375,29 +1361,16 @@ i.bx-sun{
     color: #222222;
 }
 
-.post-text a {
-    color: #245e43;
-    text-decoration: none;
-    border-bottom: 1px dashed rgba(36, 94, 67, 0.4);
-    transition: all 0.2s ease;
+.post-text a, .post-description2 a {
+  color: #245e43;
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(36,94,67,0.4);
+  transition: all 0.2s ease;
 }
-.post-text a:hover {
-    color: #00aa66;
-    border-bottom: 1px solid #00aa66;
+.post-text a:hover, .post-description2 a:hover {
+  color: #00aa66;
+  border-bottom: 1px solid #00aa66;
 }
-
-.post-description2 a {
-    color: #245e43;
-    text-decoration: none;
-    border-bottom: 1px dashed rgba(36, 94, 67, 0.4);
-    transition: all 0.2s ease;
-}
-.post-description2 a:hover {
-    color: #00aa66;
-    border-bottom: 1px solid #00aa66;
-}
-
-
 
 .toc-box {
     background: var(--glass-tint-bg);
@@ -1483,7 +1456,7 @@ i.bx-sun{
     font-family: "Plus Jakarta Sans", sans-serif;
     font-style: italic;
     color: #2b3a32;
-    /* Glass */
+
     background: rgba(255, 255, 255, 0.45);
     border: 1px solid rgba(255, 255, 255, 0.75);
     padding: 1.5rem 2rem 1.5rem 3.5rem;
@@ -1496,9 +1469,9 @@ i.bx-sun{
 .quote-attribution {
     display: block;
     text-align: right;
-    margin-top: 0.85rem;        /* Breathing room below the quote */
-    font-size: 0.85rem;         /* Clean, secondary typography scale */
-    color: rgba(43, 58, 50, 0.7); /* Deep moss color dialed back for premium look */
+    margin-top: 0.85rem;
+    font-size: 0.85rem;
+    color: rgba(43, 58, 50, 0.7);
 }
 
 .quote-author {
@@ -1507,11 +1480,11 @@ i.bx-sun{
     letter-spacing: 0.02em;
 }
 
-/* The Source Work styling */
+
 .quote-source {
-    font-style: italic;         /* Correct editorial styling for book/essay titles */
-    font-weight: 400;           /* Lighter font weight to contrast against the author */
-    opacity: 0.85;              /* Extra visual layer to separate it from the name */
+    font-style: italic;
+    font-weight: 400;
+    opacity: 0.85;
 }
 
 .bxs-quote-left {
@@ -1601,7 +1574,7 @@ i.bx-sun{
     bottom: 0.5rem;
 }
 
-/* About Page */
+
 
 .abouts {
     display: grid;
@@ -1748,7 +1721,7 @@ i.bx-sun{
     scroll-snap-align: start;
     flex-shrink: 0;
     transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.2s ease;
-    /* Default book/film dimension (3:4 ratio) */
+
     width: 110px !important;
     height: 160px !important;
 }
@@ -1769,7 +1742,7 @@ i.bx-sun{
   color: var(--text-color);
   transition: transform 0.25s ease, filter 0.25s ease, color 0.2s ease;
 
-  /* Aero ambient glow matching the header icons */
+
   filter:
     brightness(1.1)
     drop-shadow(0 0 1px rgba(255, 255, 255, 0.8))
@@ -1781,7 +1754,7 @@ i.bx-sun{
   transform: scale(1.12);
   color: var(--second-color);
 
-  /* Intensified luminous glow on hover */
+
   filter:
     brightness(1.2)
     drop-shadow(0 0 2px rgba(255, 255, 255, 0.95))
@@ -1807,9 +1780,7 @@ i.bx-sun{
     drop-shadow(0 0 18px rgba(16, 185, 129, 0.6));
 }
 
-/* ============================================================
-   SosaSpins Layout: 75% / 25% Grid & Unified Journal Sheet
-   ============================================================ */
+
 
 .spins-hero {
   margin-bottom: 1.5rem;
@@ -1817,13 +1788,13 @@ i.bx-sun{
 
 .spins-layout-grid {
   display: grid;
-  grid-template-columns: 1fr 280px; /* Exact 75% / 25% split */
+  grid-template-columns: 1fr 280px;
   gap: 1.5rem;
   align-items: start;
   margin-bottom: 4rem;
 }
 
-/* 75% Left Column */
+
 .spins-feed-column {
   min-width: 0;
 }
@@ -1852,7 +1823,7 @@ i.bx-sun{
   color: var(--dark-text-color);
 }
 
-/* Continuous Connected Journal Sheet (No floating cards) */
+
 .timeline-continuous-sheet {
   background: transparent !important;
   border: none !important;
@@ -1871,7 +1842,7 @@ i.bx-sun{
 
 .timeline-row {
   position: relative !important;
-  display: block !important; /* Block container so float works natively */
+  display: block !important;
   padding: 1.4rem 0.5rem 2.2rem 0.5rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
   background: transparent !important;
@@ -1899,25 +1870,80 @@ i.bx-sun{
 }
 
 .cloud-tag {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 8px;
+  cursor: pointer;
   user-select: none;
+  text-decoration: none;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.82) 0%,
+    rgba(240, 253, 244, 0.65) 100%
+  );
+  color: #064e3b;
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 1),
+    0 2px 5px rgba(5, 150, 105, 0.08);
+
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Glassy Aero Active / Selected Pill */
+.cloud-tag:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(209, 250, 229, 0.85) 100%
+  );
+  border-color: rgba(52, 211, 153, 0.6);
+  color: #047857;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 1),
+    0 3px 8px rgba(16, 185, 129, 0.22);
+  transform: translateY(-1px);
+}
+
+body.dark-mode .cloud-tag {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  color: #d1fae5;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.15),
+    0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .cloud-tag:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(52, 211, 153, 0.22) 0%,
+    rgba(16, 185, 129, 0.1) 100%
+  );
+  border-color: rgba(52, 211, 153, 0.4);
+  color: #ffffff;
+}
+
 .cloud-tag.active-aero-tag {
   background: linear-gradient(180deg, #34d399 0%, #059669 100%) !important;
   color: #ffffff !important;
-  font-weight: 700;
+  font-weight: 600;
   border: 1px solid rgba(255, 255, 255, 0.65) !important;
   box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.8),    /* Top inner glass glare */
-    inset 0 -1px 2px rgba(0, 0, 0, 0.25),         /* Bottom bevel depth */
-    0 2px 8px rgba(16, 185, 129, 0.45);          /* Ambient Aero aura */
+    inset 0 1px 1px rgba(255, 255, 255, 0.8),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.25),
+    0 2px 8px rgba(16, 185, 129, 0.45);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
   transform: translateY(-1px);
 }
 
-/* Dark mode tweak */
+
 body.dark-mode .cloud-tag.active-aero-tag {
   background: linear-gradient(180deg, #10b981 0%, #047857 100%) !important;
   border-color: rgba(255, 255, 255, 0.35) !important;
@@ -1947,28 +1973,26 @@ body.dark-mode .cloud-tag.active-aero-tag {
   text-decoration: none;
 }
 
-.top-artist-row:hover {
+.top-artist-row:hover, .rating-filter-row:hover {
   background: var(--glass-tint-bg, rgba(16, 185, 129, 0.08));
-  border-color: rgba(16, 185, 129, 0.3);
+  border-color: rgba(16,185,129,0.3);
   transform: translateX(3px);
 }
 
-body.dark-mode .top-artist-row {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.08);
+body.dark-mode .top-artist-row, body.dark-mode .rating-filter-row {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.08);
 }
 
-body.dark-mode .top-artist-row:hover {
-  background: rgba(16, 185, 129, 0.15);
-  border-color: rgba(52, 211, 153, 0.3);
+body.dark-mode .top-artist-row:hover, body.dark-mode .rating-filter-row:hover {
+  background: rgba(16,185,129,0.15);
+  border-color: rgba(52,211,153,0.3);
 }
 
-.top-artist-row.active-aero-tag {
-  background: linear-gradient(180deg, #34d399 0%, #059669 100%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.7) !important;
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.8),
-    0 2px 8px rgba(16, 185, 129, 0.45);
+.top-artist-row.active-aero-tag, .rating-filter-row.active-aero-tag {
+  background: linear-gradient(180deg,#34d399 0%,#059669 100%) !important;
+  border: 1px solid rgba(255,255,255,0.7) !important;
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.8),0 2px 8px rgba(16,185,129,0.45);
   transform: translateY(-1px);
 }
 
@@ -2004,6 +2028,12 @@ body.dark-mode .top-artist-row:hover {
   max-width: 135px;
 }
 
+
+body.dark-mode .top-artist-name {
+  color: var(--dark-text-color);
+}
+
+
 .top-artist-spins {
   font-size: 0.68rem;
   opacity: 0.55;
@@ -2027,12 +2057,70 @@ body.dark-mode .top-artist-row:hover {
   color: #fbbf24;
 }
 
-/* Cover Image Frame */
+
+.rating-filter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.rating-filter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 9px;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.rating-filter-row.active-aero-tag .rating-row-stars i,
+.rating-filter-row.active-aero-tag .rating-row-num,
+.rating-filter-row.active-aero-tag .rating-row-count {
+  color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.rating-row-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rating-row-stars {
+  font-size: 0.82rem;
+  color: #fbbf24;
+  display: inline-flex;
+}
+
+.rating-row-num {
+  font-family: 'Noto Sans Mono', monospace;
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: var(--text-color);
+  opacity: 0.85;
+}
+
+body.dark-mode .rating-row-num{
+    color: var(--dark-text-color);
+}
+
+.rating-row-count {
+  font-family: 'Noto Sans Mono', monospace;
+  font-size: 0.72rem;
+  opacity: 0.55;
+}
+
+
 .spin-cover-wrap {
   float: left !important;
   width: 95px;
   height: 95px;
-  margin: 0 1.25rem 0.5rem 0 !important; /* Right margin pushes text; bottom margin leaves breathing room */
+  margin: 0 1.25rem 0.5rem 0 !important;
   border-radius: 8px;
   padding: 2px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(200, 225, 215, 0.4) 100%);
@@ -2053,7 +2141,7 @@ body.dark-mode .top-artist-row:hover {
   display: block;
 }
 
-/* Feed Content Body */
+
 .spin-body {
   display: block !important;
   position: static !important;
@@ -2112,7 +2200,7 @@ body.dark-mode .top-artist-row:hover {
   margin-left: 4px;
 }
 
-/* Rating Shifts */
+
 .rating-shift-box {
   display: inline-flex;
   align-items: center;
@@ -2122,16 +2210,16 @@ body.dark-mode .top-artist-row:hover {
   margin-top: 2px;
 }
 
-/* Ensure all stars inside the transition render at full scale */
+
 .rating-shift-box i.bx {
   font-size: 1.18rem;
   color: #fbbf24;
   filter: drop-shadow(0 1px 2px rgba(245, 158, 11, 0.45));
 }
 
-/* Dim & desaturate the previous rating stars */
+
 .rating-shift-box .old-rating i.bx {
-  opacity: 0.7;
+  opacity: 0.8;
   filter: grayscale(40%);
 }
 
@@ -2146,7 +2234,7 @@ body.dark-mode .top-artist-row:hover {
   color: rgba(255, 255, 255, 0.16);
 }
 
-/* Transition Arrow */
+
 .rating-shift-box .shift-arrow {
   color: var(--second-color);
   font-size: 0.95rem;
@@ -2154,7 +2242,7 @@ body.dark-mode .top-artist-row:hover {
   margin: 0 0.1rem;
 }
 
-/* Numbers inside rating shifts */
+
 .rating-shift-box .spin-rating-num {
   font-family: "Noto Sans Mono", monospace;
   font-size: 0.8rem;
@@ -2180,17 +2268,17 @@ body.dark-mode .top-artist-row:hover {
   margin: 0.2rem 0;
   padding: 0;
   line-height: 1;
-  font-size: 1.18rem; /* Clean, slightly larger star footprint */
+  font-size: 1.18rem;
 }
 
-/* Rich Vibrant Gold Stars with a Warm Amber Drop-Glow */
+
 .spin-star-rating i.bx {
-  color: #fbbf24; /* Warm luminous gold */
+  color: #fbbf24;
   filter: drop-shadow(0 1px 2px rgba(245, 158, 11, 0.45));
   transition: transform 0.15s ease;
 }
 
-/* Empty or Inactive Stars */
+
 .spin-star-rating i.bx-star {
   color: rgba(0, 0, 0, 0.15);
   filter: none;
@@ -2200,7 +2288,7 @@ body.dark-mode .top-artist-row:hover {
   color: rgba(255, 255, 255, 0.16);
 }
 
-/* Star Numerical Score */
+
 .spin-rating-num {
   font-family: "Noto Sans Mono", monospace;
   font-size: 0.8rem;
@@ -2227,7 +2315,7 @@ body.dark-mode .top-artist-row:hover {
 }
 
 .fav-label {
-  font-family: "Plus Jakarta Sans", sans-serif !important; /* Overrides Times New Roman default */
+  font-family: "Plus Jakarta Sans", sans-serif !important;
   font-size: 0.76rem;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -2238,7 +2326,7 @@ body.dark-mode .top-artist-row:hover {
   gap: 4px;
 }
 
-/* Full Review Link Button */
+
 .review-link-wrap {
   margin-top: 0.45rem;
 }
@@ -2300,22 +2388,31 @@ body.dark-mode .top-artist-row:hover {
   color: #ef4444;
 }
 
-/* 25% Right Sidebar */
+
 .spins-sidebar-column {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.35rem;
 }
 
 .sidebar-card {
-  background: var(--glass-tint-bg);
-  border: 1px solid var(--glass-hover-border);
-  box-shadow: 0 12px 28px rgba(10, 40, 25, 0.06),
-              inset 0 1px 0px rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  padding: 1.2rem;
-  border-radius: 0.75rem;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(220, 252, 231, 0.42) 50%,
+    rgba(187, 247, 208, 0.35) 100%
+  );
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 16px;
+  padding: 1.1rem 1.15rem;
+  box-shadow:
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.95),
+    inset 0 -1px 2px rgba(16, 185, 129, 0.08),
+    0 8px 24px -6px rgba(16, 185, 129, 0.12),
+    0 2px 6px rgba(0, 0, 0, 0.03);
+  position: relative;
 }
 
 .dark-mode .sidebar-card {
@@ -2327,9 +2424,34 @@ body.dark-mode .top-artist-row:hover {
   font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 1.2rem;
   font-weight: 800;
-  color: var(--glass-hover-text-color);
   margin: 0 0 0.65rem 0;
   letter-spacing: 0.5px;
+
+
+  background: linear-gradient(
+    180deg,
+    #34d399 0%,
+    #10b981 40%,
+    #059669 80%,
+    #047857 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+
+  filter: drop-shadow(0 0 5px rgba(52, 211, 153, 0.45))
+          drop-shadow(0 1px 0 rgba(255, 255, 255, 0.8));
+}
+
+body.dark-mode .sidebar-heading {
+  background: linear-gradient(
+    180deg,
+    #f0fdf4 0%,
+    #6ee7b7 45%,
+    #34d399 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 10px rgba(52, 211, 153, 0.45));
 }
 
 .sosa-search-input {
@@ -2352,7 +2474,7 @@ body.dark-mode .top-artist-row:hover {
   color: var(--dark-text-color);
 }
 
-/* Modal Window */
+
 .sosa-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -2496,7 +2618,7 @@ body.dark-mode .top-artist-row:hover {
   white-space: nowrap;
   padding-bottom: 2px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+  scrollbar-color: rgba(16, 185, 129, 0.28) transparent;
 }
 
 .genre-container::-webkit-scrollbar {
@@ -2516,21 +2638,22 @@ body.dark-mode .top-artist-row:hover {
   background: rgba(255, 255, 255, 0.15);
 }
 
-/* Allow primary and secondary wraps to sit inline next to each other seamlessly */
+
 .primary-genres-wrap,
 .secondary-genres-wrap {
   display: inline-flex !important;
   flex-wrap: nowrap !important;
   gap: 0.35rem;
   flex-shrink: 0;
+  padding-top: 3px;
 }
 
-/* Prevent genre pills from compressing while scrolling */
+
 .genre-pill {
   flex-shrink: 0;
 }
 
-/* Descriptors now fit snug right below this single genre line, level with the cover */
+
 .descriptors-wrapper {
   display: flex;
   flex-wrap: wrap;
@@ -2555,9 +2678,19 @@ body.dark-mode .top-artist-row:hover {
 }
 
 .genre-pill.genre-primary:hover {
-  background: var(--second-color);
-  color: #ffffff;
-  border-color: var(--second-color);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.65) 0%,
+    rgba(167, 243, 208, 0.45) 50%,
+    rgba(110, 231, 183, 0.35) 100%
+  ) !important;
+  border-color: rgba(52, 211, 153, 0.65) !important;
+  color: #065f46 !important;
+
+
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.95),
+    0 2px 8px rgba(16, 185, 129, 0.22);
   transform: translateY(-1px);
 }
 
@@ -2568,12 +2701,12 @@ body.dark-mode .top-artist-row:hover {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
-.dark-mode .genre-pill.genre-primary:hover {
+.dark-mode .genre-pill.genre-primary:hover, .dark-mode .descriptor-pill:hover {
   color: var(--dark-bg-color);
   background: var(--second-color);
 }
 
-/* Secondary Genres: Italicized, Subtle & Slightly Smaller */
+
 .genre-pill.genre-secondary {
   font-size: 0.71rem;
   font-style: italic;
@@ -2600,7 +2733,7 @@ body.dark-mode .top-artist-row:hover {
   border-color: rgba(255, 255, 255, 0.12);
 }
 
-/* Distinct Favorite Tracks (Song Chips) */
+
 .fav-tracks-row {
   display: flex;
   flex-wrap: wrap;
@@ -2632,7 +2765,7 @@ body.dark-mode .top-artist-row:hover {
   gap: 0.4rem;
 }
 
-/* Song Capsule Badge */
+
 .fav-track-chip {
   font-family: "Noto Sans Mono", monospace;
   font-size: 0.72rem;
@@ -2673,9 +2806,7 @@ body.dark-mode .top-artist-row:hover {
       font-family: "Plus Jakarta Sans", sans-serif;
 }
 
-/* ============================================================
-   Collapsible Track Ratings in Feed
-   ============================================================ */
+
 .track-ratings-wrapper {
   display: block !important;
   width: 100% !important;
@@ -2707,9 +2838,9 @@ font-family: "Plus Jakarta Sans", sans-serif;
   color: var(--glass-hover-text-color);
 }
 
-.dark-mode .track-ratings-toggle-btn {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.08);
+.dark-mode .track-ratings-toggle-btn, .dark-mode .descriptor-pill {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.08);
   color: var(--dark-text-color);
 }
 
@@ -2748,6 +2879,10 @@ font-family: "Plus Jakarta Sans", sans-serif;
   width: 20px;
 }
 
+.dark-mode .track-num {
+  color: var(--dark-text-color);
+}
+
 .track-name {
   font-weight: 600;
   color: var(--text-color);
@@ -2773,7 +2908,7 @@ font-family: "Plus Jakarta Sans", sans-serif;
 .track-name.song-embed-link {
   display: inline-flex;
   align-items: center;
-  gap: 6px; /* Space between the icon and track title */
+  gap: 6px;
 }
 
 .track-name .track-play-icon {
@@ -2782,7 +2917,7 @@ font-family: "Plus Jakarta Sans", sans-serif;
   transition: transform 0.15s ease, color 0.15s ease;
 }
 
-/* Modal Track Ratings Editor */
+
 .track-ratings-editor-list {
   display: flex;
   flex-direction: column;
@@ -2837,9 +2972,7 @@ font-family: "Plus Jakarta Sans", sans-serif;
   color: #fff;
 }
 
-/* ============================================================
-   Stacked Icons Above Date & Clean Meta Alignment
-   ============================================================ */
+
 .header-right-meta {
   display: flex;
   flex-direction: column;
@@ -2849,9 +2982,7 @@ font-family: "Plus Jakarta Sans", sans-serif;
   flex-shrink: 0;
 }
 
-/* ============================================================
-   Action Icons: Pinned to Bottom-Right Corner
-   ============================================================ */
+
 .row-actions {
   position: absolute !important;
   bottom: 0.65rem !important;
@@ -2877,13 +3008,13 @@ font-family: "Plus Jakarta Sans", sans-serif;
 
 .action-icon-btn i {
   font-size: 1.35rem !important;
-  color: #10b981 !important; /* Glowing mint */
+  color: #10b981 !important;
   filter: drop-shadow(0 0 2px rgba(16, 185, 129, 0.45));
   transition: transform 0.2s ease, filter 0.2s ease, color 0.2s ease;
   display: inline-block;
 }
 
-/* Hover effects with Aero glow */
+
 .action-icon-btn:hover i {
   transform: translateY(-2px) scale(1.2);
   color: #059669 !important;
@@ -2934,9 +3065,7 @@ font-family: "Plus Jakarta Sans", sans-serif;
   color: var(--dark-text-color);
 }
 
-/* ============================================================
-   Descriptors Cloud / Inline List
-   ============================================================ */
+
 .descriptors-wrapper {
   display: flex;
   flex-wrap: wrap;
@@ -2973,22 +3102,18 @@ font-family: "Plus Jakarta Sans", sans-serif;
 }
 
 .descriptor-pill:hover {
-  background: var(--second-color);
-  color: #ffffff;
-  border-color: var(--second-color);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.85) 0%,
+    rgba(243, 244, 246, 0.6) 100%
+  ) !important;
+  border-color: rgba(209, 213, 219, 0.9) !important;
+  color: var(--text-color, #111827) !important;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 1),
+    0 2px 6px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
 }
-
-.dark-mode .descriptor-pill {
-  color: var(--dark-text-color);
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.08);
-}
-
-.dark-mode .descriptor-pill:hover {
-  background: var(--second-color);
-  color: var(--dark-bg-color);
-}
-
 .desc-expand-btn {
   background: none;
   border: none;
@@ -2999,9 +3124,7 @@ font-family: "Plus Jakarta Sans", sans-serif;
   padding: 0 4px;
 }
 
-/* ============================================================
-   Journal Entry Memo (Replaces Blockquote Styling)
-   ============================================================ */
+
 .spin-memo-entry {
   font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 0.93rem;
@@ -3059,9 +3182,7 @@ background: rgba(255, 255, 255, 0.38);
   box-shadow: 0 0 12px rgba(52, 211, 153, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
 }
 
-/* ============================================================
-   3. Lyric / Song Blockquote Formatting Inside Memo
-   ============================================================ */
+
 .spin-memo-entry blockquote {
   position: relative;
   margin: 0.5rem 0 0.5rem 0.5rem;
@@ -3076,7 +3197,7 @@ background: rgba(255, 255, 255, 0.38);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
-/* Subtle elegant quotation mark preceding lyrics */
+
 .spin-memo-entry blockquote::before {
   content: "“";
   position: absolute;
@@ -3110,7 +3231,7 @@ background: rgba(255, 255, 255, 0.38);
   background: rgba(16, 185, 129, 0.18);
 }
 
-/* Responsive */
+
 @media (max-width: 860px) {
   .spins-layout-grid {
     grid-template-columns: 1fr;
@@ -3120,9 +3241,7 @@ background: rgba(255, 255, 255, 0.38);
   }
 }
 
-/* ============================================================
-   AERO GLASS FLOATING PLAYER
-   ============================================================ */
+
 .aero-player-dock {
   position: fixed;
   bottom: 24px;
@@ -3145,11 +3264,11 @@ background: rgba(255, 255, 255, 0.38);
 
 .aero-player-bg {
   position: absolute;
-  inset: -20px; /* Slight bleed so blur edges don't fade to white/black */
+  inset: -20px;
   background-size: cover;
   background-position: center;
   filter: blur(28px) saturate(160%) brightness(0.9);
-  opacity: 0.35; /* Subtle ambient art tint */
+  opacity: 0.35;
   z-index: 0;
   pointer-events: none;
   transition: background-image 0.4s ease, opacity 0.3s ease;
@@ -3169,7 +3288,7 @@ body.dark-mode .aero-player-dock {
     inset 0 -1px 1px rgba(0, 0, 0, 0.4);
 }
 
-/* Glass Titlebar */
+
 .aero-player-titlebar {
   font-family: "Plus Jakarta Sans", sans-serif;
   display: flex;
@@ -3212,7 +3331,7 @@ body.dark-mode .aero-status-text {
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
-/* Animated mini equalizer bars */
+
 .aero-equalizer-bars {
   display: flex;
   align-items: flex-end;
@@ -3260,7 +3379,7 @@ body.dark-mode .aero-player-close{
   border-color: transparent;
 }
 
-/* Metadata Panel */
+
 .aero-player-meta {
   font-family: "Plus Jakarta Sans", sans-serif;
   padding: 10px 14px;
@@ -3311,14 +3430,14 @@ body.dark-mode .aero-meta-track {
   font-weight: 800 !important;
   font-size: 0.84rem !important;
   letter-spacing: -0.01em;
-  color: #064e3b !important; /* Deep forest green for crisp readability on light art */
+  color: #064e3b !important;
   text-shadow:
     0 1px 2px rgba(255, 255, 255, 0.9),
-    0 0 8px rgba(16, 185, 129, 0.35); /* Subtle Aero ambient bloom */
+    0 0 8px rgba(16, 185, 129, 0.35);
 }
 
 body.dark-mode .aero-meta-artist {
-  color: #6ee7b7 !important; /* Luminous mint */
+  color: #6ee7b7 !important;
   text-shadow:
     0 1px 3px rgba(0, 0, 0, 0.8),
     0 0 10px rgba(52, 211, 153, 0.45);
@@ -3353,7 +3472,7 @@ body.dark-mode .aero-now-playing-indicator{
   opacity: 0.85;
 }
 
-/* Embed Container */
+
 .aero-player-frame-wrap iframe {
   width: 100%;
   height: 180px;
@@ -3368,9 +3487,9 @@ a.inline-quoted-track {
   cursor: pointer !important;
 }
 
-/* Responsive / Different display sizes */
 
-/* Tablet View */
+
+
 @media (max-width: 1060px) {
     .container,
     .post-container {
@@ -3384,7 +3503,7 @@ a.inline-quoted-track {
     }
 }
 
-/* Smartphone / Small Tablet View*/
+
 @media (max-width: 768px) {
     section {
         padding: 1.5rem 0;
@@ -3410,10 +3529,10 @@ a.inline-quoted-track {
         margin: 0 auto !important;
         line-height: 1.4 !important;
     }
-    .home-text.container {
-        padding-top: 0 !important;
-        margin-top: 0 !important;
-    }
+    .home-text.container, .home-text.container {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
     .header-img {
         height: 320px;
     }
@@ -3470,7 +3589,7 @@ a.inline-quoted-track {
         max-width: 100% !important;
     }
 }
-/* Smartphone/portrait view */
+
 @media (max-width: 600px) {
     .home-title {
         font-size: 2.2rem;
@@ -3490,10 +3609,6 @@ a.inline-quoted-track {
         font-size: 1.2rem !important;
         line-height: 1.4 !important;
         width: 90% !important;
-    }
-    .home-text.container {
-        padding-top: 0 !important;
-        margin-top: 0 !important;
     }
     .toc-box {
         width: 100%;
@@ -3535,7 +3650,7 @@ a.inline-quoted-track {
     }
 }
 
-/* Ultra compact phone/mobile view */
+
 @media (max-width: 400px) {
     .home-title {
         font-size: 1.9rem;
