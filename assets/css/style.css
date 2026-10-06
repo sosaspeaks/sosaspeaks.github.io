@@ -1832,8 +1832,8 @@ i.bx-sun{
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
+  padding-bottom: 0.4rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
@@ -1876,6 +1876,10 @@ i.bx-sun{
   border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
   background: transparent !important;
   transition: background 0.18s ease;
+}
+
+.timeline-row:first-child {
+  padding-top: 0.35rem !important;
 }
 
 .timeline-row:last-child {

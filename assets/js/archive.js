@@ -25,6 +25,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const fetchCoverBtn = document.getElementById("fetchCoverBtn");
   const previewImg = document.getElementById("previewImg");
   const logCoverUrl = document.getElementById("logCoverUrl");
+  const logSecondaryGenres = document.getElementById("logSecondaryGenres");
   const logArtist = document.getElementById("logArtist");
   const logTitle = document.getElementById("logTitle");
   const logRelisten = document.getElementById("logRelisten");
@@ -301,6 +302,7 @@ function getDominantColorFromImg(imgUrl) {
     if (previewImg) previewImg.src = "placeholder.png";
     if (downloadArtBtn) downloadArtBtn.style.display = "none";
     if (artCandidatesContainer) artCandidatesContainer.style.display = "none";
+    if (logSecondaryGenres) logSecondaryGenres.value = "";
     if (artThumbnailsRow) artThumbnailsRow.innerHTML = "";
     if (logPrevRating) logPrevRating.style.display = "none";
     if (logReviewUrl) logReviewUrl.value = "";
@@ -322,16 +324,46 @@ function getDominantColorFromImg(imgUrl) {
   // ============================================================
   // LOAD LIVE SPINS FROM SUPABASE
   // ============================================================
+  // Helper to parse "MM/DD/YY" strings into sortable Date timestamps
+  function parseLogDate(dateStr) {
+    if (!dateStr) return 0;
+    const parts = dateStr.trim().split("/");
+    if (parts.length !== 3) return 0;
+
+    const month = parseInt(parts[0], 10) - 1;
+    const day = parseInt(parts[1], 10);
+    let year = parseInt(parts[2], 10);
+
+    // Convert 2-digit year to 4-digit year (e.g., "26" -> 2026)
+    if (year < 100) year += 2000;
+
+    return new Date(year, month, day).getTime();
+  }
+
+  // ============================================================
+  // LOAD LIVE SPINS FROM SUPABASE
+  // ============================================================
   async function loadSpins() {
     try {
       const { data, error } = await supabaseClient
         .from("spins")
-        .select("*")
-        .order("id", { ascending: true });
+        .select("*");
 
       if (error) throw error;
 
-      allEntries = data || [];
+      // Sort chronologically by log_date descending (newest dates first)
+      allEntries = (data || []).sort((a, b) => {
+        const timeA = parseLogDate(a.log_date);
+        const timeB = parseLogDate(b.log_date);
+
+        // If dates differ, sort newest first
+        if (timeB !== timeA) {
+          return timeB - timeA;
+        }
+        // Fallback to insertion ID if two spins have the exact same date
+        return (b.id || 0) - (a.id || 0);
+      });
+
       buildSidebarWidgets(allEntries);
       populatePathSuggestions();
       applyFilters();
@@ -341,6 +373,44 @@ function getDominantColorFromImg(imgUrl) {
       if (feed) feed.innerHTML = `<div style="padding: 2rem; text-align: center; color: var(--text-color);">Error loading archive: ${err.message}</div>`;
     }
   }
+
+async function uploadCoverToSupabase(imageUrl, artist, title) {
+  // If it's already a Supabase URL, a local path, or invalid, keep as-is
+  if (!imageUrl || !imageUrl.startsWith("http") || imageUrl.includes("supabase.co")) {
+    return imageUrl;
+  }
+
+  try {
+    const res = await fetch(imageUrl);
+    if (!res.ok) throw new Error(`HTTP Error fetching image: ${res.status}`);
+    const blob = await res.blob();
+
+    const cleanArtist = (artist || "unknown").toLowerCase().replace(/[^a-z0-9]/g, "_");
+    const cleanTitle = (title || "unknown").toLowerCase().replace(/[^a-z0-9]/g, "_");
+    const filePath = `${cleanArtist}_${cleanTitle}_${Date.now()}.jpg`;
+
+    const { data, error } = await supabaseClient.storage
+      .from("covers")
+      .upload(filePath, blob, {
+        contentType: blob.type || "image/jpeg",
+        upsert: true
+      });
+
+    if (error) {
+      console.warn("Supabase storage upload error:", error);
+      return imageUrl; // Fallback to raw link
+    }
+
+    const { data: publicData } = supabaseClient.storage
+      .from("covers")
+      .getPublicUrl(filePath);
+
+    return publicData.publicUrl;
+  } catch (err) {
+    console.warn("Cover upload failed (CORS or network), using original URL:", err);
+    return imageUrl;
+  }
+}
 
   await loadSpins();
   // Boxicons Star Rating Generator
@@ -789,7 +859,9 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     document.getElementById("logYear").value = item.year || "";
     document.getElementById("logRating").value = item.rating || "";
     document.getElementById("logDate").value = item.log_date || "";
-
+    if (logSecondaryGenres) {
+    logSecondaryGenres.value = (item.secondary_genres || []).join(", ");
+    }
     const hasShift = !!item.rating_shift;
     if (logRelisten) {
       logRelisten.checked = !!item.relisten || hasShift;
@@ -852,6 +924,12 @@ if (addTrackRatingRowBtn && trackRatingsList) {
             trackRatings.push({ title, rating, url: url || null });
         }
         });
+      let finalCoverUrl = logCoverUrl.value.trim() || "placeholder.png";
+      if (finalCoverUrl.startsWith("http") && !finalCoverUrl.includes("supabase.co")) {
+        if (modalSubmitBtn) modalSubmitBtn.textContent = "Uploading Art...";
+        finalCoverUrl = await uploadCoverToSupabase(finalCoverUrl, artistVal, titleVal);
+        if (modalSubmitBtn) modalSubmitBtn.textContent = editingIndex !== null ? "Update Spin" : "Save Spin";
+      }
       const spinData = {
         artist: artistVal,
         title: titleVal,
@@ -860,9 +938,9 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         log_date: document.getElementById("logDate").value.trim(),
         rating: currentRatingVal,
         genres: parseList(document.getElementById("logGenres").value),
-        secondary_genres: editingIndex !== null ? (allEntries[editingIndex].secondary_genres || []) : [],
+        secondary_genres: parseList(logSecondaryGenres ? logSecondaryGenres.value : ""),
         descriptors: parseList(document.getElementById("logDescriptors").value),
-        cover_url: logCoverUrl.value.trim() || "placeholder.png",
+        cover_url: finalCoverUrl,
         review_url: logReviewUrl && logReviewUrl.value.trim() ? logReviewUrl.value.trim() : null,
         fav_tracks: parseList(document.getElementById("logFavTracks").value),
         memo: document.getElementById("logMemo").value.trim(),
