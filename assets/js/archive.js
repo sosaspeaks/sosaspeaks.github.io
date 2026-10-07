@@ -8,6 +8,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   const SUPABASE_ANON_KEY = "sb_publishable_tgeBo35B4k__uyfMyaxXnA_O5KUKlL7";
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+  const adminLockIcon = document.getElementById("adminLockIcon");
+  const ICON_LOCKED = "assets/images/homepics/CP070.ico";
+  const ICON_UNLOCKED = "assets/images/homepics/CP073.ico";
+
 
   // Filter widgets
   const yearCloud = document.getElementById("yearCloud");
@@ -246,6 +250,14 @@ function getDominantColorFromImg(imgUrl) {
   }
 
   function updateAdminVisibility() {
+    if (adminLockIcon) {
+      adminLockIcon.src = isAdmin ? ICON_UNLOCKED : ICON_LOCKED;
+      adminLockIcon.alt = isAdmin ? "Unlocked" : "Locked";
+    }
+
+    if (adminTriggerBtn) {
+      adminTriggerBtn.title = isAdmin ? "Admin Active (Click to Logout)" : "Admin Locked";
+    }
     document.querySelectorAll(".admin-only").forEach(el => {
       if (el.classList.contains("row-actions")) {
         el.style.display = isAdmin ? "flex" : "none";
@@ -863,12 +875,20 @@ if (addTrackRatingRowBtn && trackRatingsList) {
 
       entries.forEach(e => {
         if (!e.artist || e.rating === null || e.rating === undefined || e.rating === "") return;
-        const name = e.artist.trim();
-        if (!artistStats[name]) {
-          artistStats[name] = { totalRating: 0, count: 0 };
-        }
-        artistStats[name].totalRating += parseFloat(e.rating);
-        artistStats[name].count += 1;
+
+        // Splits "Bladee & Ecco2k", "Frank Ocean feat. Beyoncé", or "Artist A, Artist B"
+        const individualArtists = e.artist
+          .split(/(?:,|\s+(?:&|feat\.?|ft\.?|with)\s+)/i)
+          .map(a => a.trim())
+          .filter(Boolean);
+
+        individualArtists.forEach(name => {
+          if (!artistStats[name]) {
+            artistStats[name] = { totalRating: 0, count: 0 };
+          }
+          artistStats[name].totalRating += parseFloat(e.rating);
+          artistStats[name].count += 1;
+        });
       });
 
       // Filter: Prefer artists with >= 2 spins, fallback to >= 1 spin if your catalog is small
@@ -963,7 +983,18 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         matchesTag = i.descriptors && i.descriptors.includes(activeFilter.value);
       }
         else if (activeFilter.type === "artist") {
-        matchesTag = i.artist && i.artist.toLowerCase() === activeFilter.value.toLowerCase();
+        if (!i.artist) {
+          matchesTag = false;
+        } else {
+          // Split the entry's artist using the exact same logic as the sidebar
+          const entryArtists = i.artist
+            .split(/(?:,|\s+(?:&|feat\.?|ft\.?|with)\s+)/i)
+            .map(a => a.trim().toLowerCase())
+            .filter(Boolean);
+
+          // Check if the clicked artist name exists in this release
+          matchesTag = entryArtists.includes(activeFilter.value.toLowerCase());
+        }
       }
         else if (activeFilter.type === "rating") {
         matchesTag = i.rating !== null && i.rating !== undefined && Number(i.rating).toFixed(1) === activeFilter.value;
