@@ -1857,6 +1857,30 @@ body.dark-mode .cloud-tag.active-aero-tag {
   border-color: rgba(255, 255, 255, 0.35) !important;
 }
 
+#artistCloud,
+.cloud-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.4rem;
+  align-items: center;
+  padding: 0.25rem 0;
+}
+
+#artistCloud .cloud-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  line-height: 1.2;
+  margin: 0;
+}
+
+#artistCloud .cloud-tag small {
+  opacity: 0.75;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+}
+
 .top-artists-container {
   display: flex;
   flex-direction: column;

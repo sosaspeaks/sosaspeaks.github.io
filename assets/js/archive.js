@@ -18,6 +18,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const genreCloud = document.getElementById("genreCloud");
   const descriptorCloud = document.getElementById("descriptorCloud");
   const ratingCloud = document.getElementById("ratingCloud");
+  const artistCloud = document.getElementById("artistCloud");
 
   // Modal & composer controls
   const modalOverlay = document.getElementById("modalOverlay");
@@ -893,7 +894,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
 
       // Filter: Prefer artists with >= 2 spins, fallback to >= 1 spin if your catalog is small
       let qualified = Object.entries(artistStats)
-        .filter(([_, stats]) => stats.count >= 2);
+        .filter(([_, stats]) => stats.count >= 3);
 
       if (qualified.length === 0) {
         qualified = Object.entries(artistStats).filter(([_, stats]) => stats.count >= 1);
@@ -926,6 +927,53 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         `).join("");
       }
     }
+
+    // --- Artist Cloud (Sorted by Total Review / Spin Count) ---
+    if (artistCloud) {
+      const artistCounts = {};
+
+      entries.forEach(e => {
+        if (!e.artist) return;
+
+        // Split collaborations so each individual artist gets review count credit
+        const individualArtists = String(e.artist)
+          .split(/(?:,|\s+(?:&|feat\.?|ft\.?|with)\s+)/i)
+          .map(a => a.trim())
+          .filter(Boolean);
+
+        individualArtists.forEach(name => {
+          artistCounts[name] = (artistCounts[name] || 0) + 1;
+        });
+      });
+
+      // Sort descending by spin count, then take top 25 (or remove slice for all)
+      const sortedBySpins = Object.entries(artistCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 25);
+
+      if (sortedBySpins.length === 0) {
+        artistCloud.innerHTML = `<span style="font-size: 0.75rem; opacity: 0.6; padding: 4px;">No artists logged yet.</span>`;
+      } else {
+        artistCloud.innerHTML = sortedBySpins.map(([name, count]) => `
+          <span
+            class="category cloud-tag"
+            data-type="artist"
+            data-val="${encodeURIComponent(name)}"
+            style="cursor: pointer;"
+          >
+            ${name} <small style="opacity: 0.7; font-size: 0.75rem;">(${count})</small>
+          </span>
+        `).join("");
+
+        // Attach click listeners to trigger the artist filter safely
+        artistCloud.querySelectorAll(".cloud-tag").forEach(tag => {
+          tag.onclick = () => {
+            const rawArtist = decodeURIComponent(tag.getAttribute("data-val"));
+            setSidebarFilter("artist", rawArtist);
+          };
+        });
+      }
+    }
   }
 
   window.setSidebarFilter = function(type, val) {
@@ -950,10 +998,11 @@ if (addTrackRatingRowBtn && trackRatingsList) {
 
   if (clearFilterBtn) clearFilterBtn.addEventListener("click", clearActiveFilter);
 
-  function updateCloudActiveStates() {
+ function updateCloudActiveStates() {
     document.querySelectorAll(".cloud-tag").forEach(tag => {
+      const rawVal = decodeURIComponent(tag.getAttribute("data-val") || "");
       const match = tag.getAttribute("data-type") === activeFilter.type &&
-                    tag.getAttribute("data-val") === String(activeFilter.value);
+                    rawVal.toLowerCase() === String(activeFilter.value || "").toLowerCase();
       tag.classList.toggle("active-aero-tag", match);
     });
   }
