@@ -1,0 +1,1324 @@
+/* Google Fonts Import (Plus Jakarta Sans & Jersey 15) */
+@import url('https://fonts.googleapis.com/css2?family=Jersey+15&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap');
+
+/* ============================================================
+   Typography Defaults
+   ============================================================ */
+:root {
+  --font-body: "Plus Jakarta Sans", sans-serif;
+  --font-retro: "Jersey 15", sans-serif;
+}
+
+/* Force Plus Jakarta Sans everywhere by default */
+body,
+button,
+input,
+select,
+textarea,
+.challenge-controls,
+.topster-tile,
+.modal-body,
+.progress-labels {
+  font-family: var(--font-body) !important;
+}
+
+.challenge-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.export-btn {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.25)) !important;
+  border-color: rgba(16, 185, 129, 0.45) !important;
+  color: #065f46 !important;
+  font-weight: 700 !important;
+}
+
+.export-btn:hover {
+  background: #10b981 !important;
+  color: #ffffff !important;
+}
+
+.export-capture-zone {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.topster-grid.size-standard {
+  max-width: 980px;
+  width: 100%;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  padding: 12px;
+}
+
+/* 2. Size: Compact (Smaller tiles, tighter layout) */
+.topster-grid.size-compact {
+  max-width: 720px;
+  width: 100%;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  padding: 8px;
+}
+
+/* 3. Size: Fit Sheet (Fits all 49 onto a single standard screen/page view) */
+.topster-grid.size-fitsheet {
+  max-width: 540px;
+  width: 100%;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+  padding: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+}
+
+.topster-grid.size-fitsheet .tile-tooltip {
+  display: none !important; /* Hide hover title bars in fitsheet to preserve view */
+}
+
+/* ============================================================
+   STRICT ADMIN-ONLY RESTRICTION FOR REMOVE/EDIT
+   ============================================================ */
+/* Guaranteed completely hidden unless isAdmin is true */
+.tile-admin-actions,
+.tile-icon-btn.delete,
+.tile-icon-btn.edit {
+  display: none !important;
+}
+
+/* Only display if body has the logged-in admin class */
+body.is-admin .tile-admin-actions {
+  display: flex !important;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+body.is-admin .topster-tile:hover .tile-admin-actions {
+  opacity: 1 !important;
+}
+
+body.is-admin .tile-icon-btn {
+  display: flex !important;
+}
+
+/* ============================================================
+   COMPLETED ALBUM TREATMENT (Distinct Green Tint + Glow)
+   ============================================================ */
+/* 1. Unlistened / Backlog Tiles (Muted) */
+.topster-tile {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #0f172a;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease;
+}
+
+.topster-tile:not(.is-completed) .tile-art {
+  filter: saturate(0.85) brightness(0.9);
+  opacity: 0.85;
+}
+
+/* 2. Completed Tiles: Glossy Emerald Sheen, Green Tint Wash & Checkmark */
+.topster-tile.is-completed {
+  border: 2px solid #10b981 !important;
+  box-shadow:
+    0 4px 14px rgba(16, 185, 129, 0.35),
+    inset 0 0 15px rgba(16, 185, 129, 0.25) !important;
+}
+
+.topster-tile.is-completed .tile-art {
+  filter: saturate(1.1) brightness(1.02);
+  opacity: 1;
+}
+
+/* Distinct Emerald/Mint Tint Overlay */
+.topster-tile.is-completed::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(52, 211, 153, 0.32) 0%,
+    rgba(16, 185, 129, 0.18) 45%,
+    rgba(5, 150, 105, 0.25) 100%
+  );
+  mix-blend-mode: color-burn; /* Blends the green dye deep into the album colors */
+  pointer-events: none;
+  z-index: 2;
+  transition: opacity 0.2s ease;
+}
+
+.topster-tile.is-completed:hover::before {
+  opacity: 0.15; /* Eases tint slightly on hover so cover shines clear */
+}
+
+/* Bold Glass Checkmark Badge */
+/* ============================================================
+   AERO CHECKMARK OVERLAY (Big 40% Opacity Wash)
+   ============================================================ */
+
+/* Hide any remaining legacy status badges */
+.tile-status-badge {
+  display: none !important;
+}
+
+/* Big Translucent Aero Checkmark Wash */
+.aero-check-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 3;
+
+  /* Richer, more saturated multi-stop emerald wash */
+  background: radial-gradient(
+    circle at center,
+    rgba(52, 211, 153, 0.58) 0%,
+    rgba(16, 185, 129, 0.42) 55%,
+    rgba(5, 150, 105, 0.32) 100%
+  ) !important;
+
+  /* Top-left glass reflection sheen */
+  box-shadow:
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.75),
+    inset 0 -1.5px 2px rgba(5, 150, 105, 0.35);
+  backdrop-filter: saturate(140%) contrast(105%);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* Crisper translucent checkmark icon */
+.aero-check-icon {
+  width: 58%;
+  height: 58%;
+  color: #ffffff;
+  opacity: 0.65; /* Lifted from 0.40 to give it clearer presence */
+  filter:
+    drop-shadow(0 0 8px rgba(16, 185, 129, 0.95))
+    drop-shadow(0 2px 5px rgba(0, 0, 0, 0.5));
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.topster-tile.is-completed:hover .aero-check-overlay {
+  background: radial-gradient(
+    circle at center,
+    rgba(52, 211, 153, 0.40) 0%,
+    rgba(16, 185, 129, 0.25) 100%
+  ) !important;
+}
+
+.topster-tile.is-completed:hover .aero-check-icon {
+  opacity: 0.85;
+  transform: scale(1.08);
+}
+
+/* ============================================================
+   2. WINDOWS AERO PROGRESS BAR & CAPSULE TRACK
+   ============================================================ */
+
+/* Outer Frosted Glass Card */
+.challenge-progress-box {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.75) 0%,
+    rgba(240, 253, 244, 0.55) 100%
+  ) !important;
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  border-radius: 12px;
+  padding: 0.9rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  box-shadow:
+    inset 0 1.5px 1px rgba(255, 255, 255, 1),
+    0 4px 18px rgba(16, 185, 129, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+.progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-body, "Plus Jakarta Sans"), sans-serif;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #064e3b !important;
+  letter-spacing: -0.01em;
+}
+
+/* Aero Beveled Track Well (Deep glass recess) */
+.progress-bar-track {
+  width: 100%;
+  height: 14px; /* Slightly taller for the beveled glass look */
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.14) 0%,
+    rgba(0, 0, 0, 0.05) 50%,
+    rgba(255, 255, 255, 0.45) 100%
+  ) !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.12),
+    0 1px 1px rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Glossy Windows Aero Fill Bar */
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  position: relative;
+  transition: width 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Dual-tier Aero emerald glass gradient */
+  background: linear-gradient(
+    180deg,
+    #6ee7b7 0%,    /* Specular mint highlight */
+    #34d399 45%,   /* Vibrant Aero light green */
+    #10b981 50%,   /* Mid-bar horizon split */
+    #059669 85%,   /* Rich deep emerald */
+    #047857 100%
+  ) !important;
+
+  /* Ambient emerald bloom + crisp edge highlight */
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.2),
+    0 0 10px rgba(52, 211, 153, 0.75) !important;
+}
+
+.sosa-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999 !important; /* Stays above the sticky header */
+  padding: 1rem;
+}
+
+/* ============================================================
+   Consistent Title & Stars Styling in Modal
+   ============================================================ */
+.modal-detail-title {
+  font-family: "Plus Jakarta Sans", sans-serif !important;
+  font-weight: 800 !important;
+  font-size: 1.25rem !important;
+  color: #064e3b !important;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+body.dark-mode .modal-detail-title {
+  color: #a7f3d0 !important;
+}
+
+/* Full Star Display matching SosaSpins */
+.modal-detail-rating {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 2px;
+}
+
+.modal-detail-rating .stars-gold {
+  color: #f59e0b; /* Amber Gold */
+  font-size: 1.05rem;
+  letter-spacing: 2px;
+}
+
+.modal-detail-rating .rating-num {
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+/* ============================================================
+   Primary & Secondary Genres & Descriptors (SosaSpins Palette)
+   ============================================================ */
+.genre-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.primary-genres-wrap,.secondary-genres-wrap, .descriptors-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* Primary Genres: Emerald Sheen */
+.genre-pill.genre-primary {
+  font-size: 0.76rem;
+  font-weight: 700;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  color: #064e3b;
+  background: linear-gradient(135deg, rgba(167, 243, 208, 0.75) 0%, rgba(110, 231, 183, 0.55) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  padding: 3px 9px;
+  border-radius: 6px;
+}
+
+/* Secondary Genres: Subtle, Italicized */
+.genre-pill.genre-secondary {
+  font-size: 0.72rem;
+  font-style: italic;
+  font-weight: 500;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  color: #475569;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px dashed rgba(0, 0, 0, 0.18);
+  padding: 2px 7px;
+  border-radius: 5px;
+}
+
+/* Descriptors: Clean Pill Row */
+.desc-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.03em;
+  margin-right: 2px;
+}
+
+.descriptor-pill {
+  font-size: 0.72rem;
+  color: #334155;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+/* Glass glare reflection across the top half of the bar */
+.progress-bar-fill::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 48%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.65) 0%,
+    rgba(255, 255, 255, 0.12) 100%
+  );
+  border-radius: 999px 999px 0 0;
+  pointer-events: none;
+}
+
+/* Subtle response on hover */
+.topster-tile.is-completed:hover .aero-check-overlay {
+  background: radial-gradient(
+    circle at center,
+    rgba(52, 211, 153, 0.18) 0%,
+    rgba(16, 185, 129, 0.08) 100%
+  );
+}
+
+.topster-tile.is-completed:hover .aero-check-icon {
+  opacity: 0.55;
+  transform: scale(1.06);
+}
+
+/* Completed Tile Frame (Emerald glass rim) */
+.topster-tile.is-completed {
+  border: 1.5px solid #10b981 !important;
+  box-shadow:
+    0 2px 8px rgba(16, 185, 129, 0.25),
+    inset 0 1px 1px rgba(255, 255, 255, 0.5) !important;
+}
+
+.topster-tile.is-completed .tile-art {
+  filter: saturate(1.05) contrast(1.02);
+  opacity: 1;
+}
+
+/* Uncompleted Tiles: Clean & uninterrupted */
+.topster-tile:not(.is-completed) .tile-art {
+  filter: saturate(0.85) brightness(0.92);
+  opacity: 0.88;
+}
+
+/* Retro Display Headers using Jersey 15 */
+.home-title,
+.modal-title,
+.logo-text {
+  font-family: var(--font-retro) !important;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+}
+
+.home-title {
+  font-size: 3.8rem;
+  line-height: 1;
+}
+
+.modal-title {
+  font-size: 1.8rem;
+  line-height: 1.1;
+  color: var(--second-color, #98c994);
+}
+
+/* ============================================================
+   Controls & Progress Bar
+   ============================================================ */
+.challenge-controls, .challenge-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.challenge-actions-bar, .challenge-actions-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.challenge-progress-box, .challenge-progress-box {
+  background: var(--glass-tint-bg, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--second-color, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+  padding: 0.85rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.progress-labels, .progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-color, #e2e8f0);
+}
+
+.progress-bar-track, .progress-bar-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(0,0,0,0.35);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--second-color, #38bdf8);
+  transition: width 0.35s ease;
+}
+
+/* ============================================================
+   7x7 Topster Grid Sheet
+   ============================================================ */
+.challenge-container, .challenge-container {
+  margin-bottom: 4rem;
+  max-width: 980px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.topster-grid, .topster-grid {
+  display: grid;
+  grid-template-columns: repeat(7,1fr);
+  gap: 8px;
+  padding: 12px;
+  background: var(--glass-tint-bg, rgba(20, 24, 33, 0.6));
+  border: 1px solid var(--second-color, rgba(255, 255, 255, 0.12));
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+}
+
+.grid-loader {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-color);
+  opacity: 0.7;
+  font-size: 0.95rem;
+}
+
+/* Album Tile */
+.topster-tile {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #111;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
+}
+
+.topster-tile:hover, .topster-tile:hover {
+  transform: scale(1.05);
+  z-index: 5;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+}
+
+.tile-art, .tile-art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Drag-and-Drop States */
+.topster-tile.dragging {
+  opacity: 0.45;
+  transform: scale(0.96);
+  border: 2px dashed var(--second-color, #38bdf8);
+}
+
+.topster-tile.drag-over {
+  outline: 2px solid var(--second-color, #38bdf8);
+  transform: scale(1.05);
+}
+
+/* Admin Tile Actions (Edit / Delete) */
+.tile-admin-actions {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 7;
+}
+
+.topster-tile:hover .tile-admin-actions {
+  opacity: 1;
+}
+
+.tile-icon-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  cursor: pointer;
+  color: #fff;
+}
+
+.tile-icon-btn.edit {
+  background: rgba(14, 165, 233, 0.88);
+}
+
+.tile-icon-btn.delete {
+  background: rgba(220, 38, 38, 0.88);
+}
+
+/* Status Overlays */
+.tile-status-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  font-weight: 800;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.tile-status-badge.completed, .tile-status-badge.completed {
+  background: #10b981;
+  color: #fff;
+}
+
+.tile-status-badge.pending, .tile-status-badge.pending {
+  background: rgba(0,0,0,0.65);
+  color: #94a3b8;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+/* Hover Title Tooltip */
+.tile-tooltip {
+  position: absolute;
+  inset: auto 0 0 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.95));
+  padding: 6px 4px 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #fff;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.topster-tile:hover .tile-tooltip {
+  opacity: 1;
+}
+
+/* ============================================================
+   Modals
+   ============================================================ */
+.sosa-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-dialog {
+  background: var(--card-bg-dark, #11141a);
+  border: 1px solid var(--second-color, rgba(255, 255, 255, 0.15));
+  border-radius: 12px;
+  width: 100%;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+}
+
+.challenge-modal-dialog {
+  max-width: 540px;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--text-color, #fff);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.modal-spin-embed {
+  background: rgba(0, 0, 0, 0.25);
+  border-left: 3px solid var(--second-color, #38bdf8);
+  padding: 0.85rem 1rem;
+  border-radius: 0 6px 6px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.fav-track-chip {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--second-color, #38bdf8);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--second-color, rgba(255, 255, 255, 0.2));
+  padding: 2px 7px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+}
+
+
+.challenge-container {
+  margin-bottom: 4rem;
+  max-width: 1040px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (max-width: 900px) {
+  .topster-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+#completedCounter {
+  font-family:"Plus Jakarta Sans", sans-serif;
+}
+
+
+#completedPercent {
+  font-family:"Plus Jakarta Sans", sans-serif;
+}
+
+.grid-loader {
+  font-family:"Plus Jakarta Sans", sans-serif;
+}
+
+@media (max-width: 640px) {
+  .topster-grid, .topster-grid, .topster-grid {
+  grid-template-columns: repeat(4,1fr);
+  gap: 6px;
+  padding: 8px;
+}
+}
+
+@media (max-width: 420px) {
+  .topster-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Progress Bar & Header Pill Controls */
+.progress-bar-fill {
+  height: 100%;
+  background: #38bdf8;
+  transition: width 0.35s ease;
+}
+
+/* 7x7 Square Topster Grid Sheet */
+.grid-loader {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-color);
+  opacity: 0.7;
+}
+
+/* Album Tile */
+.topster-tile {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #111;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+/* Status Badges */
+.tile-status-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 800;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+}
+/* Hover Title Tooltip Overlay */
+.tile-tooltip {
+  position: absolute;
+  inset: auto 0 0 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.95));
+  padding: 6px 4px 4px;
+  font-size: 0.68rem;
+  color: #fff;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.topster-tile:hover .tile-tooltip {
+  opacity: 1;
+}
+
+/* Modal Styling */
+.challenge-modal-dialog {
+  max-width: 540px;
+}
+
+.modal-spin-embed {
+  background: rgba(0, 0, 0, 0.25);
+  border-left: 3px solid #38bdf8;
+  padding: 0.85rem 1rem;
+  border-radius: 0 6px 6px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Mobile & Tablet Breakpoints */
+@media (max-width: 900px) {
+  .topster-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+}
+
+@media (max-width: 420px) {
+  .topster-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.sosa-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-dialog {
+  background: var(--dark-bg-color, #11141a);
+  border: 1px solid var(--second-color, rgba(255, 255, 255, 0.15));
+  border-radius: 12px;
+  width: 100%;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+  overflow: hidden;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--text-color, #fff);
+  cursor: pointer;
+}
+
+.tile-delete-btn {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 20px;
+  height: 20px;
+  background: rgba(220, 38, 38, 0.85);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 6;
+  border: none;
+  cursor: pointer;
+}
+
+.topster-tile:hover .tile-delete-btn {
+  opacity: 1;
+}
+
+/* ============================================================
+   Aero Light-Mode Modal Dialog & Detail View
+   ============================================================ */
+
+/* Backdrop overlay with clean blur */
+.sosa-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+/* Light Aero Modal Container */
+.modal-dialog {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.94) 0%,
+    rgba(240, 253, 244, 0.9) 100%
+  ) !important;
+  border: 1px solid rgba(255, 255, 255, 0.95) !important;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 580px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow:
+    inset 0 1.5px 1px rgba(255, 255, 255, 1),
+    0 20px 45px rgba(15, 23, 42, 0.18),
+    0 4px 12px rgba(16, 185, 129, 0.12) !important;
+}
+
+.modal-title {
+  font-family: var(--font-retro, "Jersey 15"), sans-serif !important;
+  font-size: 1.85rem;
+  margin: 0;
+  color: #065f46 !important;
+  letter-spacing: 0.5px;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.6rem;
+  color: #64748b !important;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.15s ease;
+}
+
+.modal-close-btn:hover {
+  color: #0f172a !important;
+}
+
+/* Modal Body Layout */
+.modal-detail-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  padding: 1.25rem;
+  background: transparent;
+}
+
+.modal-detail-header {
+  display: flex;
+  gap: 1.1rem;
+  align-items: center;
+}
+
+.modal-detail-cover {
+  width: 90px;
+  height: 90px;
+  border-radius: 8px;
+  object-fit: cover;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+}
+
+.modal-detail-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.modal-detail-title {
+  font-weight: 800;
+  font-size: 1.2rem;
+  color: #0f172a !important;
+  line-height: 1.25;
+}
+
+.modal-detail-submeta {
+  font-size: 0.82rem;
+  color: #64748b !important;
+  font-weight: 500;
+}
+
+.modal-detail-rating {
+  color: #f59e0b !important;
+  font-weight: 800;
+  font-size: 1.05rem;
+  margin-top: 2px;
+}
+
+/* Genre Line */
+.modal-genre-line {
+  font-size: 0.88rem;
+  color: #334155 !important;
+  line-height: 1.5;
+}
+
+.modal-genre-line strong {
+  color: #064e3b !important;
+}
+
+/* Fav Tracks in Light Mode */
+.fav-tracks-row {
+  margin-top: 0.5rem;
+}
+
+.fav-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #065f46 !important;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 0.35rem;
+}
+
+.fav-tracks-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.fav-track-chip {
+  font-size: 0.76rem !important;
+  font-weight: 600 !important;
+  color: #065f46 !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(220, 252, 231, 0.75) 100%) !important;
+  border: 1px solid rgba(16, 185, 129, 0.35) !important;
+  padding: 4px 10px !important;
+  border-radius: 999px !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  text-decoration: none !important;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 1),
+    0 1px 3px rgba(16, 185, 129, 0.12) !important;
+  transition: all 0.15s ease;
+}
+
+.fav-track-chip:hover {
+  background: #d1fae5 !important;
+  border-color: #10b981 !important;
+  color: #047857 !important;
+  transform: translateY(-1px);
+}
+
+/* Light Frosted Memo Box */
+.modal-detail-body .spin-memo-entry {
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: #1e293b !important;
+  margin-top: 0.9rem;
+  padding: 0.85rem 1.1rem;
+  background: linear-gradient(
+    135deg,
+    rgba(167, 243, 208, 0.22) 0%,
+    rgba(110, 231, 183, 0.12) 100%
+  ) !important;
+  border: 1px solid rgba(16, 185, 129, 0.25) !important;
+  border-left: 3px solid #10b981 !important;
+  border-radius: 0 8px 8px 0 !important;
+  box-shadow:
+    0 2px 8px rgba(16, 185, 129, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+}
+
+.modal-detail-body .spin-memo-entry blockquote {
+  margin: 0.6rem 0 0.35rem 0.25rem;
+  padding: 0.45rem 0.85rem 0.45rem 1.4rem;
+  font-style: italic;
+  font-size: 0.88rem;
+  color: #065f46 !important;
+  background: rgba(255, 255, 255, 0.65) !important;
+  border-left: 3px solid #10b981 !important;
+  border-radius: 0 6px 6px 0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Light-mode Form Inputs in Add/Edit Modal */
+.modal-dialog input.sosa-search-input,
+.modal-dialog select.sosa-search-input {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+  color: #0f172a !important;
+}
+
+.modal-dialog input.sosa-search-input:focus,
+.modal-dialog select.sosa-search-input:focus {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
+  background: #ffffff !important;
+}
+
+/* ============================================================
+   Completed vs Uncompleted Tile Treatments
+   ============================================================ */
+
+/* 1. Unlistened / Backlog Tiles (Subtle, slightly dimmed & muted) */
+.topster-tile {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 0.18s ease;
+}
+
+/* Backlog covers have slight desaturation so finished ones pop */
+.topster-tile:not(.is-completed) .tile-art {
+  filter: saturate(0.82) brightness(0.92);
+  opacity: 0.88;
+  transition: all 0.2s ease;
+}
+
+.topster-tile:not(.is-completed):hover .tile-art {
+  filter: saturate(1) brightness(1);
+  opacity: 1;
+}
+
+/* 2. Completed Tiles (Full vibrance, emerald glass sheen & highlight) */
+.topster-tile.is-completed {
+  border: 1.5px solid #10b981 !important;
+  box-shadow:
+    0 2px 8px rgba(16, 185, 129, 0.22),
+    inset 0 1px 1px rgba(255, 255, 255, 0.7) !important;
+}
+
+.topster-tile.is-completed .tile-art {
+  filter: saturate(1.08) contrast(1.02);
+  opacity: 1;
+}
+
+/* Glossy glass corner ribbon / checkmark badge */
+.topster-tile.is-completed .tile-status-badge {
+  background: linear-gradient(180deg, #34d399 0%, #059669 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.8) !important;
+  box-shadow:
+    0 2px 6px rgba(16, 185, 129, 0.45),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9) !important;
+  font-size: 0.82rem;
+  font-weight: 900;
+  transform: scale(1.05);
+}
+
+/* Completed Hover Lift with Emerald Bloom */
+.topster-tile.is-completed:hover {
+  transform: translateY(-2px) scale(1.06);
+  box-shadow:
+    0 8px 18px rgba(16, 185, 129, 0.35),
+    0 0 10px rgba(52, 211, 153, 0.25) !important;
+  z-index: 10;
+}
+
+/* ============================================================
+   Cover Art Candidate Picker Carousel
+   ============================================================ */
+.art-candidates-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: 8px;
+  padding: 0.6rem;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.picker-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #065f46;
+}
+
+.thumbnails-scroll-row {
+  display: flex;
+  gap: 0.6rem;
+  overflow-x: auto;
+  padding: 4px 2px 8px;
+}
+
+.art-choice-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  padding: 2px;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.art-choice-item img {
+  width: 65px;
+  height: 65px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: #f1f5f9;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.art-choice-item:hover {
+  transform: translateY(-2px);
+  border-color: rgba(16, 185, 129, 0.5);
+}
+
+.art-choice-item.selected {
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.35);
+}
+
+.art-choice-item .source-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #065f46;
+  margin-top: 3px;
+}
+
+/* Ensure clean drag operations on tiles */
+.topster-tile[draggable="true"] {
+  cursor: grab;
+}
+
+.topster-tile[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+/* Prevent inner elements from capturing drag events during reordering */
+.topster-tile[draggable="true"] .tile-art,
+.topster-tile[draggable="true"] .tile-status-badge,
+.topster-tile[draggable="true"] .tile-tooltip {
+  pointer-events: none;
+}
+
+/* Keep admin buttons clickable */
+.topster-tile .tile-admin-actions,
+.topster-tile .tile-admin-actions * {
+  pointer-events: auto !important;
+}
+
+/* Visual drag states */
+.topster-tile.dragging {
+  opacity: 0.35 !important;
+  transform: scale(0.94);
+  border: 2px dashed #10b981 !important;
+}
+
+.topster-tile.drag-over {
+  outline: 3px solid #10b981 !important;
+  transform: scale(1.05);
+}
+
+
+/* Responsive Grid Breakpoints */
+@media (max-width: 900px) {
+  .topster-grid { grid-template-columns: repeat(5, 1fr); }
+}
+@media (max-width: 600px) {
+}
+@media (max-width: 420px) {
+  .topster-grid { grid-template-columns: repeat(3, 1fr); }
+}

@@ -2429,26 +2429,6 @@ body.dark-mode .sidebar-heading {
   border-color: rgba(255, 255, 255, 0.1);
 }
 
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 0.5rem;
-  margin-bottom: 1rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-}
-
-.dark-mode .modal-header {
-  border-bottom-color: rgba(255, 255, 255, 0.12);
-}
-
-.modal-title {
-  margin: 0;
-  font-family: "Jersey 15", sans-serif;
-  font-size: 1.8rem;
-  color: var(--second-color);
-}
-
 .modal-close-btn {
   font-size: 1.5rem;
   color: inherit;
