@@ -26,6 +26,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const detailModal = document.getElementById("detailModal");
   const closeDetailModal = document.getElementById("closeDetailModal");
   const modalBody = document.getElementById("modalAlbumBody");
+  const statusBarSelection = document.getElementById("statusBarSelection");
+const statusBarStatus = document.getElementById("statusBarStatus");
 
   // ADMIN ADD / EDIT MODAL
   const addModal = document.getElementById("addModal");
@@ -41,14 +43,273 @@ document.addEventListener("DOMContentLoaded", () => {
   const addTitle = document.getElementById("addTitle");
   const addCoverUrl = document.getElementById("addCoverUrl");
   const addRuntime = document.getElementById("addRuntime");
+  const addGenres = document.getElementById("addGenres");
+  const addSecondaryGenres = document.getElementById("addSecondaryGenres");
+  const addDescriptors = document.getElementById("addDescriptors");
   const submitAddAlbumBtn = document.getElementById("submitAddAlbumBtn");
   const artCandidatesContainer = document.getElementById("artCandidatesContainer");
   const artThumbnailsRow = document.getElementById("artThumbnailsRow");
+  const FALLBACK_PLACEHOLDER = "../assets/images/spins/placeholder.png";
+  const addReleaseYear = document.getElementById("addReleaseYear");
 
   // State
   let activeMonth = "october";
   let backlogEntries = [];
   let loggedSpins = [];
+const addNewMonthBtn = document.getElementById("addNewMonthBtn");
+  const monthTabsList = document.getElementById("monthTabsList");
+
+  const MONTH_NAMES = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  // Helper to safely convert comma-separated string inputs to arrays
+function safeSplit(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  return val
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+  // 1. Rebuild or Bind Tab Clicks
+  function attachMonthTabListeners() {
+    const tabs = document.querySelectorAll('menu.w7-month-tabs button[role="tab"]');
+    tabs.forEach(tab => {
+      tab.onclick = () => {
+        tabs.forEach(t => {
+          t.classList.remove("active");
+          t.setAttribute("aria-selected", "false");
+        });
+
+        tab.classList.add("active");
+        tab.setAttribute("aria-selected", "true");
+
+        activeMonth = (tab.getAttribute("data-month") || "").toLowerCase();
+        renderGrid();
+      };
+    });
+  }
+
+  // Bind initial tabs on startup
+  attachMonthTabListeners();
+
+  // 2. Add New Month Handler
+  if (addNewMonthBtn) {
+    addNewMonthBtn.addEventListener("click", () => {
+      if (!isAdmin) return alert("Admin login required.");
+
+      const currentYear = new Date().getFullYear();
+      const existingTabs = document.querySelectorAll('menu.w7-month-tabs button[role="tab"]');
+
+      // Find the last tab in the list
+      const lastTab = existingTabs[existingTabs.length - 1];
+      const lastMonthRaw = lastTab ? lastTab.getAttribute("data-month") : "october";
+      const lastYear = lastTab && lastTab.getAttribute("data-year")
+        ? parseInt(lastTab.getAttribute("data-year"), 10)
+        : currentYear;
+
+      const lastMonthIndex = MONTH_NAMES.findIndex(m => m.toLowerCase() === lastMonthRaw.toLowerCase());
+
+      // Calculate next month index and year rollover
+      const nextMonthIndex = (lastMonthIndex + 1) % 12;
+      const targetYear = (lastMonthIndex + 1 >= 12) ? lastYear + 1 : lastYear;
+      const nextMonthName = MONTH_NAMES[nextMonthIndex];
+
+      // Append year if different from the current calendar year
+      const tabLabel = (targetYear !== currentYear)
+        ? `${nextMonthName} ${targetYear}`
+        : nextMonthName;
+
+      if (!confirm(`Add challenge tab for "${tabLabel}"?`)) return;
+
+      // Deselect existing tabs
+      existingTabs.forEach(t => {
+        t.classList.remove("active");
+        t.setAttribute("aria-selected", "false");
+      });
+
+      // Append the new tab directly into the existing <menu> list
+      const newTabBtn = document.createElement("button");
+      newTabBtn.type = "button";
+      newTabBtn.setAttribute("role", "tab");
+      newTabBtn.setAttribute("aria-selected", "true");
+      newTabBtn.className = "active";
+      newTabBtn.setAttribute("data-month", nextMonthName.toLowerCase());
+      newTabBtn.setAttribute("data-year", targetYear);
+      newTabBtn.textContent = `${tabLabel} (0/49)`;
+
+      monthTabsList.appendChild(newTabBtn);
+
+      // Re-attach clicks so new button switches months properly
+      attachMonthTabListeners();
+
+      // Switch view and render
+      activeMonth = nextMonthName.toLowerCase();
+      renderGrid();
+    });
+  }
+  // ============================================================
+  // HELPER UTILITIES
+  // ============================================================
+  function cleanSearchQuery(text) {
+    return text
+      .replace(/\[.*?\]/g, "")
+      .replace(/\(.*?\)/g, "")
+      .replace(/#\w+/g, "")
+      .replace(/[’']/g, "'")
+      .replace(/[:\/\\–—]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function parseList(val) {
+    return val ? val.split(",").map(s => s.trim()).filter(Boolean) : [];
+  }
+
+  function safeToArray(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val.map(x => String(x).trim()).filter(Boolean);
+    if (typeof val === "string") return val.split(",").map(x => x.trim()).filter(Boolean);
+    return [String(val).trim()];
+  }
+
+  function getStarString(rating) {
+    if (rating === null || rating === undefined || rating === "") return "";
+    const num = parseFloat(rating);
+    if (isNaN(num)) return "";
+
+    const clamped = Math.max(0, Math.min(5, num));
+    const full = Math.floor(clamped);
+    const half = (clamped % 1) >= 0.25 && (clamped % 1) <= 0.75;
+    const emptyCount = Math.max(0, 5 - full - (half ? 1 : 0));
+
+    return "★".repeat(full) + (half ? "½" : "") + "☆".repeat(emptyCount);
+  }
+
+  // Helper: Upload an external image URL to Supabase Storage Bucket ('covers')
+  async function uploadExternalCoverToSupabase(imageUrl, artist, title) {
+    if (!imageUrl || !imageUrl.startsWith("http") || imageUrl.includes("supabase.co")) {
+      return imageUrl;
+    }
+
+    try {
+      const res = await fetch(imageUrl);
+      if (!res.ok) throw new Error(`HTTP Error fetching image: ${res.status}`);
+      const blob = await res.blob();
+
+      const cleanArtist = (artist || "unknown").toLowerCase().replace(/[^a-z0-9]/g, "_");
+      const cleanTitle = (title || "unknown").toLowerCase().replace(/[^a-z0-9]/g, "_");
+      const filePath = `${cleanArtist}_${cleanTitle}_${Date.now()}.jpg`;
+
+      const { error: uploadError } = await sb.storage
+        .from("covers")
+        .upload(filePath, blob, {
+          contentType: blob.type || "image/jpeg",
+          upsert: true
+        });
+
+      if (uploadError) {
+        console.warn("Supabase storage upload error:", uploadError);
+        return imageUrl;
+      }
+
+      const { data: publicData } = sb.storage
+        .from("covers")
+        .getPublicUrl(filePath);
+
+      return publicData ? publicData.publicUrl : imageUrl;
+    } catch (err) {
+      console.warn(`Could not upload art for "${artist} - ${title}", keeping remote URL:`, err);
+      return imageUrl;
+    }
+  }
+
+  // ============================================================
+  // BATCH SYNC BACKLOG COVERS TO SUPABASE STORAGE
+  // ============================================================
+  const syncBacklogCoversBtn = document.getElementById("syncBacklogCoversBtn");
+
+  if (syncBacklogCoversBtn) {
+    syncBacklogCoversBtn.addEventListener("click", async () => {
+      if (!isAdmin) return alert("Admin authentication required.");
+
+      // Identify uncompleted backlog entries with non-Supabase external URLs
+      const targets = backlogEntries.filter(album => {
+        const isFinished = loggedSpins.some(s =>
+          s.artist && album.artist && s.title && album.title &&
+          s.artist.toLowerCase().trim() === album.artist.toLowerCase().trim() &&
+          s.title.toLowerCase().trim() === album.title.toLowerCase().trim()
+        );
+
+        if (isFinished) return false;
+
+        const url = (album.cover_url || "").trim();
+        return url.startsWith("http") && !url.includes("supabase.co");
+      });
+
+      if (targets.length === 0) {
+        alert("All unfinished backlog album covers are already hosted on Supabase Storage (or using placeholders).");
+        return;
+      }
+
+      if (!confirm(`Found ${targets.length} unfinished backlog album(s) with external URLs. Upload them to your Supabase "covers" bucket and update the database?`)) {
+        return;
+      }
+
+      syncBacklogCoversBtn.disabled = true;
+      let successCount = 0;
+
+      for (let i = 0; i < targets.length; i++) {
+        const item = targets[i];
+        syncBacklogCoversBtn.innerHTML = `<span class="w7-spinner"></span> Syncing (${i + 1}/${targets.length})...`;
+
+        const newCloudUrl = await uploadExternalCoverToSupabase(item.cover_url, item.artist, item.title);
+
+        if (newCloudUrl && newCloudUrl.includes("supabase.co")) {
+          const { error } = await sb
+            .from("challenge_backlog")
+            .update({ cover_url: newCloudUrl })
+            .eq("id", item.id);
+
+          if (!error) {
+            item.cover_url = newCloudUrl;
+            successCount++;
+          }
+        }
+      }
+
+      syncBacklogCoversBtn.innerHTML = `<i class='bx bx-cloud-upload'></i> Sync Art to Cloud`;
+      syncBacklogCoversBtn.disabled = false;
+
+      alert(`Sync finished! Successfully uploaded and updated ${successCount} of ${targets.length} album covers.`);
+      renderGrid();
+    });
+  }
+
+  // Updated Handoff to SosaSpins Composer: passes current Supabase cover URL
+  window.importBacklogToSpin = function(albumId) {
+    const album = backlogEntries.find(a => a.id === albumId);
+    if (!album) return;
+
+    let targetCover = album.cover_url || "";
+    if (targetCover.startsWith("assets/")) targetCover = "../" + targetCover;
+
+    sessionStorage.setItem("sosaspins_prefill_spin", JSON.stringify({
+      artist: album.artist || "",
+      title: album.title || "",
+      year: album.release_year || "",
+      cover_url: targetCover,
+      genres: safeToArray(album.genres).join(", "),
+      secondary_genres: safeToArray(album.secondary_genres).join(", "),
+      descriptors: safeToArray(album.descriptors).join(", "),
+      runtime: album.runtime || ""
+    }));
+
+    window.location.href = "sosaspins.html?action=logSpin";
+  };
 
   // ============================================================
   // ADMIN AUTHENTICATION
@@ -104,30 +365,298 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Bulletproof Star String Generator (Guarantees no repeat() RangeErrors)
-  function getStarString(rating) {
-    if (rating === null || rating === undefined || rating === "") return "";
-    const num = parseFloat(rating);
-    if (isNaN(num)) return "";
+  // ============================================================
+  // FETCH COVER ART & MULTI-SOURCE PICKER
+  // ============================================================
+  window.selectCandidateArt = function(url, element) {
+    if (addPreviewImg) addPreviewImg.src = url;
+    if (addCoverUrl) addCoverUrl.value = url;
+    document.querySelectorAll(".art-choice-item").forEach(el => el.classList.remove("selected"));
+    if (element) element.classList.add("selected");
+  };
 
-    const clamped = Math.max(0, Math.min(5, num));
-    const full = Math.floor(clamped);
-    const half = (clamped % 1) >= 0.25 && (clamped % 1) <= 0.75;
-    const emptyCount = Math.max(0, 5 - full - (half ? 1 : 0));
+  // ============================================================
+  // BULLETPROOF & RELEVANT COVER ART FETCHER
+  // ============================================================
+  if (fetchCoverBtn) {
+    fetchCoverBtn.addEventListener("click", async () => {
+      const rawArtist = (addArtist.value || "").trim();
+      const rawTitle = (addTitle.value || "").trim();
 
-    return "★".repeat(full) + (half ? "½" : "") + "☆".repeat(emptyCount);
+      if (!rawArtist || !rawTitle) {
+        alert("Please enter both Artist and Release Title first.");
+        return;
+      }
+
+      // Activate Aero Spinner
+      fetchCoverBtn.innerHTML = `<span class="w7-spinner"></span> Fetching...`;
+      fetchCoverBtn.disabled = true;
+
+      if (artThumbnailsRow) artThumbnailsRow.innerHTML = "";
+      if (artCandidatesContainer) artCandidatesContainer.style.display = "none";
+
+      const candidateCovers = [];
+
+      try {
+        const cleanA = (rawArtist || "").replace(/[^\w\s]/gi, " ").replace(/\s+/g, " ").trim();
+        const cleanT = (rawTitle || "").replace(/\[.*?\]|\(.*?\)/g, "").replace(/[^\w\s]/gi, " ").replace(/\s+/g, " ").trim();
+
+        const normArtist = cleanA.toLowerCase();
+        const normTitle = cleanT.toLowerCase();
+
+        // ---------------------------------------------------------
+        // 1. Check Pre-existing Spins in Supabase First
+        // ---------------------------------------------------------
+        const spinMatch = loggedSpins.find(s =>
+          s.artist && s.title &&
+          s.artist.toLowerCase().trim() === rawArtist.toLowerCase() &&
+          s.title.toLowerCase().trim() === rawTitle.toLowerCase()
+        );
+        if (spinMatch && spinMatch.cover_url) {
+          let sc = spinMatch.cover_url;
+          if (sc.startsWith("assets/")) sc = "../" + sc;
+          candidateCovers.push({ url: sc, source: "Your Spins" });
+        }
+
+        // ---------------------------------------------------------
+        // 2. Apple iTunes: Targeted & Verified Relevance Check
+        // ---------------------------------------------------------
+        try {
+          const query = encodeURIComponent(`${cleanA} ${cleanT}`);
+          const itunesRes = await fetch(`https://itunes.apple.com/search?term=${query}&entity=album&limit=15`);
+          const itunesData = await itunesRes.json();
+
+          if (itunesData.results && itunesData.results.length > 0) {
+            itunesData.results.forEach(match => {
+              const matchArtist = (match.artistName || "").toLowerCase();
+              const matchAlbum = (match.collectionName || "").toLowerCase();
+
+              // RELEVANCE GUARD: Only accept if artist or album has overlap
+              const artistOverlap = normArtist.split(" ").some(word => word.length > 2 && matchArtist.includes(word));
+              const titleOverlap = normTitle.split(" ").some(word => word.length > 2 && matchAlbum.includes(word));
+
+              if ((artistOverlap || titleOverlap) && match.artworkUrl100) {
+                const hires = match.artworkUrl100.replace("100x100bb.jpg", "600x600bb.jpg");
+                if (!candidateCovers.some(c => c.url === hires)) {
+                  candidateCovers.push({ url: hires, source: "Apple" });
+                }
+
+                if (match.releaseDate && addReleaseYear && !addReleaseYear.value) {
+                addReleaseYear.value = new Date(match.releaseDate).getFullYear();
+              }
+              }
+            });
+          }
+        } catch (err) {
+          console.warn("iTunes art fetch error:", err);
+        }
+
+        // ---------------------------------------------------------
+        // 3. Fallback: MusicBrainz & Cover Art Archive via Proxy
+        // ---------------------------------------------------------
+        if (candidateCovers.length < 4) {
+          try {
+            const mbQuery = encodeURIComponent(`"${cleanT}" AND artist:"${cleanA}"`);
+            const mbUrl = `https://musicbrainz.org/ws/2/release/?query=${mbQuery}&fmt=json&limit=6`;
+
+            const proxyRes = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(mbUrl)}`);
+            if (proxyRes.ok) {
+              const mbData = await proxyRes.json();
+              if (mbData.releases && mbData.releases.length > 0) {
+                for (const rel of mbData.releases) {
+                  const caaUrl = `https://coverartarchive.org/release/${rel.id}/front-500`;
+                  if (!candidateCovers.some(c => c.url === caaUrl)) {
+                    candidateCovers.push({ url: caaUrl, source: "MusicBrainz" });
+                  }
+                }
+              }
+            }
+          } catch (err) {
+            console.warn("MusicBrainz proxy fetch error:", err);
+          }
+        }
+
+        // ---------------------------------------------------------
+        // 4. Render Relevant Thumbnails
+        // ---------------------------------------------------------
+        if (candidateCovers.length === 0) {
+          alert(`No matching artwork found for "${rawArtist} — ${rawTitle}". You can paste a direct image URL into the Cover URL field.`);
+          return;
+        }
+
+        if (artCandidatesContainer && artThumbnailsRow) {
+          artCandidatesContainer.style.display = "flex";
+          artThumbnailsRow.innerHTML = candidateCovers.slice(0, 8).map((item, idx) => `
+            <div class="art-choice-item ${idx === 0 ? 'selected' : ''}" onclick="selectCandidateArt('${item.url}', this)">
+              <img src="${item.url}" alt="Option ${idx + 1}" loading="lazy" onerror="this.parentElement.remove()">
+              <span class="source-tag">${item.source}</span>
+            </div>
+          `).join("");
+
+          // Select the first verified match
+          selectCandidateArt(candidateCovers[0].url, artThumbnailsRow.querySelector(".art-choice-item"));
+        }
+
+      } catch (fatalErr) {
+        console.error("Fatal error fetching covers:", fatalErr);
+        alert("Error while searching for covers: " + fatalErr.message);
+      } finally {
+        fetchCoverBtn.innerHTML = `<i class='bx bx-image'></i> Fetch Art`;
+        fetchCoverBtn.disabled = false;
+      }
+    });
   }
 
-  // Safe Array Parser (Handles arrays, comma strings, or nulls)
-  function safeToArray(val) {
-    if (!val) return [];
-    if (Array.isArray(val)) return val.map(x => String(x).trim()).filter(Boolean);
-    if (typeof val === "string") return val.split(",").map(x => x.trim()).filter(Boolean);
-    return [String(val).trim()];
+  // Window helper for thumbnail selection
+  window.selectCandidateArt = function(url, element) {
+    if (!url) return;
+    if (addPreviewImg) addPreviewImg.src = url;
+    if (addCoverUrl) addCoverUrl.value = url;
+
+    document.querySelectorAll(".art-choice-item").forEach(el => el.classList.remove("selected"));
+    if (element) element.classList.add("selected");
+  };
+
+  // Cover from Existing Spin
+  if (fetchSpinCoverBtn) {
+    fetchSpinCoverBtn.addEventListener("click", () => {
+      const artist = (addArtist.value || "").trim().toLowerCase();
+      const title = (addTitle.value || "").trim().toLowerCase();
+
+      if (!artist || !title) {
+        alert("Enter both Artist and Title first.");
+        return;
+      }
+
+      const match = loggedSpins.find(s =>
+        s.artist && s.title &&
+        s.artist.toLowerCase().trim() === artist &&
+        s.title.toLowerCase().trim() === title
+      );
+
+      if (match && match.cover_url) {
+        let spinCover = match.cover_url;
+        if (spinCover.startsWith("assets/")) spinCover = "../" + spinCover;
+        addCoverUrl.value = match.cover_url;
+        addPreviewImg.src = spinCover;
+        alert(`Loaded cover from existing spin!`);
+      } else {
+        alert("No matching spin found in database.");
+      }
+    });
   }
 
   // ============================================================
-  // CRASH-PROOF DETAIL MODAL LOGIC
+  // BULLETPROOF RUNTIME FETCHER (iTunes API + MusicBrainz Fallback)
+  // ============================================================
+  if (fetchRuntimeBtn) {
+    fetchRuntimeBtn.addEventListener("click", async () => {
+      const rawArtist = (addArtist.value || "").trim();
+      const rawTitle = (addTitle.value || "").trim();
+
+      if (!rawArtist || !rawTitle) {
+        alert("Please enter both Artist and Album Title first.");
+        return;
+      }
+
+      // Set spinner while fetching runtime
+      fetchRuntimeBtn.innerHTML = `<span class="w7-spinner"></span> Fetching...`;
+      fetchRuntimeBtn.disabled = true;
+
+      fetchRuntimeBtn.textContent = "Fetching...";
+      const artist = cleanSearchQuery(rawArtist);
+      const title = cleanSearchQuery(rawTitle);
+
+      let foundRuntime = null;
+
+      // -----------------------------------------------------------
+      // 1. PRIMARY: iTunes Lookup (Direct browser CORS, fast & accurate)
+      // -----------------------------------------------------------
+      try {
+        const query = encodeURIComponent(`${artist} ${title}`);
+        const itunesRes = await fetch(`https://itunes.apple.com/search?term=${query}&entity=album&limit=3`);
+        const itunesData = await itunesRes.json();
+
+        if (itunesData.results && itunesData.results.length > 0) {
+          const collectionId = itunesData.results[0].collectionId;
+
+          // Query tracks on this collection to sum exact track times (millis)
+          const tracksRes = await fetch(`https://itunes.apple.com/lookup?id=${collectionId}&entity=song`);
+          const tracksData = await tracksRes.json();
+
+          if (tracksData.results && tracksData.results.length > 1) {
+            let totalMs = 0;
+            // The first item is collection metadata; remaining items are songs
+            tracksData.results.slice(1).forEach(song => {
+              if (song.trackTimeMillis) totalMs += song.trackTimeMillis;
+            });
+
+            if (totalMs > 0) {
+              const totalMins = Math.floor(totalMs / 60000);
+              const remainingSecs = Math.floor((totalMs % 60000) / 1000);
+              foundRuntime = `${totalMins}m ${remainingSecs.toString().padStart(2, "0")}s`;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("iTunes runtime lookup failed:", err);
+      }
+
+      // -----------------------------------------------------------
+      // 2. FALLBACK: MusicBrainz via CORS Proxy
+      // -----------------------------------------------------------
+      if (!foundRuntime) {
+        try {
+          const mbQuery = encodeURIComponent(`release:"${title}" AND artist:"${artist}"`);
+          const mbUrl = `https://musicbrainz.org/ws/2/release/?query=${mbQuery}&fmt=json&limit=1`;
+
+          // Route through AllOrigins CORS proxy to bypass browser network errors
+          const proxyRes = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(mbUrl)}`);
+          if (proxyRes.ok) {
+            const mbData = await proxyRes.json();
+
+            if (mbData.releases && mbData.releases.length > 0) {
+              const releaseId = mbData.releases[0].id;
+              const detailUrl = `https://musicbrainz.org/ws/2/release/${releaseId}?inc=recordings&fmt=json`;
+              const detailProxy = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(detailUrl)}`);
+
+              if (detailProxy.ok) {
+                const detailData = await detailProxy.json();
+                let totalMs = 0;
+
+                (detailData.media || []).forEach(m => {
+                  (m.tracks || []).forEach(tr => {
+                    if (tr.length) totalMs += tr.length;
+                  });
+                });
+
+                if (totalMs > 0) {
+                  const totalMins = Math.floor(totalMs / 60000);
+                  const remainingSecs = Math.floor((totalMs % 60000) / 1000);
+                  foundRuntime = `${totalMins}m ${remainingSecs.toString().padStart(2, "0")}s`;
+                }
+              }
+            }
+          }
+        } catch (err) {f
+          console.warn("MusicBrainz fallback failed:", err);
+        }
+      }
+
+
+      // ... inside finally block ...
+      fetchRuntimeBtn.innerHTML = `Fetch Runtime`;
+      fetchRuntimeBtn.disabled = false;
+
+      if (foundRuntime) {
+        if (addRuntime) addRuntime.value = foundRuntime;
+      } else {
+        alert(`Could not calculate runtime for "${rawArtist} — ${rawTitle}". You can enter it manually.`);
+      }
+    });
+  }
+// ============================================================
+  // DETAIL MODAL LOGIC
   // ============================================================
   window.openAlbumDetail = function(albumId) {
     if (!detailModal || !modalBody) return;
@@ -135,7 +664,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const album = backlogEntries.find(a => a.id === albumId);
     if (!album) return;
 
-    // Safe match finder (guards against nulls)
     const match = loggedSpins.find(s => {
       const sArtist = (s.artist || "").trim().toLowerCase();
       const sTitle = (s.title || "").trim().toLowerCase();
@@ -144,12 +672,23 @@ document.addEventListener("DOMContentLoaded", () => {
       return sArtist && aArtist && sArtist === aArtist && sTitle === aTitle;
     });
 
+    // Toggle .is-unlistened on the modal container to trigger expanded styles
+    const modalDialog = detailModal.querySelector(".window, .modal-dialog") || detailModal;
+    if (match) {
+      modalDialog.classList.remove("is-unlistened");
+    } else {
+      modalDialog.classList.add("is-unlistened");
+    }
+
+    // Format release year tag
+    const releaseYear = (match && match.year) ? match.year : (album.release_year || "");
+    const yearDisplay = releaseYear ? ` (${releaseYear})` : "";
+
     try {
       if (match) {
-        let resolvedCover = match.cover_url || album.cover_url || "placeholder.png";
+        let resolvedCover = match.cover_url || album.cover_url || "../assets/images/spins/placeholder.png";
         if (resolvedCover.startsWith("assets/")) resolvedCover = "../" + resolvedCover;
 
-        // 1. Safe Genres
         const primaryGenres = safeToArray(match.genres);
         const secondaryGenres = safeToArray(match.secondary_genres);
 
@@ -171,7 +710,6 @@ document.addEventListener("DOMContentLoaded", () => {
           `;
         }
 
-        // 2. Safe Descriptors
         const descriptors = safeToArray(match.descriptors);
         let descriptorsHtml = "";
         if (descriptors.length) {
@@ -183,7 +721,6 @@ document.addEventListener("DOMContentLoaded", () => {
           `;
         }
 
-        // 3. Safe Stars
         let starsHtml = "";
         if (match.rating !== null && match.rating !== undefined && match.rating !== "") {
           const rNum = parseFloat(match.rating);
@@ -195,7 +732,6 @@ document.addEventListener("DOMContentLoaded", () => {
           `;
         }
 
-        // 4. Safe Fav Tracks
         let favTracksHtml = "";
         const favTracksList = safeToArray(match.fav_tracks);
         if (favTracksList.length) {
@@ -215,12 +751,25 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>`;
         }
 
-        // 5. Safe Memo
         let memoHtml = "";
         if (match.memo) {
           let cleanText = String(match.memo)
             .replace(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}(?:\s*relistened)?(?:\s*<br\s*\/?>)*/i, "")
             .trim();
+
+          // 1. Convert Markdown links with quotes: ["Song Name"](url) -> clickable track badge
+          cleanText = cleanText.replace(
+            /\[["“]([^"”]+)["”]\]\((https?:\/\/[^\s)]+)\)/g,
+            `<a href="$2" target="_blank" rel="noopener noreferrer" class="inline-quoted-track song-embed-link">“$1” ↗</a>`
+          );
+
+          // 2. Wrap standalone quotes without links into styled track chips
+          cleanText = cleanText.replace(
+            /(?<=^|[\s>(])["“]([^"”\n\r<]+)["”](?=[\s.,!?;:)<]|$)/g,
+            `<span class="inline-quoted-track">“$1”</span>`
+          );
+
+          // 3. Convert line breaks
           memoHtml = cleanText.replace(/\r?\n/g, "<br>");
         }
 
@@ -229,7 +778,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <div class="modal-detail-header">
               <img class="modal-detail-cover" src="${resolvedCover}" alt="${match.title || album.title}">
               <div class="modal-detail-meta">
-                <div class="modal-detail-title">${match.artist || album.artist} — ${match.title || album.title}</div>
+                <div class="modal-detail-title">${match.artist || album.artist} — ${match.title || album.title}${yearDisplay}</div>
                 <div class="modal-detail-submeta">
                   Logged on: ${match.log_date || "N/A"} ${album.runtime ? `• Runtime: ${album.runtime}` : ""}
                 </div>
@@ -250,21 +799,58 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         `;
       } else {
-        // Unlistened album state
-        let unloggedCover = album.cover_url || "placeholder.png";
+        // Unlogged Backlog Entry View
+        let unloggedCover = album.cover_url || "../assets/images/spins/placeholder.png";
         if (unloggedCover.startsWith("assets/")) unloggedCover = "../" + unloggedCover;
 
+        const primaryGenres = safeToArray(album.genres);
+        const secondaryGenres = safeToArray(album.secondary_genres);
+        const descriptors = safeToArray(album.descriptors);
+
+        let tagsHtml = "";
+        if (primaryGenres.length || secondaryGenres.length) {
+          tagsHtml += `
+            <div class="genre-container unlistened-genre-box" style="margin: 0.85rem 0; width: 100%;">
+              ${primaryGenres.length ? `
+                <div class="primary-genres-wrap" style="justify-content: center; gap: 6px; margin-bottom: 6px;">
+                  ${primaryGenres.map(g => `<span class="genre-pill genre-primary" style="padding: 4px 10px; font-size: 0.8rem;">${g}</span>`).join("")}
+                </div>
+              ` : ""}
+              ${secondaryGenres.length ? `
+                <div class="secondary-genres-wrap" style="justify-content: center; gap: 5px;">
+                  ${secondaryGenres.map(g => `<span class="genre-pill genre-secondary" style="padding: 3px 8px; font-size: 0.74rem;">${g}</span>`).join("")}
+                </div>
+              ` : ""}
+            </div>
+          `;
+        }
+
+        if (descriptors.length) {
+          tagsHtml += `
+            <div class="descriptors-wrapper unlistened-desc-box" style="margin: 0.65rem 0; justify-content: center; gap: 6px; width: 100%;">
+              <span class="desc-label" style="font-size: 0.75rem;">descriptors:</span>
+              ${descriptors.map(d => `<span class="descriptor-pill" style="padding: 3px 9px; font-size: 0.75rem;">${d}</span>`).join("")}
+            </div>
+          `;
+        }
+
         modalBody.innerHTML = `
-          <div class="modal-detail-wrapper" style="text-align: center; align-items: center; padding-bottom: 1.5rem;">
-            <img src="${unloggedCover}" class="modal-detail-cover" style="width: 130px; height: 130px; border-radius: 10px; margin: 0.5rem auto;">
-            <div class="modal-detail-title" style="margin-top: 0.5rem;">${album.artist} — ${album.title}</div>
-            ${album.runtime ? `<div style="font-weight: 600; font-size: 0.85rem; color: #10b981;">Runtime: ${album.runtime}</div>` : ""}
-            <p style="color: var(--text-color, #334155); opacity: 0.85; margin: 0.5rem 0 0.85rem;">
+          <div class="modal-detail-wrapper" style="text-align: center; align-items: center; padding: 0.5rem 0.75rem 1.25rem;">
+            <img src="${unloggedCover}" class="modal-detail-cover" style="width: 130px; height: 130px; border-radius: 10px; margin: 0.25rem auto;">
+            <div class="modal-detail-title" style="margin-top: 0.6rem; font-size: 1.1rem; font-weight: 700;">${album.artist} — ${album.title}${yearDisplay}</div>
+            ${album.runtime ? `<div style="font-weight: 600; font-size: 0.85rem; color: #10b981; margin-top: 3px;"><i class='bx bx-time' style='vertical-align: middle;'></i> Runtime: ${album.runtime}</div>` : ""}
+
+            <div class="unlistened-metadata-area" style="width: 100%; max-width: 480px; margin: 0.25rem auto;">
+              ${tagsHtml}
+            </div>
+
+            <p style="color: var(--text-color, #334155); opacity: 0.85; margin: 0.75rem 0 0.85rem; font-size: 0.88rem;">
               You haven't logged this album on <strong>SosaSpins</strong> yet.
             </p>
-            <a href="sosaspins.html" class="review-action-btn" style="text-decoration: none;">
-              Log this Spin ➔
-            </a>
+
+            <button type="button" class="review-action-btn" onclick="importBacklogToSpin(${album.id})" style="border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;">
+              <i class='bx bx-plus-circle'></i> Log this Spin ➔
+            </button>
           </div>
         `;
       }
@@ -276,12 +862,31 @@ document.addEventListener("DOMContentLoaded", () => {
     detailModal.style.setProperty("display", "flex", "important");
   };
 
-  // Close Detail Modal Listeners
   if (closeDetailModal) {
     closeDetailModal.addEventListener("click", () => {
       detailModal.style.display = "none";
     });
   }
+
+  // ============================================================
+  // HANDOFF TO SOSASPIN COMPOSER
+  // ============================================================
+  window.importBacklogToSpin = function(albumId) {
+    const album = backlogEntries.find(a => a.id === albumId);
+    if (!album) return;
+
+    sessionStorage.setItem("sosaspins_prefill_spin", JSON.stringify({
+      artist: album.artist || "",
+      title: album.title || "",
+      cover_url: album.cover_url || "",
+      genres: safeToArray(album.genres).join(", "),
+      secondary_genres: safeToArray(album.secondary_genres).join(", "),
+      descriptors: safeToArray(album.descriptors).join(", "),
+      runtime: album.runtime || ""
+    }));
+
+    window.location.href = "sosaspins.html?action=logSpin";
+  };
 
   // ============================================================
   // TILE CLICK HANDLER (Event Delegation)
@@ -308,7 +913,26 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Close modals on outside backdrop click
+  if (topsterGrid) {
+  topsterGrid.addEventListener("mouseover", (e) => {
+    const tile = e.target.closest(".topster-tile");
+    if (!tile || !statusBarStatus) return;
+
+    const id = parseInt(tile.getAttribute("data-id"), 10);
+    const album = backlogEntries.find(a => a.id === id);
+    if (album) {
+      statusBarStatus.textContent = `${album.artist} — ${album.title}`;
+    }
+  });
+
+  topsterGrid.addEventListener("mouseout", (e) => {
+    const tile = e.target.closest(".topster-tile");
+    if (tile && statusBarStatus) {
+      statusBarStatus.textContent = "Ready";
+    }
+  });
+}
+
   window.addEventListener("click", (e) => {
     if (e.target === detailModal) detailModal.style.display = "none";
     if (e.target === addModal) addModal.style.display = "none";
@@ -380,7 +1004,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ============================================================
   // LOAD & RENDER DATA
   // ============================================================
-  async function loadData() {
+ async function loadData() {
     try {
       const [backlogRes, spinsRes] = await Promise.all([
         sb.from("challenge_backlog").select("*"),
@@ -398,17 +1022,63 @@ document.addEventListener("DOMContentLoaded", () => {
 
       loggedSpins = spinsRes.data || [];
 
+      // Build tabs & refresh view
+      if (typeof buildMonthTabs === "function") buildMonthTabs();
       updateMonthPillCounts();
       renderGrid();
       updateAdminVisibility();
+
     } catch (err) {
-      console.error("Load error:", err);
-      topsterGrid.innerHTML = `<div class="grid-loader" style="color: #ef4444; padding: 2rem;">Error: ${err.message}</div>`;
+      console.error("Critical error in loadData():", err);
+      // Remove marquee bar and show error dialog directly in the window body
+      topsterGrid.innerHTML = `
+        <div class="grid-loader" style="color: #ef4444; padding: 2rem;">
+          <i class='bx bx-error-circle' style="font-size: 1.5rem; display: block; margin-bottom: 0.5rem;"></i>
+          Failed to load challenge backlog: ${err.message}
+        </div>
+      `;
+      if (statusBarSelection) statusBarSelection.textContent = "Error connecting to Supabase";
+      if (statusBarStatus) statusBarStatus.textContent = "Failed";
     }
   }
 
+// Windows 7 Tab Switching Handler
+  const monthTabButtons = document.querySelectorAll('menu[role="tablist"] button[role="tab"]');
+
+  monthTabButtons.forEach(tab => {
+    tab.addEventListener("click", () => {
+      monthTabButtons.forEach(t => {
+        t.classList.remove("active");
+        t.setAttribute("aria-selected", "false");
+      });
+
+      tab.classList.add("active");
+      tab.setAttribute("aria-selected", "true");
+      activeMonth = tab.getAttribute("data-month").toLowerCase();
+      renderGrid();
+    });
+  });
+
+  const monthTabs = document.querySelectorAll('menu.w7-month-tabs button[role="tab"], .w7-month-tabs button');
+
+  monthTabs.forEach(tab => {
+    tab.addEventListener("click", () => {
+      monthTabs.forEach(t => {
+        t.classList.remove("active");
+        t.setAttribute("aria-selected", "false");
+      });
+
+      tab.classList.add("active");
+      tab.setAttribute("aria-selected", "true");
+
+      activeMonth = (tab.getAttribute("data-month") || "").toLowerCase();
+      renderGrid();
+    });
+  });
+
+  // Dynamic Tab Counter Updater
   function updateMonthPillCounts() {
-    monthFilterButtons.forEach(btn => {
+    monthTabButtons.forEach(btn => {
       const month = btn.getAttribute("data-month").toLowerCase();
       const count = backlogEntries.filter(e => (e.month || "").toLowerCase() === month).length;
       const formatted = month.charAt(0).toUpperCase() + month.slice(1);
@@ -423,14 +1093,46 @@ document.addEventListener("DOMContentLoaded", () => {
     const displayMonth = activeMonth.charAt(0).toUpperCase() + activeMonth.slice(1);
     if (progressSubtitle) progressSubtitle.textContent = `${displayMonth} 7×7 Listening Challenge (49 Albums)`;
 
+    // Calculate completed albums
+    list.forEach(album => {
+      const isDone = loggedSpins.some(s =>
+        s.artist && album.artist && s.title && album.title &&
+        s.artist.toLowerCase().trim() === album.artist.toLowerCase().trim() &&
+        s.title.toLowerCase().trim() === album.title.toLowerCase().trim()
+      );
+      if (isDone) completedCount++;
+    });
+
+    const total = 49;
+    const pct = Math.round((completedCount / total) * 100);
+
+    // Update Counter & Progress Bar
+    if (counterEl) counterEl.textContent = `Completed: ${completedCount} / ${total}`;
+    if (percentEl) percentEl.textContent = `${pct}%`;
+    if (progressFill) progressFill.style.width = `${pct}%`;
+
+    // -------------------------------------------------------------
+    // STATUS BAR UPDATE (Runs regardless of whether list has 0 or 49 items)
+    // -------------------------------------------------------------
+    if (statusBarSelection) {
+      if (list.length === 0) {
+        statusBarSelection.textContent = `0 items for ${displayMonth}`;
+      } else {
+        statusBarSelection.textContent = `${list.length} items (${completedCount} completed)`;
+      }
+    }
+
+    if (statusBarStatus) {
+      statusBarStatus.textContent = list.length === 49 ? "Month Full" : "Ready";
+    }
+
+    // Handle Empty Month State
     if (list.length === 0) {
       topsterGrid.innerHTML = `<div class="grid-loader">No albums added for ${displayMonth} yet.</div>`;
-      counterEl.textContent = `Completed: 0 / 49`;
-      percentEl.textContent = `0%`;
-      progressFill.style.width = `0%`;
       return;
     }
 
+    // Render Tiles
     topsterGrid.innerHTML = list.map((album, idx) => {
       const match = loggedSpins.find(s =>
         s.artist && album.artist && s.title && album.title &&
@@ -439,9 +1141,7 @@ document.addEventListener("DOMContentLoaded", () => {
       );
 
       const isDone = !!match;
-      if (isDone) completedCount++;
-
-      let coverSrc = (isDone && match.cover_url) ? match.cover_url : (album.cover_url || "placeholder.png");
+      let coverSrc = (isDone && match.cover_url) ? match.cover_url : (album.cover_url || FALLBACK_PLACEHOLDER);
       if (coverSrc.startsWith("assets/")) coverSrc = "../" + coverSrc;
 
       return `
@@ -461,7 +1161,20 @@ document.addEventListener("DOMContentLoaded", () => {
           ${isDone ? `
             <div class="aero-check-overlay">
               <svg viewBox="0 0 24 24" class="aero-check-icon">
-                <path d="M5 13l4 4L19 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <defs>
+                  <linearGradient id="aeroCheckGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95" />
+                    <stop offset="25%" stop-color="#a7f3d0" />
+                    <stop offset="55%" stop-color="#10b981" />
+                    <stop offset="100%" stop-color="#059669" />
+                  </linearGradient>
+                </defs>
+                <path d="M4.5 12.5l5 5L19.5 6.5"
+                      fill="none"
+                      stroke="url(#aeroCheckGrad)"
+                      stroke-width="3.2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"/>
               </svg>
             </div>
           ` : ''}
@@ -470,12 +1183,6 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       `;
     }).join("");
-
-    const total = 49;
-    const pct = Math.round((completedCount / total) * 100);
-    counterEl.textContent = `Completed: ${completedCount} / ${total}`;
-    percentEl.textContent = `${pct}%`;
-    progressFill.style.width = `${pct}%`;
 
     if (isAdmin) setupDragAndDrop();
   }
@@ -569,9 +1276,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (editEntryId) editEntryId.value = album.id;
     if (addArtist) addArtist.value = album.artist || "";
     if (addTitle) addTitle.value = album.title || "";
+    if (addReleaseYear) addReleaseYear.value = album.release_year || "";
     if (addCoverUrl) addCoverUrl.value = album.cover_url || "";
     if (addRuntime) addRuntime.value = album.runtime || "";
-    if (addPreviewImg) addPreviewImg.src = album.cover_url || "placeholder.png";
+    if (addGenres) addGenres.value = safeToArray(album.genres).join(", ");
+    if (addSecondaryGenres) addSecondaryGenres.value = safeToArray(album.secondary_genres).join(", ");
+    if (addDescriptors) addDescriptors.value = safeToArray(album.descriptors).join(", ");
+    if (addPreviewImg) addPreviewImg.src = FALLBACK_PLACEHOLDER;
 
     if (submitAddAlbumBtn) submitAddAlbumBtn.textContent = "Update Album";
     if (addModal) addModal.style.display = "flex";
@@ -596,7 +1307,12 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!isAdmin) return;
       if (editEntryId) editEntryId.value = "";
       if (addAlbumForm) addAlbumForm.reset();
-      if (addPreviewImg) addPreviewImg.src = "placeholder.png";
+      if (addPreviewImg) addPreviewImg.src = "assets/images/spins/placeholder.png";
+      if (addGenres) addGenres.value = "";
+      if (addSecondaryGenres) addSecondaryGenres.value = "";
+      if (addDescriptors) addDescriptors.value = "";
+      if (artCandidatesContainer) artCandidatesContainer.style.display = "none";
+      if (artThumbnailsRow) artThumbnailsRow.innerHTML = "";
       if (submitAddAlbumBtn) submitAddAlbumBtn.textContent = "Save to Backlog";
       if (addModal) addModal.style.display = "flex";
     });
@@ -607,79 +1323,96 @@ document.addEventListener("DOMContentLoaded", () => {
   if (addAlbumForm) {
     addAlbumForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      if (!isAdmin) return alert("Admin login required.");
 
-      const artist = addArtist.value.trim();
-      const title = addTitle.value.trim();
-      const cover = addCoverUrl.value.trim() || "placeholder.png";
-      const runtime = addRuntime ? addRuntime.value.trim() || null : null;
-      const idToUpdate = editEntryId ? editEntryId.value : "";
-
-      submitAddAlbumBtn.textContent = "Saving...";
+      const submitBtn = document.getElementById("submitAddAlbumBtn");
+      // Prevent duplicate clicks
+      if (submitBtn) {
+        if (submitBtn.disabled) return;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<span class="w7-spinner"></span> Saving...`;
+      }
 
       try {
-        if (idToUpdate) {
-          const { error } = await sb.from("challenge_backlog").update({
-            artist,
-            title,
-            cover_url: cover,
-            runtime
-          }).eq("id", idToUpdate);
+        const artist = (addArtist.value || "").trim();
+        const title = (addTitle.value || "").trim();
+        let cover = (addCoverUrl.value || "").trim();
+        const runtime = (addRuntime.value || "").trim();
+        const genres = safeSplit(addGenres.value);
+        const secondary_genres = safeSplit(addSecondaryGenres.value);
+        const descriptors = safeSplit(addDescriptors.value);
+
+        if (!cover || cover.includes("placeholder.png")) {
+          cover = "";
+        }
+
+        const isEditing = !!editEntryId.value;
+
+        if (isEditing) {
+          // UPDATE existing record
+          const { error } = await sb
+            .from("challenge_backlog")
+            .update({
+              artist,
+              title,
+              release_year: releaseYearVal,
+              cover_url: cover,
+              runtime,
+              genres,
+              secondary_genres,
+              descriptors
+            })
+            .eq("id", editEntryId.value);
+
           if (error) throw error;
         } else {
-          const maxPos = backlogEntries
-            .filter(b => (b.month || "").toLowerCase() === activeMonth)
-            .reduce((max, b) => Math.max(max, b.position || 0), -1);
+          // INSERT new record
+          const currentYear = new Date().getFullYear();
+          const activeTabBtn = document.querySelector(`menu.w7-month-tabs button[data-month="${activeMonth}"]`);
+          const targetYear = activeTabBtn ? parseInt(activeTabBtn.getAttribute("data-year"), 10) : currentYear;
 
-          const { error } = await sb.from("challenge_backlog").insert([{
+          const monthEntries = backlogEntries.filter(
+            entry => (entry.month || "").toLowerCase() === activeMonth.toLowerCase()
+          );
+          const maxPos = monthEntries.reduce(
+            (max, entry) => Math.max(max, entry.position !== null && entry.position !== undefined ? entry.position : -1),
+            -1
+          );
+
+          const newRecord = {
             artist,
             title,
+            release_year: releaseYearVal,
             cover_url: cover,
             runtime,
             month: activeMonth,
-            position: maxPos + 1
-          }]);
+            year: targetYear,
+            position: maxPos + 1,
+            genres,
+            secondary_genres,
+            descriptors
+          };
+
+          const { error } = await sb.from("challenge_backlog").insert([newRecord]);
           if (error) throw error;
         }
 
-        addAlbumForm.reset();
-        if (editEntryId) editEntryId.value = "";
-        if (addPreviewImg) addPreviewImg.src = "placeholder.png";
+        // Close modal and reset fields
         if (addModal) addModal.style.display = "none";
+        addAlbumForm.reset();
+        editEntryId.value = "";
+        if (addPreviewImg) addPreviewImg.src = FALLBACK_PLACEHOLDER;
+
+        // Reload data from Supabase
         await loadData();
+
       } catch (err) {
+        console.error("Save error:", err);
         alert("Error saving: " + err.message);
       } finally {
-        submitAddAlbumBtn.textContent = "Save to Backlog";
-      }
-    });
-  }
-
-  // Cover from Existing Spin
-  if (fetchSpinCoverBtn) {
-    fetchSpinCoverBtn.addEventListener("click", () => {
-      const artist = (addArtist.value || "").trim().toLowerCase();
-      const title = (addTitle.value || "").trim().toLowerCase();
-
-      if (!artist || !title) {
-        alert("Enter both Artist and Title first.");
-        return;
-      }
-
-      const match = loggedSpins.find(s =>
-        s.artist && s.title &&
-        s.artist.toLowerCase().trim() === artist &&
-        s.title.toLowerCase().trim() === title
-      );
-
-      if (match && match.cover_url) {
-        let spinCover = match.cover_url;
-        if (spinCover.startsWith("assets/")) spinCover = "../" + spinCover;
-        addCoverUrl.value = match.cover_url;
-        addPreviewImg.src = spinCover;
-        alert(`Loaded cover from existing spin!`);
-      } else {
-        alert("No matching spin found in database.");
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = `Save to Backlog`;
+        }
       }
     });
   }

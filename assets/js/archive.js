@@ -7,6 +7,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const SUPABASE_URL = "https://gxgfuomkjrhixcjfvhvj.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_tgeBo35B4k__uyfMyaxXnA_O5KUKlL7";
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const logRuntime = document.getElementById("logRuntime");
+const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
 
   const adminLockIcon = document.getElementById("adminLockIcon");
   const ICON_LOCKED = "assets/images/homepics/CP070.ico";
@@ -324,6 +326,7 @@ function getDominantColorFromImg(imgUrl) {
     if (logReviewUrl) logReviewUrl.value = "";
     if (dateInput) dateInput.value = todayFormatted;
     if (trackRatingsList) trackRatingsList.innerHTML = "";
+    if (logRuntime) logRuntime.value = "";
   }
 
   if (composerPrompt) composerPrompt.addEventListener("click", () => openModal(false));
@@ -333,6 +336,67 @@ function getDominantColorFromImg(imgUrl) {
       if (e.target === modalOverlay) closeModal();
     });
   }
+
+  // ============================================================
+  // PREFILL FROM CHALLENGE DASHBOARD (Log this Spin ➔)
+  // ============================================================
+  function checkHandoffFromChallenge() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const shouldLog = urlParams.get("action") === "logSpin";
+    const prefillDataRaw = sessionStorage.getItem("sosaspins_prefill_spin");
+
+    if (shouldLog && prefillDataRaw) {
+      try {
+        const item = JSON.parse(prefillDataRaw);
+
+        // 1. Open the modal composer in "Add" mode
+        if (typeof openModal === "function") {
+          openModal(false);
+        } else if (typeof openComposer === "function") {
+          openComposer(false);
+        }
+
+        // 2. Pre-fill artist, title, and cover
+        if (logArtist) logArtist.value = item.artist || "";
+        if (logTitle) logTitle.value = item.title || "";
+
+        let cover = item.cover_url || "";
+        // Remove challenge relative subfolder prefix if present
+        if (cover.startsWith("../")) cover = cover.replace("../", "");
+
+        if (logCoverUrl) logCoverUrl.value = cover;
+        if (previewImg && cover) previewImg.src = cover;
+
+        // 3. Pre-fill metadata (genres, descriptors, runtime)
+        if (document.getElementById("logGenres")) {
+          document.getElementById("logGenres").value = item.genres || "";
+        }
+        if (document.getElementById("logSecondaryGenres")) {
+          document.getElementById("logSecondaryGenres").value = item.secondary_genres || "";
+        }
+        if (document.getElementById("logDescriptors")) {
+          document.getElementById("logDescriptors").value = item.descriptors || "";
+        }
+
+        // 4. Pre-fill runtime or listening notes memo if available
+        if (logRuntime && item.runtime) {
+        logRuntime.value = item.runtime;
+        }
+
+        // 5. Clean up sessionStorage so it doesn't reopen on every refresh
+        sessionStorage.removeItem("sosaspins_prefill_spin");
+
+        // Clean URL without reloading page
+        window.history.replaceState({}, document.title, window.location.pathname);
+
+      } catch (err) {
+        console.warn("Could not prefill spin from challenge:", err);
+      }
+    }
+  }
+
+  // Run the check on load
+  checkHandoffFromChallenge();
 
   // ============================================================
   // LOAD ARCHIVE DATA
@@ -625,7 +689,8 @@ window.closeMiniPlayer = function() {
               <div class="title-meta-group">
                 <span class="spin-title">${item.artist} — ${item.title}</span>
                 <span class="spin-year">${item.year ? `(${item.year})` : ''}</span>
-                <span class="category spin-format-tag">${displayType}</span>${item.relisten ? `<span class="category relisten-tag">RELISTEN</span>` : ""}
+                <span class="category spin-format-tag">${displayType}</span>${item.runtime ? `<span class="category spin-runtime-tag" style="background: rgba(16, 185, 129, 0.12); color: #065f46; font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; border: 1px solid rgba(16, 185, 129, 0.25);"><i class='bx bx-time' style='font-size: 0.8rem; vertical-align: middle;'></i> ${item.runtime}</span>` : ""}
+                ${item.relisten ? `<span class="category relisten-tag">RELISTEN</span>` : ""}
               </div>
               <span class="post-date">${item.log_date || ""}</span>
             </div>
@@ -1101,6 +1166,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     document.getElementById("logDescriptors").value = (item.descriptors || []).join(", ");
     document.getElementById("logFavTracks").value = (item.fav_tracks || []).join("; ");
     document.getElementById("logMemo").value = item.memo || "";
+    if (logRuntime) logRuntime.value = item.runtime || "";
     if (trackRatingsList) {
     trackRatingsList.innerHTML = "";
     (item.track_ratings || []).forEach(tr => {
@@ -1164,6 +1230,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         secondary_genres: parseList(logSecondaryGenres ? logSecondaryGenres.value : ""),
         descriptors: parseList(document.getElementById("logDescriptors").value),
         cover_url: finalCoverUrl,
+        runtime: runtimeVal || null,
         review_url: logReviewUrl && logReviewUrl.value.trim() ? logReviewUrl.value.trim() : null,
         fav_tracks: (document.getElementById("logFavTracks").value || "")
           .split(";")
@@ -1364,6 +1431,105 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       }
     });
   }
+
+  // Helper to format total milliseconds into "1h 12m" or "48m 22s"
+  function formatMillisecondsToRuntime(totalMs) {
+    if (!totalMs || totalMs <= 0) return null;
+    const totalSeconds = Math.floor(totalMs / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m ${seconds}s`;
+  }
+
+  // Lookup release duration from iTunes API
+  async function fetchAlbumRuntime(artist, title) {
+    try {
+      const cleanA = (artist || "").replace(/[^\w\s]/gi, " ").replace(/\s+/g, " ").trim();
+      const cleanT = (title || "").replace(/\[.*?\]|\(.*?\)/g, "").replace(/[^\w\s]/gi, " ").replace(/\s+/g, " ").trim();
+      const term = encodeURIComponent(`${cleanA} ${cleanT}`);
+
+      const res = await fetch(`https://itunes.apple.com/search?term=${term}&entity=album&limit=5`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (!data.results || data.results.length === 0) return null;
+
+      // Match the most relevant collection
+      const match = data.results.find(a =>
+        (a.collectionName || "").toLowerCase().includes(cleanT.toLowerCase()) ||
+        (a.artistName || "").toLowerCase().includes(cleanA.toLowerCase())
+      ) || data.results[0];
+
+      if (!match || !match.collectionId) return null;
+
+      // Lookup tracks to sum duration
+      const tracksRes = await fetch(`https://itunes.apple.com/lookup?id=${match.collectionId}&entity=song`);
+      if (!tracksRes.ok) return null;
+      const tracksData = await tracksRes.json();
+
+      const songs = (tracksData.results || []).filter(item => item.wrapperType === "track");
+      if (songs.length === 0) return null;
+
+      const totalMs = songs.reduce((sum, song) => sum + (song.trackTimeMillis || 0), 0);
+      return formatMillisecondsToRuntime(totalMs);
+    } catch (err) {
+      console.warn(`Could not fetch runtime for "${artist} - ${title}":`, err);
+      return null;
+    }
+  }
+
+  // Batch Backfill Runner
+  if (batchFetchRuntimesBtn) {
+    batchFetchRuntimesBtn.addEventListener("click", async () => {
+      if (!isAdmin) return alert("Admin access required.");
+
+      // Find all entries currently lacking a runtime
+      const targets = allEntries.filter(entry => !entry.runtime || entry.runtime.trim() === "");
+
+      if (targets.length === 0) {
+        return alert("All spins already have a runtime recorded!");
+      }
+
+      if (!confirm(`Found ${targets.length} spin(s) missing runtime. Query iTunes and backfill them now?`)) {
+        return;
+      }
+
+      batchFetchRuntimesBtn.disabled = true;
+      let updatedCount = 0;
+
+      for (let i = 0; i < targets.length; i++) {
+        const item = targets[i];
+        batchFetchRuntimesBtn.innerHTML = `<span class="w7-spinner"></span> (${i + 1}/${targets.length}) ${item.title}...`;
+
+        const runtimeStr = await fetchAlbumRuntime(item.artist, item.title);
+
+        if (runtimeStr) {
+          const { error } = await supabaseClient
+            .from("spins")
+            .update({ runtime: runtimeStr })
+            .eq("id", item.id);
+
+          if (!error) {
+            item.runtime = runtimeStr;
+            updatedCount++;
+          }
+        }
+
+        // Small delay to prevent rate-limiting
+        await new Promise(r => setTimeout(r, 200));
+      }
+
+      batchFetchRuntimesBtn.innerHTML = `<i class='bx bx-time'></i> Backfill Runtimes`;
+      batchFetchRuntimesBtn.disabled = false;
+
+      alert(`Backfill finished! Successfully fetched and added runtime for ${updatedCount} of ${targets.length} spins.`);
+      renderFeed(allEntries);
+    });
+  }s
 
   // ============================================================
   // EXPORT JSON BUTTON

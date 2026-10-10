@@ -43,99 +43,165 @@
     </div>
   </section>
 
-  <!-- Month Controls & Action Row -->
+<!-- Month Tabs & Progress Header -->
   <div class="challenge-controls container">
     <div class="challenge-actions-bar">
-      <div class="post-filter">
-        <button type="button" class="filter-item active-filter" data-month="october">October (49)</button>
-        <button type="button" class="filter-item" data-month="november">November (49)</button>
+
+      <!-- Left side: The Tabs + The Add Button sitting flush together -->
+      <div class="tabs-and-actions-left" style="display: flex; align-items: flex-end; gap: 4px;">
+        <menu role="tablist" class="w7-month-tabs" id="monthTabsList">
+          <button type="button" role="tab" class="active" aria-selected="true" data-month="october">October (49/49)</button>
+          <button type="button" role="tab" aria-selected="false" data-month="november">November (0/49)</button>
+        </menu>
+
+        <!-- Admin New Month Button: Aligns perfectly to the bottom border baseline -->
+        <button type="button" id="addNewMonthBtn" class="aero-add-tab-btn admin-only" style="display: none;" title="Create New Month Challenge">
+          + New Month
+        </button>
       </div>
 
-      <!-- Grid Utilities: Size Toggle & Image Export -->
-      <div class="challenge-toolbar-actions">
-        <!-- 3-Way Grid Sizer Button -->
-        <button type="button" id="gridSizeBtn" class="filter-item" title="Cycle grid layout size">
-          <i class='bx bx-grid-alt'></i> Size: Standard
-        </button>
-        <!-- Picture Export Button -->
-        <button type="button" id="exportImageBtn" class="filter-item export-btn" title="Download Topster image">
-          <i class='bx bx-camera'></i> Export Image
-        </button>
-        <!-- Admin-Only Button to Add Albums -->
-        <button type="button" id="openAddModalBtn" class="filter-item admin-only" style="display: none; border-color: #10b981; color: #10b981;">
-          + Add Album
-        </button>
-      </div>
     </div>
 
-    <!-- Progress Indicator -->
+
+    <!-- Authentic Windows 7 Progress Bar with Animated Sweep -->
     <div class="challenge-progress-box">
       <div class="progress-labels">
         <span id="completedCounter">Completed: 0 / 49</span>
         <span id="completedPercent">0%</span>
       </div>
-      <div class="progress-bar-track">
+      <div class="progress-bar-track" role="progressbar">
         <div class="progress-bar-fill" id="progressFill" style="width: 0%;"></div>
       </div>
     </div>
   </div>
 
-  <!-- 7x7 Grid Container -->
+  <!-- STANDALONE VISTA / 7 GRID WINDOW -->
   <main class="challenge-container container">
-    <!-- Inner export-wrapper for clean border snapshots -->
-    <div id="exportWrapper" class="export-capture-zone">
-      <div class="topster-grid size-standard" id="topsterGrid">
-        <div class="grid-loader">Connecting to SosaSpins database...</div>
+    <div class="window glass grid-window-frame" id="gridWindowFrame">
+      <!-- Window Title Bar: Clean Title Only -->
+      <div class="title-bar">
+        <div class="title-bar-text">
+          <i class='bx bx-disc' style="margin-right: 4px; vertical-align: middle;"></i>
+          SosaSpins Challenge Explorer
+        </div>
       </div>
-    </div>
-  </main>
 
-  <!-- DETAIL MODAL: Clean Header with Close Button -->
-  <div id="detailModal" class="sosa-modal-backdrop" style="display: none;">
-    <div class="modal-dialog challenge-modal-dialog">
-      <div class="modal-header" style="justify-content: flex-end; padding: 0.75rem 1rem; border-bottom: none;">
-        <button type="button" id="closeDetailModal" class="modal-close-btn">&times;</button>
+      <!-- Attached Vista Command Bar / Controls Bar -->
+      <div class="window-command-bar">
+        <div class="command-group-left">
+          <button type="button" id="gridSizeBtn" class="aero-command-btn" title="Cycle grid layout size">
+            <i class='bx bx-grid-alt'></i> Size: Standard
+          </button>
+          <button type="button" id="exportImageBtn" class="aero-command-btn export-emerald-btn" title="Download Topster image">
+            <i class='bx bx-camera'></i> Export Image
+          </button>
+          <!-- Upload Unfinished Backlog Covers to Supabase Storage -->
+          <button type="button" id="syncBacklogCoversBtn" class="aero-command-btn sync-cloud-btn admin-only" style="display: none;" title="Upload all external backlog artwork directly to Supabase storage">
+            <i class='bx bx-cloud-upload'></i> Sync Art to Cloud
+          </button>
+        </div>
+        <div class="command-group-right">
+          <button type="button" id="openAddModalBtn" class="aero-command-btn add-emerald-btn admin-only" style="display: none;">
+            <i class='bx bx-plus'></i> Add Album
+          </button>
+        </div>
       </div>
-      <div class="modal-body" id="modalAlbumBody" style="padding-top: 0;"></div>
-    </div>
-  </div>
 
-  <!-- Admin Add / Edit Modal -->
-  <div id="addModal" class="sosa-modal-backdrop" style="display: none;">
-    <div class="modal-dialog challenge-modal-dialog">
-      <div class="modal-header">
-        <h3 class="modal-title" id="addModalTitle">Add Album to Challenge</h3>
-        <button type="button" id="closeAddModal" class="modal-close-btn">&times;</button>
-      </div>
-      <form id="addAlbumForm" class="modal-body" style="display: flex; flex-direction: column; gap: 1rem; padding: 1.25rem;">
-        <input type="hidden" id="editEntryId" value="">
-        <div style="display: flex; gap: 1rem;">
-          <div style="width: 90px; height: 90px; background: #fff; border-radius: 8px; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(0,0,0,0.1);">
-            <img id="addPreviewImg" src="placeholder.png" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://placehold.co/100?text=Preview'">
-          </div>
-          <div style="flex: 1; display: flex; flex-direction: column; gap: 0.5rem;">
-            <input type="text" id="addArtist" class="sosa-search-input" placeholder="Artist" required>
-            <input type="text" id="addTitle" class="sosa-search-input" placeholder="Album Title" required>
-            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-              <button type="button" id="fetchCoverBtn" class="filter-item" style="padding: 4px 8px; font-size: 0.75rem;">Fetch Art</button>
-              <button type="button" id="fetchSpinCoverBtn" class="filter-item" style="padding: 4px 8px; font-size: 0.75rem; border-color: #10b981; color: #10b981;">Get Spin Cover</button>
-              <button type="button" id="fetchRuntimeBtn" class="filter-item" style="padding: 4px 8px; font-size: 0.75rem;">Fetch Runtime</button>
+      <!-- Window Body (Recessed Clean Background for the 7x7 Grid) -->
+      <div class="window-body grid-window-body">
+        <div id="exportWrapper" class="export-capture-zone">
+          <div class="topster-grid size-standard" id="topsterGrid">
+            <!-- Indeterminate Marquee Loader -->
+            <div class="w7-loading-wrapper">
+              <span class="w7-loading-text">Connecting to SosaSpins database...</span>
+              <div class="progress-bar-track marquee" role="progressbar"></div>
             </div>
           </div>
         </div>
+      </div>
 
+      <!-- Window Status Bar Footer -->
+      <div class="status-bar">
+        <div class="status-bar-field" id="statusBarSelection">49 items</div>
+        <div class="status-bar-field" style="text-align: right; max-width: 140px;">Ready</div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- DETAIL MODAL: Authentic Windows 7 Glass Window -->
+  <div id="detailModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="window glass w7-modal-window">
+      <div class="title-bar">
+        <div class="title-bar-text">Album Details</div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeDetailModal" aria-label="Close" class="is-close"></button>
+        </div>
+      </div>
+      <div class="window-body" id="modalAlbumBody"></div>
+    </div>
+  </div>
+
+  <!-- ADMIN ADD / EDIT MODAL: Windows 7 Glass Window -->
+  <div id="addModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="window glass w7-modal-window">
+      <div class="title-bar">
+        <div class="title-bar-text" id="addModalTitleText">Manage Backlog Entry</div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeAddModal" aria-label="Close" class="is-close"></button>
+        </div>
+      </div>
+      <!-- ADMIN ADD / EDIT MODAL: Windows 7 Glass Window -->
+      <form id="addAlbumForm" class="window-body" style="display: flex; flex-direction: column; gap: 0.85rem; padding: 1.25rem;">
+        <input type="hidden" id="editEntryId" value="">
+
+        <!-- Top Section: Locked Square Preview + Inputs -->
+        <div class="add-album-top-row">
+          <div class="w7-preview-box">
+              <img
+                id="addPreviewImg"
+                src="../assets/images/spins/placeholder.png"
+                alt="Artwork Preview"
+                onerror="this.onerror=null; this.src='../assets/images/spins/placeholder.png';">
+            </div>
+          <div class="add-album-inputs-group">
+          <input type="text" id="addArtist" class="sosa-search-input" placeholder="Artist" required>
+          <input type="text" id="addTitle" class="sosa-search-input" placeholder="Album Title" required>
+          <input
+            type="number"
+            id="addReleaseYear"
+            class="sosa-search-input"
+            placeholder="Release Year (YYYY)"
+            min="1900"
+            max="2099">
+
+          <div class="modal-btn-row">
+            <button type="button" id="fetchCoverBtn" class="aero-btn-action">
+              <i class='bx bx-image'></i> Fetch Art
+            </button>
+            <button type="button" id="fetchSpinCoverBtn" class="aero-btn-action">
+              <i class='bx bx-disc'></i> Get Spin Cover
+            </button>
+            <button type="button" id="fetchRuntimeBtn" class="aero-btn-action">
+              <i class='bx bx-time'></i> Fetch Runtime
+            </button>
+          </div>
+        </div>
+      </div>
+
+        <!-- Cover Selector Carousel -->
         <div id="artCandidatesContainer" class="art-candidates-picker" style="display: none;">
           <span class="picker-label">Select Artwork:</span>
           <div id="artThumbnailsRow" class="thumbnails-scroll-row"></div>
         </div>
 
-        <div style="display: flex; gap: 0.5rem;">
-          <input type="text" id="addRuntime" class="sosa-search-input" placeholder="Runtime (e.g. 42 min)" style="width: 100%;">
-        </div>
-
+        <input type="text" id="addRuntime" class="sosa-search-input" placeholder="Runtime (e.g. 42m 15s)">
         <input type="text" id="addCoverUrl" class="sosa-search-input" placeholder="Cover URL">
+        <input type="text" id="addGenres" class="sosa-search-input" placeholder="Primary Genres (comma-separated)">
+        <input type="text" id="addSecondaryGenres" class="sosa-search-input" placeholder="Secondary Genres (comma-separated)">
+        <input type="text" id="addDescriptors" class="sosa-search-input" placeholder="Descriptors (comma-separated)">
 
-        <button type="submit" id="submitAddAlbumBtn" class="filter-item active-filter" style="width: 100%; margin-top: 0.5rem;">
+        <button type="submit" id="submitAddAlbumBtn" class="aero-btn-action primary-save-btn">
           Save to Backlog
         </button>
       </form>

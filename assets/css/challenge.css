@@ -2,463 +2,35 @@
 @import url('https://fonts.googleapis.com/css2?family=Jersey+15&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap');
 
 /* ============================================================
-   Typography Defaults
+   Typography Defaults & Variables
    ============================================================ */
 :root {
   --font-body: "Plus Jakarta Sans", sans-serif;
   --font-retro: "Jersey 15", sans-serif;
+  --second-color: #98c994;
+  --text-color: #172317;
+  --bg-color: #ffffff;
+  --dark-bg-color: #101113;
+  --dark-text-color: #d9eaddd5;
+  --dark-filter-color: #86ae83;
+  --read-time-color: #319122;
+  --w7-pg-bg: #0bd82c;
+  --w7-pg-bg-paused: #e6df1b;
+  --w7-pg-bg-error: #ef0000;
+  --w7-el-bd: #8e9da8;
 }
 
-/* Force Plus Jakarta Sans everywhere by default */
 body,
 button,
 input,
 select,
 textarea,
 .challenge-controls,
-.topster-tile,
 .modal-body,
 .progress-labels {
   font-family: var(--font-body) !important;
 }
 
-.challenge-toolbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.export-btn {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.25)) !important;
-  border-color: rgba(16, 185, 129, 0.45) !important;
-  color: #065f46 !important;
-  font-weight: 700 !important;
-}
-
-.export-btn:hover {
-  background: #10b981 !important;
-  color: #ffffff !important;
-}
-
-.export-capture-zone {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-}
-
-.topster-grid.size-standard {
-  max-width: 980px;
-  width: 100%;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 8px;
-  padding: 12px;
-}
-
-/* 2. Size: Compact (Smaller tiles, tighter layout) */
-.topster-grid.size-compact {
-  max-width: 720px;
-  width: 100%;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 5px;
-  padding: 8px;
-}
-
-/* 3. Size: Fit Sheet (Fits all 49 onto a single standard screen/page view) */
-.topster-grid.size-fitsheet {
-  max-width: 540px;
-  width: 100%;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 3px;
-  padding: 6px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
-}
-
-.topster-grid.size-fitsheet .tile-tooltip {
-  display: none !important; /* Hide hover title bars in fitsheet to preserve view */
-}
-
-/* ============================================================
-   STRICT ADMIN-ONLY RESTRICTION FOR REMOVE/EDIT
-   ============================================================ */
-/* Guaranteed completely hidden unless isAdmin is true */
-.tile-admin-actions,
-.tile-icon-btn.delete,
-.tile-icon-btn.edit {
-  display: none !important;
-}
-
-/* Only display if body has the logged-in admin class */
-body.is-admin .tile-admin-actions {
-  display: flex !important;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-body.is-admin .topster-tile:hover .tile-admin-actions {
-  opacity: 1 !important;
-}
-
-body.is-admin .tile-icon-btn {
-  display: flex !important;
-}
-
-/* ============================================================
-   COMPLETED ALBUM TREATMENT (Distinct Green Tint + Glow)
-   ============================================================ */
-/* 1. Unlistened / Backlog Tiles (Muted) */
-.topster-tile {
-  position: relative;
-  aspect-ratio: 1 / 1;
-  border-radius: 6px;
-  overflow: hidden;
-  cursor: pointer;
-  background: #0f172a;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease;
-}
-
-.topster-tile:not(.is-completed) .tile-art {
-  filter: saturate(0.85) brightness(0.9);
-  opacity: 0.85;
-}
-
-/* 2. Completed Tiles: Glossy Emerald Sheen, Green Tint Wash & Checkmark */
-.topster-tile.is-completed {
-  border: 2px solid #10b981 !important;
-  box-shadow:
-    0 4px 14px rgba(16, 185, 129, 0.35),
-    inset 0 0 15px rgba(16, 185, 129, 0.25) !important;
-}
-
-.topster-tile.is-completed .tile-art {
-  filter: saturate(1.1) brightness(1.02);
-  opacity: 1;
-}
-
-/* Distinct Emerald/Mint Tint Overlay */
-.topster-tile.is-completed::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    135deg,
-    rgba(52, 211, 153, 0.32) 0%,
-    rgba(16, 185, 129, 0.18) 45%,
-    rgba(5, 150, 105, 0.25) 100%
-  );
-  mix-blend-mode: color-burn; /* Blends the green dye deep into the album colors */
-  pointer-events: none;
-  z-index: 2;
-  transition: opacity 0.2s ease;
-}
-
-.topster-tile.is-completed:hover::before {
-  opacity: 0.15; /* Eases tint slightly on hover so cover shines clear */
-}
-
-/* Bold Glass Checkmark Badge */
-/* ============================================================
-   AERO CHECKMARK OVERLAY (Big 40% Opacity Wash)
-   ============================================================ */
-
-/* Hide any remaining legacy status badges */
-.tile-status-badge {
-  display: none !important;
-}
-
-/* Big Translucent Aero Checkmark Wash */
-.aero-check-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  z-index: 3;
-
-  /* Richer, more saturated multi-stop emerald wash */
-  background: radial-gradient(
-    circle at center,
-    rgba(52, 211, 153, 0.58) 0%,
-    rgba(16, 185, 129, 0.42) 55%,
-    rgba(5, 150, 105, 0.32) 100%
-  ) !important;
-
-  /* Top-left glass reflection sheen */
-  box-shadow:
-    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.75),
-    inset 0 -1.5px 2px rgba(5, 150, 105, 0.35);
-  backdrop-filter: saturate(140%) contrast(105%);
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-/* Crisper translucent checkmark icon */
-.aero-check-icon {
-  width: 58%;
-  height: 58%;
-  color: #ffffff;
-  opacity: 0.65; /* Lifted from 0.40 to give it clearer presence */
-  filter:
-    drop-shadow(0 0 8px rgba(16, 185, 129, 0.95))
-    drop-shadow(0 2px 5px rgba(0, 0, 0, 0.5));
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.topster-tile.is-completed:hover .aero-check-overlay {
-  background: radial-gradient(
-    circle at center,
-    rgba(52, 211, 153, 0.40) 0%,
-    rgba(16, 185, 129, 0.25) 100%
-  ) !important;
-}
-
-.topster-tile.is-completed:hover .aero-check-icon {
-  opacity: 0.85;
-  transform: scale(1.08);
-}
-
-/* ============================================================
-   2. WINDOWS AERO PROGRESS BAR & CAPSULE TRACK
-   ============================================================ */
-
-/* Outer Frosted Glass Card */
-.challenge-progress-box {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.75) 0%,
-    rgba(240, 253, 244, 0.55) 100%
-  ) !important;
-  backdrop-filter: blur(14px) saturate(160%);
-  -webkit-backdrop-filter: blur(14px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.9) !important;
-  border-radius: 12px;
-  padding: 0.9rem 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-  box-shadow:
-    inset 0 1.5px 1px rgba(255, 255, 255, 1),
-    0 4px 18px rgba(16, 185, 129, 0.08),
-    0 1px 3px rgba(0, 0, 0, 0.04) !important;
-}
-
-.progress-labels {
-  display: flex;
-  justify-content: space-between;
-  font-family: var(--font-body, "Plus Jakarta Sans"), sans-serif;
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: #064e3b !important;
-  letter-spacing: -0.01em;
-}
-
-/* Aero Beveled Track Well (Deep glass recess) */
-.progress-bar-track {
-  width: 100%;
-  height: 14px; /* Slightly taller for the beveled glass look */
-  background: linear-gradient(
-    180deg,
-    rgba(0, 0, 0, 0.14) 0%,
-    rgba(0, 0, 0, 0.05) 50%,
-    rgba(255, 255, 255, 0.45) 100%
-  ) !important;
-  border: 1px solid rgba(0, 0, 0, 0.12) !important;
-  border-radius: 999px;
-  overflow: hidden;
-  position: relative;
-  box-shadow:
-    inset 0 2px 4px rgba(0, 0, 0, 0.12),
-    0 1px 1px rgba(255, 255, 255, 0.9) !important;
-}
-
-/* Glossy Windows Aero Fill Bar */
-.progress-bar-fill {
-  height: 100%;
-  border-radius: 999px;
-  position: relative;
-  transition: width 0.45s cubic-bezier(0.16, 1, 0.3, 1);
-
-  /* Dual-tier Aero emerald glass gradient */
-  background: linear-gradient(
-    180deg,
-    #6ee7b7 0%,    /* Specular mint highlight */
-    #34d399 45%,   /* Vibrant Aero light green */
-    #10b981 50%,   /* Mid-bar horizon split */
-    #059669 85%,   /* Rich deep emerald */
-    #047857 100%
-  ) !important;
-
-  /* Ambient emerald bloom + crisp edge highlight */
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.9),
-    inset 0 -1px 1px rgba(0, 0, 0, 0.2),
-    0 0 10px rgba(52, 211, 153, 0.75) !important;
-}
-
-.sosa-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.5) !important;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 99999 !important; /* Stays above the sticky header */
-  padding: 1rem;
-}
-
-/* ============================================================
-   Consistent Title & Stars Styling in Modal
-   ============================================================ */
-.modal-detail-title {
-  font-family: "Plus Jakarta Sans", sans-serif !important;
-  font-weight: 800 !important;
-  font-size: 1.25rem !important;
-  color: #064e3b !important;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
-}
-
-body.dark-mode .modal-detail-title {
-  color: #a7f3d0 !important;
-}
-
-/* Full Star Display matching SosaSpins */
-.modal-detail-rating {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin-top: 2px;
-}
-
-.modal-detail-rating .stars-gold {
-  color: #f59e0b; /* Amber Gold */
-  font-size: 1.05rem;
-  letter-spacing: 2px;
-}
-
-.modal-detail-rating .rating-num {
-  font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #64748b;
-}
-
-/* ============================================================
-   Primary & Secondary Genres & Descriptors (SosaSpins Palette)
-   ============================================================ */
-.genre-container {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.primary-genres-wrap,.secondary-genres-wrap, .descriptors-wrapper {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-/* Primary Genres: Emerald Sheen */
-.genre-pill.genre-primary {
-  font-size: 0.76rem;
-  font-weight: 700;
-  font-family: "Plus Jakarta Sans", sans-serif;
-  color: #064e3b;
-  background: linear-gradient(135deg, rgba(167, 243, 208, 0.75) 0%, rgba(110, 231, 183, 0.55) 100%);
-  border: 1px solid rgba(16, 185, 129, 0.45);
-  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.85);
-  padding: 3px 9px;
-  border-radius: 6px;
-}
-
-/* Secondary Genres: Subtle, Italicized */
-.genre-pill.genre-secondary {
-  font-size: 0.72rem;
-  font-style: italic;
-  font-weight: 500;
-  font-family: "Plus Jakarta Sans", sans-serif;
-  color: #475569;
-  background: rgba(0, 0, 0, 0.04);
-  border: 1px dashed rgba(0, 0, 0, 0.18);
-  padding: 2px 7px;
-  border-radius: 5px;
-}
-
-/* Descriptors: Clean Pill Row */
-.desc-label {
-  font-size: 0.72rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  color: #64748b;
-  letter-spacing: 0.03em;
-  margin-right: 2px;
-}
-
-.descriptor-pill {
-  font-size: 0.72rem;
-  color: #334155;
-  background: rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  padding: 2px 7px;
-  border-radius: 999px;
-  font-weight: 500;
-}
-
-/* Glass glare reflection across the top half of the bar */
-.progress-bar-fill::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 48%;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.65) 0%,
-    rgba(255, 255, 255, 0.12) 100%
-  );
-  border-radius: 999px 999px 0 0;
-  pointer-events: none;
-}
-
-/* Subtle response on hover */
-.topster-tile.is-completed:hover .aero-check-overlay {
-  background: radial-gradient(
-    circle at center,
-    rgba(52, 211, 153, 0.18) 0%,
-    rgba(16, 185, 129, 0.08) 100%
-  );
-}
-
-.topster-tile.is-completed:hover .aero-check-icon {
-  opacity: 0.55;
-  transform: scale(1.06);
-}
-
-/* Completed Tile Frame (Emerald glass rim) */
-.topster-tile.is-completed {
-  border: 1.5px solid #10b981 !important;
-  box-shadow:
-    0 2px 8px rgba(16, 185, 129, 0.25),
-    inset 0 1px 1px rgba(255, 255, 255, 0.5) !important;
-}
-
-.topster-tile.is-completed .tile-art {
-  filter: saturate(1.05) contrast(1.02);
-  opacity: 1;
-}
-
-/* Uncompleted Tiles: Clean & uninterrupted */
-.topster-tile:not(.is-completed) .tile-art {
-  filter: saturate(0.85) brightness(0.92);
-  opacity: 0.88;
-}
-
-/* Retro Display Headers using Jersey 15 */
 .home-title,
 .modal-title,
 .logo-text {
@@ -479,17 +51,17 @@ body.dark-mode .modal-detail-title {
 }
 
 /* ============================================================
-   Controls & Progress Bar
+   Controls & Action Bars
    ============================================================ */
-.challenge-controls, .challenge-controls {
+.challenge-controls {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1rem;
   margin-top: 1.5rem;
   margin-bottom: 1.5rem;
 }
 
-.challenge-actions-bar, .challenge-actions-bar {
+.challenge-actions-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -497,343 +69,1006 @@ body.dark-mode .modal-detail-title {
   gap: 1rem;
 }
 
-.challenge-progress-box, .challenge-progress-box {
-  background: var(--glass-tint-bg, rgba(255, 255, 255, 0.04));
-  border: 1px solid var(--second-color, rgba(255, 255, 255, 0.1));
-  border-radius: 8px;
-  padding: 0.85rem 1.25rem;
+/* ============================================================
+   Windows 7 Month Tabs (Folder Style)
+   ============================================================ */
+menu.w7-month-tabs[role="tablist"] {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  margin: 0;
+  padding: 0 0 0 4px;
+  list-style: none;
+  gap: 2px;
+  border-bottom: 1px solid rgba(142, 157, 168, 0.7);
 }
 
-.progress-labels, .progress-labels {
-  display: flex;
-  justify-content: space-between;
+menu.w7-month-tabs button[role="tab"] {
+  font-family: var(--font-body), sans-serif;
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--text-color, #e2e8f0);
+  padding: 5px 16px;
+  cursor: pointer;
+  border: 1px solid rgba(142, 157, 168, 0.7);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+  color: #475569;
+  position: relative;
+  top: 1px;
+  transition: all 0.15s ease;
 }
 
-.progress-bar-track, .progress-bar-track {
+menu.w7-month-tabs button[role="tab"]:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #edf2f7 100%);
+  color: #0f172a;
+}
+
+menu.w7-month-tabs button[role="tab"].active,
+menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
+  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%) !important;
+  color: #064e3b !important;
+  font-weight: 700;
+  border-color: #10b981 #10b981 transparent #10b981 !important;
+  box-shadow: inset 0 2px 0 #10b981, 0 -2px 6px rgba(16, 185, 129, 0.15);
+  padding-bottom: 6px;
+  top: 0;
+  z-index: 2;
+}
+
+/* ============================================================
+   VISTA AERO "+ NEW MONTH" TAB BUTTON
+   ============================================================ */
+.month-tabs-wrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  border-bottom: 1px solid rgba(142, 157, 168, 0.7);
+}
+
+.month-tabs-wrapper menu.w7-month-tabs {
+  border-bottom: none !important; /* Wrapper handles border */
+  margin-bottom: 0 !important;
+}
+
+.add-album-top-row {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 1rem !important;
+  align-items: stretch !important;
+  width: 100% !important;
+}
+
+
+
+/* ============================================================
+   AERO "+ NEW MONTH" TAB (Docked to Baseline)
+   ============================================================ */
+.aero-add-tab-btn {
+  font-family: var(--font-body, "Plus Jakarta Sans"), sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 5px 10px;
+  cursor: pointer;
+  border-radius: 4px 4px 0 0;
+  border: 1px solid rgba(142, 157, 168, 0.7);
+  border-bottom: 1px solid rgba(142, 157, 168, 0.7);
+  color: #065f46;
+  position: relative;
+  top: 1px;
+  line-height: 1;
+  white-space: nowrap;
+
+  /* Vista Frosted Glass Button */
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(236, 253, 245, 0.85) 45%,
+    rgba(209, 250, 229, 0.7) 50%,
+    rgba(236, 253, 245, 0.9) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    0 -1px 3px rgba(16, 185, 129, 0.12);
+  transition: all 0.15s ease;
+}
+
+.aero-add-tab-btn:hover {
+  background: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #d1fae5 45%,
+    #a7f3d0 50%,
+    #ecfdf5 100%
+  );
+  color: #047857;
+  border-color: #10b981;
+  box-shadow:
+    0 -2px 6px rgba(16, 185, 129, 0.25),
+    inset 0 1px 0 #ffffff;
+}
+
+.aero-add-tab-btn:active {
+  background: #a7f3d0;
+  transform: translateY(1px);
+}
+/* ============================================================
+   Chunky Windows 7 Progress Bar (22px)
+   ============================================================ */
+.challenge-progress-box {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.8) 0%,
+    rgba(240, 253, 244, 0.6) 100%
+  ) !important;
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.95) !important;
+  border-radius: 8px;
+  padding: 0.9rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  box-shadow:
+    inset 0 1.5px 1px rgba(255, 255, 255, 1),
+    0 4px 18px rgba(16, 185, 129, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+.progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #064e3b !important;
+  letter-spacing: -0.01em;
+}
+
+.progress-bar-track {
+  height: 22px !important;
   width: 100%;
-  height: 8px;
-  background: rgba(0,0,0,0.35);
-  border-radius: 999px;
+  border: 1px solid var(--w7-el-bd) !important;
+  border-radius: 2px !important;
+  box-shadow: inset 0 0 0 1px #f3f3f388, 0 0 0 1px #eaeaea88, inset 0 1px 3px rgba(0, 0, 0, 0.25) !important;
+  margin: 2px 0;
   overflow: hidden;
+  position: relative;
+  box-sizing: border-box;
+  background:
+    radial-gradient(circle at 0 50%, #00000028 10px, transparent 32px),
+    radial-gradient(circle at 100% 50%, #00000028 10px, transparent 32px),
+    linear-gradient(
+      to bottom,
+      #f3f3f3af,
+      #fcfcfcaf 4px,
+      #dbdbdbaf 9px,
+      #cacacaaf 9px,
+      #d5d5d5af
+    ),
+    #ddd !important;
 }
 
 .progress-bar-fill {
-  height: 100%;
-  background: var(--second-color, #38bdf8);
-  transition: width 0.35s ease;
-}
-
-/* ============================================================
-   7x7 Topster Grid Sheet
-   ============================================================ */
-.challenge-container, .challenge-container {
-  margin-bottom: 4rem;
-  max-width: 980px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.topster-grid, .topster-grid {
-  display: grid;
-  grid-template-columns: repeat(7,1fr);
-  gap: 8px;
-  padding: 12px;
-  background: var(--glass-tint-bg, rgba(20, 24, 33, 0.6));
-  border: 1px solid var(--second-color, rgba(255, 255, 255, 0.12));
-  border-radius: 12px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.35);
-}
-
-.grid-loader {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 3rem;
-  color: var(--text-color);
-  opacity: 0.7;
-  font-size: 0.95rem;
-}
-
-/* Album Tile */
-.topster-tile {
+  height: 100% !important;
+  border-radius: 0 !important;
+  overflow: hidden;
   position: relative;
-  aspect-ratio: 1 / 1;
-  border-radius: 4px;
-  overflow: hidden;
-  cursor: pointer;
-  background: #111;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-  user-select: none;
+  transition: width 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: inset 0 0 0 1px #ffffff35, 0 0 10px rgba(11, 216, 44, 0.45) !important;
+  background-color: var(--w7-pg-bg) !important;
+  background-image:
+    linear-gradient(
+      to bottom,
+      #f3f3f3d0,
+      #fcfcfcd0 4px,
+      #dbdbdbaf 9px,
+      transparent 9px
+    ),
+    radial-gradient(circle at 0 50%, #0000003f 10px, transparent 32px),
+    radial-gradient(circle at 100% 50%, #0000003f 10px, transparent 32px),
+    linear-gradient(to bottom, transparent 65%, #ffffff66),
+    linear-gradient(to bottom, transparent 9px, #cacaca33 9px, #d5d5d533) !important;
 }
 
-.topster-tile:hover, .topster-tile:hover {
-  transform: scale(1.05);
-  z-index: 5;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.6);
-}
-
-.tile-art, .tile-art {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.progress-bar-fill::before {
+  content: "";
   display: block;
-}
-
-/* Drag-and-Drop States */
-.topster-tile.dragging {
-  opacity: 0.45;
-  transform: scale(0.96);
-  border: 2px dashed var(--second-color, #38bdf8);
-}
-
-.topster-tile.drag-over {
-  outline: 2px solid var(--second-color, #38bdf8);
-  transform: scale(1.05);
-}
-
-/* Admin Tile Actions (Edit / Delete) */
-.tile-admin-actions {
+  height: 100%;
+  width: 100%;
   position: absolute;
-  top: 4px;
-  left: 4px;
-  display: flex;
-  gap: 4px;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  z-index: 7;
+  top: 0;
+  left: 0;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(255, 255, 255, 0.75) 20%,
+    transparent 40%
+  );
+  animation: w7progressbar 3s linear infinite;
+  pointer-events: none;
 }
 
-.topster-tile:hover .tile-admin-actions {
-  opacity: 1;
-}
-
-.tile-icon-btn {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  cursor: pointer;
-  color: #fff;
-}
-
-.tile-icon-btn.edit {
-  background: rgba(14, 165, 233, 0.88);
-}
-
-.tile-icon-btn.delete {
-  background: rgba(220, 38, 38, 0.88);
-}
-
-/* Status Overlays */
-.tile-status-badge {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.82rem;
-  font-weight: 800;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
-}
-
-.tile-status-badge.completed, .tile-status-badge.completed {
-  background: #10b981;
-  color: #fff;
-}
-
-.tile-status-badge.pending, .tile-status-badge.pending {
-  background: rgba(0,0,0,0.65);
-  color: #94a3b8;
-  border: 1px solid rgba(255,255,255,0.2);
-}
-
-/* Hover Title Tooltip */
-.tile-tooltip {
-  position: absolute;
-  inset: auto 0 0 0;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.95));
-  padding: 6px 4px 4px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: #fff;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-.topster-tile:hover .tile-tooltip {
-  opacity: 1;
+@keyframes w7progressbar {
+  0% { transform: translateX(-100%); }
+  60% { transform: translateX(100%); }
+  100% { transform: translateX(100%); }
 }
 
 /* ============================================================
-   Modals
+   Vista / 7 Standalone Grid Window Shell
    ============================================================ */
-.sosa-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-}
-
-.modal-dialog {
-  background: var(--card-bg-dark, #11141a);
-  border: 1px solid var(--second-color, rgba(255, 255, 255, 0.15));
-  border-radius: 12px;
-  width: 100%;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
-  overflow: hidden;
-}
-
-.challenge-modal-dialog {
-  max-width: 540px;
-}
-
-.modal-close-btn {
-  background: transparent;
-  border: none;
-  font-size: 1.5rem;
-  color: var(--text-color, #fff);
-  cursor: pointer;
-  line-height: 1;
-}
-
-.modal-spin-embed {
-  background: rgba(0, 0, 0, 0.25);
-  border-left: 3px solid var(--second-color, #38bdf8);
-  padding: 0.85rem 1rem;
-  border-radius: 0 6px 6px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  font-size: 0.88rem;
-  line-height: 1.5;
-}
-
-.fav-track-chip {
-  font-size: 0.74rem;
-  font-weight: 600;
-  color: var(--second-color, #38bdf8);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid var(--second-color, rgba(255, 255, 255, 0.2));
-  padding: 2px 7px;
-  border-radius: 12px;
-  display: inline-flex;
-  align-items: center;
-}
-
-
 .challenge-container {
   margin-bottom: 4rem;
   max-width: 1040px;
   margin-left: auto;
   margin-right: auto;
+  width: 95%;
 }
 
-@media (max-width: 900px) {
-  .topster-grid {
-    grid-template-columns: repeat(5, 1fr);
-  }
-}
-
-#completedCounter {
-  font-family:"Plus Jakarta Sans", sans-serif;
-}
-
-
-#completedPercent {
-  font-family:"Plus Jakarta Sans", sans-serif;
-}
-
-.grid-loader {
-  font-family:"Plus Jakarta Sans", sans-serif;
-}
-
-@media (max-width: 640px) {
-  .topster-grid, .topster-grid, .topster-grid {
-  grid-template-columns: repeat(4,1fr);
-  gap: 6px;
-  padding: 8px;
-}
-}
-
-@media (max-width: 420px) {
-  .topster-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-/* Progress Bar & Header Pill Controls */
-.progress-bar-fill {
-  height: 100%;
-  background: #38bdf8;
-  transition: width 0.35s ease;
-}
-
-/* 7x7 Square Topster Grid Sheet */
-.grid-loader {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 3rem;
-  color: var(--text-color);
-  opacity: 0.7;
-}
-
-/* Album Tile */
-.topster-tile {
-  position: relative;
-  aspect-ratio: 1 / 1;
-  border-radius: 4px;
+.grid-window-frame {
+  margin: 0 auto;
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  box-shadow:
+    0 16px 45px rgba(0, 0, 0, 0.22),
+    0 2px 6px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.85) 0%,
+    rgba(235, 248, 240, 0.75) 100%
+  );
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   overflow: hidden;
-  cursor: pointer;
-  background: #111;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
 }
-/* Status Badges */
-.tile-status-badge {
+
+/* Window Title Bar */
+.grid-window-frame .title-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 8px 5px 12px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.88) 0%,
+    rgba(215, 245, 230, 0.7) 45%,
+    rgba(175, 230, 200, 0.55) 50%,
+    rgba(215, 248, 230, 0.75) 100%
+  );
+  border-bottom: 1px solid rgba(0, 0, 0, 0.18);
+  box-shadow: inset 0 1px 0 #ffffff;
+}
+
+.grid-window-frame .title-bar-text {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #064e3b;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.9), 0 1px 0 #ffffff;
+}
+
+.grid-window-frame .title-bar-controls {
+  display: none !important;
+  gap: 1px;
+}
+
+.grid-window-frame .title-bar-controls button {
+  width: 28px;
+  height: 18px;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 50%, #cbd5e1 100%);
+  cursor: pointer;
+  border-radius: 2px;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  display: none !important;
+}
+
+/* Window Command Bar */
+.window-command-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(240, 253, 244, 0.7) 100%
+  );
+  border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+  box-shadow: inset 0 1px 0 #ffffff;
+}
+
+.command-group-left,
+.command-group-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.aero-command-btn {
+  font-family: var(--font-body, "Plus Jakarta Sans"), sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 14px;
+  border-radius: 999px; /* Restored smooth pill shape */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  color: #1e293b;
+
+  /* Restored translucent glass background */
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(241, 245, 249, 0.75) 100%);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+
+  /* 7.css Inset bevel highlights + soft elevation shadow */
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.95),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.05),
+    0 1px 3px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.aero-command-btn:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #ecfdf5 100%);
+  border-color: rgba(16, 185, 129, 0.45);
+  color: #065f46;
+  box-shadow:
+    inset 0 1px 1px #ffffff,
+    0 3px 8px rgba(16, 185, 129, 0.2);
+  transform: translateY(-1px);
+}
+
+.aero-command-btn:active {
+  transform: translateY(0);
+  background: #d1fae5;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.aero-command-btn.export-emerald-btn {
+  background: linear-gradient(
+    135deg,
+    rgba(16, 185, 129, 0.12) 0%,
+    rgba(5, 150, 105, 0.22) 100%
+  ) !important;
+  border-color: rgba(16, 185, 129, 0.45) !important;
+  color: #065f46 !important;
+  font-weight: 700;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    0 1px 3px rgba(16, 185, 129, 0.15);
+}
+
+.aero-command-btn.export-emerald-btn:hover {
+  background: #10b981 !important;
+  color: #ffffff !important;
+  border-color: #059669 !important;
+  box-shadow:
+    0 4px 12px rgba(16, 185, 129, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+/* + Add Album Button: Restored Vibrant Emerald Pill */
+.aero-command-btn.add-emerald-btn {
+  background: linear-gradient(
+    180deg,
+    #34d399 0%,
+    #10b981 50%,
+    #059669 100%
+  ) !important;
+  border: 1px solid #047857 !important;
+  color: #ffffff !important;
+  font-weight: 700;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.8),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.2),
+    0 2px 6px rgba(16, 185, 129, 0.35) !important;
+}
+
+.aero-command-btn.add-emerald-btn:hover {
+  background: linear-gradient(
+    180deg,
+    #6ee7b7 0%,
+    #34d399 50%,
+    #10b981 100%
+  ) !important;
+  box-shadow:
+    inset 0 1px 1px #ffffff,
+    0 4px 14px rgba(16, 185, 129, 0.5) !important;
+}
+
+/* ============================================================
+   WINDOW BODY & STRICT 7x7 SQUARE GRID (NO INNER CONTAINER)
+   ============================================================ */
+/* Eliminates the nested card and inner border completely */
+.grid-window-body {
+  margin: 0 !important;
+  padding: 16px !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  display: flex !important;
+  justify-content: center !important;
+}
+
+.export-capture-zone {
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+/* LOCKED 7x7 CSS GRID SYSTEM */
+.topster-grid {
+  display: grid !important;
+  grid-template-columns: repeat(7, 1fr) !important;
+  width: 100% !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* 1. Size: Standard */
+.topster-grid.size-standard {
+  max-width: 980px !important;
+  gap: 8px !important;
+  padding: 0 !important;
+}
+
+/* 2. Size: Compact */
+.topster-grid.size-compact {
+  max-width: 740px !important;
+  gap: 5px !important;
+  padding: 0 !important;
+}
+
+/* 3. Size: Fit Sheet */
+.topster-grid.size-fitsheet {
+  max-width: 530px !important;
+  gap: 3px !important;
+  padding: 0 !important;
+}
+
+.topster-grid.size-fitsheet .tile-tooltip {
+  display: none !important;
+}
+
+/* Empty State Message */
+.grid-loader {
+  grid-column: 1 / -1 !important;
+  text-align: center;
+  padding: 3rem 1rem !important;
+  color: #475569;
+  font-weight: 600;
+  font-size: 0.95rem;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* ============================================================
+   STRICTLY SQUARE ALBUM TILES (0px RADIUS)
+   ============================================================ */
+.topster-tile {
+  position: relative !important;
+  width: 100% !important;
+  aspect-ratio: 1 / 1 !important;
+  min-width: 0 !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+  cursor: pointer;
+  background: transparent !important;
+
+  /* Removed the 1px black border completely */
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
+  box-sizing: border-box !important;
+}
+
+.topster-tile:hover {
+  transform: scale(1.05);
+  z-index: 5;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Square Artwork */
+.topster-tile .tile-art {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 0 !important;
+  border: none !important;
+  outline: none !important;
+  display: block !important;
+}
+
+/* Uncompleted covers remain clear and slightly muted */
+.topster-tile:not(.is-completed) .tile-art {
+  filter: saturate(0.85) brightness(0.92);
+  opacity: 0.9;
+}
+
+/* Sync Art to Cloud Action Button (Aero Glass + Mint/Cyan Horizon) */
+.aero-command-btn.sync-cloud-btn {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(209, 250, 229, 0.75) 48%,
+    rgba(167, 243, 208, 0.6) 50%,
+    rgba(209, 250, 229, 0.8) 100%
+  ) !important;
+  border-color: rgba(16, 185, 129, 0.5) !important;
+  color: #064e3b !important;
+  font-weight: 700 !important;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.95),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.05),
+    0 1px 3px rgba(16, 185, 129, 0.15);
+}
+
+.aero-command-btn.sync-cloud-btn:hover {
+  background: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #d1fae5 48%,
+    #a7f3d0 50%,
+    #ecfdf5 100%
+  ) !important;
+  border-color: #10b981 !important;
+  color: #047857 !important;
+  box-shadow:
+    inset 0 1px 1px #ffffff,
+    0 3px 10px rgba(16, 185, 129, 0.35) !important;
+  transform: translateY(-1px);
+}
+
+.aero-command-btn.sync-cloud-btn:active {
+  background: #a7f3d0 !important;
+  transform: translateY(0);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18) !important;
+}
+
+.aero-command-btn.sync-cloud-btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+  transform: none !important;
+}
+
+/* ============================================================
+   COMPLETED ALBUMS (Square Border + Glowing Green Checkmark)
+   ============================================================ */
+.topster-tile.is-completed {
+  border: 1.5px solid rgba(16, 185, 129, 0.9) !important;
+  box-shadow:
+    0 0 10px rgba(16, 185, 129, 0.4),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6) !important;
+}
+
+.topster-tile.is-completed .tile-art {
+  filter: saturate(1.05) contrast(1.02);
+  opacity: 1;
+}
+
+/* Pure Crystal Aero Glass Overlay (Square) */
+.aero-check-overlay {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.85rem;
-  font-weight: 800;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  pointer-events: none;
+  border-radius: 0 !important;
+  z-index: 3;
+
+  /* Translucent frosted glass wash */
+  background: radial-gradient(
+    circle at center,
+    rgba(16, 185, 129, 0.22) 0%,
+    rgba(255, 255, 255, 0.15) 45%,
+    rgba(0, 0, 0, 0.12) 100%
+  ) !important;
+
+  /* Specular rim glare and inner glass bevel */
+  box-shadow:
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.85),
+    inset 0 -1.5px 1.5px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(1.5px) contrast(105%);
+  -webkit-backdrop-filter: blur(1.5px) contrast(105%);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
-/* Hover Title Tooltip Overlay */
+
+/* Green Checkmark Glowing Behind the Glass */
+.aero-check-icon {
+  /* Increased footprint */
+  width: 74% !important;
+  height: 74% !important;
+  display: block;
+
+  /* Standard color fallback for browsers before resolving the SVG gradient */
+  stroke: #10b981;
+  stroke: url(#aeroCheckGrad) !important;
+  fill: none;
+
+  /* Triple-stage illuminated neon glass glow */
+  filter:
+    /* Layer 1: Core specular glare reflection */
+    drop-shadow(0 1px 1px rgba(255, 255, 255, 0.95))
+    /* Layer 2: Tight hyper-saturated mint/lime neon core */
+    drop-shadow(0 0 6px rgba(0, 255, 136, 0.95))
+    /* Layer 3: Wide ambient emerald halo */
+    drop-shadow(0 0 16px rgba(16, 185, 129, 0.85))
+    /* Layer 4: Deep drop shadow for optical lift off artwork */
+    drop-shadow(0 3px 6px rgba(0, 0, 0, 0.65)) !important;
+
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), filter 0.22s ease;
+}
+
+/* ============================================================
+   AERO BUTTON STYLES FOR ADMIN MODAL
+   ============================================================ */
+.aero-btn-action {
+  font-family: var(--font-body, "Plus Jakarta Sans"), sans-serif !important;
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  padding: 5px 12px !important;
+  border-radius: 999px !important; /* Aero pill */
+  cursor: pointer !important;
+  color: #1e293b !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  white-space: nowrap !important;
+
+  /* Vista Light Frosted Glass Gradient */
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(241, 245, 249, 0.85) 48%,
+    rgba(226, 232, 240, 0.75) 50%,
+    rgba(241, 245, 249, 0.9) 100%
+  ) !important;
+  border: 1px solid rgba(0, 0, 0, 0.2) !important;
+  box-shadow:
+    inset 0 1px 1px #ffffff,
+    inset 0 -1px 1px rgba(0, 0, 0, 0.05),
+    0 1px 2px rgba(0, 0, 0, 0.08) !important;
+  transition: all 0.15s ease !important;
+}
+
+.aero-btn-action:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #ecfdf5 48%, #d1fae5 50%, #e6fcf1 100%) !important;
+  border-color: #10b981 !important;
+  color: #064e3b !important;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.35), inset 0 1px 0 #ffffff !important;
+  transform: translateY(-1px) !important;
+}
+
+.aero-btn-action:active {
+  background: #d1fae5 !important;
+  transform: translateY(0) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15) !important;
+}
+
+.aero-btn-action:disabled {
+  opacity: 0.7 !important;
+  cursor: wait !important;
+  transform: none !important;
+}
+
+/* Primary "Save to Backlog" Aero Pill */
+.aero-btn-action.primary-save-btn {
+  width: 100% !important;
+  justify-content: center !important;
+  padding: 8px 16px !important;
+  font-size: 0.86rem !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  background: linear-gradient(
+    180deg,
+    #6ee7b7 0%,
+    #34d399 46%,
+    #10b981 50%,
+    #059669 100%
+  ) !important;
+  border: 1px solid #047857 !important;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.85),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.25),
+    0 2px 6px rgba(16, 185, 129, 0.35) !important;
+}
+
+.aero-btn-action.primary-save-btn:hover {
+  background: linear-gradient(180deg, #a7f3d0 0%, #6ee7b7 46%, #34d399 50%, #10b981 100%) !important;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.5), inset 0 1px 1px #ffffff !important;
+}
+
+/* ============================================================
+   7.CSS CLEAR-TYPE SPINNER RING (.w7-spinner)
+   ============================================================ */
+.w7-spinner {
+  display: inline-block !important;
+  width: 13px !important;
+  height: 13px !important;
+  min-width: 13px !important;
+  min-height: 13px !important;
+  border-radius: 50% !important;
+  border: 2px solid rgba(16, 185, 129, 0.25) !important;
+  border-top-color: #059669 !important;
+  border-right-color: #34d399 !important;
+  animation: w7spinRing 0.75s linear infinite !important;
+  box-sizing: border-box !important;
+  vertical-align: middle !important;
+}
+
+/* Lock preview container and image rendering */
+.w7-preview-box {
+  width: 105px !important;
+  height: 105px !important;
+  min-width: 105px !important;
+  max-width: 105px !important;
+  min-height: 105px !important;
+  max-height: 105px !important;
+  flex: 0 0 105px !important;
+  border-radius: 0 !important;
+  border: 1px solid #9aa7b2 !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.25) !important;
+  background: #0f172a !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.w7-preview-box img,
+#addPreviewImg {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 0 !important;
+  display: block !important;
+}
+
+/* Modal detail view cover */
+.modal-detail-cover {
+  width: 90px !important;
+  height: 90px !important;
+  max-width: 90px !important;
+  max-height: 90px !important;
+  object-fit: cover !important;
+  flex-shrink: 0 !important;
+}
+
+/* ============================================================
+   HORIZONTAL CANDIDATE THUMBNAILS CAROUSEL
+   ============================================================ */
+.art-candidates-picker {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.4rem !important;
+  background: rgba(16, 185, 129, 0.05) !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+  border-radius: 6px !important;
+  padding: 0.6rem !important;
+  margin-top: 0.25rem !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.picker-label {
+  font-size: 0.74rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.03em !important;
+  color: #065f46 !important;
+}
+
+/* Strictly horizontal row with horizontal scroll */
+.thumbnails-scroll-row {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important; /* Prevents vertical stacking */
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  gap: 0.6rem !important;
+  padding: 2px 2px 6px 2px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  scrollbar-width: thin !important;
+}
+
+.thumbnails-scroll-row::-webkit-scrollbar {
+  height: 4px;
+}
+
+.thumbnails-scroll-row::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.35);
+  border-radius: 4px;
+}
+
+/* Individual thumbnail items inside the horizontal row */
+.art-choice-item {
+  display: inline-flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  cursor: pointer !important;
+  border-radius: 2px !important;
+  border: 2px solid transparent !important;
+  padding: 2px !important;
+  flex-shrink: 0 !important; /* Prevents squishing */
+  width: 65px !important;
+  transition: transform 0.15s ease, border-color 0.15s ease !important;
+}
+
+.art-choice-item img {
+  width: 60px !important;
+  height: 60px !important;
+  min-width: 60px !important;
+  max-width: 60px !important;
+  min-height: 60px !important;
+  max-height: 60px !important;
+  object-fit: cover !important;
+  border-radius: 0 !important; /* Square corners */
+  background: #f1f5f9 !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  display: block !important;
+}
+
+.art-choice-item:hover {
+  transform: translateY(-2px) !important;
+  border-color: rgba(16, 185, 129, 0.5) !important;
+}
+
+.art-choice-item.selected {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.35) !important;
+}
+
+.art-choice-item .source-tag {
+  font-size: 0.65rem !important;
+  font-weight: 700 !important;
+  color: #064e3b !important;
+  margin-top: 3px !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+}
+
+@keyframes w7spinRing {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Diagonal Specular Reflection Across Pane */
+.topster-tile.is-completed::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 0 !important;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.42) 0%,
+    rgba(255, 255, 255, 0.12) 32%,
+    transparent 35%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* Hover Interaction */
+.topster-tile.is-completed:hover .aero-check-overlay {
+  background: radial-gradient(
+    circle at center,
+    rgba(16, 185, 129, 0.15) 0%,
+    rgba(255, 255, 255, 0.1) 60%,
+    transparent 100%
+  ) !important;
+  backdrop-filter: blur(0.5px);
+}
+
+.topster-tile.is-completed:hover .aero-check-icon {
+  transform: scale(1.08);
+  filter:
+    drop-shadow(0 1px 2px rgba(255, 255, 255, 1))
+    drop-shadow(0 0 8px rgba(0, 255, 136, 1))
+    drop-shadow(0 0 22px rgba(16, 185, 129, 0.95))
+    drop-shadow(0 3px 8px rgba(0, 0, 0, 0.7)) !important;
+}
+
+/* Widen modal footprint when an album is unlistened */
+#detailModal .is-unlistened {
+  max-width: 540px !important;
+  width: 92% !important;
+}
+
+/* Roomy multi-row wrap for unlistened genres and descriptors */
+.unlistened-metadata-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.unlistened-genre-box .primary-genres-wrap,
+.unlistened-genre-box .secondary-genres-wrap,
+.unlistened-desc-box {
+  display: flex;
+  flex-wrap: wrap;
+  line-height: 1.6;
+}
+
+/* ============================================================
+   Inline Track Links & Badges inside Challenge Detail Modal
+   ============================================================ */
+.inline-quoted-track {
+  display: inline;
+  font-style: italic;
+  font-weight: 600;
+  color: #047857;
+  background: rgba(16, 185, 129, 0.12);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+a.inline-quoted-track.song-embed-link {
+  color: #047857 !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(4, 120, 87, 0.45);
+  cursor: pointer !important;
+  transition: all 0.15s ease;
+}
+
+a.inline-quoted-track.song-embed-link:hover {
+  background: rgba(16, 185, 129, 0.22);
+  color: #065f46 !important;
+  text-decoration-color: #065f46;
+}
+
+/* Status Bar Footer */
+.status-bar {
+  background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
+  border-top: 1px solid #9aa7b2;
+  display: flex;
+  font-size: 0.75rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+.status-bar-field {
+  padding: 4px 10px;
+  border-right: 1px solid #cbd5e1;
+  flex: 1;
+}
+
+/* Hide legacy status circles */
+.tile-status-badge {
+  display: none !important;
+}
+
+/* Tile Hover Tooltip */
 .tile-tooltip {
   position: absolute;
   inset: auto 0 0 0;
   background: linear-gradient(transparent, rgba(0, 0, 0, 0.95));
   padding: 6px 4px 4px;
   font-size: 0.68rem;
+  font-weight: 600;
   color: #fff;
   text-align: center;
   white-space: nowrap;
@@ -841,161 +1076,152 @@ body.dark-mode .modal-detail-title {
   text-overflow: ellipsis;
   opacity: 0;
   transition: opacity 0.15s ease;
+  pointer-events: none;
+  z-index: 6;
 }
 
 .topster-tile:hover .tile-tooltip {
   opacity: 1;
 }
 
-/* Modal Styling */
-.challenge-modal-dialog {
-  max-width: 540px;
+/* ============================================================
+   ADMIN RESTRICTIONS & TILE ACTIONS
+   ============================================================ */
+.tile-admin-actions,
+.tile-icon-btn.delete,
+.tile-icon-btn.edit {
+  display: none !important;
 }
 
-.modal-spin-embed {
-  background: rgba(0, 0, 0, 0.25);
-  border-left: 3px solid #38bdf8;
-  padding: 0.85rem 1rem;
-  border-radius: 0 6px 6px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-/* Mobile & Tablet Breakpoints */
-@media (max-width: 900px) {
-  .topster-grid {
-    grid-template-columns: repeat(5, 1fr);
-  }
-}
-
-@media (max-width: 600px) {
-}
-
-@media (max-width: 420px) {
-  .topster-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-.sosa-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-}
-
-.modal-dialog {
-  background: var(--dark-bg-color, #11141a);
-  border: 1px solid var(--second-color, rgba(255, 255, 255, 0.15));
-  border-radius: 12px;
-  width: 100%;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-  overflow: hidden;
-}
-
-.modal-close-btn {
-  background: transparent;
-  border: none;
-  font-size: 1.5rem;
-  color: var(--text-color, #fff);
-  cursor: pointer;
-}
-
-.tile-delete-btn {
+body.is-admin .tile-admin-actions {
+  display: flex !important;
   position: absolute;
   top: 4px;
   left: 4px;
-  width: 20px;
-  height: 20px;
-  background: rgba(220, 38, 38, 0.85);
-  color: white;
-  border-radius: 50%;
-  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 7;
+}
+
+body.is-admin .topster-tile:hover .tile-admin-actions {
+  opacity: 1 !important;
+}
+
+body.is-admin .tile-icon-btn {
+  display: flex !important;
+  width: 22px;
+  height: 22px;
+  border-radius: 2px !important; /* Square mini-buttons */
+  border: 1px solid rgba(0, 0, 0, 0.35) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 2px 4px rgba(0, 0, 0, 0.35);
   align-items: center;
   justify-content: center;
   font-size: 11px;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  z-index: 6;
-  border: none;
   cursor: pointer;
 }
 
-.topster-tile:hover .tile-delete-btn {
-  opacity: 1;
+body.is-admin .tile-icon-btn.edit {
+  background: linear-gradient(180deg, #ffffff 0%, #dbeafe 100%) !important;
+  color: #1d4ed8 !important;
 }
 
-/* ============================================================
-   Aero Light-Mode Modal Dialog & Detail View
-   ============================================================ */
+body.is-admin .tile-icon-btn.delete {
+  background: linear-gradient(180deg, #fee2e2 0%, #ef4444 100%) !important;
+  color: #ffffff !important;
+}
 
-/* Backdrop overlay with clean blur */
+/* Drag-and-Drop States */
+.topster-tile[draggable="true"] { cursor: grab; }
+.topster-tile[draggable="true"]:active { cursor: grabbing; }
+.topster-tile[draggable="true"] .tile-art,
+.topster-tile[draggable="true"] .aero-check-overlay,
+.topster-tile[draggable="true"] .tile-tooltip { pointer-events: none; }
+.topster-tile.dragging { opacity: 0.35 !important; transform: scale(0.95); border: 2px dashed #10b981 !important; }
+.topster-tile.drag-over { outline: 3px solid #10b981 !important; transform: scale(1.04); }
+
+/* ============================================================
+   Aero Glass Modal Dialogs
+   ============================================================ */
 .sosa-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(15, 23, 42, 0.5) !important;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 99999 !important;
   padding: 1rem;
 }
 
-/* Light Aero Modal Container */
-.modal-dialog {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.94) 0%,
-    rgba(240, 253, 244, 0.9) 100%
-  ) !important;
-  border: 1px solid rgba(255, 255, 255, 0.95) !important;
-  border-radius: 14px;
+.w7-modal-window {
   width: 100%;
   max-width: 580px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow:
-    inset 0 1.5px 1px rgba(255, 255, 255, 1),
-    0 20px 45px rgba(15, 23, 42, 0.18),
-    0 4px 12px rgba(16, 185, 129, 0.12) !important;
+  background: rgba(248, 250, 252, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.9);
+  overflow: hidden;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
-.modal-title {
-  font-family: var(--font-retro, "Jersey 15"), sans-serif !important;
-  font-size: 1.85rem;
-  margin: 0;
-  color: #065f46 !important;
-  letter-spacing: 0.5px;
+.w7-modal-window .title-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px 6px 12px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.88) 0%,
+    rgba(225, 245, 235, 0.7) 45%,
+    rgba(180, 230, 205, 0.55) 50%,
+    rgba(215, 245, 230, 0.75) 100%
+  );
+  border-bottom: 1px solid rgba(0, 0, 0, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 1);
 }
 
-.modal-close-btn {
-  background: transparent;
-  border: none;
-  font-size: 1.6rem;
-  color: #64748b !important;
+.w7-modal-window .title-bar-text {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #064e3b;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
+}
+
+.w7-modal-window .title-bar-controls .is-close {
+  width: 44px;
+  height: 20px;
+  border: 1px solid #9c4333;
+  border-radius: 0 4px 4px 0;
+  background: linear-gradient(180deg, #f59685 0%, #d8513b 45%, #b92e17 50%, #d84e38 100%);
   cursor: pointer;
-  line-height: 1;
-  transition: color 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
-.modal-close-btn:hover {
-  color: #0f172a !important;
+.w7-modal-window .title-bar-controls .is-close::after {
+  content: "✕";
+  font-size: 10px;
+  font-weight: 900;
+  color: #ffffff;
 }
 
-/* Modal Body Layout */
+.w7-modal-window .window-body {
+  padding: 1.25rem;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* Modal Content Details */
 .modal-detail-wrapper {
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
-  padding: 1.25rem;
-  background: transparent;
 }
 
 .modal-detail-header {
@@ -1007,11 +1233,18 @@ body.dark-mode .modal-detail-title {
 .modal-detail-cover {
   width: 90px;
   height: 90px;
-  border-radius: 8px;
+  border-radius: 4px;
   object-fit: cover;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   border: 1px solid rgba(0, 0, 0, 0.08);
   background: #ffffff;
+}
+
+.modal-detail-cover,
+.modal-cover-preview img,
+.w7-preview-box img,
+.w7-preview-box {
+  border-radius: 0 !important; /* Strictly square corners */
 }
 
 .modal-detail-meta {
@@ -1022,36 +1255,93 @@ body.dark-mode .modal-detail-title {
 
 .modal-detail-title {
   font-weight: 800;
-  font-size: 1.2rem;
-  color: #0f172a !important;
+  font-size: 1.25rem;
+  color: #064e3b;
   line-height: 1.25;
 }
 
 .modal-detail-submeta {
   font-size: 0.82rem;
-  color: #64748b !important;
+  color: #64748b;
   font-weight: 500;
 }
 
 .modal-detail-rating {
-  color: #f59e0b !important;
-  font-weight: 800;
-  font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
   margin-top: 2px;
 }
 
-/* Genre Line */
-.modal-genre-line {
-  font-size: 0.88rem;
-  color: #334155 !important;
-  line-height: 1.5;
+.modal-detail-rating .stars-gold {
+  color: #f59e0b;
+  font-size: 1.05rem;
+  letter-spacing: 2px;
 }
 
-.modal-genre-line strong {
-  color: #064e3b !important;
+.modal-detail-rating .rating-num {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
 }
 
-/* Fav Tracks in Light Mode */
+/* Genres & Descriptors */
+.genre-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.primary-genres-wrap,
+.secondary-genres-wrap,
+.descriptors-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.genre-pill.genre-primary {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #064e3b;
+  background: linear-gradient(135deg, rgba(167, 243, 208, 0.75) 0%, rgba(110, 231, 183, 0.55) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  padding: 3px 9px;
+  border-radius: 4px;
+}
+
+.genre-pill.genre-secondary {
+  font-size: 0.72rem;
+  font-style: italic;
+  font-weight: 500;
+  color: #475569;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px dashed rgba(0, 0, 0, 0.18);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.desc-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-right: 2px;
+}
+
+.descriptor-pill {
+  font-size: 0.72rem;
+  color: #334155;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* Favorite Tracks & Memos */
 .fav-tracks-row {
   margin-top: 0.5rem;
 }
@@ -1059,10 +1349,7 @@ body.dark-mode .modal-detail-title {
 .fav-label {
   font-size: 0.82rem;
   font-weight: 700;
-  color: #065f46 !important;
-  display: flex;
-  align-items: center;
-  gap: 5px;
+  color: #065f46;
   margin-bottom: 0.35rem;
 }
 
@@ -1073,252 +1360,90 @@ body.dark-mode .modal-detail-title {
 }
 
 .fav-track-chip {
-  font-size: 0.76rem !important;
-  font-weight: 600 !important;
-  color: #065f46 !important;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(220, 252, 231, 0.75) 100%) !important;
-  border: 1px solid rgba(16, 185, 129, 0.35) !important;
-  padding: 4px 10px !important;
-  border-radius: 999px !important;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #065f46;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(220, 252, 231, 0.75) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  padding: 4px 10px;
+  border-radius: 999px;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  text-decoration: none !important;
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 1),
-    0 1px 3px rgba(16, 185, 129, 0.12) !important;
-  transition: all 0.15s ease;
+  text-decoration: none;
 }
 
-.fav-track-chip:hover {
-  background: #d1fae5 !important;
-  border-color: #10b981 !important;
-  color: #047857 !important;
-  transform: translateY(-1px);
-}
-
-/* Light Frosted Memo Box */
 .modal-detail-body .spin-memo-entry {
   font-size: 0.92rem;
   line-height: 1.65;
-  color: #1e293b !important;
+  color: #1e293b;
   margin-top: 0.9rem;
   padding: 0.85rem 1.1rem;
-  background: linear-gradient(
-    135deg,
-    rgba(167, 243, 208, 0.22) 0%,
-    rgba(110, 231, 183, 0.12) 100%
-  ) !important;
-  border: 1px solid rgba(16, 185, 129, 0.25) !important;
-  border-left: 3px solid #10b981 !important;
-  border-radius: 0 8px 8px 0 !important;
-  box-shadow:
-    0 2px 8px rgba(16, 185, 129, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+  background: linear-gradient(135deg, rgba(167, 243, 208, 0.22) 0%, rgba(110, 231, 183, 0.12) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-left: 3px solid #10b981;
+  border-radius: 0 6px 6px 0;
 }
 
-.modal-detail-body .spin-memo-entry blockquote {
-  margin: 0.6rem 0 0.35rem 0.25rem;
-  padding: 0.45rem 0.85rem 0.45rem 1.4rem;
-  font-style: italic;
-  font-size: 0.88rem;
-  color: #065f46 !important;
-  background: rgba(255, 255, 255, 0.65) !important;
-  border-left: 3px solid #10b981 !important;
-  border-radius: 0 6px 6px 0 !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
-}
-
-/* Light-mode Form Inputs in Add/Edit Modal */
-.modal-dialog input.sosa-search-input,
-.modal-dialog select.sosa-search-input {
-  background: rgba(255, 255, 255, 0.85) !important;
-  border: 1px solid rgba(0, 0, 0, 0.15) !important;
-  color: #0f172a !important;
-}
-
-.modal-dialog input.sosa-search-input:focus,
-.modal-dialog select.sosa-search-input:focus {
-  border-color: #10b981 !important;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
-  background: #ffffff !important;
-}
-
-/* ============================================================
-   Completed vs Uncompleted Tile Treatments
-   ============================================================ */
-
-/* 1. Unlistened / Backlog Tiles (Subtle, slightly dimmed & muted) */
-.topster-tile {
-  position: relative;
-  aspect-ratio: 1 / 1;
-  border-radius: 6px;
-  overflow: hidden;
+.review-action-btn {
+  font-family: var(--font-body, "Plus Jakarta Sans"), sans-serif !important;
+  font-size: 0.85rem !important;
+  font-weight: 700 !important;
+  padding: 8px 18px !important;
+  border-radius: 999px !important; /* Smooth Aero pill */
+  text-decoration: none !important;
   cursor: pointer;
-  background: rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1),
-              filter 0.18s ease;
-}
-
-/* Backlog covers have slight desaturation so finished ones pop */
-.topster-tile:not(.is-completed) .tile-art {
-  filter: saturate(0.82) brightness(0.92);
-  opacity: 0.88;
-  transition: all 0.2s ease;
-}
-
-.topster-tile:not(.is-completed):hover .tile-art {
-  filter: saturate(1) brightness(1);
-  opacity: 1;
-}
-
-/* 2. Completed Tiles (Full vibrance, emerald glass sheen & highlight) */
-.topster-tile.is-completed {
-  border: 1.5px solid #10b981 !important;
-  box-shadow:
-    0 2px 8px rgba(16, 185, 129, 0.22),
-    inset 0 1px 1px rgba(255, 255, 255, 0.7) !important;
-}
-
-.topster-tile.is-completed .tile-art {
-  filter: saturate(1.08) contrast(1.02);
-  opacity: 1;
-}
-
-/* Glossy glass corner ribbon / checkmark badge */
-.topster-tile.is-completed .tile-status-badge {
-  background: linear-gradient(180deg, #34d399 0%, #059669 100%) !important;
-  color: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.8) !important;
-  box-shadow:
-    0 2px 6px rgba(16, 185, 129, 0.45),
-    inset 0 1px 1px rgba(255, 255, 255, 0.9) !important;
-  font-size: 0.82rem;
-  font-weight: 900;
-  transform: scale(1.05);
-}
-
-/* Completed Hover Lift with Emerald Bloom */
-.topster-tile.is-completed:hover {
-  transform: translateY(-2px) scale(1.06);
-  box-shadow:
-    0 8px 18px rgba(16, 185, 129, 0.35),
-    0 0 10px rgba(52, 211, 153, 0.25) !important;
-  z-index: 10;
-}
-
-/* ============================================================
-   Cover Art Candidate Picker Carousel
-   ============================================================ */
-.art-candidates-picker {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(16, 185, 129, 0.35);
-  border-radius: 8px;
-  padding: 0.6rem;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
-}
-
-.picker-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #065f46;
-}
-
-.thumbnails-scroll-row {
-  display: flex;
-  gap: 0.6rem;
-  overflow-x: auto;
-  padding: 4px 2px 8px;
-}
-
-.art-choice-item {
-  position: relative;
-  display: flex;
-  flex-direction: column;
+  display: inline-flex !important;
   align-items: center;
-  cursor: pointer;
-  border-radius: 6px;
-  border: 2px solid transparent;
-  padding: 2px;
-  transition: transform 0.15s ease, border-color 0.15s ease;
-  flex-shrink: 0;
+  gap: 8px;
+
+  /* Signature Vista / 7 Liquid Emerald Gel */
+  background: linear-gradient(
+    180deg,
+    #6ee7b7 0%,
+    #34d399 45%,
+    #10b981 50%,
+    #059669 100%
+  ) !important;
+  color: #ffffff !important;
+  border: 1px solid #047857 !important;
+
+  /* 7.css specular glass rim + soft ambient glow */
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.25),
+    0 2px 8px rgba(16, 185, 129, 0.35) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-.art-choice-item img {
-  width: 65px;
-  height: 65px;
-  border-radius: 4px;
-  object-fit: cover;
-  background: #f1f5f9;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+.review-action-btn:hover {
+  background: linear-gradient(
+    180deg,
+    #a7f3d0 0%,
+    #6ee7b7 45%,
+    #34d399 50%,
+    #10b981 100%
+  ) !important;
+  box-shadow:
+    inset 0 1px 1px #ffffff,
+    0 4px 14px rgba(16, 185, 129, 0.5) !important;
+  transform: translateY(-1px) !important;
 }
 
-.art-choice-item:hover {
-  transform: translateY(-2px);
-  border-color: rgba(16, 185, 129, 0.5);
+.review-action-btn:active {
+  transform: translateY(0) !important;
+  background: #059669 !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3) !important;
 }
-
-.art-choice-item.selected {
-  border-color: #10b981;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.35);
-}
-
-.art-choice-item .source-tag {
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: #065f46;
-  margin-top: 3px;
-}
-
-/* Ensure clean drag operations on tiles */
-.topster-tile[draggable="true"] {
-  cursor: grab;
-}
-
-.topster-tile[draggable="true"]:active {
-  cursor: grabbing;
-}
-
-/* Prevent inner elements from capturing drag events during reordering */
-.topster-tile[draggable="true"] .tile-art,
-.topster-tile[draggable="true"] .tile-status-badge,
-.topster-tile[draggable="true"] .tile-tooltip {
-  pointer-events: none;
-}
-
-/* Keep admin buttons clickable */
-.topster-tile .tile-admin-actions,
-.topster-tile .tile-admin-actions * {
-  pointer-events: auto !important;
-}
-
-/* Visual drag states */
-.topster-tile.dragging {
-  opacity: 0.35 !important;
-  transform: scale(0.94);
-  border: 2px dashed #10b981 !important;
-}
-
-.topster-tile.drag-over {
-  outline: 3px solid #10b981 !important;
-  transform: scale(1.05);
-}
-
-
-/* Responsive Grid Breakpoints */
+/* Responsive Media Queries */
 @media (max-width: 900px) {
-  .topster-grid { grid-template-columns: repeat(5, 1fr); }
+  .topster-grid { grid-template-columns: repeat(5, 1fr) !important; }
 }
-@media (max-width: 600px) {
+
+@media (max-width: 640px) {
+  .topster-grid { grid-template-columns: repeat(4, 1fr) !important; gap: 5px !important; }
 }
+
 @media (max-width: 420px) {
-  .topster-grid { grid-template-columns: repeat(3, 1fr); }
+  .topster-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 4px !important; }
 }

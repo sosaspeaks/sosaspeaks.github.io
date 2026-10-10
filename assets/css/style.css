@@ -2567,6 +2567,8 @@ body.dark-mode .sidebar-heading {
   flex-wrap: wrap;
 }
 
+.modal-title {   font-family: "Plus Jakarta Sans", sans-serif;}
+
 .genre-pill.genre-primary {
   padding: 3px 9px;
   font-family: "Plus Jakarta Sans", sans-serif;
@@ -2608,6 +2610,49 @@ body.dark-mode .sidebar-heading {
 .dark-mode .genre-pill.genre-primary:hover, .dark-mode .descriptor-pill:hover {
   color: var(--dark-bg-color);
   background: var(--second-color);
+}
+
+.aero-command-btn {
+  font-family: var(--font-body, "Plus Jakarta Sans"), sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 14px;
+  border-radius: 999px; /* Restored smooth pill shape */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  color: #1e293b;
+
+  /* Restored translucent glass background */
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(241, 245, 249, 0.75) 100%);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+
+  /* 7.css Inset bevel highlights + soft elevation shadow */
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.95),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.05),
+    0 1px 3px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.aero-command-btn:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #ecfdf5 100%);
+  border-color: rgba(16, 185, 129, 0.45);
+  color: #065f46;
+  box-shadow:
+    inset 0 1px 1px #ffffff,
+    0 3px 8px rgba(16, 185, 129, 0.2);
+  transform: translateY(-1px);
+}
+
+.aero-command-btn:active {
+  transform: translateY(0);
+  background: #d1fae5;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
 
