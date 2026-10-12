@@ -6,7 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Listening Challenge — SosaSpins</title>
   <link rel="icon" type="image/png" href="../assets/images/homepics/Sosa-Icon-V3.png">
-  <link rel="stylesheet" href="../assets/css/style.css">
   <link rel="stylesheet" href="/assets/css/challenge.css">
   <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
 </head>
@@ -197,9 +196,32 @@
 
         <input type="text" id="addRuntime" class="sosa-search-input" placeholder="Runtime (e.g. 42m 15s)">
         <input type="text" id="addCoverUrl" class="sosa-search-input" placeholder="Cover URL">
-        <input type="text" id="addGenres" class="sosa-search-input" placeholder="Primary Genres (comma-separated)">
-        <input type="text" id="addSecondaryGenres" class="sosa-search-input" placeholder="Secondary Genres (comma-separated)">
-        <input type="text" id="addDescriptors" class="sosa-search-input" placeholder="Descriptors (comma-separated)">
+       <!-- Primary Genres Tag Box -->
+        <div class="tag-field-row">
+          <div class="tag-input-box" id="genresTagBox">
+            <input type="text" id="addGenresInput" class="tag-inline-input" placeholder="Add Primary Genre..." autocomplete="off">
+          </div>
+          <div class="aero-autocomplete-menu" id="genresDropdown" style="display: none;"></div>
+        </div>
+        <input type="hidden" id="addGenres" value="">
+
+        <!-- Secondary Genres Tag Box -->
+        <div class="tag-field-row">
+          <div class="tag-input-box" id="secondaryGenresTagBox">
+            <input type="text" id="addSecondaryGenresInput" class="tag-inline-input" placeholder="Add Secondary Genre..." autocomplete="off">
+          </div>
+          <div class="aero-autocomplete-menu" id="secondaryGenresDropdown" style="display: none;"></div>
+        </div>
+        <input type="hidden" id="addSecondaryGenres" value="">
+
+        <!-- Descriptors Tag Box -->
+        <div class="tag-field-row">
+          <div class="tag-input-box" id="descriptorsTagBox">
+            <input type="text" id="addDescriptorsInput" class="tag-inline-input" placeholder="Add Descriptor..." autocomplete="off">
+          </div>
+          <div class="aero-autocomplete-menu" id="descriptorsDropdown" style="display: none;"></div>
+        </div>
+        <input type="hidden" id="addDescriptors" value="">
 
         <button type="submit" id="submitAddAlbumBtn" class="aero-btn-action primary-save-btn">
           Save to Backlog

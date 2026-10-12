@@ -49,9 +49,6 @@
   --w7-el-bd: #8e9da8;
 }
 
-/* ============================================================
-   Base Resets & Layout Defaults
-   ============================================================ */
 *, *::before, *::after {
   box-sizing: border-box;
 }
@@ -77,9 +74,7 @@ button, input, select, textarea {
   font-family: var(--font-body) !important;
 }
 
-/* ============================================================
-   Header, Navigation & Admin Lock Controls
-   ============================================================ */
+/* Header & Controls */
 header {
   position: fixed;
   top: 0;
@@ -163,9 +158,7 @@ i.bx-moon:hover, i.bx-sun:hover {
   transform: scale(1.1);
 }
 
-/* ============================================================
-   Panoramic Banner & Hero Typography
-   ============================================================ */
+/* Banner */
 .main-home.spins-hero {
   position: relative;
   display: grid;
@@ -203,9 +196,7 @@ i.bx-moon:hover, i.bx-sun:hover {
   margin-top: 4px;
 }
 
-/* ============================================================
-   Challenge Controls & Windows 7 Folder Tabs
-   ============================================================ */
+/* Challenge Controls & Tabs */
 .challenge-controls {
   display: flex;
   flex-direction: column;
@@ -295,9 +286,7 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
   box-shadow: 0 -2px 6px rgba(16, 185, 129, 0.25), inset 0 1px 0 #ffffff;
 }
 
-/* ============================================================
-   Chunky Windows 7 Progress Bar (22px)
-   ============================================================ */
+/* Progress Box */
 .challenge-progress-box {
   background: linear-gradient(
     135deg,
@@ -397,9 +386,7 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
   100% { transform: translateX(100%); }
 }
 
-/* ============================================================
-   Vista / 7 Standalone Grid Window Shell
-   ============================================================ */
+/* Vista / 7 Window Shell */
 .challenge-container {
   margin-bottom: 4rem;
   max-width: 1040px;
@@ -547,9 +534,7 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
   box-shadow: inset 0 1px 1px #ffffff, 0 4px 14px rgba(16, 185, 129, 0.5) !important;
 }
 
-/* ============================================================
-   Strict 7x7 Grid System
-   ============================================================ */
+/* 7x7 Grid */
 .grid-window-body {
   margin: 0 !important;
   padding: 16px !important;
@@ -608,9 +593,7 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
   font-size: 0.95rem;
 }
 
-/* ============================================================
-   Strictly Square Album Tiles
-   ============================================================ */
+/* Tiles */
 .topster-tile {
   position: relative !important;
   width: 100% !important;
@@ -798,9 +781,7 @@ body.is-admin .tile-icon-btn.delete {
   flex: 1;
 }
 
-/* ============================================================
-   Aero Modal Windows & Windows 7 Glass Frames
-   ============================================================ */
+/* Modals & Windows 7 Styles */
 .sosa-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -826,7 +807,7 @@ body.is-admin .tile-icon-btn.delete {
     0 2px 6px rgba(0, 0, 0, 0.25),
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     inset 0 0 0 1px rgba(110, 140, 170, 0.45) !important;
-  overflow: hidden;
+  overflow: visible !important;
   box-sizing: border-box;
 }
 
@@ -901,26 +882,25 @@ body.is-admin .tile-icon-btn.delete {
 .window.w7-modal-window .window-body {
   background: #ffffff !important;
   margin: 3px !important;
-  padding: 1rem 1.15rem !important;
+  padding: 1.15rem !important;
   border-radius: 4px !important;
   border: 1px solid #9aa7b2 !important;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1) !important;
   max-height: 82vh !important;
   overflow-y: auto !important;
+  overflow-x: hidden !important;
 }
 
-/* ============================================================
-   Inputs & Modal Controls
-   ============================================================ */
+/* Base Modal Search Inputs */
 .sosa-search-input {
   width: 100% !important;
-  padding: 6px 8px !important;
+  padding: 7px 9px !important;
   font-size: 0.84rem !important;
   font-family: var(--font-body), sans-serif !important;
   color: #1e293b !important;
   background: #ffffff !important;
   border: 1px solid #9aa7b2 !important;
-  border-radius: 2px !important;
+  border-radius: 3px !important;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12) !important;
   outline: none !important;
 }
@@ -1028,11 +1008,9 @@ body.is-admin .tile-icon-btn.delete {
     inset 0 1px 1px rgba(255, 255, 255, 0.85),
     inset 0 -1px 1px rgba(0, 0, 0, 0.25),
     0 2px 6px rgba(16, 185, 129, 0.35) !important;
+  margin-top: 4px !important;
 }
 
-/* ============================================================
-   Artwork Thumbnail Selector
-   ============================================================ */
 .art-candidates-picker {
   display: flex !important;
   flex-direction: column !important;
@@ -1096,9 +1074,7 @@ body.is-admin .tile-icon-btn.delete {
   margin-top: 3px !important;
 }
 
-/* ============================================================
-   Detail Modal & Metadata Expansion
-   ============================================================ */
+/* Detail Modal Styles */
 .modal-detail-wrapper {
   display: flex;
   flex-direction: column;
@@ -1290,7 +1266,6 @@ body.is-admin .tile-icon-btn.delete {
   transform: translateY(-1px) !important;
 }
 
-/* Widen modal footprint when album is unlistened */
 #detailModal .is-unlistened {
   max-width: 540px !important;
   width: 92% !important;
@@ -1336,19 +1311,158 @@ a.inline-quoted-track.song-embed-link:hover {
 }
 
 /* ============================================================
-   Dark Mode Hooks
+   TRUE AUTO-EXPANDING TAG-INPUT ROWS & FLOATING AUTOCOMPLETE
    ============================================================ */
+
+/* Outer form row wrapper prevents collapsing */
+.tag-field-row {
+  position: relative !important;
+  width: 100% !important;
+  display: block !important;
+}
+
+.tag-input-box {
+  position: relative !important;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  align-content: flex-start !important;
+  gap: 5px !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 38px !important;
+  padding: 5px 8px !important;
+  background: #ffffff !important;
+  border: 1px solid #9aa7b2 !important;
+  border-radius: 3px !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12) !important;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+  cursor: text !important;
+  margin: 0 !important;
+}
+
+.tag-field-row:focus-within .tag-input-box {
+  border-color: #10b981 !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08), 0 0 5px rgba(16, 185, 129, 0.45) !important;
+}
+
+.tag-field-row:focus-within {
+  z-index: 1000 !important; /* Stacks active input & dropdown above subsequent fields */
+}
+
+/* Individual Tag Chips */
+.tag-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  font-size: 0.74rem !important;
+  font-weight: 700 !important;
+  padding: 3px 8px !important;
+  border-radius: 3px !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+  user-select: none !important;
+  flex: 0 0 auto !important;
+  box-sizing: border-box !important;
+}
+
+.tag-chip.chip-primary {
+  color: #064e3b !important;
+  background: linear-gradient(135deg, rgba(167, 243, 208, 0.85) 0%, rgba(110, 231, 183, 0.65) 100%) !important;
+  border: 1px solid rgba(16, 185, 129, 0.5) !important;
+}
+
+.tag-chip.chip-secondary {
+  color: #334155 !important;
+  background: #f1f5f9 !important;
+  border: 1px dashed #94a3b8 !important;
+  font-style: italic !important;
+}
+
+.tag-chip.chip-descriptor {
+  color: #064e3b !important;
+  background: rgba(16, 185, 129, 0.1) !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+
+.tag-chip-remove {
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  cursor: pointer !important;
+  opacity: 0.6 !important;
+  margin-left: 2px !important;
+}
+
+.tag-chip-remove:hover {
+  opacity: 1 !important;
+  color: #ef4444 !important;
+}
+
+/* Inline typing area */
+.tag-inline-input {
+  display: inline-block !important;
+  flex: 1 1 50px !important;
+  min-width: 45px !important;
+  max-width: 100% !important;
+  height: 24px !important;
+  line-height: 24px !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  font-size: 0.82rem !important;
+  font-family: inherit !important;
+  color: #1e293b !important;
+  padding: 0 4px !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Floating Autocomplete Dropdown - Anchored directly to .tag-field-row */
+.aero-autocomplete-menu {
+  position: absolute !important;
+  top: calc(100% + 2px) !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 9999999 !important;
+  max-height: 180px !important;
+  overflow-y: auto !important;
+  background: #ffffff !important;
+  border: 1px solid #10b981 !important;
+  border-radius: 4px !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28), inset 0 1px 0 #ffffff !important;
+  padding: 4px !important;
+  box-sizing: border-box !important;
+}
+
+.aero-autocomplete-item {
+  padding: 6px 10px !important;
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  color: #064e3b !important;
+  border-radius: 3px !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.aero-autocomplete-item:hover,
+.aero-autocomplete-item.active {
+  background: linear-gradient(180deg, #34d399 0%, #10b981 100%) !important;
+  color: #ffffff !important;
+}
+
+/* Dark Mode */
 body.dark-mode {
   background-color: var(--dark-bg-color);
   color: var(--dark-text-color);
 }
 
 body.dark-mode .grid-window-frame {
-  background: linear-gradient(
-    180deg,
-    rgba(20, 28, 24, 0.92) 0%,
-    rgba(14, 20, 17, 0.95) 100%
-  );
+  background: linear-gradient(180deg, rgba(20, 28, 24, 0.92) 0%, rgba(14, 20, 17, 0.95) 100%);
   border-color: rgba(255, 255, 255, 0.15);
 }
 
@@ -1373,11 +1487,6 @@ body.dark-mode .aero-command-btn {
   color: var(--dark-text-color);
 }
 
-body.dark-mode .aero-command-btn:hover {
-  background: rgba(16, 185, 129, 0.2);
-  color: #ffffff;
-}
-
 body.dark-mode .status-bar {
   background: #141b17;
   border-top-color: rgba(255, 255, 255, 0.1);
@@ -1388,9 +1497,6 @@ body.dark-mode .status-bar-field {
   border-right-color: rgba(255, 255, 255, 0.08);
 }
 
-/* ============================================================
-   Footer
-   ============================================================ */
 .footer {
   display: flex;
   flex-direction: column;
@@ -1411,9 +1517,6 @@ body.dark-mode .footer-copyright {
   color: rgba(255, 255, 255, 0.5);
 }
 
-/* ============================================================
-   Responsive Media Queries
-   ============================================================ */
 @media (max-width: 900px) {
   .topster-grid { grid-template-columns: repeat(5, 1fr) !important; }
 }

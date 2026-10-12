@@ -8,9 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.supabaseClient = sb;
   }
 
-  // ============================================================
-  // DOM REFERENCES
-  // ============================================================
+  // DOM References
   const topsterGrid = document.getElementById("topsterGrid");
   const monthFilterButtons = document.querySelectorAll(".post-filter .filter-item[data-month]");
   const counterEl = document.getElementById("completedCounter");
@@ -22,14 +20,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const exportImageBtn = document.getElementById("exportImageBtn");
   const exportWrapper = document.getElementById("exportWrapper");
 
-  // DETAIL MODAL
+  // Detail Modal
   const detailModal = document.getElementById("detailModal");
   const closeDetailModal = document.getElementById("closeDetailModal");
   const modalBody = document.getElementById("modalAlbumBody");
   const statusBarSelection = document.getElementById("statusBarSelection");
-const statusBarStatus = document.getElementById("statusBarStatus");
+  const statusBarStatus = document.getElementById("statusBarStatus");
 
-  // ADMIN ADD / EDIT MODAL
+  // Admin Add / Edit Modal
   const addModal = document.getElementById("addModal");
   const openAddModalBtn = document.getElementById("openAddModalBtn");
   const closeAddModal = document.getElementById("closeAddModal");
@@ -43,20 +41,16 @@ const statusBarStatus = document.getElementById("statusBarStatus");
   const addTitle = document.getElementById("addTitle");
   const addCoverUrl = document.getElementById("addCoverUrl");
   const addRuntime = document.getElementById("addRuntime");
-  const addGenres = document.getElementById("addGenres");
-  const addSecondaryGenres = document.getElementById("addSecondaryGenres");
-  const addDescriptors = document.getElementById("addDescriptors");
+  const addReleaseYear = document.getElementById("addReleaseYear");
   const submitAddAlbumBtn = document.getElementById("submitAddAlbumBtn");
   const artCandidatesContainer = document.getElementById("artCandidatesContainer");
   const artThumbnailsRow = document.getElementById("artThumbnailsRow");
   const FALLBACK_PLACEHOLDER = "../assets/images/spins/placeholder.png";
-  const addReleaseYear = document.getElementById("addReleaseYear");
 
-  // State
   let activeMonth = "october";
   let backlogEntries = [];
   let loggedSpins = [];
-const addNewMonthBtn = document.getElementById("addNewMonthBtn");
+  const addNewMonthBtn = document.getElementById("addNewMonthBtn");
   const monthTabsList = document.getElementById("monthTabsList");
 
   const MONTH_NAMES = [
@@ -64,17 +58,259 @@ const addNewMonthBtn = document.getElementById("addNewMonthBtn");
     "July", "August", "September", "October", "November", "December"
   ];
 
-  // Helper to safely convert comma-separated string inputs to arrays
-function safeSplit(val) {
-  if (!val) return [];
-  if (Array.isArray(val)) return val;
-  return val
-    .split(",")
-    .map(s => s.trim())
-    .filter(Boolean);
-}
+  function safeSplit(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    return val.split(",").map(s => s.trim()).filter(Boolean);
+  }
 
-  // 1. Rebuild or Bind Tab Clicks
+  function safeToArray(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val.map(x => String(x).trim()).filter(Boolean);
+    if (typeof val === "string") return val.split(",").map(x => x.trim()).filter(Boolean);
+    return [String(val).trim()];
+  }
+
+  function getStarString(rating) {
+    if (rating === null || rating === undefined || rating === "") return "";
+    const num = parseFloat(rating);
+    if (isNaN(num)) return "";
+    const clamped = Math.max(0, Math.min(5, num));
+    const full = Math.floor(clamped);
+    const half = (clamped % 1) >= 0.25 && (clamped % 1) <= 0.75;
+    const emptyCount = Math.max(0, 5 - full - (half ? 1 : 0));
+    return "★".repeat(full) + (half ? "½" : "") + "☆".repeat(emptyCount);
+  }
+
+  // Dynamic Suggestion Pool Getters
+  function getLiveGenrePool() {
+    const set = new Set();
+    [...backlogEntries, ...loggedSpins].forEach(item => {
+      safeToArray(item.genres).forEach(g => set.add(g));
+      safeToArray(item.secondary_genres).forEach(g => set.add(g));
+    });
+    return Array.from(set).sort();
+  }
+
+  function getLiveDescriptorPool() {
+    const set = new Set();
+    [...backlogEntries, ...loggedSpins].forEach(item => {
+      safeToArray(item.descriptors).forEach(d => set.add(d));
+    });
+    return Array.from(set).sort();
+  }
+
+  // Tag Input Component
+  class TagInputManager {
+    constructor({ containerId, inputId, dropdownId, hiddenInputId, chipClass, getPool }) {
+      this.container = document.getElementById(containerId);
+      this.input = document.getElementById(inputId);
+      this.dropdown = document.getElementById(dropdownId);
+      this.hiddenInput = document.getElementById(hiddenInputId);
+      this.chipClass = chipClass || "chip-primary";
+      this.getPool = getPool || (() => []);
+      this.tags = [];
+      this.highlightIdx = -1;
+
+      if (!this.container || !this.input || !this.dropdown) return;
+
+      this.input.setAttribute("data-placeholder", this.input.placeholder || "");
+
+      this.container.addEventListener("click", (e) => {
+        if (!e.target.classList.contains("tag-chip-remove")) {
+          this.input.focus();
+        }
+      });
+
+      this.input.addEventListener("input", () => this.handleAutocomplete());
+      this.input.addEventListener("focus", () => this.handleAutocomplete());
+
+      this.input.addEventListener("keydown", (e) => {
+        if (this.dropdown.style.display !== "none") {
+          const items = this.dropdown.querySelectorAll(".aero-autocomplete-item");
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            this.highlightIdx = Math.min(this.highlightIdx + 1, items.length - 1);
+            this.renderHighlight(items);
+            return;
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            this.highlightIdx = Math.max(this.highlightIdx - 1, 0);
+            this.renderHighlight(items);
+            return;
+          } else if (e.key === "Enter" && this.highlightIdx >= 0 && items[this.highlightIdx]) {
+            e.preventDefault();
+            this.addTag(items[this.highlightIdx].getAttribute("data-val"));
+            this.closeDropdown();
+            return;
+          } else if (e.key === "Escape") {
+            this.closeDropdown();
+            return;
+          }
+        }
+
+        if (e.key === "Enter" || e.key === ",") {
+          e.preventDefault();
+          this.addCurrentTag();
+        } else if (e.key === "Backspace" && !this.input.value && this.tags.length > 0) {
+          this.removeTag(this.tags.length - 1);
+        }
+      });
+
+      document.addEventListener("click", (e) => {
+        if (!this.container.contains(e.target) && !this.dropdown.contains(e.target)) {
+          this.closeDropdown();
+        }
+      });
+    }
+
+    handleAutocomplete() {
+      if (!this.dropdown) return;
+      const query = this.input.value.trim().toLowerCase();
+      let pool = [];
+      try {
+        pool = this.getPool() || [];
+      } catch (err) {
+        pool = [];
+      }
+
+      if (pool.length === 0) {
+        this.closeDropdown();
+        return;
+      }
+
+      const matches = query
+        ? pool.filter(item => item.toLowerCase().includes(query) && !this.tags.includes(item)).slice(0, 8)
+        : pool.filter(item => !this.tags.includes(item)).slice(0, 8);
+
+      if (matches.length === 0) {
+        this.closeDropdown();
+        return;
+      }
+
+      this.dropdown.innerHTML = matches.map((m, idx) => `
+        <div class="aero-autocomplete-item ${idx === 0 ? 'active' : ''}" data-val="${m}">
+          ${m}
+        </div>
+      `).join("");
+
+      this.highlightIdx = 0;
+      this.dropdown.style.display = "block";
+
+      this.dropdown.querySelectorAll(".aero-autocomplete-item").forEach((el) => {
+        el.onmousedown = (e) => {
+          e.preventDefault();
+          this.addTag(el.getAttribute("data-val"));
+          this.closeDropdown();
+        };
+      });
+    }
+
+    renderHighlight(items) {
+      items.forEach((it, idx) => {
+        it.classList.toggle("active", idx === this.highlightIdx);
+      });
+    }
+
+    closeDropdown() {
+      if (this.dropdown) this.dropdown.style.display = "none";
+      this.highlightIdx = -1;
+    }
+
+    addCurrentTag() {
+      const raw = this.input.value.trim().replace(/^,+|,+$/g, "");
+      if (!raw) return;
+      const parts = raw.split(",").map(p => p.trim()).filter(Boolean);
+      parts.forEach(val => this.addTag(val));
+      this.input.value = "";
+      this.closeDropdown();
+    }
+
+    addTag(val) {
+      const cleaned = String(val).trim();
+      if (cleaned && !this.tags.includes(cleaned)) {
+        this.tags.push(cleaned);
+        this.render();
+      }
+      this.input.value = "";
+    }
+
+    removeTag(idx) {
+      this.tags.splice(idx, 1);
+      this.render();
+    }
+
+    setTags(arrayOrString) {
+      if (!arrayOrString) {
+        this.tags = [];
+      } else if (Array.isArray(arrayOrString)) {
+        this.tags = arrayOrString.map(s => String(s).trim()).filter(Boolean);
+      } else {
+        this.tags = String(arrayOrString).split(",").map(s => s.trim()).filter(Boolean);
+      }
+      this.render();
+    }
+
+    getTags() {
+      return [...this.tags];
+    }
+
+    render() {
+      if (!this.container || !this.input) return;
+
+      this.container.querySelectorAll(".tag-chip").forEach(el => el.remove());
+
+      this.tags.forEach((tag, idx) => {
+        const chip = document.createElement("span");
+        chip.className = `tag-chip ${this.chipClass}`;
+        chip.innerHTML = `
+          ${tag}
+          <span class="tag-chip-remove">✕</span>
+        `;
+        chip.querySelector(".tag-chip-remove").onclick = (e) => {
+          e.stopPropagation();
+          this.removeTag(idx);
+        };
+        this.container.insertBefore(chip, this.input);
+      });
+
+      this.input.placeholder = this.tags.length > 0 ? "" : (this.input.getAttribute("data-placeholder") || "Add...");
+
+      if (this.hiddenInput) {
+        this.hiddenInput.value = this.tags.join(", ");
+      }
+    }
+  }
+
+  // Initialize Tag Managers
+  window.addGenresManager = new TagInputManager({
+    containerId: "genresTagBox",
+    inputId: "addGenresInput",
+    dropdownId: "genresDropdown",
+    hiddenInputId: "addGenres",
+    chipClass: "chip-primary",
+    getPool: getLiveGenrePool
+  });
+
+  window.addSecondaryGenresManager = new TagInputManager({
+    containerId: "secondaryGenresTagBox",
+    inputId: "addSecondaryGenresInput",
+    dropdownId: "secondaryGenresDropdown",
+    hiddenInputId: "addSecondaryGenres",
+    chipClass: "chip-secondary",
+    getPool: getLiveGenrePool
+  });
+
+  window.addDescriptorsManager = new TagInputManager({
+    containerId: "descriptorsTagBox",
+    inputId: "addDescriptorsInput",
+    dropdownId: "descriptorsDropdown",
+    hiddenInputId: "addDescriptors",
+    chipClass: "chip-descriptor",
+    getPool: getLiveDescriptorPool
+  });
+
+  // Month Tabs Navigation
   function attachMonthTabListeners() {
     const tabs = document.querySelectorAll('menu.w7-month-tabs button[role="tab"]');
     tabs.forEach(tab => {
@@ -93,10 +329,8 @@ function safeSplit(val) {
     });
   }
 
-  // Bind initial tabs on startup
   attachMonthTabListeners();
 
-  // 2. Add New Month Handler
   if (addNewMonthBtn) {
     addNewMonthBtn.addEventListener("click", () => {
       if (!isAdmin) return alert("Admin login required.");
@@ -104,7 +338,6 @@ function safeSplit(val) {
       const currentYear = new Date().getFullYear();
       const existingTabs = document.querySelectorAll('menu.w7-month-tabs button[role="tab"]');
 
-      // Find the last tab in the list
       const lastTab = existingTabs[existingTabs.length - 1];
       const lastMonthRaw = lastTab ? lastTab.getAttribute("data-month") : "october";
       const lastYear = lastTab && lastTab.getAttribute("data-year")
@@ -112,26 +345,21 @@ function safeSplit(val) {
         : currentYear;
 
       const lastMonthIndex = MONTH_NAMES.findIndex(m => m.toLowerCase() === lastMonthRaw.toLowerCase());
-
-      // Calculate next month index and year rollover
       const nextMonthIndex = (lastMonthIndex + 1) % 12;
       const targetYear = (lastMonthIndex + 1 >= 12) ? lastYear + 1 : lastYear;
       const nextMonthName = MONTH_NAMES[nextMonthIndex];
 
-      // Append year if different from the current calendar year
       const tabLabel = (targetYear !== currentYear)
         ? `${nextMonthName} ${targetYear}`
         : nextMonthName;
 
       if (!confirm(`Add challenge tab for "${tabLabel}"?`)) return;
 
-      // Deselect existing tabs
       existingTabs.forEach(t => {
         t.classList.remove("active");
         t.setAttribute("aria-selected", "false");
       });
 
-      // Append the new tab directly into the existing <menu> list
       const newTabBtn = document.createElement("button");
       newTabBtn.type = "button";
       newTabBtn.setAttribute("role", "tab");
@@ -142,54 +370,14 @@ function safeSplit(val) {
       newTabBtn.textContent = `${tabLabel} (0/49)`;
 
       monthTabsList.appendChild(newTabBtn);
-
-      // Re-attach clicks so new button switches months properly
       attachMonthTabListeners();
 
-      // Switch view and render
       activeMonth = nextMonthName.toLowerCase();
       renderGrid();
     });
   }
-  // ============================================================
-  // HELPER UTILITIES
-  // ============================================================
-  function cleanSearchQuery(text) {
-    return text
-      .replace(/\[.*?\]/g, "")
-      .replace(/\(.*?\)/g, "")
-      .replace(/#\w+/g, "")
-      .replace(/[’']/g, "'")
-      .replace(/[:\/\\–—]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-  }
 
-  function parseList(val) {
-    return val ? val.split(",").map(s => s.trim()).filter(Boolean) : [];
-  }
-
-  function safeToArray(val) {
-    if (!val) return [];
-    if (Array.isArray(val)) return val.map(x => String(x).trim()).filter(Boolean);
-    if (typeof val === "string") return val.split(",").map(x => x.trim()).filter(Boolean);
-    return [String(val).trim()];
-  }
-
-  function getStarString(rating) {
-    if (rating === null || rating === undefined || rating === "") return "";
-    const num = parseFloat(rating);
-    if (isNaN(num)) return "";
-
-    const clamped = Math.max(0, Math.min(5, num));
-    const full = Math.floor(clamped);
-    const half = (clamped % 1) >= 0.25 && (clamped % 1) <= 0.75;
-    const emptyCount = Math.max(0, 5 - full - (half ? 1 : 0));
-
-    return "★".repeat(full) + (half ? "½" : "") + "☆".repeat(emptyCount);
-  }
-
-  // Helper: Upload an external image URL to Supabase Storage Bucket ('covers')
+  // Cover Cloud Upload Helper
   async function uploadExternalCoverToSupabase(imageUrl, artist, title) {
     if (!imageUrl || !imageUrl.startsWith("http") || imageUrl.includes("supabase.co")) {
       return imageUrl;
@@ -227,16 +415,11 @@ function safeSplit(val) {
     }
   }
 
-  // ============================================================
-  // BATCH SYNC BACKLOG COVERS TO SUPABASE STORAGE
-  // ============================================================
   const syncBacklogCoversBtn = document.getElementById("syncBacklogCoversBtn");
-
   if (syncBacklogCoversBtn) {
     syncBacklogCoversBtn.addEventListener("click", async () => {
       if (!isAdmin) return alert("Admin authentication required.");
 
-      // Identify uncompleted backlog entries with non-Supabase external URLs
       const targets = backlogEntries.filter(album => {
         const isFinished = loggedSpins.some(s =>
           s.artist && album.artist && s.title && album.title &&
@@ -251,11 +434,11 @@ function safeSplit(val) {
       });
 
       if (targets.length === 0) {
-        alert("All unfinished backlog album covers are already hosted on Supabase Storage (or using placeholders).");
+        alert("All unfinished backlog album covers are already hosted on Supabase Storage.");
         return;
       }
 
-      if (!confirm(`Found ${targets.length} unfinished backlog album(s) with external URLs. Upload them to your Supabase "covers" bucket and update the database?`)) {
+      if (!confirm(`Found ${targets.length} unfinished backlog album(s) with external URLs. Upload them to Supabase "covers" bucket?`)) {
         return;
       }
 
@@ -289,7 +472,6 @@ function safeSplit(val) {
     });
   }
 
-  // Updated Handoff to SosaSpins Composer: passes current Supabase cover URL
   window.importBacklogToSpin = function(albumId) {
     const album = backlogEntries.find(a => a.id === albumId);
     if (!album) return;
@@ -311,9 +493,7 @@ function safeSplit(val) {
     window.location.href = "sosaspins.html?action=logSpin";
   };
 
-  // ============================================================
-  // ADMIN AUTHENTICATION
-  // ============================================================
+  // Admin Auth
   async function sha256(str) {
     const buffer = new TextEncoder().encode(str);
     const hash = await crypto.subtle.digest("SHA-256", buffer);
@@ -365,9 +545,7 @@ function safeSplit(val) {
     });
   }
 
-  // ============================================================
-  // FETCH COVER ART & MULTI-SOURCE PICKER
-  // ============================================================
+  // Cover Fetcher
   window.selectCandidateArt = function(url, element) {
     if (addPreviewImg) addPreviewImg.src = url;
     if (addCoverUrl) addCoverUrl.value = url;
@@ -375,9 +553,6 @@ function safeSplit(val) {
     if (element) element.classList.add("selected");
   };
 
-  // ============================================================
-  // BULLETPROOF & RELEVANT COVER ART FETCHER
-  // ============================================================
   if (fetchCoverBtn) {
     fetchCoverBtn.addEventListener("click", async () => {
       const rawArtist = (addArtist.value || "").trim();
@@ -388,7 +563,6 @@ function safeSplit(val) {
         return;
       }
 
-      // Activate Aero Spinner
       fetchCoverBtn.innerHTML = `<span class="w7-spinner"></span> Fetching...`;
       fetchCoverBtn.disabled = true;
 
@@ -397,69 +571,66 @@ function safeSplit(val) {
 
       const candidateCovers = [];
 
+      const spinMatch = loggedSpins.find(s =>
+        s.artist && s.title &&
+        s.artist.toLowerCase().trim() === rawArtist.toLowerCase() &&
+        s.title.toLowerCase().trim() === rawTitle.toLowerCase()
+      );
+      if (spinMatch && spinMatch.cover_url) {
+        let sc = spinMatch.cover_url;
+        if (sc.startsWith("assets/")) sc = "../" + sc;
+        candidateCovers.push({ url: sc, source: "Your Spins" });
+      }
+
+      const cleanA = rawArtist.replace(/[^\w\s]/gi, " ").replace(/\s+/g, " ").trim();
+      const cleanT = rawTitle.replace(/\[.*?\]|\(.*?\)/g, "").replace(/[^\w\s]/gi, " ").replace(/\s+/g, " ").trim();
+
       try {
-        const cleanA = (rawArtist || "").replace(/[^\w\s]/gi, " ").replace(/\s+/g, " ").trim();
-        const cleanT = (rawTitle || "").replace(/\[.*?\]|\(.*?\)/g, "").replace(/[^\w\s]/gi, " ").replace(/\s+/g, " ").trim();
-
-        const normArtist = cleanA.toLowerCase();
-        const normTitle = cleanT.toLowerCase();
-
-        // ---------------------------------------------------------
-        // 1. Check Pre-existing Spins in Supabase First
-        // ---------------------------------------------------------
-        const spinMatch = loggedSpins.find(s =>
-          s.artist && s.title &&
-          s.artist.toLowerCase().trim() === rawArtist.toLowerCase() &&
-          s.title.toLowerCase().trim() === rawTitle.toLowerCase()
-        );
-        if (spinMatch && spinMatch.cover_url) {
-          let sc = spinMatch.cover_url;
-          if (sc.startsWith("assets/")) sc = "../" + sc;
-          candidateCovers.push({ url: sc, source: "Your Spins" });
-        }
-
-        // ---------------------------------------------------------
-        // 2. Apple iTunes: Targeted & Verified Relevance Check
-        // ---------------------------------------------------------
-        try {
-          const query = encodeURIComponent(`${cleanA} ${cleanT}`);
-          const itunesRes = await fetch(`https://itunes.apple.com/search?term=${query}&entity=album&limit=15`);
-          const itunesData = await itunesRes.json();
-
-          if (itunesData.results && itunesData.results.length > 0) {
-            itunesData.results.forEach(match => {
-              const matchArtist = (match.artistName || "").toLowerCase();
-              const matchAlbum = (match.collectionName || "").toLowerCase();
-
-              // RELEVANCE GUARD: Only accept if artist or album has overlap
-              const artistOverlap = normArtist.split(" ").some(word => word.length > 2 && matchArtist.includes(word));
-              const titleOverlap = normTitle.split(" ").some(word => word.length > 2 && matchAlbum.includes(word));
-
-              if ((artistOverlap || titleOverlap) && match.artworkUrl100) {
-                const hires = match.artworkUrl100.replace("100x100bb.jpg", "600x600bb.jpg");
-                if (!candidateCovers.some(c => c.url === hires)) {
-                  candidateCovers.push({ url: hires, source: "Apple" });
+        const itunesQuery = encodeURIComponent(`${cleanA} ${cleanT}`);
+        const itunesPromise = fetch(`https://itunes.apple.com/search?term=${itunesQuery}&entity=album&limit=10`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.results && data.results.length > 0) {
+              data.results.forEach(match => {
+                if (match.artworkUrl100) {
+                  const hires = match.artworkUrl100.replace("100x100bb.jpg", "600x600bb.jpg");
+                  if (!candidateCovers.some(c => c.url === hires)) {
+                    candidateCovers.push({ url: hires, source: "Apple" });
+                  }
+                  if (match.releaseDate && addReleaseYear && !addReleaseYear.value) {
+                    addReleaseYear.value = new Date(match.releaseDate).getFullYear();
+                  }
                 }
+              });
+            }
+          })
+          .catch(err => console.warn("iTunes quick search skipped:", err));
 
-                if (match.releaseDate && addReleaseYear && !addReleaseYear.value) {
-                addReleaseYear.value = new Date(match.releaseDate).getFullYear();
-              }
-              }
-            });
-          }
-        } catch (err) {
-          console.warn("iTunes art fetch error:", err);
-        }
+        await itunesPromise;
 
-        // ---------------------------------------------------------
-        // 3. Fallback: MusicBrainz & Cover Art Archive via Proxy
-        // ---------------------------------------------------------
-        if (candidateCovers.length < 4) {
+        if (candidateCovers.length > 0) {
+          artCandidatesContainer.style.display = "flex";
+          artThumbnailsRow.innerHTML = candidateCovers.map((item, idx) => `
+            <div class="art-choice-item ${idx === 0 ? 'selected' : ''}" onclick="selectCandidateArt('${item.url}', this)">
+              <img src="${item.url}" alt="Option ${idx + 1}" loading="lazy" onerror="this.parentElement.remove()">
+              <span class="source-tag">${item.source}</span>
+            </div>
+          `).join("");
+
+          selectCandidateArt(candidateCovers[0].url, artThumbnailsRow.querySelector(".art-choice-item"));
+        } else {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 2500);
+
+          const mbQuery = encodeURIComponent(`"${cleanT}" AND artist:"${cleanA}"`);
+          const mbUrl = `https://musicbrainz.org/ws/2/release/?query=${mbQuery}&fmt=json&limit=3`;
+
           try {
-            const mbQuery = encodeURIComponent(`"${cleanT}" AND artist:"${cleanA}"`);
-            const mbUrl = `https://musicbrainz.org/ws/2/release/?query=${mbQuery}&fmt=json&limit=6`;
+            const proxyRes = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(mbUrl)}`, {
+              signal: controller.signal
+            });
+            clearTimeout(timeoutId);
 
-            const proxyRes = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(mbUrl)}`);
             if (proxyRes.ok) {
               const mbData = await proxyRes.json();
               if (mbData.releases && mbData.releases.length > 0) {
@@ -471,35 +642,28 @@ function safeSplit(val) {
                 }
               }
             }
-          } catch (err) {
-            console.warn("MusicBrainz proxy fetch error:", err);
+          } catch (mbErr) {
+            console.warn("MusicBrainz timed out or failed:", mbErr);
           }
-        }
 
-        // ---------------------------------------------------------
-        // 4. Render Relevant Thumbnails
-        // ---------------------------------------------------------
-        if (candidateCovers.length === 0) {
-          alert(`No matching artwork found for "${rawArtist} — ${rawTitle}". You can paste a direct image URL into the Cover URL field.`);
-          return;
-        }
+          if (candidateCovers.length === 0) {
+            alert(`No covers found for "${rawArtist} — ${rawTitle}". You can paste an image URL into the Cover field.`);
+            return;
+          }
 
-        if (artCandidatesContainer && artThumbnailsRow) {
           artCandidatesContainer.style.display = "flex";
-          artThumbnailsRow.innerHTML = candidateCovers.slice(0, 8).map((item, idx) => `
+          artThumbnailsRow.innerHTML = candidateCovers.map((item, idx) => `
             <div class="art-choice-item ${idx === 0 ? 'selected' : ''}" onclick="selectCandidateArt('${item.url}', this)">
               <img src="${item.url}" alt="Option ${idx + 1}" loading="lazy" onerror="this.parentElement.remove()">
               <span class="source-tag">${item.source}</span>
             </div>
           `).join("");
 
-          // Select the first verified match
           selectCandidateArt(candidateCovers[0].url, artThumbnailsRow.querySelector(".art-choice-item"));
         }
 
       } catch (fatalErr) {
-        console.error("Fatal error fetching covers:", fatalErr);
-        alert("Error while searching for covers: " + fatalErr.message);
+        console.error("Cover fetcher error:", fatalErr);
       } finally {
         fetchCoverBtn.innerHTML = `<i class='bx bx-image'></i> Fetch Art`;
         fetchCoverBtn.disabled = false;
@@ -507,17 +671,6 @@ function safeSplit(val) {
     });
   }
 
-  // Window helper for thumbnail selection
-  window.selectCandidateArt = function(url, element) {
-    if (!url) return;
-    if (addPreviewImg) addPreviewImg.src = url;
-    if (addCoverUrl) addCoverUrl.value = url;
-
-    document.querySelectorAll(".art-choice-item").forEach(el => el.classList.remove("selected"));
-    if (element) element.classList.add("selected");
-  };
-
-  // Cover from Existing Spin
   if (fetchSpinCoverBtn) {
     fetchSpinCoverBtn.addEventListener("click", () => {
       const artist = (addArtist.value || "").trim().toLowerCase();
@@ -546,9 +699,7 @@ function safeSplit(val) {
     });
   }
 
-  // ============================================================
-  // BULLETPROOF RUNTIME FETCHER (iTunes API + MusicBrainz Fallback)
-  // ============================================================
+  // Runtime Fetcher
   if (fetchRuntimeBtn) {
     fetchRuntimeBtn.addEventListener("click", async () => {
       const rawArtist = (addArtist.value || "").trim();
@@ -559,42 +710,51 @@ function safeSplit(val) {
         return;
       }
 
-      // Set spinner while fetching runtime
       fetchRuntimeBtn.innerHTML = `<span class="w7-spinner"></span> Fetching...`;
       fetchRuntimeBtn.disabled = true;
 
-      fetchRuntimeBtn.textContent = "Fetching...";
-      const artist = cleanSearchQuery(rawArtist);
-      const title = cleanSearchQuery(rawTitle);
+      const cleanA = rawArtist.replace(/[^\w\s]/gi, " ").replace(/\s+/g, " ").trim();
+      const cleanT = rawTitle.replace(/\[.*?\]|\(.*?\)/g, "").replace(/[^\w\s]/gi, " ").replace(/\s+/g, " ").trim();
 
       let foundRuntime = null;
 
-      // -----------------------------------------------------------
-      // 1. PRIMARY: iTunes Lookup (Direct browser CORS, fast & accurate)
-      // -----------------------------------------------------------
       try {
-        const query = encodeURIComponent(`${artist} ${title}`);
-        const itunesRes = await fetch(`https://itunes.apple.com/search?term=${query}&entity=album&limit=3`);
+        const query = encodeURIComponent(`${cleanA} ${cleanT}`);
+        const itunesRes = await fetch(`https://itunes.apple.com/search?term=${query}&entity=album&limit=10`);
         const itunesData = await itunesRes.json();
 
         if (itunesData.results && itunesData.results.length > 0) {
-          const collectionId = itunesData.results[0].collectionId;
+          const normTitle = cleanT.toLowerCase();
+          const targetAlbum = itunesData.results.find(a =>
+            (a.collectionName || "").toLowerCase().includes(normTitle)
+          ) || itunesData.results[0];
 
-          // Query tracks on this collection to sum exact track times (millis)
-          const tracksRes = await fetch(`https://itunes.apple.com/lookup?id=${collectionId}&entity=song`);
-          const tracksData = await tracksRes.json();
+          const collectionId = targetAlbum.collectionId;
 
-          if (tracksData.results && tracksData.results.length > 1) {
-            let totalMs = 0;
-            // The first item is collection metadata; remaining items are songs
-            tracksData.results.slice(1).forEach(song => {
-              if (song.trackTimeMillis) totalMs += song.trackTimeMillis;
-            });
+          if (collectionId) {
+            const tracksRes = await fetch(`https://itunes.apple.com/lookup?id=${collectionId}&entity=song`);
+            const tracksData = await tracksRes.json();
 
-            if (totalMs > 0) {
-              const totalMins = Math.floor(totalMs / 60000);
-              const remainingSecs = Math.floor((totalMs % 60000) / 1000);
-              foundRuntime = `${totalMins}m ${remainingSecs.toString().padStart(2, "0")}s`;
+            if (tracksData.results && tracksData.results.length > 0) {
+              let totalMs = 0;
+              const songItems = tracksData.results.filter(item => item.wrapperType === "track");
+
+              songItems.forEach(song => {
+                if (song.trackTimeMillis) totalMs += song.trackTimeMillis;
+              });
+
+              if (totalMs > 0) {
+                const totalSeconds = Math.floor(totalMs / 1000);
+                const hours = Math.floor(totalSeconds / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
+                const seconds = totalSeconds % 60;
+
+                if (hours > 0) {
+                  foundRuntime = `${hours}h ${minutes}m`;
+                } else {
+                  foundRuntime = `${minutes}m ${seconds.toString().padStart(2, "0")}s`;
+                }
+              }
             }
           }
         }
@@ -602,15 +762,11 @@ function safeSplit(val) {
         console.warn("iTunes runtime lookup failed:", err);
       }
 
-      // -----------------------------------------------------------
-      // 2. FALLBACK: MusicBrainz via CORS Proxy
-      // -----------------------------------------------------------
       if (!foundRuntime) {
         try {
-          const mbQuery = encodeURIComponent(`release:"${title}" AND artist:"${artist}"`);
-          const mbUrl = `https://musicbrainz.org/ws/2/release/?query=${mbQuery}&fmt=json&limit=1`;
+          const mbQuery = encodeURIComponent(`release:"${cleanT}" AND artist:"${cleanA}"`);
+          const mbUrl = `https://musicbrainz.org/ws/2/release/?query=${mbQuery}&fmt=json&limit=3`;
 
-          // Route through AllOrigins CORS proxy to bypass browser network errors
           const proxyRes = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(mbUrl)}`);
           if (proxyRes.ok) {
             const mbData = await proxyRes.json();
@@ -631,21 +787,26 @@ function safeSplit(val) {
                 });
 
                 if (totalMs > 0) {
-                  const totalMins = Math.floor(totalMs / 60000);
-                  const remainingSecs = Math.floor((totalMs % 60000) / 1000);
-                  foundRuntime = `${totalMins}m ${remainingSecs.toString().padStart(2, "0")}s`;
+                  const totalSeconds = Math.floor(totalMs / 1000);
+                  const hours = Math.floor(totalSeconds / 3600);
+                  const minutes = Math.floor((totalSeconds % 3600) / 60);
+                  const seconds = totalSeconds % 60;
+
+                  if (hours > 0) {
+                    foundRuntime = `${hours}h ${minutes}m`;
+                  } else {
+                    foundRuntime = `${minutes}m ${seconds.toString().padStart(2, "0")}s`;
+                  }
                 }
               }
             }
           }
-        } catch (err) {f
+        } catch (err) {
           console.warn("MusicBrainz fallback failed:", err);
         }
       }
 
-
-      // ... inside finally block ...
-      fetchRuntimeBtn.innerHTML = `Fetch Runtime`;
+      fetchRuntimeBtn.innerHTML = `<i class='bx bx-time'></i> Fetch Runtime`;
       fetchRuntimeBtn.disabled = false;
 
       if (foundRuntime) {
@@ -655,9 +816,8 @@ function safeSplit(val) {
       }
     });
   }
-// ============================================================
-  // DETAIL MODAL LOGIC
-  // ============================================================
+
+  // Detail Modal Logic
   window.openAlbumDetail = function(albumId) {
     if (!detailModal || !modalBody) return;
 
@@ -672,7 +832,6 @@ function safeSplit(val) {
       return sArtist && aArtist && sArtist === aArtist && sTitle === aTitle;
     });
 
-    // Toggle .is-unlistened on the modal container to trigger expanded styles
     const modalDialog = detailModal.querySelector(".window, .modal-dialog") || detailModal;
     if (match) {
       modalDialog.classList.remove("is-unlistened");
@@ -680,7 +839,6 @@ function safeSplit(val) {
       modalDialog.classList.add("is-unlistened");
     }
 
-    // Format release year tag
     const releaseYear = (match && match.year) ? match.year : (album.release_year || "");
     const yearDisplay = releaseYear ? ` (${releaseYear})` : "";
 
@@ -757,19 +915,16 @@ function safeSplit(val) {
             .replace(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}(?:\s*relistened)?(?:\s*<br\s*\/?>)*/i, "")
             .trim();
 
-          // 1. Convert Markdown links with quotes: ["Song Name"](url) -> clickable track badge
           cleanText = cleanText.replace(
             /\[["“]([^"”]+)["”]\]\((https?:\/\/[^\s)]+)\)/g,
             `<a href="$2" target="_blank" rel="noopener noreferrer" class="inline-quoted-track song-embed-link">“$1” ↗</a>`
           );
 
-          // 2. Wrap standalone quotes without links into styled track chips
           cleanText = cleanText.replace(
             /(?<=^|[\s>(])["“]([^"”\n\r<]+)["”](?=[\s.,!?;:)<]|$)/g,
             `<span class="inline-quoted-track">“$1”</span>`
           );
 
-          // 3. Convert line breaks
           memoHtml = cleanText.replace(/\r?\n/g, "<br>");
         }
 
@@ -799,7 +954,6 @@ function safeSplit(val) {
           </div>
         `;
       } else {
-        // Unlogged Backlog Entry View
         let unloggedCover = album.cover_url || "../assets/images/spins/placeholder.png";
         if (unloggedCover.startsWith("assets/")) unloggedCover = "../" + unloggedCover;
 
@@ -868,29 +1022,7 @@ function safeSplit(val) {
     });
   }
 
-  // ============================================================
-  // HANDOFF TO SOSASPIN COMPOSER
-  // ============================================================
-  window.importBacklogToSpin = function(albumId) {
-    const album = backlogEntries.find(a => a.id === albumId);
-    if (!album) return;
-
-    sessionStorage.setItem("sosaspins_prefill_spin", JSON.stringify({
-      artist: album.artist || "",
-      title: album.title || "",
-      cover_url: album.cover_url || "",
-      genres: safeToArray(album.genres).join(", "),
-      secondary_genres: safeToArray(album.secondary_genres).join(", "),
-      descriptors: safeToArray(album.descriptors).join(", "),
-      runtime: album.runtime || ""
-    }));
-
-    window.location.href = "sosaspins.html?action=logSpin";
-  };
-
-  // ============================================================
-  // TILE CLICK HANDLER (Event Delegation)
-  // ============================================================
+  // Grid Tile Actions & Status Bar
   if (topsterGrid) {
     topsterGrid.addEventListener("click", (e) => {
       const actionBtn = e.target.closest("button[data-action]");
@@ -911,36 +1043,32 @@ function safeSplit(val) {
         openAlbumDetail(albumId);
       }
     });
+
+    topsterGrid.addEventListener("mouseover", (e) => {
+      const tile = e.target.closest(".topster-tile");
+      if (!tile || !statusBarStatus) return;
+
+      const id = parseInt(tile.getAttribute("data-id"), 10);
+      const album = backlogEntries.find(a => a.id === id);
+      if (album) {
+        statusBarStatus.textContent = `${album.artist} — ${album.title}`;
+      }
+    });
+
+    topsterGrid.addEventListener("mouseout", (e) => {
+      const tile = e.target.closest(".topster-tile");
+      if (tile && statusBarStatus) {
+        statusBarStatus.textContent = "Ready";
+      }
+    });
   }
-
-  if (topsterGrid) {
-  topsterGrid.addEventListener("mouseover", (e) => {
-    const tile = e.target.closest(".topster-tile");
-    if (!tile || !statusBarStatus) return;
-
-    const id = parseInt(tile.getAttribute("data-id"), 10);
-    const album = backlogEntries.find(a => a.id === id);
-    if (album) {
-      statusBarStatus.textContent = `${album.artist} — ${album.title}`;
-    }
-  });
-
-  topsterGrid.addEventListener("mouseout", (e) => {
-    const tile = e.target.closest(".topster-tile");
-    if (tile && statusBarStatus) {
-      statusBarStatus.textContent = "Ready";
-    }
-  });
-}
 
   window.addEventListener("click", (e) => {
     if (e.target === detailModal) detailModal.style.display = "none";
     if (e.target === addModal) addModal.style.display = "none";
   });
 
-  // ============================================================
-  // 3-WAY GRID SIZER (Standard -> Compact -> Fit Sheet)
-  // ============================================================
+  // Grid Sizing
   const sizeModes = [
     { name: "Standard", className: "size-standard" },
     { name: "Compact", className: "size-compact" },
@@ -959,9 +1087,7 @@ function safeSplit(val) {
     });
   }
 
-  // ============================================================
-  // EXPORT IMAGE
-  // ============================================================
+  // Export Image
   if (exportImageBtn) {
     exportImageBtn.addEventListener("click", async () => {
       if (!window.htmlToImage) {
@@ -1001,10 +1127,8 @@ function safeSplit(val) {
     });
   }
 
-  // ============================================================
-  // LOAD & RENDER DATA
-  // ============================================================
- async function loadData() {
+  // Load Data
+  async function loadData() {
     try {
       const [backlogRes, spinsRes] = await Promise.all([
         sb.from("challenge_backlog").select("*"),
@@ -1022,15 +1146,12 @@ function safeSplit(val) {
 
       loggedSpins = spinsRes.data || [];
 
-      // Build tabs & refresh view
-      if (typeof buildMonthTabs === "function") buildMonthTabs();
       updateMonthPillCounts();
       renderGrid();
       updateAdminVisibility();
 
     } catch (err) {
       console.error("Critical error in loadData():", err);
-      // Remove marquee bar and show error dialog directly in the window body
       topsterGrid.innerHTML = `
         <div class="grid-loader" style="color: #ef4444; padding: 2rem;">
           <i class='bx bx-error-circle' style="font-size: 1.5rem; display: block; margin-bottom: 0.5rem;"></i>
@@ -1042,42 +1163,8 @@ function safeSplit(val) {
     }
   }
 
-// Windows 7 Tab Switching Handler
-  const monthTabButtons = document.querySelectorAll('menu[role="tablist"] button[role="tab"]');
-
-  monthTabButtons.forEach(tab => {
-    tab.addEventListener("click", () => {
-      monthTabButtons.forEach(t => {
-        t.classList.remove("active");
-        t.setAttribute("aria-selected", "false");
-      });
-
-      tab.classList.add("active");
-      tab.setAttribute("aria-selected", "true");
-      activeMonth = tab.getAttribute("data-month").toLowerCase();
-      renderGrid();
-    });
-  });
-
-  const monthTabs = document.querySelectorAll('menu.w7-month-tabs button[role="tab"], .w7-month-tabs button');
-
-  monthTabs.forEach(tab => {
-    tab.addEventListener("click", () => {
-      monthTabs.forEach(t => {
-        t.classList.remove("active");
-        t.setAttribute("aria-selected", "false");
-      });
-
-      tab.classList.add("active");
-      tab.setAttribute("aria-selected", "true");
-
-      activeMonth = (tab.getAttribute("data-month") || "").toLowerCase();
-      renderGrid();
-    });
-  });
-
-  // Dynamic Tab Counter Updater
   function updateMonthPillCounts() {
+    const monthTabButtons = document.querySelectorAll('menu[role="tablist"] button[role="tab"]');
     monthTabButtons.forEach(btn => {
       const month = btn.getAttribute("data-month").toLowerCase();
       const count = backlogEntries.filter(e => (e.month || "").toLowerCase() === month).length;
@@ -1093,7 +1180,6 @@ function safeSplit(val) {
     const displayMonth = activeMonth.charAt(0).toUpperCase() + activeMonth.slice(1);
     if (progressSubtitle) progressSubtitle.textContent = `${displayMonth} 7×7 Listening Challenge (49 Albums)`;
 
-    // Calculate completed albums
     list.forEach(album => {
       const isDone = loggedSpins.some(s =>
         s.artist && album.artist && s.title && album.title &&
@@ -1106,14 +1192,10 @@ function safeSplit(val) {
     const total = 49;
     const pct = Math.round((completedCount / total) * 100);
 
-    // Update Counter & Progress Bar
     if (counterEl) counterEl.textContent = `Completed: ${completedCount} / ${total}`;
     if (percentEl) percentEl.textContent = `${pct}%`;
     if (progressFill) progressFill.style.width = `${pct}%`;
 
-    // -------------------------------------------------------------
-    // STATUS BAR UPDATE (Runs regardless of whether list has 0 or 49 items)
-    // -------------------------------------------------------------
     if (statusBarSelection) {
       if (list.length === 0) {
         statusBarSelection.textContent = `0 items for ${displayMonth}`;
@@ -1126,13 +1208,11 @@ function safeSplit(val) {
       statusBarStatus.textContent = list.length === 49 ? "Month Full" : "Ready";
     }
 
-    // Handle Empty Month State
     if (list.length === 0) {
       topsterGrid.innerHTML = `<div class="grid-loader">No albums added for ${displayMonth} yet.</div>`;
       return;
     }
 
-    // Render Tiles
     topsterGrid.innerHTML = list.map((album, idx) => {
       const match = loggedSpins.find(s =>
         s.artist && album.artist && s.title && album.title &&
@@ -1187,9 +1267,7 @@ function safeSplit(val) {
     if (isAdmin) setupDragAndDrop();
   }
 
-  // ============================================================
-  // DRAG & DROP REARRANGEMENT
-  // ============================================================
+  // Drag & Drop
   let draggedEl = null;
 
   function setupDragAndDrop() {
@@ -1263,9 +1341,7 @@ function safeSplit(val) {
     });
   }
 
-  // ============================================================
-  // ADMIN EDIT / ADD FORM HANDLING
-  // ============================================================
+  // Admin Modal Logic
   window.openEditModal = function(e, albumId) {
     if (e) e.stopPropagation();
     if (!isAdmin) return;
@@ -1279,10 +1355,14 @@ function safeSplit(val) {
     if (addReleaseYear) addReleaseYear.value = album.release_year || "";
     if (addCoverUrl) addCoverUrl.value = album.cover_url || "";
     if (addRuntime) addRuntime.value = album.runtime || "";
-    if (addGenres) addGenres.value = safeToArray(album.genres).join(", ");
-    if (addSecondaryGenres) addSecondaryGenres.value = safeToArray(album.secondary_genres).join(", ");
-    if (addDescriptors) addDescriptors.value = safeToArray(album.descriptors).join(", ");
-    if (addPreviewImg) addPreviewImg.src = FALLBACK_PLACEHOLDER;
+
+    window.addGenresManager.setTags(album.genres);
+    window.addSecondaryGenresManager.setTags(album.secondary_genres);
+    window.addDescriptorsManager.setTags(album.descriptors);
+
+    let displayCover = album.cover_url || FALLBACK_PLACEHOLDER;
+    if (displayCover.startsWith("assets/")) displayCover = "../" + displayCover;
+    if (addPreviewImg) addPreviewImg.src = displayCover;
 
     if (submitAddAlbumBtn) submitAddAlbumBtn.textContent = "Update Album";
     if (addModal) addModal.style.display = "flex";
@@ -1307,10 +1387,13 @@ function safeSplit(val) {
       if (!isAdmin) return;
       if (editEntryId) editEntryId.value = "";
       if (addAlbumForm) addAlbumForm.reset();
-      if (addPreviewImg) addPreviewImg.src = "assets/images/spins/placeholder.png";
-      if (addGenres) addGenres.value = "";
-      if (addSecondaryGenres) addSecondaryGenres.value = "";
-      if (addDescriptors) addDescriptors.value = "";
+      if (addReleaseYear) addReleaseYear.value = "";
+      if (addPreviewImg) addPreviewImg.src = FALLBACK_PLACEHOLDER;
+
+      window.addGenresManager.setTags([]);
+      window.addSecondaryGenresManager.setTags([]);
+      window.addDescriptorsManager.setTags([]);
+
       if (artCandidatesContainer) artCandidatesContainer.style.display = "none";
       if (artThumbnailsRow) artThumbnailsRow.innerHTML = "";
       if (submitAddAlbumBtn) submitAddAlbumBtn.textContent = "Save to Backlog";
@@ -1325,7 +1408,6 @@ function safeSplit(val) {
       e.preventDefault();
 
       const submitBtn = document.getElementById("submitAddAlbumBtn");
-      // Prevent duplicate clicks
       if (submitBtn) {
         if (submitBtn.disabled) return;
         submitBtn.disabled = true;
@@ -1337,9 +1419,14 @@ function safeSplit(val) {
         const title = (addTitle.value || "").trim();
         let cover = (addCoverUrl.value || "").trim();
         const runtime = (addRuntime.value || "").trim();
-        const genres = safeSplit(addGenres.value);
-        const secondary_genres = safeSplit(addSecondaryGenres.value);
-        const descriptors = safeSplit(addDescriptors.value);
+
+        const releaseYearVal = addReleaseYear && addReleaseYear.value
+          ? parseInt(addReleaseYear.value.trim(), 10)
+          : null;
+
+        const genres = window.addGenresManager.getTags();
+        const secondary_genres = window.addSecondaryGenresManager.getTags();
+        const descriptors = window.addDescriptorsManager.getTags();
 
         if (!cover || cover.includes("placeholder.png")) {
           cover = "";
@@ -1348,7 +1435,6 @@ function safeSplit(val) {
         const isEditing = !!editEntryId.value;
 
         if (isEditing) {
-          // UPDATE existing record
           const { error } = await sb
             .from("challenge_backlog")
             .update({
@@ -1365,7 +1451,6 @@ function safeSplit(val) {
 
           if (error) throw error;
         } else {
-          // INSERT new record
           const currentYear = new Date().getFullYear();
           const activeTabBtn = document.querySelector(`menu.w7-month-tabs button[data-month="${activeMonth}"]`);
           const targetYear = activeTabBtn ? parseInt(activeTabBtn.getAttribute("data-year"), 10) : currentYear;
@@ -1396,13 +1481,14 @@ function safeSplit(val) {
           if (error) throw error;
         }
 
-        // Close modal and reset fields
         if (addModal) addModal.style.display = "none";
         addAlbumForm.reset();
         editEntryId.value = "";
+        window.addGenresManager.setTags([]);
+        window.addSecondaryGenresManager.setTags([]);
+        window.addDescriptorsManager.setTags([]);
         if (addPreviewImg) addPreviewImg.src = FALLBACK_PLACEHOLDER;
 
-        // Reload data from Supabase
         await loadData();
 
       } catch (err) {
@@ -1417,7 +1503,6 @@ function safeSplit(val) {
     });
   }
 
-  // Month Switching Buttons
   monthFilterButtons.forEach(btn => {
     btn.addEventListener("click", () => {
       monthFilterButtons.forEach(b => b.classList.remove("active-filter"));
@@ -1427,7 +1512,6 @@ function safeSplit(val) {
     });
   });
 
-  // Initial load
   updateAdminVisibility();
   loadData();
 });
