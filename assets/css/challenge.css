@@ -1,12 +1,15 @@
-/* Google Fonts Import (Plus Jakarta Sans & Jersey 15) */
-@import url('https://fonts.googleapis.com/css2?family=Jersey+15&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap');
+/* Google Fonts Import (Plus Jakarta Sans, Jersey 15, VT323) */
+@import url('https://fonts.googleapis.com/css2?family=Jersey+15&family=Noto+Sans+Mono:wght@100..900&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=VT323&display=swap');
 
 /* ============================================================
-   Typography Defaults & Variables
+   Typography Defaults, Color Tokens & Essential Variables
    ============================================================ */
 :root {
   --font-body: "Plus Jakarta Sans", sans-serif;
   --font-retro: "Jersey 15", sans-serif;
+  --font-mono: "Noto Sans Mono", monospace;
+  --font-sub: "VT323", monospace;
+
   --second-color: #98c994;
   --text-color: #172317;
   --bg-color: #ffffff;
@@ -14,44 +17,194 @@
   --dark-text-color: #d9eaddd5;
   --dark-filter-color: #86ae83;
   --read-time-color: #319122;
+
+  --bg-gradient: radial-gradient(
+    circle at 80% 20%,
+    rgba(46, 204, 113, 0.28) 0%,
+    rgba(212, 239, 223, 0.55) 40%,
+    rgba(255, 255, 255, 1) 75%
+  );
+
+  /* Aero Tokens */
+  --header-glass-bg: rgba(255, 255, 255, 0.05);
+  --header-glass-blur: blur(14px);
+  --header-glass-border: 1px solid rgba(255, 255, 255, 0.12);
+  --header-glass-shadow: 0 1px 4px hsl(0 4% 14% / 10%), 0 4px 24px rgba(0, 0, 0, 0.15);
+  --aero-glow:
+    drop-shadow(0 0 1px rgba(255, 255, 255, 0.75))
+    drop-shadow(0 0 4px rgba(190, 230, 255, 0.55))
+    drop-shadow(0 0 8px rgba(120, 200, 255, 0.32));
+  --subtitle-text-glow: 0 0 4px rgba(255, 255, 255, 0.8), 0 0 12px rgba(0, 230, 118, 0.5);
+  --hero-bottom-shadow: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.35) 0%,
+    rgba(0, 0, 0, 0.1) 8%,
+    rgba(0, 0, 0, 0) 15%
+  );
+
+  /* 7.css Progress Tokens */
   --w7-pg-bg: #0bd82c;
   --w7-pg-bg-paused: #e6df1b;
   --w7-pg-bg-error: #ef0000;
   --w7-el-bd: #8e9da8;
 }
 
-body,
-button,
-input,
-select,
-textarea,
-.challenge-controls,
-.modal-body,
-.progress-labels {
+/* ============================================================
+   Base Resets & Layout Defaults
+   ============================================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-color);
+  background-image: var(--bg-gradient);
+  background-attachment: fixed;
+  color: var(--text-color);
+  font-family: var(--font-body) !important;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.container {
+  width: 100%;
+  max-width: 1068px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+button, input, select, textarea {
   font-family: var(--font-body) !important;
 }
 
-.home-title,
-.modal-title,
-.logo-text {
-  font-family: var(--font-retro) !important;
-  font-weight: 400;
-  letter-spacing: 0.5px;
+/* ============================================================
+   Header, Navigation & Admin Lock Controls
+   ============================================================ */
+header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 200;
+  width: 100%;
+  background: transparent;
+  transition: background 0.25s ease, backdrop-filter 0.25s ease, border-color 0.25s ease, padding 0.25s ease;
+  border-bottom: 1px solid transparent;
 }
 
-.home-title {
-  font-size: 3.8rem;
-  line-height: 1;
+header.shadow {
+  background: var(--header-glass-bg);
+  box-shadow: var(--header-glass-shadow);
+  backdrop-filter: var(--header-glass-blur);
+  -webkit-backdrop-filter: var(--header-glass-blur);
+  border-bottom: var(--header-glass-border);
 }
 
-.modal-title {
-  font-size: 1.8rem;
-  line-height: 1.1;
-  color: var(--second-color, #98c994);
+.nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+}
+
+header.shadow .nav {
+  padding: 10px 0;
+}
+
+.logo-icon {
+  height: 42px;
+  width: auto;
+  filter: var(--aero-glow);
+  vertical-align: middle;
+}
+
+.nav-right-group {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  margin-right: 0.5rem;
+}
+
+.nav-custom-btn, #adminTriggerBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.nav-custom-icon {
+  width: 28px;
+  height: 28px;
+  transition: transform 0.2s ease;
+  object-fit: contain;
+}
+
+.nav-custom-icon:hover {
+  transform: scale(1.1);
+}
+
+.aero-lock-icon {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
+}
+
+.msngr-icon {
+  filter: brightness(1.15) saturate(0.6) contrast(1.1) drop-shadow(0 0 4px rgba(190, 230, 255, 0.55));
+}
+
+i.bx-moon, i.bx-sun {
+  font-size: 1.45rem;
+  cursor: pointer;
+  filter: var(--aero-glow);
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+i.bx-moon:hover, i.bx-sun:hover {
+  transform: scale(1.1);
 }
 
 /* ============================================================
-   Controls & Action Bars
+   Panoramic Banner & Hero Typography
+   ============================================================ */
+.main-home.spins-hero {
+  position: relative;
+  display: grid;
+  justify-content: center;
+  width: 100%;
+  min-height: 22vh;
+  padding-top: 5rem;
+  background: var(--hero-bottom-shadow), url(/assets/images/homepics/homeheader4.png);
+  background-size: 100%;
+  background-position: center 30%;
+  background-repeat: no-repeat;
+}
+
+.home-text {
+  text-align: center;
+  color: #ffffff;
+}
+
+.home-title {
+  font-family: var(--font-retro) !important;
+  font-size: 4.5rem;
+  font-weight: 400;
+  margin: 0;
+  line-height: 1;
+  letter-spacing: 0.5px;
+}
+
+.home-subtitle {
+  font-family: var(--font-sub) !important;
+  font-size: 1.85rem;
+  font-weight: 400;
+  font-style: italic;
+  text-shadow: var(--subtitle-text-glow);
+  display: block;
+  margin-top: 4px;
+}
+
+/* ============================================================
+   Challenge Controls & Windows 7 Folder Tabs
    ============================================================ */
 .challenge-controls {
   display: flex;
@@ -69,9 +222,6 @@ textarea,
   gap: 1rem;
 }
 
-/* ============================================================
-   Windows 7 Month Tabs (Folder Style)
-   ============================================================ */
 menu.w7-month-tabs[role="tablist"] {
   display: flex;
   margin: 0;
@@ -114,50 +264,19 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
   z-index: 2;
 }
 
-/* ============================================================
-   VISTA AERO "+ NEW MONTH" TAB BUTTON
-   ============================================================ */
-.month-tabs-wrapper {
-  display: flex;
-  align-items: flex-end;
-  gap: 6px;
-  border-bottom: 1px solid rgba(142, 157, 168, 0.7);
-}
-
-.month-tabs-wrapper menu.w7-month-tabs {
-  border-bottom: none !important; /* Wrapper handles border */
-  margin-bottom: 0 !important;
-}
-
-.add-album-top-row {
-  display: flex !important;
-  flex-direction: row !important;
-  gap: 1rem !important;
-  align-items: stretch !important;
-  width: 100% !important;
-}
-
-
-
-/* ============================================================
-   AERO "+ NEW MONTH" TAB (Docked to Baseline)
-   ============================================================ */
 .aero-add-tab-btn {
-  font-family: var(--font-body, "Plus Jakarta Sans"), sans-serif;
+  font-family: var(--font-body), sans-serif;
   font-size: 0.78rem;
   font-weight: 700;
   padding: 5px 10px;
   cursor: pointer;
   border-radius: 4px 4px 0 0;
   border: 1px solid rgba(142, 157, 168, 0.7);
-  border-bottom: 1px solid rgba(142, 157, 168, 0.7);
   color: #065f46;
   position: relative;
   top: 1px;
   line-height: 1;
   white-space: nowrap;
-
-  /* Vista Frosted Glass Button */
   background: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0.95) 0%,
@@ -165,31 +284,17 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
     rgba(209, 250, 229, 0.7) 50%,
     rgba(236, 253, 245, 0.9) 100%
   );
-  box-shadow:
-    inset 0 1px 0 #ffffff,
-    0 -1px 3px rgba(16, 185, 129, 0.12);
+  box-shadow: inset 0 1px 0 #ffffff, 0 -1px 3px rgba(16, 185, 129, 0.12);
   transition: all 0.15s ease;
 }
 
 .aero-add-tab-btn:hover {
-  background: linear-gradient(
-    180deg,
-    #ffffff 0%,
-    #d1fae5 45%,
-    #a7f3d0 50%,
-    #ecfdf5 100%
-  );
+  background: linear-gradient(180deg, #ffffff 0%, #d1fae5 45%, #a7f3d0 50%, #ecfdf5 100%);
   color: #047857;
   border-color: #10b981;
-  box-shadow:
-    0 -2px 6px rgba(16, 185, 129, 0.25),
-    inset 0 1px 0 #ffffff;
+  box-shadow: 0 -2px 6px rgba(16, 185, 129, 0.25), inset 0 1px 0 #ffffff;
 }
 
-.aero-add-tab-btn:active {
-  background: #a7f3d0;
-  transform: translateY(1px);
-}
 /* ============================================================
    Chunky Windows 7 Progress Bar (22px)
    ============================================================ */
@@ -323,7 +428,6 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
   position: relative;
 }
 
-/* Window Title Bar */
 .grid-window-frame .title-bar {
   display: flex;
   justify-content: space-between;
@@ -349,23 +453,8 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
 
 .grid-window-frame .title-bar-controls {
   display: none !important;
-  gap: 1px;
 }
 
-.grid-window-frame .title-bar-controls button {
-  width: 28px;
-  height: 18px;
-  border: 1px solid rgba(0, 0, 0, 0.35);
-  background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 50%, #cbd5e1 100%);
-  cursor: pointer;
-  border-radius: 2px;
-  align-items: center;
-  justify-content: center;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  display: none !important;
-}
-
-/* Window Command Bar */
 .window-command-bar {
   display: flex;
   justify-content: space-between;
@@ -388,23 +477,19 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
 }
 
 .aero-command-btn {
-  font-family: var(--font-body, "Plus Jakarta Sans"), sans-serif;
+  font-family: var(--font-body), sans-serif;
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
   padding: 6px 14px;
-  border-radius: 999px; /* Restored smooth pill shape */
+  border-radius: 999px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   text-decoration: none;
   color: #1e293b;
-
-  /* Restored translucent glass background */
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(241, 245, 249, 0.75) 100%);
   border: 1px solid rgba(0, 0, 0, 0.12);
-
-  /* 7.css Inset bevel highlights + soft elevation shadow */
   box-shadow:
     inset 0 1px 1px rgba(255, 255, 255, 0.95),
     inset 0 -1px 1px rgba(0, 0, 0, 0.05),
@@ -418,16 +503,8 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
   background: linear-gradient(180deg, #ffffff 0%, #ecfdf5 100%);
   border-color: rgba(16, 185, 129, 0.45);
   color: #065f46;
-  box-shadow:
-    inset 0 1px 1px #ffffff,
-    0 3px 8px rgba(16, 185, 129, 0.2);
+  box-shadow: inset 0 1px 1px #ffffff, 0 3px 8px rgba(16, 185, 129, 0.2);
   transform: translateY(-1px);
-}
-
-.aero-command-btn:active {
-  transform: translateY(0);
-  background: #d1fae5;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
 .aero-command-btn.export-emerald-btn {
@@ -439,21 +516,16 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
   border-color: rgba(16, 185, 129, 0.45) !important;
   color: #065f46 !important;
   font-weight: 700;
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.9),
-    0 1px 3px rgba(16, 185, 129, 0.15);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), 0 1px 3px rgba(16, 185, 129, 0.15);
 }
 
 .aero-command-btn.export-emerald-btn:hover {
   background: #10b981 !important;
   color: #ffffff !important;
   border-color: #059669 !important;
-  box-shadow:
-    0 4px 12px rgba(16, 185, 129, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
-/* + Add Album Button: Restored Vibrant Emerald Pill */
 .aero-command-btn.add-emerald-btn {
   background: linear-gradient(
     180deg,
@@ -471,28 +543,18 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
 }
 
 .aero-command-btn.add-emerald-btn:hover {
-  background: linear-gradient(
-    180deg,
-    #6ee7b7 0%,
-    #34d399 50%,
-    #10b981 100%
-  ) !important;
-  box-shadow:
-    inset 0 1px 1px #ffffff,
-    0 4px 14px rgba(16, 185, 129, 0.5) !important;
+  background: linear-gradient(180deg, #6ee7b7 0%, #34d399 50%, #10b981 100%) !important;
+  box-shadow: inset 0 1px 1px #ffffff, 0 4px 14px rgba(16, 185, 129, 0.5) !important;
 }
 
 /* ============================================================
-   WINDOW BODY & STRICT 7x7 SQUARE GRID (NO INNER CONTAINER)
+   Strict 7x7 Grid System
    ============================================================ */
-/* Eliminates the nested card and inner border completely */
 .grid-window-body {
   margin: 0 !important;
   padding: 16px !important;
   background: transparent !important;
   border: none !important;
-  box-shadow: none !important;
-  border-radius: 0 !important;
   display: flex !important;
   justify-content: center !important;
 }
@@ -503,37 +565,30 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
   justify-content: center !important;
   background: transparent !important;
   border: none !important;
-  box-shadow: none !important;
   padding: 0 !important;
 }
 
-/* LOCKED 7x7 CSS GRID SYSTEM */
 .topster-grid {
   display: grid !important;
   grid-template-columns: repeat(7, 1fr) !important;
   width: 100% !important;
   background: transparent !important;
   border: none !important;
-  box-shadow: none !important;
-  border-radius: 0 !important;
   box-sizing: border-box !important;
 }
 
-/* 1. Size: Standard */
 .topster-grid.size-standard {
   max-width: 980px !important;
   gap: 8px !important;
   padding: 0 !important;
 }
 
-/* 2. Size: Compact */
 .topster-grid.size-compact {
   max-width: 740px !important;
   gap: 5px !important;
   padding: 0 !important;
 }
 
-/* 3. Size: Fit Sheet */
 .topster-grid.size-fitsheet {
   max-width: 530px !important;
   gap: 3px !important;
@@ -544,7 +599,6 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
   display: none !important;
 }
 
-/* Empty State Message */
 .grid-loader {
   grid-column: 1 / -1 !important;
   text-align: center;
@@ -552,13 +606,10 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
   color: #475569;
   font-weight: 600;
   font-size: 0.95rem;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
 }
 
 /* ============================================================
-   STRICTLY SQUARE ALBUM TILES (0px RADIUS)
+   Strictly Square Album Tiles
    ============================================================ */
 .topster-tile {
   position: relative !important;
@@ -569,14 +620,11 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
   overflow: hidden !important;
   cursor: pointer;
   background: transparent !important;
-
-  /* Removed the 1px black border completely */
   border: none !important;
   outline: none !important;
   box-shadow: none !important;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
   user-select: none;
-  box-sizing: border-box !important;
 }
 
 .topster-tile:hover {
@@ -585,72 +633,20 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35) !important;
 }
 
-/* Square Artwork */
 .topster-tile .tile-art {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
   border-radius: 0 !important;
   border: none !important;
-  outline: none !important;
   display: block !important;
 }
 
-/* Uncompleted covers remain clear and slightly muted */
 .topster-tile:not(.is-completed) .tile-art {
   filter: saturate(0.85) brightness(0.92);
   opacity: 0.9;
 }
 
-/* Sync Art to Cloud Action Button (Aero Glass + Mint/Cyan Horizon) */
-.aero-command-btn.sync-cloud-btn {
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(209, 250, 229, 0.75) 48%,
-    rgba(167, 243, 208, 0.6) 50%,
-    rgba(209, 250, 229, 0.8) 100%
-  ) !important;
-  border-color: rgba(16, 185, 129, 0.5) !important;
-  color: #064e3b !important;
-  font-weight: 700 !important;
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.95),
-    inset 0 -1px 1px rgba(0, 0, 0, 0.05),
-    0 1px 3px rgba(16, 185, 129, 0.15);
-}
-
-.aero-command-btn.sync-cloud-btn:hover {
-  background: linear-gradient(
-    180deg,
-    #ffffff 0%,
-    #d1fae5 48%,
-    #a7f3d0 50%,
-    #ecfdf5 100%
-  ) !important;
-  border-color: #10b981 !important;
-  color: #047857 !important;
-  box-shadow:
-    inset 0 1px 1px #ffffff,
-    0 3px 10px rgba(16, 185, 129, 0.35) !important;
-  transform: translateY(-1px);
-}
-
-.aero-command-btn.sync-cloud-btn:active {
-  background: #a7f3d0 !important;
-  transform: translateY(0);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18) !important;
-}
-
-.aero-command-btn.sync-cloud-btn:disabled {
-  opacity: 0.65;
-  cursor: wait;
-  transform: none !important;
-}
-
-/* ============================================================
-   COMPLETED ALBUMS (Square Border + Glowing Green Checkmark)
-   ============================================================ */
 .topster-tile.is-completed {
   border: 1.5px solid rgba(16, 185, 129, 0.9) !important;
   box-shadow:
@@ -663,7 +659,6 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
   opacity: 1;
 }
 
-/* Pure Crystal Aero Glass Overlay (Square) */
 .aero-check-overlay {
   position: absolute;
   inset: 0;
@@ -673,16 +668,12 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
   pointer-events: none;
   border-radius: 0 !important;
   z-index: 3;
-
-  /* Translucent frosted glass wash */
   background: radial-gradient(
     circle at center,
     rgba(16, 185, 129, 0.22) 0%,
     rgba(255, 255, 255, 0.15) 45%,
     rgba(0, 0, 0, 0.12) 100%
   ) !important;
-
-  /* Specular rim glare and inner glass bevel */
   box-shadow:
     inset 0 1.5px 1.5px rgba(255, 255, 255, 0.85),
     inset 0 -1.5px 1.5px rgba(0, 0, 0, 0.3);
@@ -691,274 +682,25 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Green Checkmark Glowing Behind the Glass */
 .aero-check-icon {
-  /* Increased footprint */
   width: 74% !important;
   height: 74% !important;
   display: block;
-
-  /* Standard color fallback for browsers before resolving the SVG gradient */
   stroke: #10b981;
   stroke: url(#aeroCheckGrad) !important;
   fill: none;
-
-  /* Triple-stage illuminated neon glass glow */
   filter:
-    /* Layer 1: Core specular glare reflection */
     drop-shadow(0 1px 1px rgba(255, 255, 255, 0.95))
-    /* Layer 2: Tight hyper-saturated mint/lime neon core */
     drop-shadow(0 0 6px rgba(0, 255, 136, 0.95))
-    /* Layer 3: Wide ambient emerald halo */
     drop-shadow(0 0 16px rgba(16, 185, 129, 0.85))
-    /* Layer 4: Deep drop shadow for optical lift off artwork */
     drop-shadow(0 3px 6px rgba(0, 0, 0, 0.65)) !important;
-
   transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), filter 0.22s ease;
 }
 
-/* ============================================================
-   AERO BUTTON STYLES FOR ADMIN MODAL
-   ============================================================ */
-.aero-btn-action {
-  font-family: var(--font-body, "Plus Jakarta Sans"), sans-serif !important;
-  font-size: 0.8rem !important;
-  font-weight: 600 !important;
-  padding: 5px 12px !important;
-  border-radius: 999px !important; /* Aero pill */
-  cursor: pointer !important;
-  color: #1e293b !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-  white-space: nowrap !important;
-
-  /* Vista Light Frosted Glass Gradient */
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(241, 245, 249, 0.85) 48%,
-    rgba(226, 232, 240, 0.75) 50%,
-    rgba(241, 245, 249, 0.9) 100%
-  ) !important;
-  border: 1px solid rgba(0, 0, 0, 0.2) !important;
-  box-shadow:
-    inset 0 1px 1px #ffffff,
-    inset 0 -1px 1px rgba(0, 0, 0, 0.05),
-    0 1px 2px rgba(0, 0, 0, 0.08) !important;
-  transition: all 0.15s ease !important;
-}
-
-.aero-btn-action:hover {
-  background: linear-gradient(180deg, #ffffff 0%, #ecfdf5 48%, #d1fae5 50%, #e6fcf1 100%) !important;
-  border-color: #10b981 !important;
-  color: #064e3b !important;
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.35), inset 0 1px 0 #ffffff !important;
-  transform: translateY(-1px) !important;
-}
-
-.aero-btn-action:active {
-  background: #d1fae5 !important;
-  transform: translateY(0) !important;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15) !important;
-}
-
-.aero-btn-action:disabled {
-  opacity: 0.7 !important;
-  cursor: wait !important;
-  transform: none !important;
-}
-
-/* Primary "Save to Backlog" Aero Pill */
-.aero-btn-action.primary-save-btn {
-  width: 100% !important;
-  justify-content: center !important;
-  padding: 8px 16px !important;
-  font-size: 0.86rem !important;
-  font-weight: 700 !important;
-  color: #ffffff !important;
-  background: linear-gradient(
-    180deg,
-    #6ee7b7 0%,
-    #34d399 46%,
-    #10b981 50%,
-    #059669 100%
-  ) !important;
-  border: 1px solid #047857 !important;
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.85),
-    inset 0 -1px 1px rgba(0, 0, 0, 0.25),
-    0 2px 6px rgba(16, 185, 129, 0.35) !important;
-}
-
-.aero-btn-action.primary-save-btn:hover {
-  background: linear-gradient(180deg, #a7f3d0 0%, #6ee7b7 46%, #34d399 50%, #10b981 100%) !important;
-  box-shadow: 0 0 12px rgba(16, 185, 129, 0.5), inset 0 1px 1px #ffffff !important;
-}
-
-/* ============================================================
-   7.CSS CLEAR-TYPE SPINNER RING (.w7-spinner)
-   ============================================================ */
-.w7-spinner {
-  display: inline-block !important;
-  width: 13px !important;
-  height: 13px !important;
-  min-width: 13px !important;
-  min-height: 13px !important;
-  border-radius: 50% !important;
-  border: 2px solid rgba(16, 185, 129, 0.25) !important;
-  border-top-color: #059669 !important;
-  border-right-color: #34d399 !important;
-  animation: w7spinRing 0.75s linear infinite !important;
-  box-sizing: border-box !important;
-  vertical-align: middle !important;
-}
-
-/* Lock preview container and image rendering */
-.w7-preview-box {
-  width: 105px !important;
-  height: 105px !important;
-  min-width: 105px !important;
-  max-width: 105px !important;
-  min-height: 105px !important;
-  max-height: 105px !important;
-  flex: 0 0 105px !important;
-  border-radius: 0 !important;
-  border: 1px solid #9aa7b2 !important;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.25) !important;
-  background: #0f172a !important;
-  overflow: hidden !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-.w7-preview-box img,
-#addPreviewImg {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover !important;
-  border-radius: 0 !important;
-  display: block !important;
-}
-
-/* Modal detail view cover */
-.modal-detail-cover {
-  width: 90px !important;
-  height: 90px !important;
-  max-width: 90px !important;
-  max-height: 90px !important;
-  object-fit: cover !important;
-  flex-shrink: 0 !important;
-}
-
-/* ============================================================
-   HORIZONTAL CANDIDATE THUMBNAILS CAROUSEL
-   ============================================================ */
-.art-candidates-picker {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 0.4rem !important;
-  background: rgba(16, 185, 129, 0.05) !important;
-  border: 1px solid rgba(16, 185, 129, 0.3) !important;
-  border-radius: 6px !important;
-  padding: 0.6rem !important;
-  margin-top: 0.25rem !important;
-  width: 100% !important;
-  box-sizing: border-box !important;
-}
-
-.picker-label {
-  font-size: 0.74rem !important;
-  font-weight: 700 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.03em !important;
-  color: #065f46 !important;
-}
-
-/* Strictly horizontal row with horizontal scroll */
-.thumbnails-scroll-row {
-  display: flex !important;
-  flex-direction: row !important;
-  flex-wrap: nowrap !important; /* Prevents vertical stacking */
-  overflow-x: auto !important;
-  overflow-y: hidden !important;
-  gap: 0.6rem !important;
-  padding: 2px 2px 6px 2px !important;
-  width: 100% !important;
-  box-sizing: border-box !important;
-  scrollbar-width: thin !important;
-}
-
-.thumbnails-scroll-row::-webkit-scrollbar {
-  height: 4px;
-}
-
-.thumbnails-scroll-row::-webkit-scrollbar-thumb {
-  background: rgba(16, 185, 129, 0.35);
-  border-radius: 4px;
-}
-
-/* Individual thumbnail items inside the horizontal row */
-.art-choice-item {
-  display: inline-flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  cursor: pointer !important;
-  border-radius: 2px !important;
-  border: 2px solid transparent !important;
-  padding: 2px !important;
-  flex-shrink: 0 !important; /* Prevents squishing */
-  width: 65px !important;
-  transition: transform 0.15s ease, border-color 0.15s ease !important;
-}
-
-.art-choice-item img {
-  width: 60px !important;
-  height: 60px !important;
-  min-width: 60px !important;
-  max-width: 60px !important;
-  min-height: 60px !important;
-  max-height: 60px !important;
-  object-fit: cover !important;
-  border-radius: 0 !important; /* Square corners */
-  background: #f1f5f9 !important;
-  border: 1px solid rgba(0, 0, 0, 0.1) !important;
-  display: block !important;
-}
-
-.art-choice-item:hover {
-  transform: translateY(-2px) !important;
-  border-color: rgba(16, 185, 129, 0.5) !important;
-}
-
-.art-choice-item.selected {
-  border-color: #10b981 !important;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.35) !important;
-}
-
-.art-choice-item .source-tag {
-  font-size: 0.65rem !important;
-  font-weight: 700 !important;
-  color: #064e3b !important;
-  margin-top: 3px !important;
-  text-align: center !important;
-  white-space: nowrap !important;
-}
-
-@keyframes w7spinRing {
-  0%   { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* Diagonal Specular Reflection Across Pane */
 .topster-tile.is-completed::after {
   content: "";
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   border-radius: 0 !important;
   background: linear-gradient(
     135deg,
@@ -971,97 +713,10 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
   z-index: 4;
 }
 
-/* Hover Interaction */
-.topster-tile.is-completed:hover .aero-check-overlay {
-  background: radial-gradient(
-    circle at center,
-    rgba(16, 185, 129, 0.15) 0%,
-    rgba(255, 255, 255, 0.1) 60%,
-    transparent 100%
-  ) !important;
-  backdrop-filter: blur(0.5px);
-}
-
 .topster-tile.is-completed:hover .aero-check-icon {
   transform: scale(1.08);
-  filter:
-    drop-shadow(0 1px 2px rgba(255, 255, 255, 1))
-    drop-shadow(0 0 8px rgba(0, 255, 136, 1))
-    drop-shadow(0 0 22px rgba(16, 185, 129, 0.95))
-    drop-shadow(0 3px 8px rgba(0, 0, 0, 0.7)) !important;
 }
 
-/* Widen modal footprint when an album is unlistened */
-#detailModal .is-unlistened {
-  max-width: 540px !important;
-  width: 92% !important;
-}
-
-/* Roomy multi-row wrap for unlistened genres and descriptors */
-.unlistened-metadata-area {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.unlistened-genre-box .primary-genres-wrap,
-.unlistened-genre-box .secondary-genres-wrap,
-.unlistened-desc-box {
-  display: flex;
-  flex-wrap: wrap;
-  line-height: 1.6;
-}
-
-/* ============================================================
-   Inline Track Links & Badges inside Challenge Detail Modal
-   ============================================================ */
-.inline-quoted-track {
-  display: inline;
-  font-style: italic;
-  font-weight: 600;
-  color: #047857;
-  background: rgba(16, 185, 129, 0.12);
-  padding: 1px 6px;
-  border-radius: 4px;
-}
-
-a.inline-quoted-track.song-embed-link {
-  color: #047857 !important;
-  text-decoration: underline !important;
-  text-underline-offset: 3px;
-  text-decoration-color: rgba(4, 120, 87, 0.45);
-  cursor: pointer !important;
-  transition: all 0.15s ease;
-}
-
-a.inline-quoted-track.song-embed-link:hover {
-  background: rgba(16, 185, 129, 0.22);
-  color: #065f46 !important;
-  text-decoration-color: #065f46;
-}
-
-/* Status Bar Footer */
-.status-bar {
-  background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
-  border-top: 1px solid #9aa7b2;
-  display: flex;
-  font-size: 0.75rem;
-  color: #475569;
-  font-weight: 600;
-}
-
-.status-bar-field {
-  padding: 4px 10px;
-  border-right: 1px solid #cbd5e1;
-  flex: 1;
-}
-
-/* Hide legacy status circles */
-.tile-status-badge {
-  display: none !important;
-}
-
-/* Tile Hover Tooltip */
 .tile-tooltip {
   position: absolute;
   inset: auto 0 0 0;
@@ -1084,9 +739,6 @@ a.inline-quoted-track.song-embed-link:hover {
   opacity: 1;
 }
 
-/* ============================================================
-   ADMIN RESTRICTIONS & TILE ACTIONS
-   ============================================================ */
 .tile-admin-actions,
 .tile-icon-btn.delete,
 .tile-icon-btn.edit {
@@ -1112,7 +764,7 @@ body.is-admin .tile-icon-btn {
   display: flex !important;
   width: 22px;
   height: 22px;
-  border-radius: 2px !important; /* Square mini-buttons */
+  border-radius: 2px !important;
   border: 1px solid rgba(0, 0, 0, 0.35) !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 2px 4px rgba(0, 0, 0, 0.35);
   align-items: center;
@@ -1131,17 +783,23 @@ body.is-admin .tile-icon-btn.delete {
   color: #ffffff !important;
 }
 
-/* Drag-and-Drop States */
-.topster-tile[draggable="true"] { cursor: grab; }
-.topster-tile[draggable="true"]:active { cursor: grabbing; }
-.topster-tile[draggable="true"] .tile-art,
-.topster-tile[draggable="true"] .aero-check-overlay,
-.topster-tile[draggable="true"] .tile-tooltip { pointer-events: none; }
-.topster-tile.dragging { opacity: 0.35 !important; transform: scale(0.95); border: 2px dashed #10b981 !important; }
-.topster-tile.drag-over { outline: 3px solid #10b981 !important; transform: scale(1.04); }
+.status-bar {
+  background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
+  border-top: 1px solid #9aa7b2;
+  display: flex;
+  font-size: 0.75rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+.status-bar-field {
+  padding: 4px 10px;
+  border-right: 1px solid #cbd5e1;
+  flex: 1;
+}
 
 /* ============================================================
-   Aero Glass Modal Dialogs
+   Aero Modal Windows & Windows 7 Glass Frames
    ============================================================ */
 .sosa-modal-backdrop {
   position: fixed;
@@ -1156,68 +814,291 @@ body.is-admin .tile-icon-btn.delete {
   padding: 1rem;
 }
 
-.w7-modal-window {
+.window.w7-window,
+.window.w7-modal-window {
   width: 100%;
   max-width: 580px;
-  background: rgba(248, 250, 252, 0.95);
-  border: 1px solid rgba(0, 0, 0, 0.45);
-  border-radius: 8px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.9);
+  background: linear-gradient(180deg, #dce7f3 0%, #c4d7ec 35%, #b4ccdc 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  border-radius: 8px 8px 6px 6px !important;
+  box-shadow:
+    0 18px 45px rgba(0, 0, 0, 0.42),
+    0 2px 6px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 0 0 1px rgba(110, 140, 170, 0.45) !important;
   overflow: hidden;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  box-sizing: border-box;
 }
 
-.w7-modal-window .title-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 8px 6px 12px;
+.window.w7-window .title-bar,
+.window.w7-modal-window .title-bar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 6px 10px 5px 12px !important;
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.88) 0%,
-    rgba(225, 245, 235, 0.7) 45%,
-    rgba(180, 230, 205, 0.55) 50%,
-    rgba(215, 245, 230, 0.75) 100%
-  );
-  border-bottom: 1px solid rgba(0, 0, 0, 0.18);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 1);
+    rgba(255, 255, 255, 0.85) 0%,
+    rgba(235, 245, 255, 0.4) 49%,
+    rgba(195, 215, 235, 0.55) 50%,
+    rgba(215, 230, 245, 0.75) 100%
+  ) !important;
+  border-bottom: 1px solid rgba(130, 160, 185, 0.55) !important;
+  user-select: none;
 }
 
-.w7-modal-window .title-bar-text {
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: #064e3b;
-  text-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
-}
-
-.w7-modal-window .title-bar-controls .is-close {
-  width: 44px;
-  height: 20px;
-  border: 1px solid #9c4333;
-  border-radius: 0 4px 4px 0;
-  background: linear-gradient(180deg, #f59685 0%, #d8513b 45%, #b92e17 50%, #d84e38 100%);
-  cursor: pointer;
+.window.w7-window .title-bar-text,
+.window.w7-modal-window .title-bar-text {
+  font-family: var(--font-body), sans-serif !important;
+  font-size: 0.88rem !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9) !important;
   display: flex;
   align-items: center;
-  justify-content: center;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  gap: 5px;
 }
 
-.w7-modal-window .title-bar-controls .is-close::after {
-  content: "✕";
-  font-size: 10px;
-  font-weight: 900;
-  color: #ffffff;
+.window.w7-window .title-bar-controls .is-close,
+.window.w7-modal-window .title-bar-controls .is-close {
+  width: 44px !important;
+  height: 19px !important;
+  background: linear-gradient(180deg, #e67d73 0%, #c43828 48%, #aa2214 52%, #c93b2a 100%) !important;
+  border: 1px solid #7c1a10 !important;
+  border-radius: 3px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 1px 2px rgba(0, 0, 0, 0.25) !important;
+  position: relative !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  outline: none !important;
 }
 
-.w7-modal-window .window-body {
-  padding: 1.25rem;
-  max-height: 80vh;
-  overflow-y: auto;
+.window.w7-window .title-bar-controls .is-close::before,
+.window.w7-window .title-bar-controls .is-close::after,
+.window.w7-modal-window .title-bar-controls .is-close::before,
+.window.w7-modal-window .title-bar-controls .is-close::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 8px !important;
+  left: 17px !important;
+  width: 10px !important;
+  height: 2px !important;
+  background: #ffffff !important;
+  border-radius: 1px !important;
 }
 
-/* Modal Content Details */
+.window.w7-window .title-bar-controls .is-close::before,
+.window.w7-modal-window .title-bar-controls .is-close::before {
+  transform: rotate(45deg) !important;
+}
+
+.window.w7-window .title-bar-controls .is-close::after,
+.window.w7-modal-window .title-bar-controls .is-close::after {
+  transform: rotate(-45deg) !important;
+}
+
+.window.w7-window .window-body,
+.window.w7-modal-window .window-body {
+  background: #ffffff !important;
+  margin: 3px !important;
+  padding: 1rem 1.15rem !important;
+  border-radius: 4px !important;
+  border: 1px solid #9aa7b2 !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+  max-height: 82vh !important;
+  overflow-y: auto !important;
+}
+
+/* ============================================================
+   Inputs & Modal Controls
+   ============================================================ */
+.sosa-search-input {
+  width: 100% !important;
+  padding: 6px 8px !important;
+  font-size: 0.84rem !important;
+  font-family: var(--font-body), sans-serif !important;
+  color: #1e293b !important;
+  background: #ffffff !important;
+  border: 1px solid #9aa7b2 !important;
+  border-radius: 2px !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12) !important;
+  outline: none !important;
+}
+
+.sosa-search-input:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1), 0 0 4px rgba(59, 130, 246, 0.5) !important;
+}
+
+.w7-preview-box {
+  width: 105px !important;
+  height: 105px !important;
+  min-width: 105px !important;
+  flex: 0 0 105px !important;
+  border-radius: 0 !important;
+  border: 1px solid #9aa7b2 !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.25) !important;
+  background: #0f172a !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.w7-preview-box img, #addPreviewImg {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 0 !important;
+  display: block !important;
+}
+
+.add-album-top-row {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 1rem !important;
+  align-items: stretch !important;
+  width: 100% !important;
+}
+
+.add-album-inputs-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.modal-btn-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.aero-btn-action {
+  font-family: var(--font-body), sans-serif !important;
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  padding: 5px 12px !important;
+  border-radius: 999px !important;
+  cursor: pointer !important;
+  color: #1e293b !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  white-space: nowrap !important;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(241, 245, 249, 0.85) 48%,
+    rgba(226, 232, 240, 0.75) 50%,
+    rgba(241, 245, 249, 0.9) 100%
+  ) !important;
+  border: 1px solid rgba(0, 0, 0, 0.2) !important;
+  box-shadow:
+    inset 0 1px 1px #ffffff,
+    inset 0 -1px 1px rgba(0, 0, 0, 0.05),
+    0 1px 2px rgba(0, 0, 0, 0.08) !important;
+  transition: all 0.15s ease !important;
+}
+
+.aero-btn-action:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #ecfdf5 48%, #d1fae5 50%, #e6fcf1 100%) !important;
+  border-color: #10b981 !important;
+  color: #064e3b !important;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.35), inset 0 1px 0 #ffffff !important;
+  transform: translateY(-1px) !important;
+}
+
+.aero-btn-action.primary-save-btn {
+  width: 100% !important;
+  justify-content: center !important;
+  padding: 8px 16px !important;
+  font-size: 0.86rem !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  background: linear-gradient(
+    180deg,
+    #6ee7b7 0%,
+    #34d399 46%,
+    #10b981 50%,
+    #059669 100%
+  ) !important;
+  border: 1px solid #047857 !important;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.85),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.25),
+    0 2px 6px rgba(16, 185, 129, 0.35) !important;
+}
+
+/* ============================================================
+   Artwork Thumbnail Selector
+   ============================================================ */
+.art-candidates-picker {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.4rem !important;
+  background: rgba(16, 185, 129, 0.05) !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+  border-radius: 6px !important;
+  padding: 0.6rem !important;
+  margin-top: 0.25rem !important;
+  width: 100% !important;
+}
+
+.picker-label {
+  font-size: 0.74rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.03em !important;
+  color: #065f46 !important;
+}
+
+.thumbnails-scroll-row {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  gap: 0.6rem !important;
+  padding: 2px 2px 6px 2px !important;
+  scrollbar-width: thin !important;
+}
+
+.art-choice-item {
+  display: inline-flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  cursor: pointer !important;
+  border: 2px solid transparent !important;
+  padding: 2px !important;
+  flex-shrink: 0 !important;
+  width: 65px !important;
+}
+
+.art-choice-item img {
+  width: 60px !important;
+  height: 60px !important;
+  object-fit: cover !important;
+  border-radius: 0 !important;
+  background: #f1f5f9 !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  display: block !important;
+}
+
+.art-choice-item.selected {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.35) !important;
+}
+
+.art-choice-item .source-tag {
+  font-size: 0.65rem !important;
+  font-weight: 700 !important;
+  color: #064e3b !important;
+  margin-top: 3px !important;
+}
+
+/* ============================================================
+   Detail Modal & Metadata Expansion
+   ============================================================ */
 .modal-detail-wrapper {
   display: flex;
   flex-direction: column;
@@ -1233,18 +1114,11 @@ body.is-admin .tile-icon-btn.delete {
 .modal-detail-cover {
   width: 90px;
   height: 90px;
-  border-radius: 4px;
+  border-radius: 0 !important;
   object-fit: cover;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   border: 1px solid rgba(0, 0, 0, 0.08);
   background: #ffffff;
-}
-
-.modal-detail-cover,
-.modal-cover-preview img,
-.w7-preview-box img,
-.w7-preview-box {
-  border-radius: 0 !important; /* Strictly square corners */
 }
 
 .modal-detail-meta {
@@ -1285,7 +1159,6 @@ body.is-admin .tile-icon-btn.delete {
   color: #64748b;
 }
 
-/* Genres & Descriptors */
 .genre-container {
   display: flex;
   flex-direction: column;
@@ -1341,7 +1214,6 @@ body.is-admin .tile-icon-btn.delete {
   font-weight: 500;
 }
 
-/* Favorite Tracks & Memos */
 .fav-tracks-row {
   margin-top: 0.5rem;
 }
@@ -1386,18 +1258,16 @@ body.is-admin .tile-icon-btn.delete {
 }
 
 .review-action-btn {
-  font-family: var(--font-body, "Plus Jakarta Sans"), sans-serif !important;
+  font-family: var(--font-body), sans-serif !important;
   font-size: 0.85rem !important;
   font-weight: 700 !important;
   padding: 8px 18px !important;
-  border-radius: 999px !important; /* Smooth Aero pill */
+  border-radius: 999px !important;
   text-decoration: none !important;
   cursor: pointer;
   display: inline-flex !important;
   align-items: center;
   gap: 8px;
-
-  /* Signature Vista / 7 Liquid Emerald Gel */
   background: linear-gradient(
     180deg,
     #6ee7b7 0%,
@@ -1407,8 +1277,6 @@ body.is-admin .tile-icon-btn.delete {
   ) !important;
   color: #ffffff !important;
   border: 1px solid #047857 !important;
-
-  /* 7.css specular glass rim + soft ambient glow */
   box-shadow:
     inset 0 1px 1px rgba(255, 255, 255, 0.9),
     inset 0 -1px 1px rgba(0, 0, 0, 0.25),
@@ -1417,27 +1285,144 @@ body.is-admin .tile-icon-btn.delete {
 }
 
 .review-action-btn:hover {
-  background: linear-gradient(
-    180deg,
-    #a7f3d0 0%,
-    #6ee7b7 45%,
-    #34d399 50%,
-    #10b981 100%
-  ) !important;
-  box-shadow:
-    inset 0 1px 1px #ffffff,
-    0 4px 14px rgba(16, 185, 129, 0.5) !important;
+  background: linear-gradient(180deg, #a7f3d0 0%, #6ee7b7 45%, #34d399 50%, #10b981 100%) !important;
+  box-shadow: inset 0 1px 1px #ffffff, 0 4px 14px rgba(16, 185, 129, 0.5) !important;
   transform: translateY(-1px) !important;
 }
 
-.review-action-btn:active {
-  transform: translateY(0) !important;
-  background: #059669 !important;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+/* Widen modal footprint when album is unlistened */
+#detailModal .is-unlistened {
+  max-width: 540px !important;
+  width: 92% !important;
 }
-/* Responsive Media Queries */
+
+.unlistened-metadata-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.unlistened-genre-box .primary-genres-wrap,
+.unlistened-genre-box .secondary-genres-wrap,
+.unlistened-desc-box {
+  display: flex;
+  flex-wrap: wrap;
+  line-height: 1.6;
+}
+
+.inline-quoted-track {
+  display: inline;
+  font-style: italic;
+  font-weight: 600;
+  color: #047857;
+  background: rgba(16, 185, 129, 0.12);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+a.inline-quoted-track.song-embed-link {
+  color: #047857 !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(4, 120, 87, 0.45);
+  cursor: pointer !important;
+  transition: all 0.15s ease;
+}
+
+a.inline-quoted-track.song-embed-link:hover {
+  background: rgba(16, 185, 129, 0.22);
+  color: #065f46 !important;
+  text-decoration-color: #065f46;
+}
+
+/* ============================================================
+   Dark Mode Hooks
+   ============================================================ */
+body.dark-mode {
+  background-color: var(--dark-bg-color);
+  color: var(--dark-text-color);
+}
+
+body.dark-mode .grid-window-frame {
+  background: linear-gradient(
+    180deg,
+    rgba(20, 28, 24, 0.92) 0%,
+    rgba(14, 20, 17, 0.95) 100%
+  );
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+body.dark-mode .grid-window-frame .title-bar {
+  background: linear-gradient(180deg, #1c2621 0%, #131c17 100%);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .grid-window-frame .title-bar-text {
+  color: #6ee7b7;
+  text-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+body.dark-mode .window-command-bar {
+  background: rgba(16, 22, 19, 0.95);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .aero-command-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--dark-text-color);
+}
+
+body.dark-mode .aero-command-btn:hover {
+  background: rgba(16, 185, 129, 0.2);
+  color: #ffffff;
+}
+
+body.dark-mode .status-bar {
+  background: #141b17;
+  border-top-color: rgba(255, 255, 255, 0.1);
+  color: #8da397;
+}
+
+body.dark-mode .status-bar-field {
+  border-right-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ============================================================
+   Footer
+   ============================================================ */
+.footer {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2.5rem 1rem !important;
+  margin-top: 4rem;
+}
+
+.footer-copyright {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #555555;
+}
+
+body.dark-mode .footer-copyright {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* ============================================================
+   Responsive Media Queries
+   ============================================================ */
 @media (max-width: 900px) {
   .topster-grid { grid-template-columns: repeat(5, 1fr) !important; }
+}
+
+@media (max-width: 768px) {
+  .home-title { font-size: 2.8rem; }
+  .home-subtitle { font-size: 1.4rem; }
+  .main-home.spins-hero { padding-top: 4.5rem; }
+  .nav-right-group { gap: 15px; }
 }
 
 @media (max-width: 640px) {

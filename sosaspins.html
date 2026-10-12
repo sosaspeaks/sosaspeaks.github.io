@@ -56,7 +56,7 @@
         <button type="button" class="filter-item" data-filter="Mixtape">Mixtapes</button>
         <button type="button" class="filter-item" data-filter="Music Video">Music Videos</button>
     </div>
-    <!-- Profiles -->
+    <!-- Feed -->
     <section class="spins-layout-grid container">
         <div class="spins-feed-column">
             <div class="feed-status-bar">
@@ -115,7 +115,7 @@
     </aside>
   </main>
 
-  <!-- MODAL: Add / Edit Spin -->
+<!-- MODAL: Add / Edit Spin -->
   <div id="modalOverlay" class="sosa-modal-backdrop" style="display: none;">
     <div class="modal-dialog">
       <div class="modal-header">
@@ -126,7 +126,7 @@
       <form id="spinForm" class="modal-form" autocomplete="off">
         <div class="modal-top-section">
           <div class="modal-cover-preview">
-            <img id="previewImg" src="assets/images/spins/placeholder.png" alt="Preview">
+            <img id="previewImg" src="assets/images/spins/placeholder.png" alt="Preview" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
             <button type="button" id="fetchCoverBtn" class="review-action-btn" style="width: 100%; justify-content: center;">Fetch Art</button>
           </div>
 
@@ -148,26 +148,25 @@
               <input type="number" id="logRating" placeholder="Rating (0.5–5.0)" min="0.5" max="5.0" step="0.5" class="sosa-search-input">
             </div>
 
-            <div class="input-row">
-              <div class="input-row">
-                <input type="text" id="logRuntime" placeholder="Runtime (e.g. 42m 15s)" class="sosa-search-input">
-              </div>
+            <!-- Cleaned 3-part Row: Runtime | Date | Relisten Checkbox -->
+            <div class="input-row triple align-center">
+              <input type="text" id="logRuntime" placeholder="Runtime (e.g. 42m 15s)" class="sosa-search-input">
               <input type="text" id="logDate" placeholder="Date (MM/DD/YY)" class="sosa-search-input">
-              <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <label style="display: flex; align-items: center; gap: 4px; font-size: 0.8rem; cursor: pointer;">
+              <div class="relisten-container">
+                <label class="relisten-label">
                   <input type="checkbox" id="logRelisten">
-                  <span class="review-action-btn">Relisten?</span>
+                  <span class="relisten-text">Relisten?</span>
                 </label>
-                <input type="number" id="logPrevRating" placeholder="Old Score" min="0.5" max="5.0" step="0.5" class="sosa-search-input" style="display: none; width: 85px;">
+                <input type="number" id="logPrevRating" placeholder="Old" min="0.5" max="5.0" step="0.5" class="sosa-search-input" style="display: none; width: 65px;">
               </div>
             </div>
           </div>
         </div>
 
         <!-- Cover Carousel -->
-        <div id="artCandidatesContainer" style="display: none; flex-direction: column; gap: 0.35rem; padding: 0.5rem; background: var(--glass-tint-bg); border: 1px solid var(--second-color); border-radius: 6px;">
-          <span style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase;">Select Artwork:</span>
-          <div id="artThumbnailsRow" style="display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 2px;"></div>
+        <div id="artCandidatesContainer" class="art-candidates-picker" style="display: none;">
+          <span class="picker-label">Select Artwork:</span>
+          <div id="artThumbnailsRow" class="thumbnails-scroll-row"></div>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 0.45rem;">
@@ -175,25 +174,27 @@
           <datalist id="coverPathSuggestions"></datalist>
 
           <input type="text" id="logGenres" placeholder="Genres (comma separated)" class="sosa-search-input">
-          <input type="text" id="logSecondaryGenres" placeholder="Lounge, Krautrock, Exotica" class="sosa-search-input">
+          <input type="text" id="logSecondaryGenres" placeholder="Secondary Genres (comma separated)" class="sosa-search-input">
           <input type="text" id="logDescriptors" placeholder="Descriptors (comma separated)" class="sosa-search-input">
           <input type="text" id="logFavTracks" placeholder="Favorite Tracks (semicolon separated)" class="sosa-search-input">
           <input type="text" id="logReviewUrl" placeholder="Full Review URL (e.g. reviews/cork_tree.html)" class="sosa-search-input">
           <textarea id="logMemo" placeholder="Notes & Thoughts..." rows="3" class="sosa-search-input" style="resize: vertical;"></textarea>
         </div>
+
         <!-- Track Ratings Manager -->
         <div class="modal-form-group">
-        <label style="font-weight: 700; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center;">
+          <label style="font-weight: 700; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; margin-top: 0.2rem;">
             Track Ratings
             <button type="button" id="addTrackRatingRowBtn" class="add-track-btn">+ Add Track</button>
-        </label>
-        <div id="trackRatingsList" class="track-ratings-editor-list">
-            <!-- Dynamic rows will inject here -->
+          </label>
+          <div id="trackRatingsList" class="track-ratings-editor-list"></div>
         </div>
-        </div>
-        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(0,0,0,0.1);">
+
+        <!-- Bottom Actions -->
+        <div class="modal-actions-bar">
           <button type="button" id="downloadArtBtn" class="review-action-btn" style="display: none;">⬇ Download Art</button>
-          <button type="submit" class="filter-item active-filter" id="modalSubmitBtn" style="border: none;">Save Spin</button>
+          <button type="button" class="review-action-btn subtle" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="review-action-btn primary" id="modalSubmitBtn">Save Spin</button>
         </div>
       </form>
     </div>

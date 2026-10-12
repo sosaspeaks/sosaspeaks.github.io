@@ -1219,6 +1219,9 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         finalCoverUrl = await uploadCoverToSupabase(finalCoverUrl, artistVal, titleVal);
         if (modalSubmitBtn) modalSubmitBtn.textContent = editingIndex !== null ? "Update Spin" : "Save Spin";
       }
+
+      const logRuntimeEl = document.getElementById("logRuntime");
+      const runtimeVal = logRuntimeEl ? logRuntimeEl.value.trim() : null;
       const spinData = {
         artist: artistVal,
         title: titleVal,
@@ -1529,7 +1532,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       alert(`Backfill finished! Successfully fetched and added runtime for ${updatedCount} of ${targets.length} spins.`);
       renderFeed(allEntries);
     });
-  }s
+  }
 
   // ============================================================
   // EXPORT JSON BUTTON
