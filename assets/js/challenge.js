@@ -493,7 +493,29 @@ document.addEventListener("DOMContentLoaded", () => {
     window.location.href = "sosaspins.html?action=logSpin";
   };
 
-  // Admin Auth
+  // Admin Auth (Windows 7 Aero Security Dialog)
+  const adminLockIcon = document.getElementById("adminLockIcon");
+  const ICON_LOCKED = "assets/images/homepics/CP070.ico";
+  const ICON_UNLOCKED = "assets/images/homepics/CP073.ico";
+
+  const adminAuthModal = document.getElementById("adminAuthModal");
+  const adminAuthForm = document.getElementById("adminAuthForm");
+  const adminPasskeyInput = document.getElementById("adminPasskeyInput");
+  const togglePassVisibilityBtn = document.getElementById("togglePassVisibilityBtn");
+  const togglePassEyeIcon = document.getElementById("togglePassEyeIcon");
+  const adminAuthError = document.getElementById("adminAuthError");
+  const closeAdminAuthModal = document.getElementById("closeAdminAuthModal");
+  const cancelAdminAuthBtn = document.getElementById("cancelAdminAuthBtn");
+  const submitAdminAuthBtn = document.getElementById("submitAdminAuthBtn");
+  const authModalTitleIcon = document.getElementById("authModalTitleIcon");
+  const authHeroIcon = document.getElementById("authHeroIcon");
+  const authHeadingText = document.getElementById("authHeadingText");
+  const authSubText = document.getElementById("authSubText");
+  const authPassFieldWrap = document.getElementById("authPassFieldWrap");
+
+  let authModalResolver = null;
+  let authModalMode = "login";
+
   async function sha256(str) {
     const buffer = new TextEncoder().encode(str);
     const hash = await crypto.subtle.digest("SHA-256", buffer);
@@ -505,42 +527,180 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function updateAdminVisibility() {
     document.body.classList.toggle("is-admin", isAdmin);
+    if (adminLockIcon) {
+      adminLockIcon.src = isAdmin ? ICON_UNLOCKED : ICON_LOCKED;
+      adminLockIcon.alt = isAdmin ? "Unlocked" : "Locked";
+    }
     document.querySelectorAll(".admin-only").forEach(el => {
       el.style.display = isAdmin ? "" : "none";
     });
     if (adminTriggerBtn) {
+      adminTriggerBtn.title = isAdmin ? "Admin Active (Click to Logout)" : "Admin Locked";
       adminTriggerBtn.style.color = isAdmin ? "#10b981" : "";
     }
-  }
-
-  async function checkAdminLoginPrompt() {
-    const storedHash = localStorage.getItem("sosaspins_admin_hash") || DEFAULT_HASH;
-    const enteredPass = prompt("Enter SosaSpins Admin Passkey:");
-    if (!enteredPass) return;
-
-    const trimmedPass = enteredPass.trim();
-    const enteredHash = await sha256(trimmedPass);
-
-    if (enteredHash === storedHash || trimmedPass === "admin") {
-      sessionStorage.setItem("sosaspins_admin_auth", "true");
-      isAdmin = true;
-      alert("Admin verified! Challenge controls unlocked.");
-    } else {
-      alert("Access Denied: Incorrect passkey.");
+    if (!isAdmin && addModal) {
+      addModal.style.display = "none";
     }
-    updateAdminVisibility();
-    renderGrid();
   }
+
+  function closeAuthDialog(result = false) {
+    if (adminAuthModal) adminAuthModal.style.display = "none";
+    if (adminPasskeyInput) {
+      adminPasskeyInput.value = "";
+      adminPasskeyInput.type = "password";
+    }
+    if (togglePassEyeIcon) togglePassEyeIcon.className = "bx bx-hide";
+    if (adminAuthError) adminAuthError.style.display = "none";
+    if (authModalResolver) {
+      const resolve = authModalResolver;
+      authModalResolver = null;
+      resolve(result);
+    }
+  }
+
+  if (togglePassVisibilityBtn && adminPasskeyInput) {
+    togglePassVisibilityBtn.addEventListener("click", () => {
+      const isHidden = adminPasskeyInput.type === "password";
+      adminPasskeyInput.type = isHidden ? "text" : "password";
+      if (togglePassEyeIcon) {
+        togglePassEyeIcon.className = isHidden ? "bx bx-show" : "bx bx-hide";
+      }
+      adminPasskeyInput.focus();
+    });
+  }
+
+  if (adminPasskeyInput && adminAuthError) {
+    adminPasskeyInput.addEventListener("input", () => {
+      adminAuthError.style.display = "none";
+    });
+  }
+
+  if (closeAdminAuthModal) closeAdminAuthModal.addEventListener("click", () => closeAuthDialog(false));
+  if (cancelAdminAuthBtn) cancelAdminAuthBtn.addEventListener("click", () => closeAuthDialog(false));
+  if (adminAuthModal) {
+    adminAuthModal.addEventListener("click", (e) => {
+      if (e.target === adminAuthModal) closeAuthDialog(false);
+    });
+  }
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && adminAuthModal && adminAuthModal.style.display === "flex") {
+      closeAuthDialog(false);
+    }
+  });
+
+  if (adminAuthForm) {
+    adminAuthForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      if (authModalMode === "logout") {
+        sessionStorage.removeItem("sosaspins_admin_auth");
+        isAdmin = false;
+        updateAdminVisibility();
+        renderGrid();
+        closeAuthDialog(true);
+        return;
+      }
+
+      const enteredPass = adminPasskeyInput ? adminPasskeyInput.value.trim() : "";
+      if (!enteredPass) {
+        if (adminPasskeyInput) adminPasskeyInput.focus();
+        return;
+      }
+
+      const storedHash = localStorage.getItem("sosaspins_admin_hash") || DEFAULT_HASH;
+      const enteredHash = await sha256(enteredPass);
+
+      if (enteredHash === storedHash) {
+        sessionStorage.setItem("sosaspins_admin_auth", "true");
+        isAdmin = true;
+        updateAdminVisibility();
+        renderGrid();
+        closeAuthDialog(true);
+      } else {
+        if (adminAuthError) adminAuthError.style.display = "flex";
+        const winEl = adminAuthModal ? adminAuthModal.querySelector(".w7-auth-window") : null;
+        if (winEl) {
+          winEl.classList.remove("w7-shake");
+          void winEl.offsetWidth;
+          winEl.classList.add("w7-shake");
+        }
+        if (adminPasskeyInput) {
+          adminPasskeyInput.select();
+          adminPasskeyInput.focus();
+        }
+      }
+    });
+  }
+
+  function checkAdminLoginPrompt() {
+    if (!adminAuthModal) return Promise.resolve(false);
+    authModalMode = "login";
+
+    if (authModalTitleIcon) authModalTitleIcon.src = ICON_LOCKED;
+    if (authHeroIcon) authHeroIcon.src = ICON_LOCKED;
+    if (authHeadingText) authHeadingText.textContent = "Enter Admin Passkey";
+    if (authSubText) authSubText.textContent = "Type your administrator passkey to unlock Challenge management controls.";
+    if (authPassFieldWrap) authPassFieldWrap.style.display = "flex";
+    if (adminAuthError) adminAuthError.style.display = "none";
+    if (submitAdminAuthBtn) {
+      submitAdminAuthBtn.className = "aero-btn-action primary-save-btn w7-auth-btn-primary";
+      submitAdminAuthBtn.innerHTML = `<i class="bx bx-lock-open-alt"></i> Unlock`;
+    }
+    if (adminPasskeyInput) {
+      adminPasskeyInput.value = "";
+      adminPasskeyInput.type = "password";
+    }
+    if (togglePassEyeIcon) togglePassEyeIcon.className = "bx bx-hide";
+
+    adminAuthModal.style.display = "flex";
+    setTimeout(() => {
+      if (adminPasskeyInput) adminPasskeyInput.focus();
+    }, 30);
+
+    return new Promise((resolve) => {
+      authModalResolver = resolve;
+    });
+  }
+
+  function handleAdminLogout() {
+    if (!adminAuthModal) return;
+    authModalMode = "logout";
+
+    if (authModalTitleIcon) authModalTitleIcon.src = ICON_UNLOCKED;
+    if (authHeroIcon) authHeroIcon.src = ICON_UNLOCKED;
+    if (authHeadingText) authHeadingText.textContent = "Admin Session Active";
+    if (authSubText) authSubText.textContent = "Challenge management controls are currently unlocked. Would you like to lock Admin mode?";
+    if (authPassFieldWrap) authPassFieldWrap.style.display = "none";
+    if (adminAuthError) adminAuthError.style.display = "none";
+    if (submitAdminAuthBtn) {
+      submitAdminAuthBtn.className = "aero-btn-action primary-save-btn w7-auth-btn-primary";
+      submitAdminAuthBtn.innerHTML = `<i class="bx bx-lock-alt"></i> Lock Session`;
+    }
+
+    adminAuthModal.style.display = "flex";
+    setTimeout(() => {
+      if (submitAdminAuthBtn) submitAdminAuthBtn.focus();
+    }, 30);
+  }
+
+  window.addEventListener("keydown", async (e) => {
+    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "a") {
+      e.preventDefault();
+      if (!isAdmin) {
+        await checkAdminLoginPrompt();
+      } else {
+        handleAdminLogout();
+      }
+    }
+  });
 
   if (adminTriggerBtn) {
     adminTriggerBtn.addEventListener("click", () => {
       if (!isAdmin) {
         checkAdminLoginPrompt();
-      } else if (confirm("Log out of Admin mode?")) {
-        sessionStorage.removeItem("sosaspins_admin_auth");
-        isAdmin = false;
-        updateAdminVisibility();
-        renderGrid();
+      } else {
+        handleAdminLogout();
       }
     });
   }
@@ -1224,6 +1384,14 @@ document.addEventListener("DOMContentLoaded", () => {
       let coverSrc = (isDone && match.cover_url) ? match.cover_url : (album.cover_url || FALLBACK_PLACEHOLDER);
       if (coverSrc.startsWith("assets/")) coverSrc = "../" + coverSrc;
 
+      let ratingBadgeHtml = "";
+      if (isDone && match.rating !== null && match.rating !== undefined && match.rating !== "") {
+        const rNum = parseFloat(match.rating);
+        if (!isNaN(rNum)) {
+          ratingBadgeHtml = `<span class="pill-rating">${rNum.toFixed(1)}<span class="pill-star">★</span></span>`;
+        }
+      }
+
       return `
         <div class="topster-tile ${isDone ? 'is-completed' : ''}"
              draggable="${isAdmin}"
@@ -1239,23 +1407,16 @@ document.addEventListener("DOMContentLoaded", () => {
           <img src="${coverSrc}" alt="${album.title}" class="tile-art" loading="lazy">
 
           ${isDone ? `
-            <div class="aero-check-overlay">
-              <svg viewBox="0 0 24 24" class="aero-check-icon">
-                <defs>
-                  <linearGradient id="aeroCheckGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95" />
-                    <stop offset="25%" stop-color="#a7f3d0" />
-                    <stop offset="55%" stop-color="#10b981" />
-                    <stop offset="100%" stop-color="#059669" />
-                  </linearGradient>
-                </defs>
-                <path d="M4.5 12.5l5 5L19.5 6.5"
+            <div class="aero-completed-pill">
+              <svg viewBox="0 0 16 16" class="pill-check-icon" aria-hidden="true">
+                <path d="M2.75 8.25L6.25 11.75L13.25 4.25"
                       fill="none"
-                      stroke="url(#aeroCheckGrad)"
-                      stroke-width="3.2"
+                      stroke="currentColor"
+                      stroke-width="2.6"
                       stroke-linecap="round"
                       stroke-linejoin="round"/>
               </svg>
+              ${ratingBadgeHtml}
             </div>
           ` : ''}
 

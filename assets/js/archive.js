@@ -31,6 +31,13 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
   const spinForm = document.getElementById("spinForm");
   const adminTriggerBtn = document.getElementById("adminTriggerBtn");
 
+  // Comment Moderation Queue Controls
+  const openQueueModalBtn = document.getElementById("openQueueModalBtn");
+  const queueCountBadge = document.getElementById("queueCountBadge");
+  const commentQueueModal = document.getElementById("commentQueueModal");
+  const closeQueueModalBtn = document.getElementById("closeQueueModalBtn");
+  const queueModalBody = document.getElementById("queueModalBody");
+
   // Form inputs
   const fetchCoverBtn = document.getElementById("fetchCoverBtn");
   const previewImg = document.getElementById("previewImg");
@@ -50,6 +57,10 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
   const coverDatalist = document.getElementById("coverPathSuggestions");
 
   let allEntries = [];
+  let allComments = [];
+  let usingLocalCommentsFallback = false;
+  const LOCAL_COMMENTS_KEY = "sosaspins_comments_fallback";
+  const openDiscussSpinIds = new Set();
   let editingIndex = null;
   let activeFilter = { type: null, value: null };
   let currentFormat = "all";
@@ -219,8 +230,8 @@ function getDominantColorFromImg(imgUrl) {
     });
   }
 
-// ============================================================
-  // SECURE CLIENT-SIDE ADMIN AUTHENTICATION
+  // ============================================================
+  // SECURE CLIENT-SIDE ADMIN AUTHENTICATION (AERO MODAL)
   // ============================================================
   async function sha256(str) {
     const buffer = new TextEncoder().encode(str);
@@ -234,25 +245,174 @@ function getDominantColorFromImg(imgUrl) {
 
   let isAdmin = sessionStorage.getItem("sosaspins_admin_auth") === "true";
 
-  async function checkAdminLoginPrompt() {
-    const storedHash = localStorage.getItem("sosaspins_admin_hash") || DEFAULT_HASH;
-    const enteredPass = prompt("Enter SosaSpins Admin Passkey:");
-    if (!enteredPass) return;
+  const adminAuthModal = document.getElementById("adminAuthModal");
+  const adminAuthForm = document.getElementById("adminAuthForm");
+  const adminPasskeyInput = document.getElementById("adminPasskeyInput");
+  const togglePassVisibilityBtn = document.getElementById("togglePassVisibilityBtn");
+  const togglePassEyeIcon = document.getElementById("togglePassEyeIcon");
+  const adminAuthError = document.getElementById("adminAuthError");
+  const closeAdminAuthModal = document.getElementById("closeAdminAuthModal");
+  const cancelAdminAuthBtn = document.getElementById("cancelAdminAuthBtn");
+  const submitAdminAuthBtn = document.getElementById("submitAdminAuthBtn");
+  const authModalTitleIcon = document.getElementById("authModalTitleIcon");
+  const authHeroIcon = document.getElementById("authHeroIcon");
+  const authHeadingText = document.getElementById("authHeadingText");
+  const authSubText = document.getElementById("authSubText");
+  const authPassFieldWrap = document.getElementById("authPassFieldWrap");
 
-    const enteredHash = await sha256(enteredPass);
+  let authModalResolver = null;
+  let authModalMode = "login"; // "login" or "logout"
 
-    if (enteredHash === storedHash) {
-      sessionStorage.setItem("sosaspins_admin_auth", "true");
-      isAdmin = true;
-      alert("Admin verified! Management controls unlocked.");
-    } else {
-      alert("Access Denied: Incorrect passkey.");
+  function closeAuthDialog(result = false) {
+    if (adminAuthModal) adminAuthModal.style.display = "none";
+    if (adminPasskeyInput) {
+      adminPasskeyInput.value = "";
+      adminPasskeyInput.type = "password";
     }
-    updateAdminVisibility();
-    renderFeed(allEntries);
+    if (togglePassEyeIcon) {
+      togglePassEyeIcon.className = "bx bx-hide";
+    }
+    if (adminAuthError) adminAuthError.style.display = "none";
+    if (authModalResolver) {
+      const resolve = authModalResolver;
+      authModalResolver = null;
+      resolve(result);
+    }
+  }
+
+  if (togglePassVisibilityBtn && adminPasskeyInput) {
+    togglePassVisibilityBtn.addEventListener("click", () => {
+      const isHidden = adminPasskeyInput.type === "password";
+      adminPasskeyInput.type = isHidden ? "text" : "password";
+      if (togglePassEyeIcon) {
+        togglePassEyeIcon.className = isHidden ? "bx bx-show" : "bx bx-hide";
+      }
+      adminPasskeyInput.focus();
+    });
+  }
+
+  if (adminPasskeyInput && adminAuthError) {
+    adminPasskeyInput.addEventListener("input", () => {
+      adminAuthError.style.display = "none";
+    });
+  }
+
+  if (closeAdminAuthModal) closeAdminAuthModal.addEventListener("click", () => closeAuthDialog(false));
+  if (cancelAdminAuthBtn) cancelAdminAuthBtn.addEventListener("click", () => closeAuthDialog(false));
+  if (adminAuthModal) {
+    adminAuthModal.addEventListener("click", (e) => {
+      if (e.target === adminAuthModal) closeAuthDialog(false);
+    });
+  }
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && adminAuthModal && adminAuthModal.style.display === "flex") {
+      closeAuthDialog(false);
+    }
+  });
+
+  if (adminAuthForm) {
+    adminAuthForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      if (authModalMode === "logout") {
+        sessionStorage.removeItem("sosaspins_admin_auth");
+        isAdmin = false;
+        closeModal();
+        closeQueueModal();
+        applyFilters();
+        updateAdminVisibility();
+        updateQueueBadge();
+        closeAuthDialog(true);
+        return;
+      }
+
+      const enteredPass = adminPasskeyInput ? adminPasskeyInput.value.trim() : "";
+      if (!enteredPass) {
+        if (adminPasskeyInput) adminPasskeyInput.focus();
+        return;
+      }
+
+      const storedHash = localStorage.getItem("sosaspins_admin_hash") || DEFAULT_HASH;
+      const enteredHash = await sha256(enteredPass);
+
+      if (enteredHash === storedHash) {
+        sessionStorage.setItem("sosaspins_admin_auth", "true");
+        isAdmin = true;
+        applyFilters();
+        updateAdminVisibility();
+        updateQueueBadge();
+        closeAuthDialog(true);
+      } else {
+        if (adminAuthError) adminAuthError.style.display = "flex";
+        const winEl = adminAuthModal ? adminAuthModal.querySelector(".w7-auth-window") : null;
+        if (winEl) {
+          winEl.classList.remove("w7-shake");
+          void winEl.offsetWidth;
+          winEl.classList.add("w7-shake");
+        }
+        if (adminPasskeyInput) {
+          adminPasskeyInput.select();
+          adminPasskeyInput.focus();
+        }
+      }
+    });
+  }
+
+  function checkAdminLoginPrompt() {
+    if (!adminAuthModal) return Promise.resolve(false);
+    authModalMode = "login";
+
+    if (authModalTitleIcon) authModalTitleIcon.src = ICON_LOCKED;
+    if (authHeroIcon) authHeroIcon.src = ICON_LOCKED;
+    if (authHeadingText) authHeadingText.textContent = "Enter Admin Passkey";
+    if (authSubText) authSubText.textContent = "Type your administrator passkey to unlock SosaSpins management controls.";
+    if (authPassFieldWrap) authPassFieldWrap.style.display = "flex";
+    if (adminAuthError) adminAuthError.style.display = "none";
+    if (submitAdminAuthBtn) {
+      submitAdminAuthBtn.className = "aero-btn-action primary-save-btn w7-auth-btn-primary";
+      submitAdminAuthBtn.innerHTML = `<i class="bx bx-lock-open-alt"></i> Unlock`;
+    }
+    if (adminPasskeyInput) {
+      adminPasskeyInput.value = "";
+      adminPasskeyInput.type = "password";
+    }
+    if (togglePassEyeIcon) togglePassEyeIcon.className = "bx bx-hide";
+
+    adminAuthModal.style.display = "flex";
+    setTimeout(() => {
+      if (adminPasskeyInput) adminPasskeyInput.focus();
+    }, 30);
+
+    return new Promise((resolve) => {
+      authModalResolver = resolve;
+    });
+  }
+
+  function handleAdminLogout() {
+    if (!adminAuthModal) return;
+    authModalMode = "logout";
+
+    if (authModalTitleIcon) authModalTitleIcon.src = ICON_UNLOCKED;
+    if (authHeroIcon) authHeroIcon.src = ICON_UNLOCKED;
+    if (authHeadingText) authHeadingText.textContent = "Admin Session Active";
+    if (authSubText) authSubText.textContent = "Management controls are currently unlocked. Would you like to lock Admin mode?";
+    if (authPassFieldWrap) authPassFieldWrap.style.display = "none";
+    if (adminAuthError) adminAuthError.style.display = "none";
+    if (submitAdminAuthBtn) {
+      submitAdminAuthBtn.className = "aero-btn-action primary-save-btn w7-auth-btn-primary";
+      submitAdminAuthBtn.innerHTML = `<i class="bx bx-lock-alt"></i> Lock Session`;
+    }
+
+    adminAuthModal.style.display = "flex";
+    setTimeout(() => {
+      if (submitAdminAuthBtn) submitAdminAuthBtn.focus();
+    }, 30);
   }
 
   function updateAdminVisibility() {
+    document.body.classList.toggle("is-admin", isAdmin);
+
     if (adminLockIcon) {
       adminLockIcon.src = isAdmin ? ICON_UNLOCKED : ICON_LOCKED;
       adminLockIcon.alt = isAdmin ? "Unlocked" : "Locked";
@@ -260,14 +420,20 @@ function getDominantColorFromImg(imgUrl) {
 
     if (adminTriggerBtn) {
       adminTriggerBtn.title = isAdmin ? "Admin Active (Click to Logout)" : "Admin Locked";
+      adminTriggerBtn.style.color = isAdmin ? "#10b981" : "";
     }
+
     document.querySelectorAll(".admin-only").forEach(el => {
-      if (el.classList.contains("row-actions")) {
-        el.style.display = isAdmin ? "flex" : "none";
+      if (el.classList.contains("row-actions") || el.classList.contains("aero-queue-btn")) {
+        el.style.display = isAdmin ? "inline-flex" : "none";
       } else {
         el.style.display = isAdmin ? "" : "none";
       }
     });
+
+    if (!isAdmin && commentQueueModal) {
+      commentQueueModal.style.display = "none";
+    }
   }
 
   // Hotkey: Ctrl + Shift + A to log in / out
@@ -277,12 +443,7 @@ function getDominantColorFromImg(imgUrl) {
       if (!isAdmin) {
         await checkAdminLoginPrompt();
       } else {
-        if (confirm("Log out of Admin mode?")) {
-          sessionStorage.removeItem("sosaspins_admin_auth");
-          isAdmin = false;
-          updateAdminVisibility();
-          renderFeed(allEntries);
-        }
+        handleAdminLogout();
       }
     }
   });
@@ -292,22 +453,577 @@ function getDominantColorFromImg(imgUrl) {
       if (!isAdmin) {
         checkAdminLoginPrompt();
       } else {
-        if (confirm("Log out of Admin mode?")) {
-          sessionStorage.removeItem("sosaspins_admin_auth");
-          isAdmin = false;
-          updateAdminVisibility();
-          renderFeed(allEntries);
-        }
+        handleAdminLogout();
       }
+    });
+  }
+
+  // ============================================================
+  // SPIN COMMENTS & MODERATION QUEUE CONTROLLER
+  // ============================================================
+  function escapeHtml(str) {
+    return String(str || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function formatCommentDate(isoStr) {
+    if (!isoStr) return "";
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return String(isoStr);
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const yy = String(d.getFullYear()).slice(-2);
+    return `${mm}/${dd}/${yy}`;
+  }
+
+  async function loadComments() {
+    try {
+      const { data, error } = await supabaseClient
+        .from("spin_comments")
+        .select("*")
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+      allComments = data || [];
+    } catch (err) {
+      console.error("Failed to load spin_comments from Supabase:", err);
+      allComments = [];
+    }
+    updateQueueBadge();
+  }
+
+  function getApprovedCommentsForSpin(spinId) {
+    return allComments.filter(
+      c => Number(c.spin_id) === Number(spinId) && c.status === "approved"
+    );
+  }
+
+  function getPendingComments() {
+    return allComments.filter(c => c.status === "pending");
+  }
+
+  function updateQueueBadge() {
+    const pendingCount = getPendingComments().length;
+    if (queueCountBadge) {
+      queueCountBadge.textContent = String(pendingCount);
+      queueCountBadge.classList.toggle("has-pending", pendingCount > 0);
+    }
+    if (openQueueModalBtn) {
+      openQueueModalBtn.classList.toggle("has-pending", pendingCount > 0);
+    }
+  }
+
+  function renderApprovedCommentsHtml(spinId) {
+    const approved = getApprovedCommentsForSpin(spinId);
+    if (approved.length === 0) {
+      return `<div class="spin-comments-empty">No comments yet. Be the first to share your thoughts!</div>`;
+    }
+    return approved.map(c => `
+      <div class="spin-comment-item" data-comment-id="${escapeHtml(c.id)}">
+        <div class="spin-comment-header">
+          <span class="spin-comment-author">
+            <i class="bx bx-user-circle"></i> ${escapeHtml(c.display_name || "Anonymous")}
+          </span>
+          <div class="spin-comment-meta-right">
+            <span class="spin-comment-date">${escapeHtml(formatCommentDate(c.created_at))}</span>
+            ${isAdmin ? `
+              <button type="button" class="comment-delete-btn admin-only" onclick="deleteSpinComment(${Number(c.id)}, ${Number(spinId)})" title="Delete comment">
+                <i class="bx bx-trash"></i>
+              </button>
+            ` : ""}
+          </div>
+        </div>
+        <div class="spin-comment-body">${escapeHtml(c.comment_text).replace(/\r?\n/g, "<br>")}</div>
+      </div>
+    `).join("");
+  }
+
+  function refreshSpinDiscussDom(spinId) {
+    const approved = getApprovedCommentsForSpin(spinId);
+    const listEl = document.getElementById(`spin-comments-list-${spinId}`);
+    if (listEl) {
+      listEl.innerHTML = renderApprovedCommentsHtml(spinId);
+    }
+    const countEl = document.getElementById(`spin-discuss-count-${spinId}`);
+    if (countEl) {
+      countEl.textContent = `Discuss (${approved.length})`;
+    }
+  }
+
+  window.toggleSpinDiscuss = function(spinId, btn) {
+    const drawer = document.getElementById(`spin-discuss-${spinId}`);
+    if (!drawer) return;
+    const isHidden = drawer.style.display === "none";
+    drawer.style.display = isHidden ? "flex" : "none";
+    if (isHidden) {
+      openDiscussSpinIds.add(Number(spinId));
+    } else {
+      openDiscussSpinIds.delete(Number(spinId));
+    }
+    const arrow = btn ? btn.querySelector(".discuss-arrow") : null;
+    if (arrow) arrow.textContent = isHidden ? "▴" : "▾";
+  };
+
+  window.submitSpinComment = async function(e, spinId) {
+    e.preventDefault();
+    const form = e.target;
+    const nameInput = form.querySelector(".comment-name-input");
+    const bodyInput = form.querySelector(".comment-body-input");
+    const submitBtn = form.querySelector(".comment-submit-btn");
+    const feedbackEl = document.getElementById(`spin-comment-feedback-${spinId}`);
+
+    const displayName = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : "Anonymous";
+    const commentText = bodyInput ? bodyInput.value.trim() : "";
+
+    if (!commentText) return;
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<i class='bx bx-loader-alt bx-spin'></i> Sending...`;
+    }
+
+    const newRecord = {
+      spin_id: Number(spinId),
+      display_name: displayName.slice(0, 40),
+      comment_text: commentText.slice(0, 600),
+      status: "pending"
+    };
+
+    try {
+      const { data, error } = await supabaseClient
+        .from("spin_comments")
+        .insert([newRecord])
+        .select();
+
+      if (error) throw error;
+      if (data && data[0]) {
+        allComments.push(data[0]);
+      }
+
+      if (bodyInput) bodyInput.value = "";
+      if (feedbackEl) {
+        feedbackEl.textContent = "✓ Submitted! Your comment is in the moderation queue awaiting approval.";
+        feedbackEl.className = "spin-comment-feedback success";
+        feedbackEl.style.display = "block";
+        setTimeout(() => {
+          if (feedbackEl) feedbackEl.style.display = "none";
+        }, 5000);
+      }
+
+      updateQueueBadge();
+      if (commentQueueModal && commentQueueModal.style.display === "flex" && isAdmin) {
+        renderQueueModal();
+      }
+    } catch (err) {
+      console.error("Failed to submit comment:", err);
+      if (feedbackEl) {
+        feedbackEl.textContent = `Could not submit comment: ${err.message || "Error"}`;
+        feedbackEl.className = "spin-comment-feedback error";
+        feedbackEl.style.display = "block";
+      }
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<i class='bx bx-send'></i> Post`;
+      }
+    }
+  };
+
+  function openQueueModal() {
+    if (!isAdmin) {
+      alert("Admin access required to view the moderation queue.");
+      return;
+    }
+    if (!commentQueueModal) return;
+    renderQueueModal();
+    commentQueueModal.style.display = "flex";
+  }
+
+  function closeQueueModal() {
+    if (commentQueueModal) commentQueueModal.style.display = "none";
+  }
+
+  function renderQueueModal() {
+    if (!queueModalBody) return;
+    if (!isAdmin) {
+      closeQueueModal();
+      return;
+    }
+
+    const pending = getPendingComments();
+    if (pending.length === 0) {
+      queueModalBody.innerHTML = `
+        <div class="queue-empty-state">
+          <i class="bx bx-check-shield" style="font-size: 2rem; color: #10b981; display: block; margin-bottom: 0.4rem;"></i>
+          All caught up! No pending comments in the queue.
+        </div>
+      `;
+      return;
+    }
+
+    queueModalBody.innerHTML = pending.map(c => {
+      const targetSpin = allEntries.find(s => Number(s.id) === Number(c.spin_id));
+      const spinLabel = targetSpin
+        ? `${targetSpin.artist} — ${targetSpin.title}`
+        : `Spin #${c.spin_id}`;
+      const spinCover = (targetSpin && targetSpin.cover_url) ? targetSpin.cover_url : "assets/images/spins/placeholder.png";
+
+      return `
+        <div class="aero-queue-card" data-queue-id="${escapeHtml(c.id)}">
+          <div class="queue-card-spin-bar">
+            <img src="${escapeHtml(spinCover)}" alt="" class="queue-spin-thumb" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+            <div class="queue-spin-info">
+              <span class="queue-spin-title">${escapeHtml(spinLabel)}</span>
+              <span class="queue-comment-submeta">
+                From <strong>${escapeHtml(c.display_name || "Anonymous")}</strong> &bull; ${escapeHtml(formatCommentDate(c.created_at))}
+              </span>
+            </div>
+          </div>
+          <div class="queue-comment-body">${escapeHtml(c.comment_text).replace(/\r?\n/g, "<br>")}</div>
+          <div class="queue-card-actions">
+            <button type="button" class="aero-queue-action approve" onclick="approveSpinComment(${Number(c.id)})">
+              <i class="bx bx-check"></i> Approve
+            </button>
+            <button type="button" class="aero-queue-action deny" onclick="denySpinComment(${Number(c.id)})">
+              <i class="bx bx-x"></i> Deny
+            </button>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  window.approveSpinComment = async function(commentId) {
+    if (!isAdmin) return alert("Admin access required.");
+    const target = allComments.find(c => Number(c.id) === Number(commentId));
+    if (!target) return;
+
+    try {
+      const { error } = await supabaseClient
+        .from("spin_comments")
+        .update({ status: "approved" })
+        .eq("id", commentId);
+      if (error) throw error;
+
+      target.status = "approved";
+      updateQueueBadge();
+      renderQueueModal();
+      refreshSpinDiscussDom(target.spin_id);
+    } catch (err) {
+      alert("Failed to approve comment: " + (err.message || err));
+    }
+  };
+
+  window.denySpinComment = async function(commentId) {
+    if (!isAdmin) return alert("Admin access required.");
+    const idx = allComments.findIndex(c => Number(c.id) === Number(commentId));
+    if (idx === -1) return;
+
+    try {
+      const { error } = await supabaseClient
+        .from("spin_comments")
+        .delete()
+        .eq("id", commentId);
+      if (error) throw error;
+
+      allComments.splice(idx, 1);
+      updateQueueBadge();
+      renderQueueModal();
+    } catch (err) {
+      alert("Failed to deny comment: " + (err.message || err));
+    }
+  };
+
+  window.deleteSpinComment = async function(commentId, spinId) {
+    if (!isAdmin) return alert("Admin access required.");
+    if (!confirm("Delete this comment?")) return;
+
+    const idx = allComments.findIndex(c => Number(c.id) === Number(commentId));
+    if (idx === -1) return;
+
+    try {
+      const { error } = await supabaseClient
+        .from("spin_comments")
+        .delete()
+        .eq("id", commentId);
+      if (error) throw error;
+
+      allComments.splice(idx, 1);
+      updateQueueBadge();
+      refreshSpinDiscussDom(spinId);
+    } catch (err) {
+      alert("Failed to delete comment: " + (err.message || err));
+    }
+  };
+
+  if (openQueueModalBtn) openQueueModalBtn.addEventListener("click", openQueueModal);
+  if (closeQueueModalBtn) closeQueueModalBtn.addEventListener("click", closeQueueModal);
+  if (commentQueueModal) {
+    commentQueueModal.addEventListener("click", (e) => {
+      if (e.target === commentQueueModal) closeQueueModal();
     });
   }
 
   updateAdminVisibility();
 
   // ============================================================
+  // DYNAMIC TAG INPUT & FLOATING AERO AUTOCOMPLETE (GENRES & DESCRIPTORS)
+  // ============================================================
+  let backlogTagEntries = [];
+
+  function safeToArray(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val.map(x => String(x).trim()).filter(Boolean);
+    if (typeof val === "string") return val.split(",").map(x => x.trim()).filter(Boolean);
+    return [String(val).trim()];
+  }
+
+  function getLiveGenrePool() {
+    const set = new Set();
+    [...allEntries, ...backlogTagEntries].forEach(item => {
+      safeToArray(item.genres).forEach(g => set.add(g));
+      safeToArray(item.secondary_genres).forEach(g => set.add(g));
+    });
+    return Array.from(set).sort();
+  }
+
+  function getLiveDescriptorPool() {
+    const set = new Set();
+    [...allEntries, ...backlogTagEntries].forEach(item => {
+      safeToArray(item.descriptors).forEach(d => set.add(d));
+    });
+    return Array.from(set).sort();
+  }
+
+  class TagInputManager {
+    constructor({ containerId, inputId, dropdownId, hiddenInputId, chipClass, getPool }) {
+      this.container = document.getElementById(containerId);
+      this.input = document.getElementById(inputId);
+      this.dropdown = document.getElementById(dropdownId);
+      this.hiddenInput = document.getElementById(hiddenInputId);
+      this.chipClass = chipClass || "chip-primary";
+      this.getPool = getPool || (() => []);
+      this.tags = [];
+      this.highlightIdx = -1;
+
+      if (!this.container || !this.input || !this.dropdown) return;
+
+      this.input.setAttribute("data-placeholder", this.input.placeholder || "");
+
+      this.container.addEventListener("click", (e) => {
+        if (!e.target.classList.contains("tag-chip-remove")) {
+          this.input.focus();
+        }
+      });
+
+      this.input.addEventListener("input", () => this.handleAutocomplete());
+      this.input.addEventListener("focus", () => this.handleAutocomplete());
+
+      this.input.addEventListener("keydown", (e) => {
+        if (this.dropdown.style.display !== "none") {
+          const items = this.dropdown.querySelectorAll(".aero-autocomplete-item");
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            this.highlightIdx = Math.min(this.highlightIdx + 1, items.length - 1);
+            this.renderHighlight(items);
+            return;
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            this.highlightIdx = Math.max(this.highlightIdx - 1, 0);
+            this.renderHighlight(items);
+            return;
+          } else if (e.key === "Enter" && this.highlightIdx >= 0 && items[this.highlightIdx]) {
+            e.preventDefault();
+            this.addTag(items[this.highlightIdx].getAttribute("data-val"));
+            this.closeDropdown();
+            return;
+          } else if (e.key === "Escape") {
+            this.closeDropdown();
+            return;
+          }
+        }
+
+        if (e.key === "Enter" || e.key === ",") {
+          e.preventDefault();
+          this.addCurrentTag();
+        } else if (e.key === "Backspace" && !this.input.value && this.tags.length > 0) {
+          this.removeTag(this.tags.length - 1);
+        }
+      });
+
+      document.addEventListener("click", (e) => {
+        if (!this.container.contains(e.target) && !this.dropdown.contains(e.target)) {
+          this.closeDropdown();
+        }
+      });
+    }
+
+    handleAutocomplete() {
+      if (!this.dropdown) return;
+      const query = this.input.value.trim().toLowerCase();
+      let pool = [];
+      try {
+        pool = this.getPool() || [];
+      } catch (err) {
+        pool = [];
+      }
+
+      if (pool.length === 0) {
+        this.closeDropdown();
+        return;
+      }
+
+      const matches = query
+        ? pool.filter(item => item.toLowerCase().includes(query) && !this.tags.includes(item)).slice(0, 8)
+        : pool.filter(item => !this.tags.includes(item)).slice(0, 8);
+
+      if (matches.length === 0) {
+        this.closeDropdown();
+        return;
+      }
+
+      this.highlightIdx = -1;
+      this.dropdown.innerHTML = matches.map(item => `
+        <div class="aero-autocomplete-item" data-val="${item.replace(/"/g, '&quot;')}">${item}</div>
+      `).join("");
+
+      this.dropdown.style.display = "block";
+
+      this.dropdown.querySelectorAll(".aero-autocomplete-item").forEach(el => {
+        el.onmousedown = (e) => {
+          e.preventDefault();
+          this.addTag(el.getAttribute("data-val"));
+          this.closeDropdown();
+          this.input.focus();
+        };
+      });
+    }
+
+    renderHighlight(items) {
+      items.forEach((el, idx) => {
+        el.classList.toggle("active", idx === this.highlightIdx);
+        if (idx === this.highlightIdx) {
+          el.scrollIntoView({ block: "nearest" });
+        }
+      });
+    }
+
+    closeDropdown() {
+      if (this.dropdown) {
+        this.dropdown.style.display = "none";
+        this.highlightIdx = -1;
+      }
+    }
+
+    addCurrentTag() {
+      const val = this.input.value.replace(/,/g, "").trim();
+      if (val) {
+        this.addTag(val);
+        this.closeDropdown();
+      }
+    }
+
+    addTag(val) {
+      const cleaned = String(val).trim();
+      if (cleaned && !this.tags.includes(cleaned)) {
+        this.tags.push(cleaned);
+        this.render();
+      }
+      this.input.value = "";
+    }
+
+    removeTag(idx) {
+      this.tags.splice(idx, 1);
+      this.render();
+    }
+
+    setTags(arrayOrString) {
+      if (!arrayOrString) {
+        this.tags = [];
+      } else if (Array.isArray(arrayOrString)) {
+        this.tags = arrayOrString.map(s => String(s).trim()).filter(Boolean);
+      } else {
+        this.tags = String(arrayOrString).split(",").map(s => s.trim()).filter(Boolean);
+      }
+      if (this.input) this.input.value = "";
+      this.render();
+    }
+
+    getTags() {
+      return [...this.tags];
+    }
+
+    render() {
+      if (!this.container || !this.input) return;
+
+      this.container.querySelectorAll(".tag-chip").forEach(el => el.remove());
+
+      this.tags.forEach((tag, idx) => {
+        const chip = document.createElement("span");
+        chip.className = `tag-chip ${this.chipClass}`;
+        chip.innerHTML = `
+          ${tag}
+          <span class="tag-chip-remove">✕</span>
+        `;
+        chip.querySelector(".tag-chip-remove").onclick = (e) => {
+          e.stopPropagation();
+          this.removeTag(idx);
+        };
+        this.container.insertBefore(chip, this.input);
+      });
+
+      this.input.placeholder = this.tags.length > 0 ? "" : (this.input.getAttribute("data-placeholder") || "Add...");
+
+      if (this.hiddenInput) {
+        this.hiddenInput.value = this.tags.join(", ");
+      }
+    }
+  }
+
+  window.logGenresManager = new TagInputManager({
+    containerId: "genresTagBox",
+    inputId: "logGenresInput",
+    dropdownId: "genresDropdown",
+    hiddenInputId: "logGenres",
+    chipClass: "chip-primary",
+    getPool: getLiveGenrePool
+  });
+
+  window.logSecondaryGenresManager = new TagInputManager({
+    containerId: "secondaryGenresTagBox",
+    inputId: "logSecondaryGenresInput",
+    dropdownId: "secondaryGenresDropdown",
+    hiddenInputId: "logSecondaryGenres",
+    chipClass: "chip-secondary",
+    getPool: getLiveGenrePool
+  });
+
+  window.logDescriptorsManager = new TagInputManager({
+    containerId: "descriptorsTagBox",
+    inputId: "logDescriptorsInput",
+    dropdownId: "descriptorsDropdown",
+    hiddenInputId: "logDescriptors",
+    chipClass: "chip-descriptor",
+    getPool: getLiveDescriptorPool
+  });
+
+  // ============================================================
   // MODAL CONTROLS
   // ============================================================
   function openModal(isEdit = false) {
+    if (!isAdmin) {
+      alert("Admin access required.");
+      return;
+    }
+    if (!isEdit) {
+      if (window.logGenresManager) window.logGenresManager.setTags([]);
+      if (window.logSecondaryGenresManager) window.logSecondaryGenresManager.setTags([]);
+      if (window.logDescriptorsManager) window.logDescriptorsManager.setTags([]);
+    }
     if (modalOverlay) modalOverlay.style.display = "flex";
     if (modalTitle) modalTitle.textContent = isEdit ? "Edit Spin" : "Log a Spin";
     if (modalSubmitBtn) modalSubmitBtn.textContent = isEdit ? "Update Spin" : "Save Spin";
@@ -321,6 +1037,18 @@ function getDominantColorFromImg(imgUrl) {
     if (downloadArtBtn) downloadArtBtn.style.display = "none";
     if (artCandidatesContainer) artCandidatesContainer.style.display = "none";
     if (logSecondaryGenres) logSecondaryGenres.value = "";
+    if (window.logGenresManager) {
+      window.logGenresManager.setTags([]);
+      window.logGenresManager.closeDropdown();
+    }
+    if (window.logSecondaryGenresManager) {
+      window.logSecondaryGenresManager.setTags([]);
+      window.logSecondaryGenresManager.closeDropdown();
+    }
+    if (window.logDescriptorsManager) {
+      window.logDescriptorsManager.setTags([]);
+      window.logDescriptorsManager.closeDropdown();
+    }
     if (artThumbnailsRow) artThumbnailsRow.innerHTML = "";
     if (logPrevRating) logPrevRating.style.display = "none";
     if (logReviewUrl) logReviewUrl.value = "";
@@ -340,21 +1068,22 @@ function getDominantColorFromImg(imgUrl) {
   // ============================================================
   // PREFILL FROM CHALLENGE DASHBOARD (Log this Spin ➔)
   // ============================================================
-  function checkHandoffFromChallenge() {
+  async function checkHandoffFromChallenge() {
     const urlParams = new URLSearchParams(window.location.search);
     const shouldLog = urlParams.get("action") === "logSpin";
     const prefillDataRaw = sessionStorage.getItem("sosaspins_prefill_spin");
 
     if (shouldLog && prefillDataRaw) {
       try {
+        if (!isAdmin) {
+          const verified = await checkAdminLoginPrompt();
+          if (!verified) return;
+        }
+
         const item = JSON.parse(prefillDataRaw);
 
         // 1. Open the modal composer in "Add" mode
-        if (typeof openModal === "function") {
-          openModal(false);
-        } else if (typeof openComposer === "function") {
-          openComposer(false);
-        }
+        openModal(false);
 
         // 2. Pre-fill artist, title, and cover
         if (logArtist) logArtist.value = item.artist || "";
@@ -367,20 +1096,28 @@ function getDominantColorFromImg(imgUrl) {
         if (logCoverUrl) logCoverUrl.value = cover;
         if (previewImg && cover) previewImg.src = cover;
 
-        // 3. Pre-fill metadata (genres, descriptors, runtime)
-        if (document.getElementById("logGenres")) {
+        // 3. Pre-fill metadata (genres, descriptors, runtime) via TagInputManagers
+        if (window.logGenresManager) {
+          window.logGenresManager.setTags(item.genres || "");
+        } else if (document.getElementById("logGenres")) {
           document.getElementById("logGenres").value = item.genres || "";
         }
-        if (document.getElementById("logSecondaryGenres")) {
+
+        if (window.logSecondaryGenresManager) {
+          window.logSecondaryGenresManager.setTags(item.secondary_genres || "");
+        } else if (document.getElementById("logSecondaryGenres")) {
           document.getElementById("logSecondaryGenres").value = item.secondary_genres || "";
         }
-        if (document.getElementById("logDescriptors")) {
+
+        if (window.logDescriptorsManager) {
+          window.logDescriptorsManager.setTags(item.descriptors || "");
+        } else if (document.getElementById("logDescriptors")) {
           document.getElementById("logDescriptors").value = item.descriptors || "";
         }
 
         // 4. Pre-fill runtime or listening notes memo if available
         if (logRuntime && item.runtime) {
-        logRuntime.value = item.runtime;
+          logRuntime.value = item.runtime;
         }
 
         // 5. Clean up sessionStorage so it doesn't reopen on every refresh
@@ -399,10 +1136,7 @@ function getDominantColorFromImg(imgUrl) {
   checkHandoffFromChallenge();
 
   // ============================================================
-  // LOAD ARCHIVE DATA
-  // ============================================================
-  // ============================================================
-  // LOAD LIVE SPINS FROM SUPABASE
+  // LOAD LIVE SPINS & COMMENTS FROM SUPABASE
   // ============================================================
   // Helper to parse "MM/DD/YY" strings into sortable Date timestamps
   function parseLogDate(dateStr) {
@@ -420,16 +1154,18 @@ function getDominantColorFromImg(imgUrl) {
     return new Date(year, month, day).getTime();
   }
 
-  // ============================================================
-  // LOAD LIVE SPINS FROM SUPABASE
-  // ============================================================
   async function loadSpins() {
     try {
-      const { data, error } = await supabaseClient
-        .from("spins")
-        .select("*");
+      const [{ data, error }, backlogRes] = await Promise.all([
+        supabaseClient.from("spins").select("*"),
+        supabaseClient.from("challenge_backlog").select("genres, secondary_genres, descriptors"),
+        loadComments()
+      ]);
 
       if (error) throw error;
+      if (backlogRes && backlogRes.data) {
+        backlogTagEntries = backlogRes.data;
+      }
 
       // Sort chronologically by log_date descending (newest dates first)
       allEntries = (data || []).sort((a, b) => {
@@ -805,6 +1541,40 @@ window.closeMiniPlayer = function() {
               </div>
             ` : ""}
 
+            <!-- Per-Spin Expandable Discussion Drawer -->
+            ${(() => {
+              const spinId = item.id;
+              const approvedCount = getApprovedCommentsForSpin(spinId).length;
+              const isOpen = openDiscussSpinIds.has(Number(spinId));
+              const safePlaceholderTitle = escapeHtml(item.title || "this spin");
+              return `
+                <div class="spin-discuss-wrapper">
+                  <button type="button" class="track-ratings-toggle-btn spin-discuss-toggle-btn ${approvedCount > 0 ? 'has-comments' : ''}" onclick="toggleSpinDiscuss(${spinId}, this)">
+                    <span class="track-ratings-label">
+                      <i class="bx bx-message-rounded-dots"></i>
+                      <span id="spin-discuss-count-${spinId}">Discuss (${approvedCount})</span>
+                    </span>
+                    <span class="discuss-arrow">${isOpen ? '▴' : '▾'}</span>
+                  </button>
+                  <div class="spin-discuss-drawer" id="spin-discuss-${spinId}" style="display: ${isOpen ? 'flex' : 'none'};">
+                    <div class="spin-comments-list" id="spin-comments-list-${spinId}">
+                      ${renderApprovedCommentsHtml(spinId)}
+                    </div>
+                    <form class="spin-comment-form" onsubmit="submitSpinComment(event, ${spinId})">
+                      <div class="spin-comment-form-row">
+                        <input type="text" class="sosa-search-input comment-name-input" placeholder="Display Name (or Anonymous)" maxlength="40">
+                        <button type="submit" class="review-action-btn primary comment-submit-btn">
+                          <i class="bx bx-send"></i> Post
+                        </button>
+                      </div>
+                      <textarea class="sosa-search-input comment-body-input" placeholder="Leave a comment on ${safePlaceholderTitle}..." rows="2" maxlength="600" required></textarea>
+                      <div class="spin-comment-feedback" id="spin-comment-feedback-${spinId}" style="display: none;"></div>
+                    </form>
+                  </div>
+                </div>
+              `;
+            })()}
+
             ${isAdmin ? `
               <div class="row-actions admin-only">
                 <button type="button" class="action-icon-btn edit-btn" onclick="editSpin(${originalIdx})" title="Edit Spin">
@@ -819,6 +1589,8 @@ window.closeMiniPlayer = function() {
         </article>
       `;
     }).join("");
+
+    updateAdminVisibility();
   }
 
 window.toggleDescriptors = function(idx, btn) {
@@ -1147,8 +1919,10 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     document.getElementById("logYear").value = item.year || "";
     document.getElementById("logRating").value = item.rating || "";
     document.getElementById("logDate").value = item.log_date || "";
-    if (logSecondaryGenres) {
-    logSecondaryGenres.value = (item.secondary_genres || []).join(", ");
+    if (window.logSecondaryGenresManager) {
+      window.logSecondaryGenresManager.setTags(item.secondary_genres || []);
+    } else if (logSecondaryGenres) {
+      logSecondaryGenres.value = (item.secondary_genres || []).join(", ");
     }
     const hasShift = !!item.rating_shift;
     if (logRelisten) {
@@ -1162,8 +1936,16 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     if (logCoverUrl) logCoverUrl.value = item.cover_url || "";
     if (logReviewUrl) logReviewUrl.value = item.review_url || "";
     if (previewImg) previewImg.src = item.cover_url || "placeholder.png";
-    document.getElementById("logGenres").value = (item.genres || []).join(", ");
-    document.getElementById("logDescriptors").value = (item.descriptors || []).join(", ");
+    if (window.logGenresManager) {
+      window.logGenresManager.setTags(item.genres || []);
+    } else if (document.getElementById("logGenres")) {
+      document.getElementById("logGenres").value = (item.genres || []).join(", ");
+    }
+    if (window.logDescriptorsManager) {
+      window.logDescriptorsManager.setTags(item.descriptors || []);
+    } else if (document.getElementById("logDescriptors")) {
+      document.getElementById("logDescriptors").value = (item.descriptors || []).join(", ");
+    }
     document.getElementById("logFavTracks").value = (item.fav_tracks || []).join("; ");
     document.getElementById("logMemo").value = item.memo || "";
     if (logRuntime) logRuntime.value = item.runtime || "";
@@ -1194,7 +1976,12 @@ if (addTrackRatingRowBtn && trackRatingsList) {
   if (spinForm) {
     spinForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+      if (!isAdmin) return alert("Admin access required.");
       const parseList = (val) => val ? val.split(",").map(s => s.trim()).filter(Boolean) : [];
+
+      if (window.logGenresManager) window.logGenresManager.addCurrentTag();
+      if (window.logSecondaryGenresManager) window.logSecondaryGenresManager.addCurrentTag();
+      if (window.logDescriptorsManager) window.logDescriptorsManager.addCurrentTag();
 
       const artistVal = logArtist.value.trim();
       const titleVal = logTitle.value.trim();
@@ -1229,9 +2016,15 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         type: document.getElementById("logType").value,
         log_date: document.getElementById("logDate").value.trim(),
         rating: currentRatingVal,
-        genres: parseList(document.getElementById("logGenres").value),
-        secondary_genres: parseList(logSecondaryGenres ? logSecondaryGenres.value : ""),
-        descriptors: parseList(document.getElementById("logDescriptors").value),
+        genres: window.logGenresManager
+          ? window.logGenresManager.getTags()
+          : parseList(document.getElementById("logGenres").value),
+        secondary_genres: window.logSecondaryGenresManager
+          ? window.logSecondaryGenresManager.getTags()
+          : parseList(logSecondaryGenres ? logSecondaryGenres.value : ""),
+        descriptors: window.logDescriptorsManager
+          ? window.logDescriptorsManager.getTags()
+          : parseList(document.getElementById("logDescriptors").value),
         cover_url: finalCoverUrl,
         runtime: runtimeVal || null,
         review_url: logReviewUrl && logReviewUrl.value.trim() ? logReviewUrl.value.trim() : null,

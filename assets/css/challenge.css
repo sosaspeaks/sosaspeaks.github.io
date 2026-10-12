@@ -98,11 +98,11 @@ header.shadow {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 0;
+  padding: 18px 0;
 }
 
 header.shadow .nav {
-  padding: 10px 0;
+  padding: 12px 0;
 }
 
 .logo-icon {
@@ -115,7 +115,7 @@ header.shadow .nav {
 .nav-right-group {
   display: flex;
   align-items: center;
-  gap: 2rem;
+  gap: 3rem;
   margin-right: 0.5rem;
 }
 
@@ -164,8 +164,9 @@ i.bx-moon:hover, i.bx-sun:hover {
   display: grid;
   justify-content: center;
   width: 100%;
-  min-height: 22vh;
-  padding-top: 5rem;
+  min-height: 25vh;
+  padding: 3rem 0 2rem;
+  box-sizing: content-box;
   background: var(--hero-bottom-shadow), url(/assets/images/homepics/homeheader4.png);
   background-size: 100%;
   background-position: center 30%;
@@ -173,27 +174,25 @@ i.bx-moon:hover, i.bx-sun:hover {
 }
 
 .home-text {
+  margin: auto;
   text-align: center;
   color: #ffffff;
 }
 
 .home-title {
   font-family: var(--font-retro) !important;
-  font-size: 4.5rem;
+  font-size: 5rem;
   font-weight: 400;
+  padding: 0;
   margin: 0;
-  line-height: 1;
-  letter-spacing: 0.5px;
 }
 
 .home-subtitle {
   font-family: var(--font-sub) !important;
-  font-size: 1.85rem;
+  font-size: 2rem;
   font-weight: 400;
   font-style: italic;
   text-shadow: var(--subtitle-text-glow);
-  display: block;
-  margin-top: 4px;
 }
 
 /* Challenge Controls & Tabs */
@@ -626,58 +625,126 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
 }
 
 .topster-tile:not(.is-completed) .tile-art {
-  filter: saturate(0.85) brightness(0.92);
-  opacity: 0.9;
+  filter: none;
+  opacity: 1;
+  transition: filter 0.2s ease, opacity 0.2s ease;
 }
 
 .topster-tile.is-completed {
-  border: 1.5px solid rgba(16, 185, 129, 0.9) !important;
+  border: 1px solid rgba(16, 185, 129, 0.42) !important;
   box-shadow:
-    0 0 10px rgba(16, 185, 129, 0.4),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.6) !important;
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22) !important;
 }
 
 .topster-tile.is-completed .tile-art {
-  filter: saturate(1.05) contrast(1.02);
+  filter: saturate(0.6) brightness(0.74) contrast(0.96);
+  opacity: 0.84;
+  transition: filter 0.2s ease, opacity 0.2s ease;
+}
+
+.topster-tile.is-completed:hover .tile-art {
+  filter: saturate(1) brightness(1) contrast(1);
   opacity: 1;
 }
 
-.aero-check-overlay {
+.aero-completed-pill {
   position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  top: 5px;
+  right: 5px;
+  z-index: 6;
   pointer-events: none;
-  border-radius: 0 !important;
-  z-index: 3;
-  background: radial-gradient(
-    circle at center,
-    rgba(16, 185, 129, 0.22) 0%,
-    rgba(255, 255, 255, 0.15) 45%,
-    rgba(0, 0, 0, 0.12) 100%
+  display: inline-flex;
+  align-items: center;
+  gap: 3.5px;
+  padding: 2.5px 6.5px;
+  border-radius: 999px !important;
+  background: linear-gradient(
+    180deg,
+    rgba(28, 72, 56, 0.86) 0%,
+    rgba(13, 52, 38, 0.9) 48%,
+    rgba(5, 34, 24, 0.95) 52%,
+    rgba(10, 56, 40, 0.94) 100%
   ) !important;
+  border: 1px solid rgba(110, 231, 183, 0.78) !important;
   box-shadow:
-    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.85),
-    inset 0 -1.5px 1.5px rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(1.5px) contrast(105%);
-  -webkit-backdrop-filter: blur(1.5px) contrast(105%);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    inset 0 -1px 1px rgba(16, 185, 129, 0.35),
+    0 2px 5px rgba(0, 0, 0, 0.6),
+    0 0 8px rgba(16, 185, 129, 0.45) !important;
+  backdrop-filter: blur(6px) saturate(160%);
+  -webkit-backdrop-filter: blur(6px) saturate(160%);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.aero-check-icon {
-  width: 74% !important;
-  height: 74% !important;
+.pill-check-icon {
+  width: 11px !important;
+  height: 11px !important;
+  flex-shrink: 0;
   display: block;
-  stroke: #10b981;
-  stroke: url(#aeroCheckGrad) !important;
-  fill: none;
+  color: #34d399;
   filter:
-    drop-shadow(0 1px 1px rgba(255, 255, 255, 0.95))
-    drop-shadow(0 0 6px rgba(0, 255, 136, 0.95))
-    drop-shadow(0 0 16px rgba(16, 185, 129, 0.85))
-    drop-shadow(0 3px 6px rgba(0, 0, 0, 0.65)) !important;
-  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), filter 0.22s ease;
+    drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7))
+    drop-shadow(0 0 4px rgba(52, 211, 153, 0.85));
+}
+
+.pill-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.5px;
+  font-family: var(--font-body), sans-serif;
+  font-size: 0.66rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+}
+
+.pill-star {
+  color: #fbbf24;
+  font-size: 0.64rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 3px rgba(251, 191, 36, 0.65));
+}
+
+.topster-grid.size-compact .aero-completed-pill {
+  top: 4px;
+  right: 4px;
+  padding: 2px 5px;
+  gap: 2.5px;
+}
+
+.topster-grid.size-compact .pill-check-icon {
+  width: 9.5px !important;
+  height: 9.5px !important;
+}
+
+.topster-grid.size-compact .pill-rating {
+  font-size: 0.58rem;
+}
+
+.topster-grid.size-compact .pill-star {
+  font-size: 0.56rem;
+}
+
+.topster-grid.size-fitsheet .aero-completed-pill {
+  top: 3px;
+  right: 3px;
+  padding: 1.5px 4px;
+  gap: 2px;
+}
+
+.topster-grid.size-fitsheet .pill-check-icon {
+  width: 8.5px !important;
+  height: 8.5px !important;
+}
+
+.topster-grid.size-fitsheet .pill-rating {
+  font-size: 0.52rem;
+}
+
+.topster-grid.size-fitsheet .pill-star {
+  font-size: 0.5rem;
 }
 
 .topster-tile.is-completed::after {
@@ -687,8 +754,8 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
   border-radius: 0 !important;
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.42) 0%,
-    rgba(255, 255, 255, 0.12) 32%,
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(255, 255, 255, 0.06) 32%,
     transparent 35%,
     transparent 100%
   );
@@ -696,8 +763,13 @@ menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
   z-index: 4;
 }
 
-.topster-tile.is-completed:hover .aero-check-icon {
-  transform: scale(1.08);
+.topster-tile.is-completed:hover .aero-completed-pill {
+  transform: scale(1.06);
+  border-color: #a7f3d0 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 3px 8px rgba(0, 0, 0, 0.65),
+    0 0 12px rgba(52, 211, 153, 0.7) !important;
 }
 
 .tile-tooltip {
@@ -1522,9 +1594,15 @@ body.dark-mode .footer-copyright {
 }
 
 @media (max-width: 768px) {
-  .home-title { font-size: 2.8rem; }
-  .home-subtitle { font-size: 1.4rem; }
-  .main-home.spins-hero { padding-top: 4.5rem; }
+  .home-title { font-size: 2.6rem; }
+  .home-subtitle { font-size: 1.5rem; }
+  .main-home.spins-hero {
+    height: auto !important;
+    min-height: 200px !important;
+    padding: 85px 0 35px 0 !important;
+    background-size: cover !important;
+    background-position: center center !important;
+  }
   .nav-right-group { gap: 15px; }
 }
 
@@ -1535,3 +1613,343 @@ body.dark-mode .footer-copyright {
 @media (max-width: 420px) {
   .topster-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 4px !important; }
 }
+
+/* ==========================================================================
+   WINDOWS 7 / 7.CSS AERO ADMIN SECURITY DIALOG (#adminAuthModal)
+   ========================================================================== */
+.window.w7-modal-window.w7-auth-window {
+  max-width: 415px !important;
+  width: 100% !important;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.55) 0%,
+      rgba(255, 255, 255, 0.12) 38%,
+      rgba(255, 255, 255, 0) 39%,
+      rgba(200, 230, 245, 0.25) 100%
+    ),
+    linear-gradient(180deg, #dce9f5 0%, #c2d8ec 45%, #b2cce0 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.92) !important;
+  border-radius: 8px 8px 6px 6px !important;
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.48),
+    0 2px 8px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    inset 0 0 0 1px rgba(95, 130, 165, 0.5) !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.w7-title-icon {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  max-width: 16px !important;
+  flex: 0 0 16px !important;
+  object-fit: contain !important;
+  border-radius: 0 !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2));
+}
+
+.window.w7-modal-window.w7-auth-window .window-body.w7-auth-body {
+  padding: 0 !important;
+  margin: 0 6px 6px 6px !important;
+  background: #ffffff !important;
+  border: 1px solid #7f9db9 !important;
+  border-radius: 3px !important;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.85) !important;
+  overflow: hidden !important;
+}
+
+.w7-auth-form {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.w7-auth-header-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1.05rem 1.2rem 0.8rem 1.2rem;
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+  border-bottom: 1px solid #eef2f6;
+}
+
+.w7-auth-hero-icon {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  max-width: 36px !important;
+  flex: 0 0 36px !important;
+  object-fit: contain !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  display: block !important;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.22));
+}
+
+.w7-auth-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.w7-auth-heading {
+  font-family: "Segoe UI", var(--font-body), sans-serif;
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: #0f3d2e;
+  line-height: 1.25;
+}
+
+.w7-auth-subtext {
+  margin: 0;
+  font-family: "Segoe UI", var(--font-body), sans-serif;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: #475569;
+}
+
+.w7-pass-field-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin: 0.85rem 1.2rem 1rem 1.2rem;
+  width: auto;
+}
+
+.w7-pass-input {
+  width: 100% !important;
+  height: 34px !important;
+  padding: 5px 36px 5px 10px !important;
+  font-family: "Segoe UI", var(--font-body), sans-serif !important;
+  font-size: 0.88rem !important;
+  color: #0f172a !important;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 35%) !important;
+  border-top: 1px solid #8e8f8f !important;
+  border-left: 1px solid #b8b9b9 !important;
+  border-right: 1px solid #b8b9b9 !important;
+  border-bottom: 1px solid #d5d5d5 !important;
+  border-radius: 2px !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+  outline: none !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+  box-sizing: border-box !important;
+}
+
+.w7-pass-input[type="password"]:not(:placeholder-shown) {
+  letter-spacing: 0.22em !important;
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+}
+
+.w7-pass-input:focus {
+  border-color: #3c7fb1 !important;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.08),
+    0 0 0 2px rgba(60, 180, 240, 0.28) !important;
+}
+
+.w7-pass-eye-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 26px !important;
+  height: 24px !important;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.14s ease;
+}
+
+.w7-pass-eye-btn i.bx {
+  font-size: 1.05rem !important;
+  line-height: 1 !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  transform: none !important;
+}
+
+.w7-pass-eye-btn:hover {
+  background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.w7-auth-error {
+  margin: 0 1.2rem 0.85rem 1.2rem;
+  padding: 6px 10px;
+  font-family: "Segoe UI", var(--font-body), sans-serif;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #b91c1c;
+  background: linear-gradient(180deg, #fef2f2 0%, #fee2e2 100%);
+  border: 1px solid #f87171;
+  border-radius: 3px;
+  box-shadow: inset 0 1px 0 #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.w7-auth-error i.bx {
+  font-size: 1rem !important;
+  line-height: 1 !important;
+  flex-shrink: 0;
+}
+
+.w7-auth-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, #f3f5f8 0%, #e6ebf1 100%);
+  border-top: 1px solid #d0d9e3;
+  box-shadow: inset 0 1px 0 #ffffff;
+}
+
+.w7-auth-btn-secondary,
+.w7-auth-btn-primary {
+  min-width: 78px;
+  height: 27px;
+  padding: 0 14px !important;
+  font-family: "Segoe UI", var(--font-body), sans-serif !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  border-radius: 3px !important;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: all 0.14s ease;
+}
+
+.w7-auth-btn-secondary i.bx,
+.w7-auth-btn-primary i.bx {
+  font-size: 0.92rem !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+}
+
+.w7-auth-btn-secondary {
+  color: #1e293b !important;
+  background: linear-gradient(180deg, #f5f6f7 0%, #e9ebee 48%, #dadfe4 52%, #cfd6dd 100%) !important;
+  border: 1px solid #8e98a4 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+.w7-auth-btn-secondary:hover {
+  background: linear-gradient(180deg, #eaf6fd 0%, #d7effc 48%, #bde5fc 52%, #a6d9f7 100%) !important;
+  border-color: #3c7fb1 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 0 4px rgba(60, 127, 177, 0.35) !important;
+}
+
+.w7-auth-btn-primary {
+  color: #0f172a !important;
+  background: linear-gradient(180deg, #e8f7ef 0%, #c7f0dc 48%, #9ae6c1 52%, #75d9aa 100%) !important;
+  border: 1px solid #10895c !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(52, 211, 153, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 1px 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+.w7-auth-btn-primary:hover {
+  background: linear-gradient(180deg, #f0fdf6 0%, #d1fae5 48%, #6ee7b7 52%, #34d399 100%) !important;
+  border-color: #047857 !important;
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    0 0 8px rgba(16, 185, 129, 0.45) !important;
+}
+
+@keyframes w7Shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-7px); }
+  40% { transform: translateX(7px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(5px); }
+}
+
+.w7-shake {
+  animation: w7Shake 0.36s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+body.dark-mode .window.w7-modal-window.w7-auth-window {
+  background: linear-gradient(180deg, #1e2d26 0%, #15211b 45%, #0f1814 100%) !important;
+  border-color: rgba(110, 231, 183, 0.35) !important;
+}
+
+body.dark-mode .window.w7-modal-window.w7-auth-window .title-bar {
+  background: linear-gradient(180deg, rgba(40, 62, 52, 0.9) 0%, rgba(22, 35, 29, 0.95) 100%) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+body.dark-mode .window.w7-modal-window.w7-auth-window .title-bar-text {
+  color: #ecfdf5 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8) !important;
+}
+
+body.dark-mode .w7-title-icon {
+  color: #34d399;
+  filter: none;
+}
+
+body.dark-mode .window.w7-modal-window.w7-auth-window .window-body.w7-auth-body {
+  background: #131c18 !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+body.dark-mode .w7-auth-header-row {
+  background: linear-gradient(180deg, #18251f 0%, #131c18 100%);
+  border-bottom-color: rgba(255, 255, 255, 0.07);
+}
+
+body.dark-mode .w7-auth-heading {
+  color: #6ee7b7;
+}
+
+body.dark-mode .w7-auth-subtext {
+  color: #94a3b8;
+}
+
+body.dark-mode .w7-pass-input {
+  background: #0b120f !important;
+  color: #f1f5f9 !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+body.dark-mode .w7-pass-eye-btn {
+  color: #94a3b8;
+}
+
+body.dark-mode .w7-pass-eye-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+body.dark-mode .w7-auth-footer {
+  background: linear-gradient(180deg, #18231e 0%, #111915 100%);
+  border-top-color: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+

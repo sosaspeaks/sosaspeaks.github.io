@@ -67,9 +67,15 @@
             </button>
           <button type="button" id="clearFilterBtn" class="filter-item" style="display: none; padding: 2px 8px; font-size: 0.75rem;">✕ Clear</button>
         </div>
-        <button type="button" id="composerPrompt" class="filter-item admin-only" style="display: none; font-weight: 600;">
-          <i class="bx bx-plus"></i> Log a Spin
-        </button>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <button type="button" id="openQueueModalBtn" class="filter-item admin-only aero-queue-btn" style="display: none; font-weight: 600;" title="Review pending spin comments">
+            <i class="bx bx-message-square-dots"></i> Comment Queue
+            <span id="queueCountBadge" class="aero-queue-badge">0</span>
+          </button>
+          <button type="button" id="composerPrompt" class="filter-item admin-only" style="display: none; font-weight: 600;">
+            <i class="bx bx-plus"></i> Log a Spin
+          </button>
+        </div>
       </div>
       <section id="timelineFeed" class="timeline-continuous-sheet">
         <div class="review-action-btn" style="padding: 2rem; text-align: center; color: var(--text-color); opacity: 0.7;">Loading archive...</div>
@@ -173,9 +179,32 @@
           <input type="text" id="logCoverUrl" list="coverPathSuggestions" placeholder="Cover Path / URL" class="sosa-search-input" autocomplete="new-password">
           <datalist id="coverPathSuggestions"></datalist>
 
-          <input type="text" id="logGenres" placeholder="Genres (comma separated)" class="sosa-search-input">
-          <input type="text" id="logSecondaryGenres" placeholder="Secondary Genres (comma separated)" class="sosa-search-input">
-          <input type="text" id="logDescriptors" placeholder="Descriptors (comma separated)" class="sosa-search-input">
+          <!-- Primary Genres Tag Box -->
+          <div class="tag-field-row">
+            <div class="tag-input-box" id="genresTagBox">
+              <input type="text" id="logGenresInput" class="tag-inline-input" placeholder="Add Primary Genre..." autocomplete="off">
+            </div>
+            <div class="aero-autocomplete-menu" id="genresDropdown" style="display: none;"></div>
+          </div>
+          <input type="hidden" id="logGenres" value="">
+
+          <!-- Secondary Genres Tag Box -->
+          <div class="tag-field-row">
+            <div class="tag-input-box" id="secondaryGenresTagBox">
+              <input type="text" id="logSecondaryGenresInput" class="tag-inline-input" placeholder="Add Secondary Genre..." autocomplete="off">
+            </div>
+            <div class="aero-autocomplete-menu" id="secondaryGenresDropdown" style="display: none;"></div>
+          </div>
+          <input type="hidden" id="logSecondaryGenres" value="">
+
+          <!-- Descriptors Tag Box -->
+          <div class="tag-field-row">
+            <div class="tag-input-box" id="descriptorsTagBox">
+              <input type="text" id="logDescriptorsInput" class="tag-inline-input" placeholder="Add Descriptor..." autocomplete="off">
+            </div>
+            <div class="aero-autocomplete-menu" id="descriptorsDropdown" style="display: none;"></div>
+          </div>
+          <input type="hidden" id="logDescriptors" value="">
           <input type="text" id="logFavTracks" placeholder="Favorite Tracks (semicolon separated)" class="sosa-search-input">
           <input type="text" id="logReviewUrl" placeholder="Full Review URL (e.g. reviews/cork_tree.html)" class="sosa-search-input">
           <textarea id="logMemo" placeholder="Notes & Thoughts..." rows="3" class="sosa-search-input" style="resize: vertical;"></textarea>
@@ -197,6 +226,73 @@
           <button type="submit" class="review-action-btn primary" id="modalSubmitBtn">Save Spin</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Admin Comment Moderation Queue -->
+  <div id="commentQueueModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="modal-dialog aero-queue-modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="queueModalTitle">
+          <i class="bx bx-message-square-check" style="color: #10b981; vertical-align: middle; margin-right: 4px;"></i>
+          Comment Moderation Queue
+        </h3>
+        <button type="button" id="closeQueueModalBtn" class="modal-close-btn">&times;</button>
+      </div>
+      <div id="queueModalBody" class="aero-queue-modal-body">
+        <div class="queue-empty-state">No pending comments in queue.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Windows 7 Aero Admin Security / Passkey Dialog -->
+  <div id="adminAuthModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="window glass w7-modal-window w7-auth-window">
+      <div class="title-bar">
+        <div class="title-bar-text">
+          <img src="assets/images/homepics/CP070.ico" alt="" class="w7-title-icon" id="authModalTitleIcon">
+          <span id="authModalTitleText">SosaSpins Security</span>
+        </div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeAdminAuthModal" aria-label="Close" class="is-close"></button>
+        </div>
+      </div>
+      <div class="window-body w7-auth-body">
+        <form id="adminAuthForm" class="w7-auth-form" autocomplete="off">
+          <div class="w7-auth-header-row">
+            <img src="assets/images/homepics/CP070.ico" alt="Security Lock" class="w7-auth-hero-icon" id="authHeroIcon">
+            <div class="w7-auth-copy">
+              <div class="w7-auth-heading" id="authHeadingText">Enter Admin Passkey</div>
+              <div class="w7-auth-subtext" id="authSubText">Type your administrator passkey to unlock SosaSpins management controls.</div>
+            </div>
+          </div>
+
+          <div class="w7-pass-field-wrap" id="authPassFieldWrap">
+            <input
+              type="password"
+              id="adminPasskeyInput"
+              class="sosa-search-input w7-pass-input"
+              placeholder="••••••••"
+              autocomplete="current-password"
+            >
+            <button type="button" id="togglePassVisibilityBtn" class="w7-pass-eye-btn" title="Show / Hide Passkey" tabindex="-1">
+              <i class="bx bx-hide" id="togglePassEyeIcon"></i>
+            </button>
+          </div>
+
+          <div id="adminAuthError" class="w7-auth-error" style="display: none;">
+            <i class="bx bx-error-circle"></i>
+            <span>Access Denied: Incorrect passkey.</span>
+          </div>
+
+          <div class="w7-auth-footer">
+            <button type="button" id="cancelAdminAuthBtn" class="aero-btn-action w7-auth-btn-secondary">Cancel</button>
+            <button type="submit" id="submitAdminAuthBtn" class="aero-btn-action primary-save-btn w7-auth-btn-primary">
+              <i class="bx bx-lock-open-alt"></i> Unlock
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 
@@ -248,7 +344,7 @@
 			  crossorigin="anonymous"></script>
     <!-- Link to JS -->
     <button class="to-top"><i class='bx bx-up-arrow-alt' style="scale: 250%;"></i></button>
-    <script src="assets/js/archive.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="assets/js/archive.js"></script>
 </body>
 </html>
