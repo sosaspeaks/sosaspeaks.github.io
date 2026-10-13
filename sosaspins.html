@@ -4,14 +4,17 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE-edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SosaSpins</title>
-    <meta name="description" content="“How it is we have so much information, but know so little?”">
-    <link rel="icon" type="favicon" href="/assets/images/homepics/Sosa-Icon-V3.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/assets/images/homepics/apple-touch-icon.png?v=20260527" />
+    <title>SosaSpins — Music Listening Archive</title>
+    <meta name="description" content="SosaSpins — Personal music listening log, album ratings, track reviews, and audio archive.">
+    <meta property="og:title" content="SosaSpins — Music Listening Archive">
+    <meta property="og:description" content="When Sosa Speaks, we listen. Explore logged albums, ratings, favorite tracks, and listening notes.">
+    <meta property="og:image" content="https://sosaspeaks.org/assets/images/homepics/Sosa-Icon-V3.png">
+    <link rel="icon" type="image/png" href="assets/images/homepics/Sosa-Icon-V3.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/images/homepics/apple-touch-icon.png?v=20260527" />
     <meta name="apple-mobile-web-app-title" content="SosaSpeaks" />
-    <link rel="manifest" href="/assets/images/homepics/site.webmanifest?v=20260527" />
+    <link rel="manifest" href="assets/images/homepics/site.webmanifest?v=20260527" />
     <!-- Link to CSS -->
-    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/style.css">
     <!-- Box icons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 </head>
@@ -33,6 +36,9 @@
                     class="aero-lock-icon nav-custom-icon"
                   />
                 </button>
+                <a href="challenge.html" class="nav-custom-link" title="Listening Challenge">
+                    <img src="assets/images/spins/Disc010.ico" class="nav-custom-icon challenge-icon" alt="Listening Challenge">
+                </a>
                 <a href="about.html" class="nav-custom-link" title="About">
                     <img src="assets/images/homepics/msgsres_1.ico" class="nav-custom-icon msngr-icon" alt="About">
                 </a>
@@ -60,14 +66,17 @@
     <section class="spins-layout-grid container">
         <div class="spins-feed-column">
             <div class="feed-status-bar">
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <div class="feed-status-left" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
           <span class="status-heading" id="feedFilterLabel">All Spins</span>
             <button type="button" id="batchFetchRuntimesBtn" class="aero-command-btn admin-only" style="display: none;" title="Fetch runtimes for all existing spins missing them">
               <i class='bx bx-time'></i> Backfill Runtimes
             </button>
           <button type="button" id="clearFilterBtn" class="filter-item" style="display: none; padding: 2px 8px; font-size: 0.75rem;">✕ Clear</button>
         </div>
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <div class="feed-status-right" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <button type="button" id="spinsCoverFlowToggleBtn" class="filter-item aero-cf-toggle-btn" title="Switch between Timeline and iPod Cover Flow view" aria-pressed="false" style="font-weight: 600; display: inline-flex; align-items: center; gap: 5px;">
+            <i class='bx bx-carousel'></i> Cover Flow
+          </button>
           <button type="button" id="openQueueModalBtn" class="filter-item admin-only aero-queue-btn" style="display: none; font-weight: 600;" title="Review pending spin comments">
             <i class="bx bx-message-square-dots"></i> Comment Queue
             <span id="queueCountBadge" class="aero-queue-badge">0</span>
@@ -77,6 +86,37 @@
           </button>
         </div>
       </div>
+
+      <!-- iPod / iTunes Cover Flow 3D Carousel View for Spins -->
+      <section id="spinsCoverFlowWrapper" class="coverflow-wrapper spins-coverflow-wrapper" style="display: none;">
+        <div class="coverflow-stage" id="spinsCoverFlowStage" tabindex="0" aria-label="SosaSpins Cover Flow Carousel">
+          <div class="coverflow-track" id="spinsCoverFlowTrack"></div>
+          <div class="coverflow-floor-glow"></div>
+        </div>
+
+        <div class="coverflow-info-panel" id="spinsCfInfoPanel">
+          <div class="cf-album-title" id="spinsCfTitle">—</div>
+          <div class="cf-album-artist" id="spinsCfArtist">—</div>
+          <div class="cf-album-meta" id="spinsCfMeta"></div>
+          <div class="cf-fav-tracks-wrap" id="spinsCfFavTracks" style="display: none;"></div>
+          <div class="cf-memo-preview" id="spinsCfMemo" style="display: none;"></div>
+          <div class="cf-album-actions" id="spinsCfActions"></div>
+        </div>
+
+        <div class="coverflow-controls-bar">
+          <button type="button" class="cf-nav-btn" id="spinsCfPrevBtn" title="Newer Spin (←)" aria-label="Newer Spin">
+            <i class='bx bx-chevron-left'></i>
+          </button>
+          <div class="cf-scrubber-wrap">
+            <input type="range" id="spinsCfScrubber" class="cf-scrubber" min="0" max="0" value="0" aria-label="Scrub through spins">
+          </div>
+          <button type="button" class="cf-nav-btn" id="spinsCfNextBtn" title="Older Spin (→)" aria-label="Older Spin">
+            <i class='bx bx-chevron-right'></i>
+          </button>
+          <span class="cf-position-readout" id="spinsCfPositionReadout">0 / 0</span>
+        </div>
+      </section>
+
       <section id="timelineFeed" class="timeline-continuous-sheet">
         <div class="review-action-btn" style="padding: 2rem; text-align: center; color: var(--text-color); opacity: 0.7;">Loading archive...</div>
       </section>
@@ -88,7 +128,7 @@
         <input type="text" id="searchInput" placeholder="Search spins..." class="sosa-search-input">
       </div>
       <div class="sidebar-card aero-card">
-        <h3 class="sidebar-heading"></i> Top Artists</h3>
+        <h3 class="sidebar-heading">Top Artists</h3>
         <div id="topArtistsList" class="top-artists-container">
         </div>
       </div>
@@ -101,7 +141,7 @@
       </div>
       <!-- Rating Filter Widget -->
         <div class="sidebar-card aero-card">
-        <h3 class="sidebar-heading"></i> Ratings</h3>
+        <h3 class="sidebar-heading">Ratings</h3>
         <div id="ratingCloud" class="rating-filter-list">
             <!-- Dynamic rating rows injected here -->
         </div>
@@ -205,7 +245,7 @@
             <div class="aero-autocomplete-menu" id="descriptorsDropdown" style="display: none;"></div>
           </div>
           <input type="hidden" id="logDescriptors" value="">
-          <input type="text" id="logFavTracks" placeholder="Favorite Tracks (semicolon separated)" class="sosa-search-input">
+          <input type="text" id="logFavTracks" placeholder="Favorite Tracks (semicolon or comma separated, e.g. Song | https://link)" class="sosa-search-input">
           <input type="text" id="logReviewUrl" placeholder="Full Review URL (e.g. reviews/cork_tree.html)" class="sosa-search-input">
           <textarea id="logMemo" placeholder="Notes & Thoughts..." rows="3" class="sosa-search-input" style="resize: vertical;"></textarea>
         </div>

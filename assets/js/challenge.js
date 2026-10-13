@@ -45,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const submitAddAlbumBtn = document.getElementById("submitAddAlbumBtn");
   const artCandidatesContainer = document.getElementById("artCandidatesContainer");
   const artThumbnailsRow = document.getElementById("artThumbnailsRow");
-  const FALLBACK_PLACEHOLDER = "../assets/images/spins/placeholder.png";
+  const FALLBACK_PLACEHOLDER = "assets/images/spins/placeholder.png";
 
   let activeMonth = "october";
   let backlogEntries = [];
@@ -58,6 +58,44 @@ document.addEventListener("DOMContentLoaded", () => {
     "July", "August", "September", "October", "November", "December"
   ];
 
+  // Header Shadow & Dark Mode Toggle
+  const header = document.querySelector("header") || document.getElementById("siteHeader");
+  if (header) {
+    window.addEventListener("scroll", () => {
+      header.classList.toggle("shadow", window.scrollY > 0);
+    });
+  }
+
+  const themeToggleBtn = document.querySelector(".theme-toggle");
+  if (themeToggleBtn) {
+    let darkMode = localStorage.getItem("darkMode");
+
+    const enableDarkMode = () => {
+      document.body.classList.add("dark-mode");
+      themeToggleBtn.classList.remove("bx-moon");
+      themeToggleBtn.classList.add("bx-sun");
+      localStorage.setItem("darkMode", "enabled");
+    };
+
+    const disableDarkMode = () => {
+      document.body.classList.remove("dark-mode");
+      themeToggleBtn.classList.remove("bx-sun");
+      themeToggleBtn.classList.add("bx-moon");
+      localStorage.setItem("darkMode", null);
+    };
+
+    if (darkMode === "enabled") enableDarkMode();
+
+    themeToggleBtn.addEventListener("click", () => {
+      darkMode = localStorage.getItem("darkMode");
+      if (darkMode !== "enabled") {
+        enableDarkMode();
+      } else {
+        disableDarkMode();
+      }
+    });
+  }
+
   function safeSplit(val) {
     if (!val) return [];
     if (Array.isArray(val)) return val;
@@ -69,6 +107,29 @@ document.addEventListener("DOMContentLoaded", () => {
     if (Array.isArray(val)) return val.map(x => String(x).trim()).filter(Boolean);
     if (typeof val === "string") return val.split(",").map(x => x.trim()).filter(Boolean);
     return [String(val).trim()];
+  }
+
+  function parseFavTracks(raw) {
+    if (!raw) return [];
+    const list = Array.isArray(raw) ? raw : [String(raw)];
+    const out = [];
+    list.forEach(item => {
+      const str = String(item || "").trim();
+      if (!str) return;
+      if (str.includes("|")) {
+        const parts = str.split(/\s*;\s*|\s*,\s*(?=[^;|]+?\|\s*https?:\/\/)/i);
+        parts.forEach(p => {
+          const clean = p.trim();
+          if (clean) out.push(clean);
+        });
+      } else {
+        str.split(/\s*[;,]\s*/).forEach(p => {
+          const clean = p.trim();
+          if (clean) out.push(clean);
+        });
+      }
+    });
+    return out;
   }
 
   function getStarString(rating) {
@@ -541,6 +602,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!isAdmin && addModal) {
       addModal.style.display = "none";
     }
+    if (typeof updateCoverFlowPositions === "function") {
+      updateCoverFlowPositions();
+    }
   }
 
   function closeAuthDialog(result = false) {
@@ -738,7 +802,7 @@ document.addEventListener("DOMContentLoaded", () => {
       );
       if (spinMatch && spinMatch.cover_url) {
         let sc = spinMatch.cover_url;
-        if (sc.startsWith("assets/")) sc = "../" + sc;
+        if (sc.startsWith("../assets/")) sc = sc.replace(/^\.\.\//, "");
         candidateCovers.push({ url: sc, source: "Your Spins" });
       }
 
@@ -849,8 +913,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (match && match.cover_url) {
         let spinCover = match.cover_url;
-        if (spinCover.startsWith("assets/")) spinCover = "../" + spinCover;
-        addCoverUrl.value = match.cover_url;
+        if (spinCover.startsWith("../assets/")) spinCover = spinCover.replace(/^\.\.\//, "");
+        addCoverUrl.value = spinCover;
         addPreviewImg.src = spinCover;
         alert(`Loaded cover from existing spin!`);
       } else {
@@ -1004,8 +1068,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       if (match) {
-        let resolvedCover = match.cover_url || album.cover_url || "../assets/images/spins/placeholder.png";
-        if (resolvedCover.startsWith("assets/")) resolvedCover = "../" + resolvedCover;
+        let resolvedCover = match.cover_url || album.cover_url || FALLBACK_PLACEHOLDER;
+        if (resolvedCover.startsWith("../assets/")) resolvedCover = resolvedCover.replace(/^\.\.\//, "");
 
         const primaryGenres = safeToArray(match.genres);
         const secondaryGenres = safeToArray(match.secondary_genres);
@@ -1051,7 +1115,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         let favTracksHtml = "";
-        const favTracksList = safeToArray(match.fav_tracks);
+        const favTracksList = parseFavTracks(match.fav_tracks);
         if (favTracksList.length) {
           const cleanedTracks = favTracksList.map(t => {
             const parts = t.split("|");
@@ -1114,8 +1178,8 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         `;
       } else {
-        let unloggedCover = album.cover_url || "../assets/images/spins/placeholder.png";
-        if (unloggedCover.startsWith("assets/")) unloggedCover = "../" + unloggedCover;
+        let unloggedCover = album.cover_url || FALLBACK_PLACEHOLDER;
+        if (unloggedCover.startsWith("../assets/")) unloggedCover = unloggedCover.replace(/^\.\.\//, "");
 
         const primaryGenres = safeToArray(album.genres);
         const secondaryGenres = safeToArray(album.secondary_genres);
@@ -1159,12 +1223,14 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
 
             <p style="color: var(--text-color, #334155); opacity: 0.85; margin: 0.75rem 0 0.85rem; font-size: 0.88rem;">
-              You haven't logged this album on <strong>SosaSpins</strong> yet.
+              ${isAdmin ? "You haven't logged this album on <strong>SosaSpins</strong> yet." : "Sosa hasn't logged this album on <strong>SosaSpins</strong> yet."}
             </p>
 
-            <button type="button" class="review-action-btn" onclick="importBacklogToSpin(${album.id})" style="border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;">
-              <i class='bx bx-plus-circle'></i> Log this Spin ➔
-            </button>
+            ${isAdmin ? `
+              <button type="button" class="review-action-btn" onclick="importBacklogToSpin(${album.id})" style="border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;">
+                <i class='bx bx-plus-circle'></i> Log this Spin ➔
+              </button>
+            ` : ""}
           </div>
         `;
       }
@@ -1228,6 +1294,144 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.target === addModal) addModal.style.display = "none";
   });
 
+  // View Mode Toggle (7x7 Grid vs iPod Cover Flow)
+  const viewModeToggleBtn = document.getElementById("viewModeToggleBtn");
+  const coverFlowWrapper = document.getElementById("coverFlowWrapper");
+  const coverFlowStage = document.getElementById("coverFlowStage");
+  const coverFlowTrack = document.getElementById("coverFlowTrack");
+  const cfAlbumTitle = document.getElementById("cfAlbumTitle");
+  const cfAlbumArtist = document.getElementById("cfAlbumArtist");
+  const cfAlbumMeta = document.getElementById("cfAlbumMeta");
+  const cfAlbumActions = document.getElementById("cfAlbumActions");
+  const cfPrevBtn = document.getElementById("cfPrevBtn");
+  const cfNextBtn = document.getElementById("cfNextBtn");
+  const cfScrubber = document.getElementById("cfScrubber");
+  const cfPositionReadout = document.getElementById("cfPositionReadout");
+
+  let isCoverFlowView = false;
+  let coverFlowIndex = 0;
+  let currentMonthItems = [];
+
+  if (viewModeToggleBtn) {
+    viewModeToggleBtn.addEventListener("click", () => {
+      isCoverFlowView = !isCoverFlowView;
+      viewModeToggleBtn.classList.toggle("active-view-toggle", isCoverFlowView);
+      viewModeToggleBtn.setAttribute("aria-pressed", isCoverFlowView ? "true" : "false");
+
+      if (isCoverFlowView) {
+        viewModeToggleBtn.innerHTML = `<i class='bx bx-grid-alt'></i> Grid View`;
+        if (exportWrapper) exportWrapper.style.setProperty("display", "none", "important");
+        if (gridSizeBtn) gridSizeBtn.style.display = "none";
+        if (coverFlowWrapper) coverFlowWrapper.style.display = "flex";
+        updateCoverFlowPositions();
+        if (coverFlowStage) coverFlowStage.focus({ preventScroll: true });
+      } else {
+        viewModeToggleBtn.innerHTML = `<i class='bx bx-carousel'></i> Cover Flow`;
+        if (coverFlowWrapper) coverFlowWrapper.style.display = "none";
+        if (exportWrapper) exportWrapper.style.removeProperty("display");
+        if (gridSizeBtn) gridSizeBtn.style.display = "";
+        if (statusBarStatus) {
+          statusBarStatus.textContent = currentMonthItems.length === 49 ? "Month Full" : "Ready";
+        }
+      }
+    });
+  }
+
+  function setCoverFlowIndex(nextIdx) {
+    if (!currentMonthItems.length) return;
+    const clamped = Math.max(0, Math.min(currentMonthItems.length - 1, nextIdx));
+    if (clamped === coverFlowIndex && coverFlowTrack && coverFlowTrack.children.length > 0) {
+      updateCoverFlowPositions();
+      return;
+    }
+    coverFlowIndex = clamped;
+    updateCoverFlowPositions();
+  }
+
+  if (cfPrevBtn) {
+    cfPrevBtn.addEventListener("click", () => setCoverFlowIndex(coverFlowIndex - 1));
+  }
+
+  if (cfNextBtn) {
+    cfNextBtn.addEventListener("click", () => setCoverFlowIndex(coverFlowIndex + 1));
+  }
+
+  if (cfScrubber) {
+    cfScrubber.addEventListener("input", (e) => {
+      setCoverFlowIndex(parseInt(e.target.value, 10) || 0);
+    });
+  }
+
+  if (coverFlowStage) {
+    let wheelCooldown = false;
+    coverFlowStage.addEventListener("wheel", (e) => {
+      if (!isCoverFlowView || !currentMonthItems.length) return;
+      const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      if (Math.abs(delta) < 8) return;
+      e.preventDefault();
+      if (wheelCooldown) return;
+      wheelCooldown = true;
+      setCoverFlowIndex(coverFlowIndex + (delta > 0 ? 1 : -1));
+      setTimeout(() => { wheelCooldown = false; }, 75);
+    }, { passive: false });
+
+    let touchStartX = null;
+    let touchStartIdx = 0;
+    coverFlowStage.addEventListener("touchstart", (e) => {
+      if (!e.touches || !e.touches.length) return;
+      touchStartX = e.touches[0].clientX;
+      touchStartIdx = coverFlowIndex;
+    }, { passive: true });
+
+    coverFlowStage.addEventListener("touchmove", (e) => {
+      if (touchStartX === null || !e.touches || !e.touches.length) return;
+      const dx = e.touches[0].clientX - touchStartX;
+      const stepOffset = Math.round(-dx / 55);
+      setCoverFlowIndex(touchStartIdx + stepOffset);
+    }, { passive: true });
+
+    coverFlowStage.addEventListener("touchend", () => {
+      touchStartX = null;
+    }, { passive: true });
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (!isCoverFlowView || !currentMonthItems.length) return;
+    if ((detailModal && detailModal.style.display !== "none") ||
+        (addModal && addModal.style.display !== "none") ||
+        (adminAuthModal && adminAuthModal.style.display !== "none")) {
+      return;
+    }
+    const tag = (document.activeElement && document.activeElement.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea" || tag === "select") {
+      if (document.activeElement !== cfScrubber) return;
+    }
+
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      setCoverFlowIndex(coverFlowIndex - 1);
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      setCoverFlowIndex(coverFlowIndex + 1);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      setCoverFlowIndex(0);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      setCoverFlowIndex(currentMonthItems.length - 1);
+    } else if (e.key === "Enter") {
+      const activeAlbum = currentMonthItems[coverFlowIndex];
+      if (activeAlbum) {
+        e.preventDefault();
+        openAlbumDetail(activeAlbum.id);
+      }
+    }
+  });
+
+  window.addEventListener("resize", () => {
+    if (isCoverFlowView) updateCoverFlowPositions();
+  });
+
   // Grid Sizing
   const sizeModes = [
     { name: "Standard", className: "size-standard" },
@@ -1258,6 +1462,11 @@ document.addEventListener("DOMContentLoaded", () => {
       exportImageBtn.innerHTML = `<i class='bx bx-loader-alt bx-spin'></i> Rendering...`;
       exportImageBtn.disabled = true;
 
+      const wasHidden = exportWrapper && exportWrapper.style.display === "none";
+      if (wasHidden) {
+        exportWrapper.style.removeProperty("display");
+      }
+
       try {
         document.body.classList.remove("is-admin");
 
@@ -1280,6 +1489,9 @@ document.addEventListener("DOMContentLoaded", () => {
         console.error("Export error:", err);
         alert("Failed to render picture: " + err.message);
       } finally {
+        if (wasHidden && exportWrapper) {
+          exportWrapper.style.setProperty("display", "none", "important");
+        }
         if (isAdmin) document.body.classList.add("is-admin");
         exportImageBtn.innerHTML = `<i class='bx bx-camera'></i> Export Image`;
         exportImageBtn.disabled = false;
@@ -1333,8 +1545,221 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  function renderCoverFlow(list) {
+    if (!coverFlowTrack) return;
+
+    if (list.length === 0) {
+      coverFlowTrack.innerHTML = `<div class="cf-empty-state">No albums added for this month yet.</div>`;
+      if (cfAlbumTitle) cfAlbumTitle.textContent = "No Albums Added Yet";
+      if (cfAlbumArtist) cfAlbumArtist.textContent = "";
+      if (cfAlbumMeta) cfAlbumMeta.innerHTML = "";
+      if (cfAlbumActions) cfAlbumActions.innerHTML = "";
+      if (cfScrubber) {
+        cfScrubber.min = 0;
+        cfScrubber.max = 0;
+        cfScrubber.value = 0;
+        cfScrubber.disabled = true;
+      }
+      if (cfPositionReadout) cfPositionReadout.textContent = "0 / 0";
+      return;
+    }
+
+    if (coverFlowIndex >= list.length) {
+      coverFlowIndex = Math.max(0, Math.floor(list.length / 2));
+    }
+
+    coverFlowTrack.innerHTML = list.map((album, idx) => {
+      const match = loggedSpins.find(s =>
+        s.artist && album.artist && s.title && album.title &&
+        s.artist.toLowerCase().trim() === album.artist.toLowerCase().trim() &&
+        s.title.toLowerCase().trim() === album.title.toLowerCase().trim()
+      );
+
+      const isDone = !!match;
+      let coverSrc = (isDone && match.cover_url) ? match.cover_url : (album.cover_url || FALLBACK_PLACEHOLDER);
+      if (coverSrc.startsWith("../assets/")) coverSrc = coverSrc.replace(/^\.\.\//, "");
+
+      let ratingBadgeHtml = "";
+      if (isDone && match.rating !== null && match.rating !== undefined && match.rating !== "") {
+        const rNum = parseFloat(match.rating);
+        if (!isNaN(rNum)) {
+          ratingBadgeHtml = `<span class="pill-rating">${rNum.toFixed(1)}<span class="pill-star">★</span></span>`;
+        }
+      }
+
+      const safeReflectUrl = coverSrc.replace(/'/g, "\\'");
+
+      return `
+        <div class="cf-card ${isDone ? 'is-completed' : ''}"
+             data-cf-index="${idx}"
+             data-id="${album.id}"
+             title="${album.artist} — ${album.title}">
+          <div class="cf-card-sleeve">
+            <img src="${coverSrc}" alt="${album.title}" class="cf-card-art" loading="lazy">
+            <div class="cf-card-gloss"></div>
+            ${isDone ? `
+              <div class="aero-completed-pill">
+                <svg viewBox="0 0 16 16" class="pill-check-icon" aria-hidden="true">
+                  <path d="M2.75 8.25L6.25 11.75L13.25 4.25"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"/>
+                </svg>
+                ${ratingBadgeHtml}
+              </div>
+            ` : ''}
+          </div>
+          <div class="cf-card-reflection" style="background-image: url('${safeReflectUrl}');"></div>
+        </div>
+      `;
+    }).join("");
+
+    coverFlowTrack.querySelectorAll(".cf-card").forEach(card => {
+      card.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const clickedIdx = parseInt(card.getAttribute("data-cf-index"), 10);
+        const albumId = parseInt(card.getAttribute("data-id"), 10);
+        if (clickedIdx === coverFlowIndex) {
+          if (albumId) openAlbumDetail(albumId);
+        } else {
+          setCoverFlowIndex(clickedIdx);
+        }
+      });
+    });
+
+    updateCoverFlowPositions();
+  }
+
+  function updateCoverFlowPositions() {
+    if (!coverFlowTrack || !currentMonthItems.length) return;
+
+    const cards = coverFlowTrack.querySelectorAll(".cf-card");
+    const isMobile = window.innerWidth <= 640;
+    const baseOffset = isMobile ? 96 : 152;
+    const stepX = isMobile ? 34 : 52;
+
+    cards.forEach((card, idx) => {
+      const offset = idx - coverFlowIndex;
+      const absOffset = Math.abs(offset);
+
+      card.classList.toggle("is-active-card", offset === 0);
+
+      let tx = 0;
+      let tz = 0;
+      let ry = 0;
+      let scale = 1;
+      let opacity = 1;
+
+      if (offset === 0) {
+        tx = 0;
+        tz = isMobile ? 75 : 115;
+        ry = 0;
+        scale = 1.05;
+        opacity = 1;
+      } else if (offset < 0) {
+        tx = -baseOffset + (offset + 1) * stepX;
+        tz = -45 - absOffset * 20;
+        ry = 60;
+        scale = Math.max(0.72, 0.94 - absOffset * 0.025);
+        opacity = absOffset > 8 ? 0 : Math.max(0.16, 1 - (absOffset - 1) * 0.11);
+      } else {
+        tx = baseOffset + (offset - 1) * stepX;
+        tz = -45 - absOffset * 20;
+        ry = -60;
+        scale = Math.max(0.72, 0.94 - absOffset * 0.025);
+        opacity = absOffset > 8 ? 0 : Math.max(0.16, 1 - (absOffset - 1) * 0.11);
+      }
+
+      card.style.transform = `translate3d(${tx}px, 0px, ${tz}px) rotateY(${ry}deg) scale(${scale})`;
+      card.style.zIndex = String(100 - absOffset);
+      card.style.opacity = String(opacity);
+      card.style.pointerEvents = absOffset > 8 ? "none" : "auto";
+    });
+
+    const activeAlbum = currentMonthItems[coverFlowIndex];
+    if (!activeAlbum) return;
+
+    const match = loggedSpins.find(s =>
+      s.artist && activeAlbum.artist && s.title && activeAlbum.title &&
+      s.artist.toLowerCase().trim() === activeAlbum.artist.toLowerCase().trim() &&
+      s.title.toLowerCase().trim() === activeAlbum.title.toLowerCase().trim()
+    );
+
+    const releaseYear = (match && match.year) ? match.year : (activeAlbum.release_year || "");
+    const yearSuffix = releaseYear ? ` <span class="cf-year">(${releaseYear})</span>` : "";
+
+    if (cfAlbumTitle) {
+      cfAlbumTitle.innerHTML = `${activeAlbum.title}${yearSuffix}`;
+    }
+    if (cfAlbumArtist) {
+      cfAlbumArtist.textContent = activeAlbum.artist || "";
+    }
+
+    if (cfAlbumMeta) {
+      const metaPills = [];
+      if (match) {
+        const rNum = parseFloat(match.rating);
+        const ratingStr = !isNaN(rNum) ? ` • <span class="cf-gold-star">★ ${rNum.toFixed(1)}</span>` : "";
+        metaPills.push(`<span class="cf-status-badge completed"><i class='bx bx-check-circle'></i> Completed${ratingStr}</span>`);
+      } else {
+        metaPills.push(`<span class="cf-status-badge unlistened"><i class='bx bx-time-five'></i> In Backlog${activeAlbum.runtime ? ` • ${activeAlbum.runtime}` : ""}</span>`);
+      }
+
+      const genres = safeToArray((match && match.genres && match.genres.length) ? match.genres : activeAlbum.genres).slice(0, 3);
+      genres.forEach(g => {
+        metaPills.push(`<span class="cf-genre-chip">${g}</span>`);
+      });
+
+      cfAlbumMeta.innerHTML = metaPills.join("");
+    }
+
+    if (cfAlbumActions) {
+      let actionsHtml = `
+        <button type="button" class="cf-action-btn primary" onclick="openAlbumDetail(${activeAlbum.id})">
+          <i class='bx bx-album'></i> View Details
+        </button>
+      `;
+      if (isAdmin) {
+        if (!match) {
+          actionsHtml += `
+            <button type="button" class="cf-action-btn emerald" onclick="importBacklogToSpin(${activeAlbum.id})">
+              <i class='bx bx-plus-circle'></i> Log Spin
+            </button>
+          `;
+        }
+        actionsHtml += `
+          <button type="button" class="cf-action-btn" onclick="openEditModal(event, ${activeAlbum.id})">
+            <i class='bx bx-edit-alt'></i> Edit
+          </button>
+        `;
+      }
+      cfAlbumActions.innerHTML = actionsHtml;
+    }
+
+    if (cfScrubber) {
+      cfScrubber.disabled = currentMonthItems.length <= 1;
+      cfScrubber.min = 0;
+      cfScrubber.max = Math.max(0, currentMonthItems.length - 1);
+      cfScrubber.value = coverFlowIndex;
+    }
+
+    if (cfPrevBtn) cfPrevBtn.disabled = coverFlowIndex <= 0;
+    if (cfNextBtn) cfNextBtn.disabled = coverFlowIndex >= currentMonthItems.length - 1;
+
+    if (cfPositionReadout) {
+      cfPositionReadout.textContent = `${coverFlowIndex + 1} / ${currentMonthItems.length}`;
+    }
+
+    if (isCoverFlowView && statusBarStatus) {
+      statusBarStatus.textContent = `${activeAlbum.artist} — ${activeAlbum.title}`;
+    }
+  }
+
   function renderGrid() {
     const list = backlogEntries.filter(item => (item.month || "").toLowerCase() === activeMonth).slice(0, 49);
+    currentMonthItems = list;
     let completedCount = 0;
 
     const displayMonth = activeMonth.charAt(0).toUpperCase() + activeMonth.slice(1);
@@ -1364,9 +1789,11 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    if (statusBarStatus) {
+    if (statusBarStatus && !isCoverFlowView) {
       statusBarStatus.textContent = list.length === 49 ? "Month Full" : "Ready";
     }
+
+    renderCoverFlow(list);
 
     if (list.length === 0) {
       topsterGrid.innerHTML = `<div class="grid-loader">No albums added for ${displayMonth} yet.</div>`;
@@ -1382,7 +1809,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const isDone = !!match;
       let coverSrc = (isDone && match.cover_url) ? match.cover_url : (album.cover_url || FALLBACK_PLACEHOLDER);
-      if (coverSrc.startsWith("assets/")) coverSrc = "../" + coverSrc;
+      if (coverSrc.startsWith("../assets/")) coverSrc = coverSrc.replace(/^\.\.\//, "");
 
       let ratingBadgeHtml = "";
       if (isDone && match.rating !== null && match.rating !== undefined && match.rating !== "") {
@@ -1522,7 +1949,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.addDescriptorsManager.setTags(album.descriptors);
 
     let displayCover = album.cover_url || FALLBACK_PLACEHOLDER;
-    if (displayCover.startsWith("assets/")) displayCover = "../" + displayCover;
+    if (displayCover.startsWith("../assets/")) displayCover = displayCover.replace(/^\.\.\//, "");
     if (addPreviewImg) addPreviewImg.src = displayCover;
 
     if (submitAddAlbumBtn) submitAddAlbumBtn.textContent = "Update Album";

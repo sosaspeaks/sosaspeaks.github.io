@@ -5,8 +5,12 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Listening Challenge — SosaSpins</title>
-  <link rel="icon" type="image/png" href="../assets/images/homepics/Sosa-Icon-V3.png">
-  <link rel="stylesheet" href="/assets/css/challenge.css">
+  <meta name="description" content="Sosa's 7×7 Monthly Listening Challenge (49 Albums) on SosaSpins.">
+  <meta property="og:title" content="Listening Challenge — SosaSpins">
+  <meta property="og:description" content="Explore Sosa's 7×7 monthly album listening challenge backlog and completed spins.">
+  <meta property="og:image" content="https://sosaspeaks.org/assets/images/homepics/Sosa-Icon-V3.png">
+  <link rel="icon" type="image/png" href="assets/images/homepics/Sosa-Icon-V3.png">
+  <link rel="stylesheet" href="assets/css/challenge.css">
   <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
 </head>
 <body>
@@ -26,6 +30,9 @@
                     class="aero-lock-icon nav-custom-icon"
                   />
                 </button>
+                <a href="sosaspins.html" class="nav-custom-link" title="SosaSpins">
+                    <img src="assets/images/homepics/Folder203.ico" class="nav-custom-icon music-icon" alt="SosaSpins">
+                </a>
                 <a href="about.html" class="nav-custom-link" title="About">
                     <img src="assets/images/homepics/msgsres_1.ico" class="nav-custom-icon msngr-icon" alt="About">
                 </a>
@@ -88,6 +95,9 @@
       <!-- Attached Vista Command Bar / Controls Bar -->
       <div class="window-command-bar">
         <div class="command-group-left">
+          <button type="button" id="viewModeToggleBtn" class="aero-command-btn view-toggle-btn" title="Switch between 7×7 Grid and iPod Cover Flow" aria-pressed="false">
+            <i class='bx bx-carousel'></i> Cover Flow
+          </button>
           <button type="button" id="gridSizeBtn" class="aero-command-btn" title="Cycle grid layout size">
             <i class='bx bx-grid-alt'></i> Size: Standard
           </button>
@@ -106,7 +116,7 @@
         </div>
       </div>
 
-      <!-- Window Body (Recessed Clean Background for the 7x7 Grid) -->
+      <!-- Window Body (Recessed Clean Background for the 7x7 Grid & Cover Flow) -->
       <div class="window-body grid-window-body">
         <div id="exportWrapper" class="export-capture-zone">
           <div class="topster-grid size-standard" id="topsterGrid">
@@ -115,6 +125,34 @@
               <span class="w7-loading-text">Connecting to SosaSpins database...</span>
               <div class="progress-bar-track marquee" role="progressbar"></div>
             </div>
+          </div>
+        </div>
+
+        <!-- iPod / iTunes Cover Flow 3D Carousel View -->
+        <div id="coverFlowWrapper" class="coverflow-wrapper" style="display: none;">
+          <div class="coverflow-stage" id="coverFlowStage" tabindex="0" aria-label="Album Cover Flow Carousel">
+            <div class="coverflow-track" id="coverFlowTrack"></div>
+            <div class="coverflow-floor-glow"></div>
+          </div>
+
+          <div class="coverflow-info-panel" id="coverFlowInfoPanel">
+            <div class="cf-album-title" id="cfAlbumTitle">—</div>
+            <div class="cf-album-artist" id="cfAlbumArtist">—</div>
+            <div class="cf-album-meta" id="cfAlbumMeta"></div>
+            <div class="cf-album-actions" id="cfAlbumActions"></div>
+          </div>
+
+          <div class="coverflow-controls-bar">
+            <button type="button" class="cf-nav-btn" id="cfPrevBtn" title="Previous Album (←)" aria-label="Previous Album">
+              <i class='bx bx-chevron-left'></i>
+            </button>
+            <div class="cf-scrubber-wrap">
+              <input type="range" id="cfScrubber" class="cf-scrubber" min="0" max="0" value="0" aria-label="Scrub through albums">
+            </div>
+            <button type="button" class="cf-nav-btn" id="cfNextBtn" title="Next Album (→)" aria-label="Next Album">
+              <i class='bx bx-chevron-right'></i>
+            </button>
+            <span class="cf-position-readout" id="cfPositionReadout">0 / 0</span>
           </div>
         </div>
       </div>
@@ -159,9 +197,9 @@
           <div class="w7-preview-box">
               <img
                 id="addPreviewImg"
-                src="../assets/images/spins/placeholder.png"
+                src="assets/images/spins/placeholder.png"
                 alt="Artwork Preview"
-                onerror="this.onerror=null; this.src='../assets/images/spins/placeholder.png';">
+                onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
             </div>
           <div class="add-album-inputs-group">
           <input type="text" id="addArtist" class="sosa-search-input" placeholder="Artist" required>
@@ -282,8 +320,20 @@
   </div>
 
   <footer class="footer container">
-    <p class="footer-copyright">&#169; Sosa Speaks / SosaSpins, All rights reserved.</p>
-  </footer>
+        <p class="footer-copyright">
+            &#169; SosaSpeaks. All non-quoted material is the original writing of SosaSpeaks and its authors.
+        </p>
+
+        <p class="footer-links">
+            <a href="https://github.com/sosaspeaks/sosaspeaks.github.io" target="_blank" rel="noopener">
+                <i class='bx bxl-github'></i> Source code via GitHub
+            </a>
+            <span class="footer-divider">&middot;</span>
+            <a href="mailto:sosa@sosaspeaks.org">
+                <i class='bx bx-envelope'></i> sosa@sosaspeaks.org
+            </a>
+        </p>
+    </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="assets/js/challenge.js"></script>

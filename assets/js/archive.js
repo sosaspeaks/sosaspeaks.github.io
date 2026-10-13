@@ -1029,11 +1029,29 @@ function getDominantColorFromImg(imgUrl) {
     if (modalSubmitBtn) modalSubmitBtn.textContent = isEdit ? "Update Spin" : "Save Spin";
   }
 
+  function parseFavTracks(raw) {
+    if (!raw) return [];
+    const items = Array.isArray(raw) ? raw : [String(raw)];
+    const result = [];
+    items.forEach(entry => {
+      const str = String(entry || "").trim();
+      if (!str) return;
+      const parts = str.includes("|")
+        ? str.split(/\s*;\s*|\s*,\s*(?=[^;|]+?\|\s*https?:\/\/)/i)
+        : str.split(/\s*[;,]\s*/);
+      parts.forEach(p => {
+        const cleaned = p.trim();
+        if (cleaned) result.push(cleaned);
+      });
+    });
+    return result;
+  }
+
   function closeModal() {
     if (modalOverlay) modalOverlay.style.display = "none";
     if (spinForm) spinForm.reset();
     editingIndex = null;
-    if (previewImg) previewImg.src = "placeholder.png";
+    if (previewImg) previewImg.src = "assets/images/spins/placeholder.png";
     if (downloadArtBtn) downloadArtBtn.style.display = "none";
     if (artCandidatesContainer) artCandidatesContainer.style.display = "none";
     if (logSecondaryGenres) logSecondaryGenres.value = "";
@@ -1228,7 +1246,6 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
   }
 }
 
-  await loadSpins();
   // Boxicons Star Rating Generator
   function getStarString(rating) {
     if (rating === null || rating === undefined || rating === "") return "";
@@ -1358,9 +1375,399 @@ window.closeMiniPlayer = function() {
   if (wrap) wrap.innerHTML = "";
 };
   // ============================================================
+  // SOSASPINS IPOD / ITUNES COVER FLOW 3D CAROUSEL
+  // ============================================================
+  const spinsCoverFlowToggleBtn = document.getElementById("spinsCoverFlowToggleBtn");
+  const spinsCoverFlowWrapper = document.getElementById("spinsCoverFlowWrapper");
+  const spinsCoverFlowStage = document.getElementById("spinsCoverFlowStage");
+  const spinsCoverFlowTrack = document.getElementById("spinsCoverFlowTrack");
+  const spinsCfTitle = document.getElementById("spinsCfTitle");
+  const spinsCfArtist = document.getElementById("spinsCfArtist");
+  const spinsCfMeta = document.getElementById("spinsCfMeta");
+  const spinsCfFavTracks = document.getElementById("spinsCfFavTracks");
+  const spinsCfMemo = document.getElementById("spinsCfMemo");
+  const spinsCfActions = document.getElementById("spinsCfActions");
+  const spinsCfPrevBtn = document.getElementById("spinsCfPrevBtn");
+  const spinsCfNextBtn = document.getElementById("spinsCfNextBtn");
+  const spinsCfScrubber = document.getElementById("spinsCfScrubber");
+  const spinsCfPositionReadout = document.getElementById("spinsCfPositionReadout");
+
+  let isSpinsCoverFlow = false;
+  let spinsCfIndex = 0;
+  let currentCfSpins = [];
+
+  function setSpinsCoverFlowMode(active) {
+    isSpinsCoverFlow = active;
+    if (spinsCoverFlowToggleBtn) {
+      spinsCoverFlowToggleBtn.classList.toggle("active-filter", isSpinsCoverFlow);
+      spinsCoverFlowToggleBtn.setAttribute("aria-pressed", isSpinsCoverFlow ? "true" : "false");
+      spinsCoverFlowToggleBtn.innerHTML = isSpinsCoverFlow
+        ? `<i class='bx bx-list-ul'></i> Timeline`
+        : `<i class='bx bx-carousel'></i> Cover Flow`;
+    }
+    if (spinsCoverFlowWrapper) {
+      spinsCoverFlowWrapper.style.display = isSpinsCoverFlow ? "flex" : "none";
+    }
+    if (feed) {
+      feed.style.display = isSpinsCoverFlow ? "none" : "";
+    }
+    if (isSpinsCoverFlow) {
+      updateSpinsCoverFlowPositions();
+      if (spinsCoverFlowStage) spinsCoverFlowStage.focus({ preventScroll: true });
+    }
+  }
+
+  if (spinsCoverFlowToggleBtn) {
+    spinsCoverFlowToggleBtn.addEventListener("click", () => {
+      if (!isSpinsCoverFlow) {
+        spinsCfIndex = 0; // Always start at most recent spin when opening Cover Flow
+      }
+      setSpinsCoverFlowMode(!isSpinsCoverFlow);
+    });
+  }
+
+  function setSpinsCfIndex(nextIdx) {
+    if (!currentCfSpins.length) return;
+    const clamped = Math.max(0, Math.min(currentCfSpins.length - 1, nextIdx));
+    spinsCfIndex = clamped;
+    updateSpinsCoverFlowPositions();
+  }
+
+  window.jumpToSpinInTimeline = function(spinId) {
+    setSpinsCoverFlowMode(false);
+    setTimeout(() => {
+      const row = document.getElementById(`spin-row-${spinId}`);
+      if (row) {
+        row.scrollIntoView({ behavior: "smooth", block: "center" });
+        row.classList.add("cf-jump-highlight");
+        setTimeout(() => row.classList.remove("cf-jump-highlight"), 1800);
+      }
+    }, 60);
+  };
+
+  if (spinsCfPrevBtn) {
+    spinsCfPrevBtn.addEventListener("click", () => setSpinsCfIndex(spinsCfIndex - 1));
+  }
+  if (spinsCfNextBtn) {
+    spinsCfNextBtn.addEventListener("click", () => setSpinsCfIndex(spinsCfIndex + 1));
+  }
+  if (spinsCfScrubber) {
+    spinsCfScrubber.addEventListener("input", (e) => {
+      setSpinsCfIndex(parseInt(e.target.value, 10) || 0);
+    });
+  }
+
+  if (spinsCoverFlowStage) {
+    let wheelCooldown = false;
+    spinsCoverFlowStage.addEventListener("wheel", (e) => {
+      if (!isSpinsCoverFlow || !currentCfSpins.length) return;
+      const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      if (Math.abs(delta) < 8) return;
+      e.preventDefault();
+      if (wheelCooldown) return;
+      wheelCooldown = true;
+      setSpinsCfIndex(spinsCfIndex + (delta > 0 ? 1 : -1));
+      setTimeout(() => { wheelCooldown = false; }, 75);
+    }, { passive: false });
+
+    let touchStartX = null;
+    let touchStartIdx = 0;
+    spinsCoverFlowStage.addEventListener("touchstart", (e) => {
+      if (!e.touches || !e.touches.length) return;
+      touchStartX = e.touches[0].clientX;
+      touchStartIdx = spinsCfIndex;
+    }, { passive: true });
+
+    spinsCoverFlowStage.addEventListener("touchmove", (e) => {
+      if (touchStartX === null || !e.touches || !e.touches.length) return;
+      const dx = e.touches[0].clientX - touchStartX;
+      const stepOffset = Math.round(-dx / 55);
+      setSpinsCfIndex(touchStartIdx + stepOffset);
+    }, { passive: true });
+
+    spinsCoverFlowStage.addEventListener("touchend", () => {
+      touchStartX = null;
+    }, { passive: true });
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (!isSpinsCoverFlow || !currentCfSpins.length) return;
+    if ((modalOverlay && modalOverlay.style.display !== "none") ||
+        (commentQueueModal && commentQueueModal.style.display !== "none") ||
+        (adminAuthModal && adminAuthModal.style.display !== "none")) {
+      return;
+    }
+    const tag = (document.activeElement && document.activeElement.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea" || tag === "select") {
+      if (document.activeElement !== spinsCfScrubber) return;
+    }
+
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      setSpinsCfIndex(spinsCfIndex - 1);
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      setSpinsCfIndex(spinsCfIndex + 1);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      setSpinsCfIndex(0);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      setSpinsCfIndex(currentCfSpins.length - 1);
+    }
+  });
+
+  window.addEventListener("resize", () => {
+    if (isSpinsCoverFlow) updateSpinsCoverFlowPositions();
+  });
+
+  function renderSpinsCoverFlow(entries) {
+    if (!spinsCoverFlowTrack) return;
+    currentCfSpins = entries || [];
+
+    if (currentCfSpins.length === 0) {
+      spinsCoverFlowTrack.innerHTML = `<div class="cf-empty-state">No spins match your filter.</div>`;
+      if (spinsCfTitle) spinsCfTitle.textContent = "No Matching Spins";
+      if (spinsCfArtist) spinsCfArtist.textContent = "";
+      if (spinsCfMeta) spinsCfMeta.innerHTML = "";
+      if (spinsCfFavTracks) { spinsCfFavTracks.style.display = "none"; spinsCfFavTracks.innerHTML = ""; }
+      if (spinsCfMemo) { spinsCfMemo.style.display = "none"; spinsCfMemo.innerHTML = ""; }
+      if (spinsCfActions) spinsCfActions.innerHTML = "";
+      if (spinsCfScrubber) {
+        spinsCfScrubber.min = 0;
+        spinsCfScrubber.max = 0;
+        spinsCfScrubber.value = 0;
+        spinsCfScrubber.disabled = true;
+      }
+      if (spinsCfPositionReadout) spinsCfPositionReadout.textContent = "0 / 0";
+      return;
+    }
+
+    if (spinsCfIndex >= currentCfSpins.length || spinsCfIndex < 0) {
+      spinsCfIndex = 0;
+    }
+
+    spinsCoverFlowTrack.innerHTML = currentCfSpins.map((item, idx) => {
+      const coverSrc = item.cover_url || "assets/images/spins/placeholder.png";
+      const safeReflectUrl = coverSrc.replace(/'/g, "\\'");
+      let ratingBadgeHtml = "";
+      if (item.rating !== null && item.rating !== undefined && item.rating !== "") {
+        const rNum = parseFloat(item.rating);
+        if (!isNaN(rNum)) {
+          ratingBadgeHtml = `
+            <div class="aero-completed-pill">
+              <span class="pill-rating">${rNum.toFixed(1)}<span class="pill-star">★</span></span>
+            </div>
+          `;
+        }
+      }
+
+      return `
+        <div class="cf-card"
+             data-cf-index="${idx}"
+             data-id="${item.id}"
+             title="${escapeHtml(item.artist || '')} — ${escapeHtml(item.title || '')}">
+          <div class="cf-card-sleeve">
+            <img src="${coverSrc}" alt="${escapeHtml(item.title || '')}" class="cf-card-art" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+            <div class="cf-card-gloss"></div>
+            ${ratingBadgeHtml}
+          </div>
+          <div class="cf-card-reflection" style="background-image: url('${safeReflectUrl}');"></div>
+        </div>
+      `;
+    }).join("");
+
+    spinsCoverFlowTrack.querySelectorAll(".cf-card").forEach(card => {
+      card.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const clickedIdx = parseInt(card.getAttribute("data-cf-index"), 10);
+        const spinId = parseInt(card.getAttribute("data-id"), 10);
+        if (clickedIdx === spinsCfIndex) {
+          if (spinId) window.jumpToSpinInTimeline(spinId);
+        } else {
+          setSpinsCfIndex(clickedIdx);
+        }
+      });
+    });
+
+    updateSpinsCoverFlowPositions();
+  }
+
+  function updateSpinsCoverFlowPositions() {
+    if (!spinsCoverFlowTrack || !currentCfSpins.length) return;
+
+    const cards = spinsCoverFlowTrack.querySelectorAll(".cf-card");
+    const isMobile = window.innerWidth <= 640;
+    const baseOffset = isMobile ? 96 : 152;
+    const stepX = isMobile ? 34 : 52;
+
+    cards.forEach((card, idx) => {
+      const offset = idx - spinsCfIndex;
+      const absOffset = Math.abs(offset);
+
+      card.classList.toggle("is-active-card", offset === 0);
+
+      let tx = 0;
+      let tz = 0;
+      let ry = 0;
+      let scale = 1;
+      let opacity = 1;
+
+      if (offset === 0) {
+        tx = 0;
+        tz = isMobile ? 75 : 115;
+        ry = 0;
+        scale = 1.05;
+        opacity = 1;
+      } else if (offset < 0) {
+        tx = -baseOffset + (offset + 1) * stepX;
+        tz = -45 - absOffset * 20;
+        ry = 60;
+        scale = Math.max(0.72, 0.94 - absOffset * 0.025);
+        opacity = absOffset > 8 ? 0 : Math.max(0.16, 1 - (absOffset - 1) * 0.11);
+      } else {
+        tx = baseOffset + (offset - 1) * stepX;
+        tz = -45 - absOffset * 20;
+        ry = -60;
+        scale = Math.max(0.72, 0.94 - absOffset * 0.025);
+        opacity = absOffset > 8 ? 0 : Math.max(0.16, 1 - (absOffset - 1) * 0.11);
+      }
+
+      card.style.transform = `translate3d(${tx}px, 0px, ${tz}px) rotateY(${ry}deg) scale(${scale})`;
+      card.style.zIndex = String(100 - absOffset);
+      card.style.opacity = String(opacity);
+      card.style.pointerEvents = absOffset > 8 ? "none" : "auto";
+    });
+
+    const item = currentCfSpins[spinsCfIndex];
+    if (!item) return;
+
+    const originalIdx = allEntries.indexOf(item);
+    let displayType = item.type || "Album";
+    if (displayType.toLowerCase() === "ep") displayType = "EP";
+
+    const yearSuffix = item.year ? ` <span class="cf-year">(${item.year})</span>` : "";
+    if (spinsCfTitle) {
+      spinsCfTitle.innerHTML = `${escapeHtml(item.title || "")}${yearSuffix}`;
+    }
+    if (spinsCfArtist) {
+      spinsCfArtist.textContent = item.artist || "";
+    }
+
+    if (spinsCfMeta) {
+      const metaPills = [];
+      if (item.rating !== null && item.rating !== undefined && item.rating !== "") {
+        const rNum = parseFloat(item.rating);
+        if (!isNaN(rNum)) {
+          metaPills.push(`<span class="cf-status-badge completed"><span class="cf-gold-star">${getStarString(rNum)}</span> (${rNum.toFixed(1)})</span>`);
+        }
+      }
+      metaPills.push(`<span class="cf-genre-chip">${displayType}</span>`);
+      if (item.log_date) {
+        metaPills.push(`<span class="cf-status-badge unlistened"><i class='bx bx-calendar'></i> ${escapeHtml(item.log_date)}</span>`);
+      }
+      if (item.runtime) {
+        metaPills.push(`<span class="cf-status-badge unlistened"><i class='bx bx-time-five'></i> ${escapeHtml(item.runtime)}</span>`);
+      }
+      if (item.relisten) {
+        metaPills.push(`<span class="cf-status-badge completed">RELISTEN</span>`);
+      }
+      (item.genres || []).slice(0, 4).forEach(g => {
+        metaPills.push(`<span class="cf-genre-chip" style="cursor: pointer;" onclick="setSidebarFilter('genre', '${g.replace(/'/g, "\\'")}')">${escapeHtml(g)}</span>`);
+      });
+
+      spinsCfMeta.innerHTML = metaPills.join("");
+    }
+
+    const safeArtist = (item.artist || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const safeAlbum = (item.title || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const safeCover = (item.cover_url || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+
+    if (spinsCfFavTracks) {
+      const favList = parseFavTracks(item.fav_tracks);
+      if (favList.length) {
+        spinsCfFavTracks.style.display = "flex";
+        spinsCfFavTracks.innerHTML = favList.map(t => {
+          if (t.includes("|")) {
+            const [name, url] = t.split("|").map(s => s.trim());
+            const safeTrack = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+            return `<span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')"><i class='bx bx-play-circle'></i>${escapeHtml(name)}</span>`;
+          }
+          return `<span class="fav-track-chip"><i class='bx bx-music'></i>${escapeHtml(t)}</span>`;
+        }).join("");
+      } else {
+        spinsCfFavTracks.style.display = "none";
+        spinsCfFavTracks.innerHTML = "";
+      }
+    }
+
+    if (spinsCfMemo) {
+      if (item.memo && item.memo.trim()) {
+        let cleanText = item.memo
+          .replace(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}(?:\s*relistened)?(?:\s*<br\s*\/?>)*/i, "")
+          .trim();
+        cleanText = cleanText.replace(
+          /(?<=^|[\s>(])["“]([^"”\n\r<]+)["”](?=[\s.,!?;:)<]|$)/g,
+          `<span class="inline-quoted-track">“$1”</span>`
+        );
+        cleanText = cleanText.replace(
+          /\[(?:<span class="inline-quoted-track">)?["“]?([^"”]+?)["”]?(?:<\/span>)?\]\((https?:\/\/[^\s)]+)\)/g,
+          `<a class="inline-quoted-track song-embed-link" onclick="playAudioTrack('$2', '$1', '${safeArtist}', '${safeAlbum}', '${safeCover}')">“$1”</a>`
+        );
+        spinsCfMemo.style.display = "block";
+        spinsCfMemo.innerHTML = cleanText.replace(/\r?\n/g, "<br>");
+      } else {
+        spinsCfMemo.style.display = "none";
+        spinsCfMemo.innerHTML = "";
+      }
+    }
+
+    if (spinsCfActions) {
+      const approvedCount = getApprovedCommentsForSpin(item.id).length;
+      let actionsHtml = `
+        <button type="button" class="cf-action-btn primary" onclick="jumpToSpinInTimeline(${item.id})">
+          <i class='bx bx-list-ul'></i> View in Timeline ${approvedCount > 0 ? `(${approvedCount} 💬)` : ""}
+        </button>
+      `;
+      if (item.review_url) {
+        actionsHtml += `
+          <a href="${item.review_url}" class="cf-action-btn emerald" style="text-decoration: none;">
+            <i class='bx bx-book-open'></i> Full Review ➔
+          </a>
+        `;
+      }
+      if (isAdmin && originalIdx !== -1) {
+        actionsHtml += `
+          <button type="button" class="cf-action-btn" onclick="editSpin(${originalIdx})">
+            <i class='bx bx-edit-alt'></i> Edit Spin
+          </button>
+        `;
+      }
+      spinsCfActions.innerHTML = actionsHtml;
+    }
+
+    if (spinsCfScrubber) {
+      spinsCfScrubber.disabled = currentCfSpins.length <= 1;
+      spinsCfScrubber.min = 0;
+      spinsCfScrubber.max = Math.max(0, currentCfSpins.length - 1);
+      spinsCfScrubber.value = spinsCfIndex;
+    }
+    if (spinsCfPrevBtn) spinsCfPrevBtn.disabled = spinsCfIndex <= 0;
+    if (spinsCfNextBtn) spinsCfNextBtn.disabled = spinsCfIndex >= currentCfSpins.length - 1;
+    if (spinsCfPositionReadout) {
+      spinsCfPositionReadout.textContent = `${spinsCfIndex + 1} / ${currentCfSpins.length}`;
+    }
+  }
+
+  await loadSpins();
+
+  // ============================================================
   // RENDER FEED
   // ============================================================
   function renderFeed(entries) {
+    spinsCfIndex = 0;
+    renderSpinsCoverFlow(entries);
+
     if (!feed) return;
     if (entries.length === 0) {
       feed.innerHTML = `<div style="padding: 2rem; text-align: center; color: var(--text-color); opacity: 0.7;">No spins match your filter.</div>`;
@@ -1415,9 +1822,9 @@ window.closeMiniPlayer = function() {
       }
 
       return `
-        <article class="timeline-row" data-type="${displayType}">
+        <article class="timeline-row" id="spin-row-${item.id}" data-type="${displayType}">
           <div class="spin-cover-wrap">
-            <img class="spin-cover-img" src="${item.cover_url || 'placeholder.png'}" alt="${item.title} cover" loading="lazy">
+            <img class="spin-cover-img" src="${item.cover_url || 'assets/images/spins/placeholder.png'}" alt="${item.title} cover" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
           </div>
           <div class="spin-body">
             <!-- 1. Header Line: Title on left, Date on right -->
@@ -1487,21 +1894,25 @@ window.closeMiniPlayer = function() {
             ` : ""}
 
             <!-- 1. Favorite Tracks Row -->
-            ${item.fav_tracks && item.fav_tracks.length ? `
-              <div class="fav-tracks-row">
-                <span class="fav-label"><i class='bx bxs-playlist'></i> Fav Tracks:</span>
-                <div class="fav-tracks-chips">
-                  ${item.fav_tracks.map(t => {
-                    if (t.includes("|")) {
-                      const [name, url] = t.split("|").map(s => s.trim());
-                      const safeTrack = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-                      return `<span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')"><i class='bx bx-play-circle'></i>${name}</span>`;
-                    }
-                    return `<span class="fav-track-chip"><i class='bx bx-music'></i>${t}</span>`;
-                  }).join("")}
+            ${(() => {
+              const favList = parseFavTracks(item.fav_tracks);
+              if (!favList.length) return "";
+              return `
+                <div class="fav-tracks-row">
+                  <span class="fav-label"><i class='bx bxs-playlist'></i> Fav Tracks:</span>
+                  <div class="fav-tracks-chips">
+                    ${favList.map(t => {
+                      if (t.includes("|")) {
+                        const [name, url] = t.split("|").map(s => s.trim());
+                        const safeTrack = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+                        return `<span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')"><i class='bx bx-play-circle'></i>${name}</span>`;
+                      }
+                      return `<span class="fav-track-chip"><i class='bx bx-music'></i>${t}</span>`;
+                    }).join("")}
+                  </div>
                 </div>
-              </div>
-            ` : ""}
+              `;
+            })()}
 
             <!-- 2. Track Ratings (Safe string escaping + Clean nesting) -->
             ${item.track_ratings && item.track_ratings.length ? `
@@ -1935,7 +2346,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
 
     if (logCoverUrl) logCoverUrl.value = item.cover_url || "";
     if (logReviewUrl) logReviewUrl.value = item.review_url || "";
-    if (previewImg) previewImg.src = item.cover_url || "placeholder.png";
+    if (previewImg) previewImg.src = item.cover_url || "assets/images/spins/placeholder.png";
     if (window.logGenresManager) {
       window.logGenresManager.setTags(item.genres || []);
     } else if (document.getElementById("logGenres")) {
@@ -1946,7 +2357,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     } else if (document.getElementById("logDescriptors")) {
       document.getElementById("logDescriptors").value = (item.descriptors || []).join(", ");
     }
-    document.getElementById("logFavTracks").value = (item.fav_tracks || []).join("; ");
+    document.getElementById("logFavTracks").value = parseFavTracks(item.fav_tracks).join("; ");
     document.getElementById("logMemo").value = item.memo || "";
     if (logRuntime) logRuntime.value = item.runtime || "";
     if (trackRatingsList) {
@@ -2000,7 +2411,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
             trackRatings.push({ title, rating, url: url || null });
         }
         });
-      let finalCoverUrl = logCoverUrl.value.trim() || "placeholder.png";
+      let finalCoverUrl = logCoverUrl.value.trim() || "assets/images/spins/placeholder.png";
       if (finalCoverUrl.startsWith("http") && !finalCoverUrl.includes("supabase.co")) {
         if (modalSubmitBtn) modalSubmitBtn.textContent = "Uploading Art...";
         finalCoverUrl = await uploadCoverToSupabase(finalCoverUrl, artistVal, titleVal);
@@ -2028,10 +2439,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         cover_url: finalCoverUrl,
         runtime: runtimeVal || null,
         review_url: logReviewUrl && logReviewUrl.value.trim() ? logReviewUrl.value.trim() : null,
-        fav_tracks: (document.getElementById("logFavTracks").value || "")
-          .split(";")
-          .map(s => s.trim())
-          .filter(Boolean),
+        fav_tracks: parseFavTracks(document.getElementById("logFavTracks").value || ""),
         memo: document.getElementById("logMemo").value.trim(),
         relisten: isRelistenChecked,
         track_ratings: trackRatings,
