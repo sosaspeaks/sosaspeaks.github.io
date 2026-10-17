@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const SUPABASE_URL = "https://gxgfuomkjrhixcjfvhvj.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_tgeBo35B4k__uyfMyaxXnA_O5KUKlL7";
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const LASTFM_API_KEY = localStorage.getItem("lastfm_api_key") || "54dae88eb8fc817f7745c41968fca582";
   const logRuntime = document.getElementById("logRuntime");
 const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
 
@@ -2481,6 +2482,66 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     return text.replace(/\[.*?\]/g, "").replace(/\(.*?\)/g, "").replace(/#/, "").trim();
   }
 
+  // Helper: Fetch candidate artwork from Last.fm
+  async function fetchLastFmCovers(artist, title) {
+    if (!LASTFM_API_KEY) return [];
+    const covers = [];
+
+    const extractBestImage = (images) => {
+      if (!Array.isArray(images)) return null;
+      const valid = images.filter(i => i && i["#text"] && !i["#text"].includes("2a96cbd8b46e442fc41c2b86b821562f"));
+      if (!valid.length) return null;
+      const best = valid.find(i => i.size === "mega") ||
+                   valid.find(i => i.size === "extralarge") ||
+                   valid.find(i => i.size === "large") ||
+                   valid[valid.length - 1];
+      if (!best || !best["#text"]) return null;
+      return best["#text"].replace(/\/300x300\//, "/770x0/").replace(/\/174s\//, "/770x0/").replace(/\/64s\//, "/770x0/");
+    };
+
+    try {
+      // 1. Try album.getinfo (exact match)
+      const infoUrl = `https://ws.audioscrobbler.com/2.0/?method=album.getinfo&api_key=${LASTFM_API_KEY}&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(title)}&format=json&autocorrect=1`;
+      const res = await fetch(infoUrl);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.album) {
+          const hiRes = extractBestImage(data.album.image);
+          if (hiRes) {
+            let yr = null;
+            if (data.album.wiki && data.album.wiki.published) {
+              const yMatch = data.album.wiki.published.match(/\b(19\d\d|20\d\d)\b/);
+              if (yMatch) yr = parseInt(yMatch[1], 10);
+            }
+            covers.push({ url: hiRes, source: "Last.fm", year: yr });
+          }
+        }
+      }
+
+      // 2. If getinfo didn't find artwork, try album.search
+      if (covers.length === 0) {
+        const searchUrl = `https://ws.audioscrobbler.com/2.0/?method=album.search&album=${encodeURIComponent(title)}&api_key=${LASTFM_API_KEY}&format=json&limit=6`;
+        const sRes = await fetch(searchUrl);
+        if (sRes.ok) {
+          const sData = await sRes.json();
+          const matches = sData?.results?.albummatches?.album;
+          if (Array.isArray(matches)) {
+            matches.forEach(m => {
+              const hiRes = extractBestImage(m.image);
+              if (hiRes && !covers.some(c => c.url === hiRes)) {
+                covers.push({ url: hiRes, source: "Last.fm", year: null });
+              }
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Last.fm cover search skipped:", e);
+    }
+
+    return covers;
+  }
+
   if (fetchCoverBtn) {
     fetchCoverBtn.addEventListener("click", async () => {
       const rawArtist = logArtist.value.trim();
@@ -2500,46 +2561,73 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       const candidateCovers = [];
 
       try {
-        const query = encodeURIComponent(`${artist} ${title}`);
-        const itunesRes = await fetch(`https://itunes.apple.com/search?term=${query}&entity=album&limit=6`);
-        const itunesData = await itunesRes.json();
+        const itunesPromise = (async () => {
+          try {
+            const query = encodeURIComponent(`${artist} ${title}`);
+            const itunesRes = await fetch(`https://itunes.apple.com/search?term=${query}&entity=album&limit=6`);
+            const itunesData = await itunesRes.json();
 
-        if (itunesData.results && itunesData.results.length > 0) {
-          itunesData.results.forEach((match) => {
-            if (match.artworkUrl100) {
-              const highRes = match.artworkUrl100.replace("100x100bb.jpg", "600x600bb.jpg");
-              const year = match.releaseDate ? new Date(match.releaseDate).getFullYear() : null;
-              if (!candidateCovers.some(c => c.url === highRes)) {
-                candidateCovers.push({ url: highRes, source: "Apple", year: year });
+            if (itunesData.results && itunesData.results.length > 0) {
+              itunesData.results.forEach((match) => {
+                if (match.artworkUrl100) {
+                  const highRes = match.artworkUrl100.replace("100x100bb.jpg", "600x600bb.jpg");
+                  const year = match.releaseDate ? new Date(match.releaseDate).getFullYear() : null;
+                  if (!candidateCovers.some(c => c.url === highRes)) {
+                    candidateCovers.push({ url: highRes, source: "Apple", year: year });
+                  }
+                }
+              });
+            }
+          } catch (err) {
+            console.warn("iTunes error:", err);
+          }
+        })();
+
+        const lastFmPromise = (async () => {
+          try {
+            const lfmCovers = await fetchLastFmCovers(artist, title);
+            lfmCovers.forEach(item => {
+              if (!candidateCovers.some(c => c.url === item.url)) {
+                candidateCovers.push(item);
+              }
+            });
+          } catch (err) {
+            console.warn("Last.fm error:", err);
+          }
+        })();
+
+        const mbPromise = (async () => {
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3500);
+            const mbQuery = encodeURIComponent(`release:"${title}" AND artist:"${artist}"`);
+            const mbRes = await fetch(`https://musicbrainz.org/ws/2/release/?query=${mbQuery}&fmt=json&limit=4`, {
+              headers: { "User-Agent": "SosaSpins/1.0 ( personal-listening-log )" },
+              signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            const mbData = await mbRes.json();
+
+            if (mbData.releases && mbData.releases.length > 0) {
+              for (const rel of mbData.releases) {
+                const caaUrl = `https://coverartarchive.org/release/${rel.id}/front-500`;
+                const year = rel.date ? parseInt(rel.date.slice(0, 4), 10) : null;
+                if (!candidateCovers.some(c => c.url === caaUrl)) {
+                  candidateCovers.push({ url: caaUrl, source: "MusicBrainz", year: year });
+                }
               }
             }
-          });
-        }
-      } catch (err) {
-        console.warn("iTunes error:", err);
-      }
-
-      try {
-        const mbQuery = encodeURIComponent(`release:"${title}" AND artist:"${artist}"`);
-        const mbRes = await fetch(`https://musicbrainz.org/ws/2/release/?query=${mbQuery}&fmt=json&limit=4`, {
-          headers: { "User-Agent": "SosaSpins/1.0 ( personal-listening-log )" }
-        });
-        const mbData = await mbRes.json();
-
-        if (mbData.releases && mbData.releases.length > 0) {
-          for (const rel of mbData.releases) {
-            const caaUrl = `https://coverartarchive.org/release/${rel.id}/front-500`;
-            const year = rel.date ? parseInt(rel.date.slice(0, 4), 10) : null;
-            if (!candidateCovers.some(c => c.url === caaUrl)) {
-              candidateCovers.push({ url: caaUrl, source: "MusicBrainz", year: year });
-            }
+          } catch (err) {
+            console.warn("MB error:", err);
           }
-        }
-      } catch (err) {
-        console.warn("MB error:", err);
-      }
+        })();
 
-      fetchCoverBtn.textContent = "Fetch Art";
+        await Promise.allSettled([itunesPromise, lastFmPromise, mbPromise]);
+      } catch (fatalErr) {
+        console.error("Cover fetcher error:", fatalErr);
+      } finally {
+        fetchCoverBtn.textContent = "Fetch Art";
+      }
 
       if (candidateCovers.length === 0) {
         alert(`No cover art found for "${rawArtist} — ${rawTitle}".`);

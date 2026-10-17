@@ -45,7 +45,7 @@
   <section class="main-home spins-hero" id="main-home">
     <div class="home-text container">
       <h1 class="home-title">Sosa's Backlog</h1>
-      <span class="home-subtitle" id="progressSubtitle">October 7×7 Listening Challenge (49 Albums)</span>
+      <span class="home-subtitle" id="progressSubtitle">October 6x6 Listening Challenge (36 Albums)</span>
     </div>
   </section>
 
@@ -56,8 +56,8 @@
       <!-- Left side: The Tabs + The Add Button sitting flush together -->
       <div class="tabs-and-actions-left" style="display: flex; align-items: flex-end; gap: 4px;">
         <menu role="tablist" class="w7-month-tabs" id="monthTabsList">
-          <button type="button" role="tab" class="active" aria-selected="true" data-month="october">October (49/49)</button>
-          <button type="button" role="tab" aria-selected="false" data-month="november">November (0/49)</button>
+          <button type="button" role="tab" class="active" aria-selected="true" data-month="october" data-year="2026">October (36/36)</button>
+          <button type="button" role="tab" aria-selected="false" data-month="november" data-year="2026">November (0/36)</button>
         </menu>
 
         <!-- Admin New Month Button: Aligns perfectly to the bottom border baseline -->
@@ -72,7 +72,7 @@
     <!-- Authentic Windows 7 Progress Bar with Animated Sweep -->
     <div class="challenge-progress-box">
       <div class="progress-labels">
-        <span id="completedCounter">Completed: 0 / 49</span>
+        <span id="completedCounter">Completed: 0 / 36</span>
         <span id="completedPercent">0%</span>
       </div>
       <div class="progress-bar-track" role="progressbar">
@@ -159,7 +159,7 @@
 
       <!-- Window Status Bar Footer -->
       <div class="status-bar">
-        <div class="status-bar-field" id="statusBarSelection">49 items</div>
+        <div class="status-bar-field" id="statusBarSelection">36 items</div>
         <div class="status-bar-field" style="text-align: right; max-width: 140px;">Ready</div>
       </div>
 
@@ -204,13 +204,29 @@
           <div class="add-album-inputs-group">
           <input type="text" id="addArtist" class="sosa-search-input" placeholder="Artist" required>
           <input type="text" id="addTitle" class="sosa-search-input" placeholder="Album Title" required>
-          <input
-            type="number"
-            id="addReleaseYear"
-            class="sosa-search-input"
-            placeholder="Release Year (YYYY)"
-            min="1900"
-            max="2099">
+          <div class="modal-split-row">
+            <input
+              type="number"
+              id="addReleaseYear"
+              class="sosa-search-input"
+              placeholder="Release Year (YYYY)"
+              min="1900"
+              max="2099">
+            <select id="addMonth" class="sosa-search-input modal-month-select" title="Challenge Month">
+              <option value="october" data-year="2026">Month: October</option>
+              <option value="november" data-year="2026">Month: November</option>
+              <option value="december" data-year="2026">Month: December</option>
+              <option value="january" data-year="2027">Month: January '27</option>
+              <option value="february" data-year="2027">Month: February '27</option>
+              <option value="march" data-year="2027">Month: March '27</option>
+              <option value="april" data-year="2027">Month: April '27</option>
+              <option value="may" data-year="2027">Month: May '27</option>
+              <option value="june" data-year="2027">Month: June '27</option>
+              <option value="july" data-year="2027">Month: July '27</option>
+              <option value="august" data-year="2027">Month: August '27</option>
+              <option value="september" data-year="2027">Month: September '27</option>
+            </select>
+          </div>
 
           <div class="modal-btn-row">
             <button type="button" id="fetchCoverBtn" class="aero-btn-action">

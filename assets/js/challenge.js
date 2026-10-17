@@ -1,6 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   const SUPABASE_URL = "https://gxgfuomkjrhixcjfvhvj.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_tgeBo35B4k__uyfMyaxXnA_O5KUKlL7";
+  const LASTFM_API_KEY = localStorage.getItem("lastfm_api_key") || "54dae88eb8fc817f7745c41968fca582";
 
   let sb = window.supabaseClient;
   if (!sb && window.supabase) {
@@ -42,6 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const addCoverUrl = document.getElementById("addCoverUrl");
   const addRuntime = document.getElementById("addRuntime");
   const addReleaseYear = document.getElementById("addReleaseYear");
+  const addMonth = document.getElementById("addMonth");
   const submitAddAlbumBtn = document.getElementById("submitAddAlbumBtn");
   const artCandidatesContainer = document.getElementById("artCandidatesContainer");
   const artThumbnailsRow = document.getElementById("artThumbnailsRow");
@@ -371,6 +373,39 @@ document.addEventListener("DOMContentLoaded", () => {
     getPool: getLiveDescriptorPool
   });
 
+  // Helper: Format Month Display Label ("October" for 2026, "January '27" for future months)
+  function formatMonthDisplay(monthStr, yearVal) {
+    if (!monthStr) return "";
+    const clean = monthStr.trim().toLowerCase();
+
+    // Check if monthStr already has an explicit year like "january-27", "january '27", "january 2027"
+    const matchWithYear = clean.match(/^([a-z]+)[-_ ](?:'|20)?(\d{2,4})$/);
+    if (matchWithYear) {
+      const mName = matchWithYear[1];
+      const yStr = matchWithYear[2].slice(-2);
+      const capitalized = mName.charAt(0).toUpperCase() + mName.slice(1);
+      return `${capitalized} '${yStr}`;
+    }
+
+    const capitalized = clean.charAt(0).toUpperCase() + clean.slice(1);
+    const yr = yearVal ? parseInt(yearVal, 10) : null;
+    if (yr && yr > 2026) {
+      return `${capitalized} '${String(yr).slice(-2)}`;
+    }
+
+    // Default chronological layout for challenge (Started Oct 2026):
+    // October, November, December -> 2026 ("October", etc.)
+    // January through September -> 2027 ("January '27", etc.)
+    const monthIdx = MONTH_NAMES.findIndex(m => m.toLowerCase() === clean);
+    if (monthIdx !== -1 && monthIdx < 9) {
+      if (!yr || yr === 2027) {
+        return `${capitalized} '27`;
+      }
+    }
+
+    return capitalized;
+  }
+
   // Month Tabs Navigation
   function attachMonthTabListeners() {
     const tabs = document.querySelectorAll('menu.w7-month-tabs button[role="tab"]');
@@ -388,6 +423,76 @@ document.addEventListener("DOMContentLoaded", () => {
         renderGrid();
       };
     });
+  }
+
+  function setActiveMonthTab(targetMonth) {
+    activeMonth = (targetMonth || "october").toLowerCase();
+    const tabs = document.querySelectorAll('menu.w7-month-tabs button[role="tab"]');
+    tabs.forEach(t => {
+      const match = (t.getAttribute("data-month") || "").toLowerCase() === activeMonth;
+      t.classList.toggle("active", match);
+      t.setAttribute("aria-selected", match ? "true" : "false");
+    });
+  }
+
+  function populateMonthSelectOptions() {
+    if (!addMonth) return;
+    const existingValues = Array.from(addMonth.options).map(o => o.value.toLowerCase());
+
+    const tabButtons = document.querySelectorAll('menu.w7-month-tabs button[role="tab"]');
+    tabButtons.forEach(btn => {
+      const m = (btn.getAttribute("data-month") || "").toLowerCase().trim();
+      const yr = btn.getAttribute("data-year");
+      if (m && !existingValues.includes(m)) {
+        const opt = document.createElement("option");
+        opt.value = m;
+        if (yr) opt.setAttribute("data-year", yr);
+        opt.textContent = `Month: ${formatMonthDisplay(m, yr)}`;
+        addMonth.appendChild(opt);
+        existingValues.push(m);
+      }
+    });
+
+    backlogEntries.forEach(entry => {
+      const m = (entry.month || "").toLowerCase().trim();
+      if (m && !existingValues.includes(m)) {
+        const opt = document.createElement("option");
+        opt.value = m;
+        if (entry.year) opt.setAttribute("data-year", entry.year);
+        opt.textContent = `Month: ${formatMonthDisplay(m, entry.year)}`;
+        addMonth.appendChild(opt);
+        existingValues.push(m);
+      }
+    });
+  }
+
+  function syncMonthTabs() {
+    if (!monthTabsList) return;
+
+    const existingButtons = Array.from(monthTabsList.querySelectorAll('button[role="tab"]'));
+    const existingMonths = existingButtons.map(b => (b.getAttribute("data-month") || "").toLowerCase());
+
+    const dbMonths = Array.from(new Set(backlogEntries.map(e => (e.month || "").toLowerCase()).filter(Boolean)));
+
+    dbMonths.forEach(m => {
+      if (!existingMonths.includes(m)) {
+        const newTabBtn = document.createElement("button");
+        newTabBtn.type = "button";
+        newTabBtn.setAttribute("role", "tab");
+        newTabBtn.setAttribute("data-month", m);
+        const entryWithYear = backlogEntries.find(e => (e.month || "").toLowerCase() === m && e.year);
+        if (entryWithYear) newTabBtn.setAttribute("data-year", entryWithYear.year);
+        newTabBtn.setAttribute("aria-selected", m === activeMonth ? "true" : "false");
+        if (m === activeMonth) newTabBtn.classList.add("active");
+        const label = formatMonthDisplay(m, entryWithYear ? entryWithYear.year : null);
+        newTabBtn.textContent = `${label} (0/36)`;
+        monthTabsList.appendChild(newTabBtn);
+        existingMonths.push(m);
+      }
+    });
+
+    attachMonthTabListeners();
+    populateMonthSelectOptions();
   }
 
   attachMonthTabListeners();
@@ -410,9 +515,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const targetYear = (lastMonthIndex + 1 >= 12) ? lastYear + 1 : lastYear;
       const nextMonthName = MONTH_NAMES[nextMonthIndex];
 
-      const tabLabel = (targetYear !== currentYear)
-        ? `${nextMonthName} ${targetYear}`
-        : nextMonthName;
+      const tabLabel = formatMonthDisplay(nextMonthName, targetYear);
 
       if (!confirm(`Add challenge tab for "${tabLabel}"?`)) return;
 
@@ -428,10 +531,11 @@ document.addEventListener("DOMContentLoaded", () => {
       newTabBtn.className = "active";
       newTabBtn.setAttribute("data-month", nextMonthName.toLowerCase());
       newTabBtn.setAttribute("data-year", targetYear);
-      newTabBtn.textContent = `${tabLabel} (0/49)`;
+      newTabBtn.textContent = `${tabLabel} (0/36)`;
 
       monthTabsList.appendChild(newTabBtn);
       attachMonthTabListeners();
+      populateMonthSelectOptions();
 
       activeMonth = nextMonthName.toLowerCase();
       renderGrid();
@@ -777,6 +881,66 @@ document.addEventListener("DOMContentLoaded", () => {
     if (element) element.classList.add("selected");
   };
 
+  // Helper: Fetch candidate artwork from Last.fm
+  async function fetchLastFmCovers(artist, title) {
+    if (!LASTFM_API_KEY) return [];
+    const covers = [];
+
+    const extractBestImage = (images) => {
+      if (!Array.isArray(images)) return null;
+      const valid = images.filter(i => i && i["#text"] && !i["#text"].includes("2a96cbd8b46e442fc41c2b86b821562f"));
+      if (!valid.length) return null;
+      const best = valid.find(i => i.size === "mega") ||
+                   valid.find(i => i.size === "extralarge") ||
+                   valid.find(i => i.size === "large") ||
+                   valid[valid.length - 1];
+      if (!best || !best["#text"]) return null;
+      return best["#text"].replace(/\/300x300\//, "/770x0/").replace(/\/174s\//, "/770x0/").replace(/\/64s\//, "/770x0/");
+    };
+
+    try {
+      // 1. Try album.getinfo (exact match)
+      const infoUrl = `https://ws.audioscrobbler.com/2.0/?method=album.getinfo&api_key=${LASTFM_API_KEY}&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(title)}&format=json&autocorrect=1`;
+      const res = await fetch(infoUrl);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.album) {
+          const hiRes = extractBestImage(data.album.image);
+          if (hiRes) {
+            let yr = null;
+            if (data.album.wiki && data.album.wiki.published) {
+              const yMatch = data.album.wiki.published.match(/\b(19\d\d|20\d\d)\b/);
+              if (yMatch) yr = parseInt(yMatch[1], 10);
+            }
+            covers.push({ url: hiRes, source: "Last.fm", year: yr });
+          }
+        }
+      }
+
+      // 2. If getinfo didn't find artwork, try album.search
+      if (covers.length === 0) {
+        const searchUrl = `https://ws.audioscrobbler.com/2.0/?method=album.search&album=${encodeURIComponent(title)}&api_key=${LASTFM_API_KEY}&format=json&limit=6`;
+        const sRes = await fetch(searchUrl);
+        if (sRes.ok) {
+          const sData = await sRes.json();
+          const matches = sData?.results?.albummatches?.album;
+          if (Array.isArray(matches)) {
+            matches.forEach(m => {
+              const hiRes = extractBestImage(m.image);
+              if (hiRes && !covers.some(c => c.url === hiRes)) {
+                covers.push({ url: hiRes, source: "Last.fm", year: null });
+              }
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Last.fm cover search skipped:", e);
+    }
+
+    return covers;
+  }
+
   if (fetchCoverBtn) {
     fetchCoverBtn.addEventListener("click", async () => {
       const rawArtist = (addArtist.value || "").trim();
@@ -810,10 +974,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const cleanT = rawTitle.replace(/\[.*?\]|\(.*?\)/g, "").replace(/[^\w\s]/gi, " ").replace(/\s+/g, " ").trim();
 
       try {
-        const itunesQuery = encodeURIComponent(`${cleanA} ${cleanT}`);
-        const itunesPromise = fetch(`https://itunes.apple.com/search?term=${itunesQuery}&entity=album&limit=10`)
-          .then(res => res.json())
-          .then(data => {
+        // Run Apple/iTunes, Last.fm, and MusicBrainz concurrently
+        const itunesPromise = (async () => {
+          try {
+            const itunesQuery = encodeURIComponent(`${cleanA} ${cleanT}`);
+            const res = await fetch(`https://itunes.apple.com/search?term=${itunesQuery}&entity=album&limit=8`);
+            const data = await res.json();
             if (data.results && data.results.length > 0) {
               data.results.forEach(match => {
                 if (match.artworkUrl100) {
@@ -827,29 +993,33 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
               });
             }
-          })
-          .catch(err => console.warn("iTunes quick search skipped:", err));
+          } catch (err) {
+            console.warn("iTunes search skipped:", err);
+          }
+        })();
 
-        await itunesPromise;
-
-        if (candidateCovers.length > 0) {
-          artCandidatesContainer.style.display = "flex";
-          artThumbnailsRow.innerHTML = candidateCovers.map((item, idx) => `
-            <div class="art-choice-item ${idx === 0 ? 'selected' : ''}" onclick="selectCandidateArt('${item.url}', this)">
-              <img src="${item.url}" alt="Option ${idx + 1}" loading="lazy" onerror="this.parentElement.remove()">
-              <span class="source-tag">${item.source}</span>
-            </div>
-          `).join("");
-
-          selectCandidateArt(candidateCovers[0].url, artThumbnailsRow.querySelector(".art-choice-item"));
-        } else {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 2500);
-
-          const mbQuery = encodeURIComponent(`"${cleanT}" AND artist:"${cleanA}"`);
-          const mbUrl = `https://musicbrainz.org/ws/2/release/?query=${mbQuery}&fmt=json&limit=3`;
-
+        const lastFmPromise = (async () => {
           try {
+            const lfmCovers = await fetchLastFmCovers(cleanA, cleanT);
+            lfmCovers.forEach(item => {
+              if (!candidateCovers.some(c => c.url === item.url)) {
+                candidateCovers.push(item);
+              }
+              if (item.year && addReleaseYear && !addReleaseYear.value) {
+                addReleaseYear.value = item.year;
+              }
+            });
+          } catch (err) {
+            console.warn("Last.fm search skipped:", err);
+          }
+        })();
+
+        const mbPromise = (async () => {
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
+            const mbQuery = encodeURIComponent(`"${cleanT}" AND artist:"${cleanA}"`);
+            const mbUrl = `https://musicbrainz.org/ws/2/release/?query=${mbQuery}&fmt=json&limit=3`;
             const proxyRes = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(mbUrl)}`, {
               signal: controller.signal
             });
@@ -867,24 +1037,26 @@ document.addEventListener("DOMContentLoaded", () => {
               }
             }
           } catch (mbErr) {
-            console.warn("MusicBrainz timed out or failed:", mbErr);
+            console.warn("MusicBrainz search skipped:", mbErr);
           }
+        })();
 
-          if (candidateCovers.length === 0) {
-            alert(`No covers found for "${rawArtist} — ${rawTitle}". You can paste an image URL into the Cover field.`);
-            return;
-          }
+        await Promise.allSettled([itunesPromise, lastFmPromise, mbPromise]);
 
-          artCandidatesContainer.style.display = "flex";
-          artThumbnailsRow.innerHTML = candidateCovers.map((item, idx) => `
-            <div class="art-choice-item ${idx === 0 ? 'selected' : ''}" onclick="selectCandidateArt('${item.url}', this)">
-              <img src="${item.url}" alt="Option ${idx + 1}" loading="lazy" onerror="this.parentElement.remove()">
-              <span class="source-tag">${item.source}</span>
-            </div>
-          `).join("");
-
-          selectCandidateArt(candidateCovers[0].url, artThumbnailsRow.querySelector(".art-choice-item"));
+        if (candidateCovers.length === 0) {
+          alert(`No covers found for "${rawArtist} — ${rawTitle}". You can paste an image URL into the Cover field.`);
+          return;
         }
+
+        artCandidatesContainer.style.display = "flex";
+        artThumbnailsRow.innerHTML = candidateCovers.map((item, idx) => `
+          <div class="art-choice-item ${idx === 0 ? 'selected' : ''}" onclick="selectCandidateArt('${item.url}', this)">
+            <img src="${item.url}" alt="Option ${idx + 1}" loading="lazy" onerror="this.parentElement.remove()">
+            <span class="source-tag">${item.source}</span>
+          </div>
+        `).join("");
+
+        selectCandidateArt(candidateCovers[0].url, artThumbnailsRow.querySelector(".art-choice-item"));
 
       } catch (fatalErr) {
         console.error("Cover fetcher error:", fatalErr);
@@ -1331,7 +1503,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (exportWrapper) exportWrapper.style.removeProperty("display");
         if (gridSizeBtn) gridSizeBtn.style.display = "";
         if (statusBarStatus) {
-          statusBarStatus.textContent = currentMonthItems.length === 49 ? "Month Full" : "Ready";
+          statusBarStatus.textContent = currentMonthItems.length === 36 ? "Month Full" : "Ready";
         }
       }
     });
@@ -1481,8 +1653,10 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         const downloadLink = document.createElement("a");
-        const formattedMonth = activeMonth.charAt(0).toUpperCase() + activeMonth.slice(1);
-        downloadLink.download = `${formattedMonth}-Listening-Challenge-7x7.png`;
+        const activeTabBtn = document.querySelector(`menu.w7-month-tabs button[data-month="${activeMonth}"]`);
+        const activeYear = activeTabBtn ? activeTabBtn.getAttribute("data-year") : null;
+        const formattedMonth = formatMonthDisplay(activeMonth, activeYear).replace(/['\s]/g, "-");
+        downloadLink.download = `${formattedMonth}-Listening-Challenge-6x6.png`;
         downloadLink.href = dataUrl;
         downloadLink.click();
       } catch (err) {
@@ -1518,6 +1692,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       loggedSpins = spinsRes.data || [];
 
+      syncMonthTabs();
       updateMonthPillCounts();
       renderGrid();
       updateAdminVisibility();
@@ -1539,9 +1714,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const monthTabButtons = document.querySelectorAll('menu[role="tablist"] button[role="tab"]');
     monthTabButtons.forEach(btn => {
       const month = btn.getAttribute("data-month").toLowerCase();
+      const yr = btn.getAttribute("data-year");
       const count = backlogEntries.filter(e => (e.month || "").toLowerCase() === month).length;
-      const formatted = month.charAt(0).toUpperCase() + month.slice(1);
-      btn.textContent = `${formatted} (${count}/49)`;
+      const label = formatMonthDisplay(month, yr);
+      btn.textContent = `${label} (${count}/36)`;
     });
   }
 
@@ -1758,12 +1934,14 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderGrid() {
-    const list = backlogEntries.filter(item => (item.month || "").toLowerCase() === activeMonth).slice(0, 49);
+    const list = backlogEntries.filter(item => (item.month || "").toLowerCase() === activeMonth).slice(0, 36);
     currentMonthItems = list;
     let completedCount = 0;
 
-    const displayMonth = activeMonth.charAt(0).toUpperCase() + activeMonth.slice(1);
-    if (progressSubtitle) progressSubtitle.textContent = `${displayMonth} 7×7 Listening Challenge (49 Albums)`;
+    const activeTabBtn = document.querySelector(`menu.w7-month-tabs button[data-month="${activeMonth}"]`);
+    const activeYear = activeTabBtn ? activeTabBtn.getAttribute("data-year") : null;
+    const displayMonth = formatMonthDisplay(activeMonth, activeYear);
+    if (progressSubtitle) progressSubtitle.textContent = `${displayMonth} 6×6 Listening Challenge (36 Albums)`;
 
     list.forEach(album => {
       const isDone = loggedSpins.some(s =>
@@ -1774,7 +1952,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (isDone) completedCount++;
     });
 
-    const total = 49;
+    const total = 36;
     const pct = Math.round((completedCount / total) * 100);
 
     if (counterEl) counterEl.textContent = `Completed: ${completedCount} / ${total}`;
@@ -1790,7 +1968,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (statusBarStatus && !isCoverFlowView) {
-      statusBarStatus.textContent = list.length === 49 ? "Month Full" : "Ready";
+      statusBarStatus.textContent = list.length === 36 ? "Month Full" : "Ready";
     }
 
     renderCoverFlow(list);
@@ -1937,12 +2115,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const album = backlogEntries.find(a => a.id === albumId);
     if (!album) return;
 
+    populateMonthSelectOptions();
+
     if (editEntryId) editEntryId.value = album.id;
     if (addArtist) addArtist.value = album.artist || "";
     if (addTitle) addTitle.value = album.title || "";
     if (addReleaseYear) addReleaseYear.value = album.release_year || "";
     if (addCoverUrl) addCoverUrl.value = album.cover_url || "";
     if (addRuntime) addRuntime.value = album.runtime || "";
+    if (addMonth) addMonth.value = (album.month || activeMonth).toLowerCase();
 
     window.addGenresManager.setTags(album.genres);
     window.addSecondaryGenresManager.setTags(album.secondary_genres);
@@ -1973,10 +2154,12 @@ document.addEventListener("DOMContentLoaded", () => {
   if (openAddModalBtn) {
     openAddModalBtn.addEventListener("click", () => {
       if (!isAdmin) return;
+      populateMonthSelectOptions();
       if (editEntryId) editEntryId.value = "";
       if (addAlbumForm) addAlbumForm.reset();
       if (addReleaseYear) addReleaseYear.value = "";
       if (addPreviewImg) addPreviewImg.src = FALLBACK_PLACEHOLDER;
+      if (addMonth) addMonth.value = activeMonth.toLowerCase();
 
       window.addGenresManager.setTags([]);
       window.addSecondaryGenresManager.setTags([]);
@@ -2012,6 +2195,10 @@ document.addEventListener("DOMContentLoaded", () => {
           ? parseInt(addReleaseYear.value.trim(), 10)
           : null;
 
+        const targetMonth = addMonth && addMonth.value
+          ? addMonth.value.trim().toLowerCase()
+          : activeMonth.toLowerCase();
+
         const genres = window.addGenresManager.getTags();
         const secondary_genres = window.addSecondaryGenresManager.getTags();
         const descriptors = window.addDescriptorsManager.getTags();
@@ -2023,28 +2210,61 @@ document.addEventListener("DOMContentLoaded", () => {
         const isEditing = !!editEntryId.value;
 
         if (isEditing) {
+          const currentAlbum = backlogEntries.find(a => String(a.id) === String(editEntryId.value));
+          const oldMonth = currentAlbum ? (currentAlbum.month || "").toLowerCase() : activeMonth.toLowerCase();
+          const monthChanged = oldMonth !== targetMonth;
+
+          const updatePayload = {
+            artist,
+            title,
+            release_year: releaseYearVal,
+            cover_url: cover,
+            runtime,
+            genres,
+            secondary_genres,
+            descriptors,
+            month: targetMonth
+          };
+
+          if (monthChanged) {
+            const destEntries = backlogEntries.filter(
+              entry => (entry.month || "").toLowerCase() === targetMonth && String(entry.id) !== String(editEntryId.value)
+            );
+            const maxPos = destEntries.reduce(
+              (max, entry) => Math.max(max, entry.position !== null && entry.position !== undefined ? entry.position : -1),
+              -1
+            );
+            updatePayload.position = maxPos + 1;
+
+            const selectedOption = addMonth ? addMonth.options[addMonth.selectedIndex] : null;
+            const optYear = selectedOption ? selectedOption.getAttribute("data-year") : null;
+            const targetTabBtn = document.querySelector(`menu.w7-month-tabs button[data-month="${targetMonth}"]`);
+            const tabYear = targetTabBtn ? targetTabBtn.getAttribute("data-year") : null;
+            const monthIdx = MONTH_NAMES.findIndex(m => m.toLowerCase() === targetMonth);
+            const resolvedYear = optYear ? parseInt(optYear, 10) : (tabYear ? parseInt(tabYear, 10) : (monthIdx !== -1 && monthIdx < 9 ? 2027 : 2026));
+            updatePayload.year = resolvedYear;
+          }
+
           const { error } = await sb
             .from("challenge_backlog")
-            .update({
-              artist,
-              title,
-              release_year: releaseYearVal,
-              cover_url: cover,
-              runtime,
-              genres,
-              secondary_genres,
-              descriptors
-            })
+            .update(updatePayload)
             .eq("id", editEntryId.value);
 
           if (error) throw error;
+
+          if (monthChanged) {
+            setActiveMonthTab(targetMonth);
+          }
         } else {
-          const currentYear = new Date().getFullYear();
-          const activeTabBtn = document.querySelector(`menu.w7-month-tabs button[data-month="${activeMonth}"]`);
-          const targetYear = activeTabBtn ? parseInt(activeTabBtn.getAttribute("data-year"), 10) : currentYear;
+          const selectedOption = addMonth ? addMonth.options[addMonth.selectedIndex] : null;
+          const optYear = selectedOption ? selectedOption.getAttribute("data-year") : null;
+          const targetTabBtn = document.querySelector(`menu.w7-month-tabs button[data-month="${targetMonth}"]`);
+          const tabYear = targetTabBtn ? targetTabBtn.getAttribute("data-year") : null;
+          const monthIdx = MONTH_NAMES.findIndex(m => m.toLowerCase() === targetMonth);
+          const targetYear = optYear ? parseInt(optYear, 10) : (tabYear ? parseInt(tabYear, 10) : (monthIdx !== -1 && monthIdx < 9 ? 2027 : 2026));
 
           const monthEntries = backlogEntries.filter(
-            entry => (entry.month || "").toLowerCase() === activeMonth.toLowerCase()
+            entry => (entry.month || "").toLowerCase() === targetMonth
           );
           const maxPos = monthEntries.reduce(
             (max, entry) => Math.max(max, entry.position !== null && entry.position !== undefined ? entry.position : -1),
@@ -2057,7 +2277,7 @@ document.addEventListener("DOMContentLoaded", () => {
             release_year: releaseYearVal,
             cover_url: cover,
             runtime,
-            month: activeMonth,
+            month: targetMonth,
             year: targetYear,
             position: maxPos + 1,
             genres,
@@ -2067,6 +2287,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
           const { error } = await sb.from("challenge_backlog").insert([newRecord]);
           if (error) throw error;
+
+          if (targetMonth !== activeMonth) {
+            setActiveMonthTab(targetMonth);
+          }
         }
 
         if (addModal) addModal.style.display = "none";
