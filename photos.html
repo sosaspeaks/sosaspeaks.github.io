@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Sosa Archive — Historical Photographic Repository | SosaSpeaks</title>
+    <meta name="description" content="The Sosa Archive: A curated, tag-driven historical photographic repository documenting revolutionary movements, statesmanship, and internationalist history.">
+    <link rel="icon" type="favicon" href="assets/images/homepics/Sosa-Icon-V3.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/images/homepics/apple-touch-icon.png?v=20260527" />
+    <meta name="apple-mobile-web-app-title" content="SosaSpeaks" />
+    <link rel="manifest" href="assets/images/homepics/site.webmanifest?v=20260527" />
+    <!-- Core & Archive Stylesheets -->
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/archive-photos.css">
+    <!-- Boxicons -->
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+</head>
+<body class="" style="transition: 0.4s;">
+    <div class="loader"></div>
+
+    <!-- Site Header -->
+    <header>
+        <div class="nav container">
+            <a href="index.html" class="nav-logo-link" title="SosaSpeaks Home">
+                <img src="assets/images/homepics/Sosa-Icon-V3.png" alt="SosaSpeaks Icon" class="logo-icon">
+            </a>
+            <div class="nav-right-group">
+                <a href="archive-photos.html" class="nav-custom-link" title="The Sosa Archive" aria-current="page">
+                    <i class='bx bx-collection' style="font-size: 1.65rem; filter: var(--aero-glow);"></i>
+                </a>
+                <a href="about.html" class="nav-custom-link" title="About">
+                    <img src="assets/images/homepics/msgsres_1.ico" class="nav-custom-icon msngr-icon" alt="About">
+                </a>
+                <i class='bx bx-moon theme-toggle' style="scale: 155%;" title="Theme"></i>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Banner -->
+    <section class="archive-hero" id="archive-hero">
+        <div class="archive-hero-inner container">
+            <span class="archive-kicker">
+                <i class='bx bx-archive'></i> SosaSpeaks Historical Preservation Unit
+            </span>
+            <h1 class="archive-hero-title">The Sosa Archive</h1>
+            <p class="archive-hero-subtitle">
+                A cross-indexed, metadata-driven photographic repository of primary historical photos, diplomatic missions, and revolutionary movements.
+            </p>
+        </div>
+    </section>
+
+    <!-- Main Application Workspace -->
+    <main class="archive-main container">
+
+        <!-- ==================================================================
+             VIEW 1: INDEX VIEW — THE HISTORICAL DIRECTORY
+             ================================================================== -->
+        <section id="archive-view-directory" class="archive-view" aria-label="Historical Figures Directory">
+
+            <!-- Aero Glass Search & Repository Metrics Bar -->
+            <div class="archive-toolbar">
+                <div class="archive-search-wrapper">
+                    <i class='bx bx-search archive-search-icon'></i>
+                    <input
+                        type="search"
+                        id="archive-search-input"
+                        class="archive-search-input"
+                        placeholder="Search figures, eras, locations (e.g., Havana, 1959, Korda)..."
+                        autocomplete="off"
+                        aria-label="Search historical figures and photos"
+                    >
+                    <button
+                        type="button"
+                        id="archive-search-clear"
+                        class="archive-search-clear is-hidden"
+                        title="Clear search"
+                        aria-label="Clear search"
+                    >
+                        <i class='bx bx-x'></i>
+                    </button>
+                </div>
+
+                <div class="archive-toolbar-meta">
+                    <span class="archive-stat-pill" title="Indexed Historical Figures">
+                        <i class='bx bxs-user-Account'></i>
+                        <span id="stat-figures-count">0 Figures</span>
+                    </span>
+                    <span class="archive-stat-pill" title="Unique Digitized Photos">
+                        <i class='bx bx-images'></i>
+                        <span id="stat-plates-count">0 Photos</span>
+                    </span>
+                    <span class="archive-stat-pill" title="Collection Chronological Span">
+                        <i class='bx bx-time-five'></i>
+                        <span id="stat-span-years">—</span>
+                    </span>
+                    <select id="archive-sort-select" class="archive-sort-select" aria-label="Sort historical figures">
+                        <option value="default">Sort: Curated Index</option>
+                        <option value="chrono">Sort: Earliest Era First</option>
+                        <option value="count">Sort: Most Photos</option>
+                        <option value="alpha">Sort: Name (A–Z)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Figures Directory Grid -->
+            <div class="archive-section-heading">
+                <h2 class="archive-section-title">
+                    <i class='bx bxs-folder-open'></i> Historical Figures Dossier Index
+                </h2>
+                <span id="directory-results-caption" class="archive-section-caption">Loading archival index...</span>
+            </div>
+
+            <div id="figures-grid" class="figures-grid">
+                <!-- Populated dynamically via assets/js/archive-photos.js -->
+            </div>
+
+            <!-- Direct Photo Matches (Displayed dynamically when searching) -->
+            <div id="search-plates-section" class="search-plates-section is-hidden">
+                <div class="archive-section-heading">
+                    <h2 class="archive-section-title">
+                        <i class='bx bx-film'></i> Matching Photos
+                    </h2>
+                    <span id="search-plates-caption" class="archive-section-caption"></span>
+                </div>
+                <div id="search-plates-grid" class="timeline-photos-grid"></div>
+            </div>
+
+        </section>
+
+        <!-- ==================================================================
+             VIEW 2: FIGURE CHRONOLOGICAL TIMELINE VIEW
+             ================================================================== -->
+        <section id="archive-view-timeline" class="archive-view is-hidden" aria-label="Figure Chronological Timeline">
+
+            <!-- Breadcrumb Navigation -->
+            <nav class="timeline-nav-bar" aria-label="Archive Breadcrumb">
+                <button type="button" id="btn-back-directory" class="btn-back-directory">
+                    <i class='bx bx-left-arrow-alt' style="font-size: 1.2rem;"></i>
+                    <span>&larr; Return to Archive Directory</span>
+                </button>
+            </nav>
+
+            <!-- Figure Dossier Header Pane -->
+            <div class="timeline-header-pane">
+                <div class="timeline-portrait-frame">
+                    <div class="aero-specular-glare"></div>
+                    <img
+                        id="timeline-portrait-img"
+                        src=""
+                        alt=""
+                        class="timeline-portrait-img"
+                    >
+                </div>
+
+                <div class="timeline-header-info">
+                    <div class="timeline-badges-row">
+                        <span id="timeline-badge-span" class="timeline-badge">
+                            <i class='bx bx-calendar'></i> —
+                        </span>
+                        <span id="timeline-badge-count" class="timeline-badge">
+                            <i class='bx bx-layer'></i> 0 photos
+                        </span>
+                    </div>
+                    <h2 id="timeline-figure-name" class="timeline-figure-name">Historical Figure</h2>
+                    <div id="timeline-figure-lifespan" class="timeline-figure-lifespan"></div>
+                    <p id="timeline-figure-era" class="timeline-figure-era"></p>
+                    <div id="timeline-cotagged-row" class="timeline-cotagged-row"></div>
+                </div>
+            </div>
+
+            <!-- Timeline Controls Bar (Year Jump & Chronological Sort) -->
+            <div class="timeline-controls-bar">
+                <div id="timeline-year-jumps" class="timeline-year-jumps">
+                    <span class="year-jump-label">Jump to Year:</span>
+                </div>
+
+                <div class="timeline-sort-group" role="group" aria-label="Chronological sort order">
+                    <button type="button" id="btn-sort-asc" class="btn-sort-order is-active">
+                        <i class='bx bx-sort-up'></i> Chronological (Oldest)
+                    </button>
+                    <button type="button" id="btn-sort-desc" class="btn-sort-order">
+                        <i class='bx bx-sort-down'></i> Reverse (Newest)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chronologically Grouped Photos Container -->
+            <div id="timeline-years-container" class="timeline-years-container">
+                <!-- Year sections and photo grids injected via assets/js/archive-photos.js -->
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- ======================================================================
+         VIEW 3: ARCHIVAL LIGHTBOX / DOCUMENT VIEWER MODAL
+         ====================================================================== -->
+    <div
+        id="archive-lightbox"
+        class="archive-lightbox is-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-hidden="true"
+        aria-labelledby="dossier-title"
+    >
+        <div class="lightbox-window">
+
+            <!-- Left / Top: High-Res Photo Canvas -->
+            <div class="lightbox-canvas-pane">
+                <div class="lightbox-canvas-topbar">
+                    <span id="lightbox-counter" class="lightbox-counter-badge">Photo 1 of 1</span>
+                    <div class="lightbox-canvas-actions">
+                        <button
+                            type="button"
+                            id="lightbox-fullscreen-btn"
+                            class="lightbox-icon-btn"
+                            title="Toggle Fullscreen Inspection"
+                            aria-label="Toggle Fullscreen"
+                        >
+                            <i class='bx bx-fullscreen'></i>
+                        </button>
+                        <button
+                            type="button"
+                            id="lightbox-close-btn"
+                            class="lightbox-icon-btn"
+                            title="Close Document Viewer (Esc)"
+                            aria-label="Close Document Viewer"
+                        >
+                            <i class='bx bx-x'></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    id="lightbox-prev-btn"
+                    class="lightbox-nav-btn lightbox-nav-prev"
+                    title="Previous Photo (Left Arrow)"
+                    aria-label="Previous Photo"
+                >
+                    <i class='bx bx-chevron-left'></i>
+                </button>
+
+                <div class="lightbox-img-wrapper">
+                    <img id="lightbox-img" src="" alt="" class="lightbox-img">
+                </div>
+
+                <button
+                    type="button"
+                    id="lightbox-next-btn"
+                    class="lightbox-nav-btn lightbox-nav-next"
+                    title="Next Photo (Right Arrow)"
+                    aria-label="Next Photo"
+                >
+                    <i class='bx bx-chevron-right'></i>
+                </button>
+            </div>
+
+            <!-- Right / Bottom: Historical Metadata Dossier Pane -->
+            <aside class="lightbox-dossier-pane" aria-label="Photo Metadata Dossier">
+                <div class="dossier-header-bar">
+                    <span id="dossier-catalog-id" class="dossier-catalog-id">PHOTO // —</span>
+                </div>
+
+                <h3 id="dossier-title" class="dossier-title">Photo Title</h3>
+
+                <div class="dossier-metadata-grid">
+                    <div class="dossier-meta-item">
+                        <i class='bx bx-calendar-event'></i>
+                        <div>
+                            <span class="dossier-meta-label">Precise Date / Era</span>
+                            <span id="dossier-date" class="dossier-meta-value">—</span>
+                        </div>
+                    </div>
+
+                    <div class="dossier-meta-item">
+                        <i class='bx bxs-map-pin'></i>
+                        <div>
+                            <span class="dossier-meta-label">Location</span>
+                            <span id="dossier-location" class="dossier-meta-value">—</span>
+                        </div>
+                    </div>
+
+                    <div class="dossier-meta-item">
+                        <i class='bx bxs-bank'></i>
+                        <div>
+                            <span class="dossier-meta-label">Primary Source / Archive Attribution</span>
+                            <span id="dossier-source" class="dossier-meta-value">—</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="dossier-section-label">Contextual Narrative</h4>
+                    <p id="dossier-description" class="dossier-description"></p>
+                </div>
+
+                <div>
+                    <h4 class="dossier-section-label">Tagged Historical Figures</h4>
+                    <div id="dossier-tags-list" class="dossier-tags-list">
+                        <!-- Interactive figure chips injected via JS -->
+                    </div>
+                </div>
+
+                <div class="dossier-footer-Hints">
+                    <span><kbd class="kbd-hint">&larr;</kbd> <kbd class="kbd-hint">&rarr;</kbd> Cycle Photos</span>
+                    <span><kbd class="kbd-hint">Esc</kbd> Close</span>
+                </div>
+            </aside>
+
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer container">
+        <p class="footer-copyright">
+            &#169; SosaSpeaks. All non-quoted material is the original writing of SosaSpeaks and its authors.
+        </p>
+
+        <p class="footer-links">
+            <a href="https://github.com/sosaspeaks/sosaspeaks.github.io" target="_blank" rel="noopener">
+                <i class='bx bxl-github'></i> Source code via GitHub
+            </a>
+            <span class="footer-divider">&middot;</span>
+            <a href="mailto:sosa@sosaspeaks.org">
+                <i class='bx bx-envelope'></i> sosa@sosaspeaks.org
+            </a>
+        </p>
+    </footer>
+
+    <!-- Scripts -->
+    <script
+        src="https://code.jquery.com/jquery-3.7.1.js"
+        integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4="
+        crossorigin="anonymous"></script>
+    <button class="to-top" aria-label="Scroll to top"><i class='bx bx-up-arrow-alt' style="scale: 250%;"></i></button>
+    <script src="assets/js/main.js"></script>
+    <script src="assets/js/archive-photos.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,195 @@
+{
+  "figures": [
+    {
+      "id": "che-guevara",
+      "name": "Ernesto 'Che' Guevara",
+      "birth_date": "June 14, 1928",
+      "death_date": "October 9, 1967",
+      "portrait": "https://assets.sosaspeaks.org/sosa-archive/portraits/che_guevara_guerrillero_heroico.jpg",
+      "era_context": "Cuban Revolution & Internationalist Campaigns",
+      "default_order": 1
+    },
+    {
+      "id": "fidel-castro",
+      "name": "Fidel Castro",
+      "birth_date": "August 13, 1926",
+      "death_date": "November 25, 2016",
+      "portrait": "https://assets.sosaspeaks.org/sosa-archive/portraits/fidel_castro_1977.jpg",
+      "era_context": "The Cuban Revolutionary State & International Endeavors",
+      "default_order": 2
+    },
+    {
+      "id": "mao-zedong",
+      "name": "Mao Zedong",
+      "birth_date": "December 26, 1893",
+      "death_date": "September 9, 1976",
+      "portrait": "https://assets.sosaspeaks.org/sosa-archive/portraits/mao_1959.jpg",
+      "era_context": "Chinese Communist Revolution & Early People's Republic of China",
+      "default_order": 3
+    },
+    {
+      "id": "vladimir-lenin",
+      "name": "Vladimir Ilyich Lenin",
+      "birth_date": "April 22, 1870",
+      "death_date": "January 21, 1924",
+      "portrait": "https://assets.sosaspeaks.org/sosa-archive/portraits/Lenin_in_Z%C3%BCrich_on_March_1916.jpg",
+      "era_context": "October Revolution & Early Bolshevik Governance",
+      "default_order": 4
+    },
+    {
+      "id": "joseph-stalin",
+      "name": "Joseph Stalin",
+      "birth_date": "December 18, 1878",
+      "death_date": "March 5, 1953",
+      "portrait": "https://assets.sosaspeaks.org/sosa-archive/portraits/Stalin_1917-1.1.jpg",
+      "era_context": "Soviet Industrialization, Great Patriotic War & Cold War Origins",
+      "default_order": 6
+    },
+    {
+      "id": "kim-il-sung",
+      "name": "Kim Il Sung",
+      "birth_date": "April 15, 1912",
+      "death_date": "July 8, 1994",
+      "portrait": "https://assets.sosaspeaks.org/sosa-archive/portraits/Kim_Il-sung_official_photograph%2C_1_October_1948.jpg",
+      "era_context": "Anti-Japanese Guerrilla Struggle & Founding of the DPRK",
+      "default_order": 7
+    },
+    {
+      "id": "kim-jong-il",
+      "name": "Kim Jong Il",
+      "birth_date": "February 16, 1941",
+      "death_date": "December 17, 2011",
+      "portrait": "https://assets.sosaspeaks.org/sosa-archive/portraits/Kim_Jong_il_Portrait-2.jpg",
+      "era_context": "Songun State Consolidation & Late Cold War DPRK",
+      "default_order": 8
+    },
+    {
+      "id": "hugo-chavez",
+      "name": "Hugo Chávez",
+      "birth_date": "July 28, 1954",
+      "death_date": "March 5, 2013",
+      "portrait": "https://assets.sosaspeaks.org/sosa-archive/portraits/Hugo_Ch%C3%A1vez_official_portrait_(cropped).jpg",
+      "era_context": "Bolivarian Revolution & 21st-Century Latin American Socialism",
+      "default_order": 9
+    },
+    {
+      "id": "yukio-mishima",
+      "name": "Yukio Mishima",
+      "birth_date": "January 14, 1925",
+      "death_date": "November 25, 1970",
+      "portrait": "https://assets.sosaspeaks.org/sosa-archive/portraits/yukiomishima-handresting.jpg",
+      "era_context": "Postwar Japanese Literary Modernism & the Tatenokai",
+      "default_order": 10
+    },
+    {
+      "id": "franklin-d-roosevelt",
+      "name": "Franklin D. Roosevelt",
+      "birth_date": "January 30, 1882",
+      "death_date": "April 12, 1945",
+      "portrait": "https://assets.sosaspeaks.org/sosa-archive/portraits/FDR-1944-Campaign-Portrait_(3x4_retouched%2C_cropped).jpg",
+      "era_context": "The New Deal Coalition & Allied Grand Strategy in WWII",
+      "default_order": 11
+    },
+    {
+      "id": "minerva-mirabal",
+      "name": "Minerva Mirabal",
+      "birth_date": "March 12, 1926",
+      "death_date": "November 25, 1960",
+      "portrait": "https://assets.sosaspeaks.org/sosa-archive/portraits/minerva-mirabal-portrait.jpg",
+      "era_context": "14th of June Revolutionary Movement & Anti-Trujillo Resistance",
+      "default_order": 12
+    },
+    {
+      "id": "francisco-caamano",
+      "name": "Francisco Alberto Caamaño Deñó",
+      "birth_date": "June 11, 1932",
+      "death_date": "February 16, 1973",
+      "portrait": "https://assets.sosaspeaks.org/sosa-archive/portraits/francisco-caamano-portrait.jpg",
+      "era_context": "The Constitutionalists & the Dominican Civil War of 1965",
+      "default_order": 13
+    },
+    {
+      "id": "jose-francisco-antonio-pena-gomez",
+      "name": "José Francisco Antonio Peña Gómez",
+      "birth_date": "March 6, 1937",
+      "death_date": "May 10, 1998",
+      "portrait": "https://assets.sosaspeaks.org/sosa-archive/portraits/pena-gomez.jpg",
+      "era_context": "Socialist International & Dominican Liberation Party",
+      "default_order": 14
+    }
+  ],
+  "photos": [
+    {
+      "id": "1965_portrait_of_a_loyalist",
+      "title": "Portrait of a  Loyalist",
+      "url": "https://assets.sosaspeaks.org/sosa-archive/photos/caamano/caamano.jpg",
+      "thumb_url": "https://assets.sosaspeaks.org/sosa-archive/photos/caamano/caamano.jpg",
+      "year": 1965,
+      "precise_date": "1965",
+      "location": "Dominican Republic",
+      "description": "A portrait of Colonel Caamaño, a soldier leading the Constitutionalist movement to restore the democratically elected president Dr. Juan Bosch, who was deposed in a USA-backed military coup in 1963.",
+      "source": "Archivo General de la Nacion",
+      "source_url": "https://colecciones.agn.gob.do/opac/ficha.php?informatico=00099542PI&idpag=1042745134&codopac=OUFOT&presenta=digitaly2p#viajeinicial",
+      "tags": [
+        "francisco-caamano"
+      ]
+    },
+    {
+      "id": "1960_guerrillero_heroico",
+      "title": "Guerrillero Heroico",
+      "url": "https://assets.sosaspeaks.org/sosa-archive/portraits/che_guevara_guerrillero_heroico.jpg",
+      "thumb_url": "https://assets.sosaspeaks.org/sosa-archive/portraits/che_guevara_guerrillero_heroico.jpg",
+      "year": 1960,
+      "precise_date": "March 5, 1960",
+      "location": "Havana, Cuba",
+      "description": "Guerrillero Heroico is a famous photograph of Che, taken by Alberto Korda, a photographer and supporter of the Cuban Revolution. The photo was captured while Che stood at a memorial service for victims of the La Coubre explosion, a French freighter that detonated in the harbor of Havana while carrying dozens of tons of grenades and munitions.",
+      "source": "Alberto Korda",
+      "tags": [
+        "che-guevara"
+      ]
+    },
+    {
+      "id": "1956_che_fidel_prison",
+      "title": "Early Revolutionary Activity",
+      "url": "https://assets.sosaspeaks.org/sosa-archive/photos/che/1956-fidel-and-che-jail-changing.jpg",
+      "thumb_url": "https://assets.sosaspeaks.org/sosa-archive/photos/che/1956-fidel-and-che-jail-changing.jpg",
+      "year": 1956,
+      "precise_date": "June/July, 1956",
+      "location": "Miguel Schultz Jail, Mexico City, Mexico",
+      "description": "Fidel Castro and Ernesto Che Guevara in Miguel Schultz Jail in Mexico City. In June, they were arrested by Mexican police when they prepared an expedition in Cuba. This photo may be the 1st one showing Castro and Guevara together.",
+      "source": "Hulton Archive",
+      "tags": [
+        "che-guevara",
+        "fidel-castro"
+      ]
+    },
+    {
+      "id": "1956_che_mugshot",
+      "title": "Early Revolutionary Activity",
+      "url": "https://assets.sosaspeaks.org/sosa-archive/photos/che/Ernesto_0173.png",
+      "thumb_url": "https://assets.sosaspeaks.org/sosa-archive/photos/che/Ernesto_0173.png",
+      "year": 1956,
+      "precise_date": "June 1956",
+      "location": "Mexico City, Mexico",
+      "description": "In June of 1956, Che was arrested by the Mexican police, along with several Cubans, including Fidel Castro.",
+      "source": "",
+      "tags": [
+        "che-guevara"
+      ]
+    },
+    {
+      "id": "1945_che_headshot",
+      "title": "A 17-Year-Old Che Guevara",
+      "url": "https://assets.sosaspeaks.org/sosa-archive/photos/che/che-guevara-school-headshot.jpg",
+      "thumb_url": "https://assets.sosaspeaks.org/sosa-archive/photos/che/che-guevara-school-headshot.jpg",
+      "year": 1945,
+      "precise_date": "c. 1945",
+      "location": "Argentina",
+      "description": "A headshot of Che Guevara, circa 1945; likely a headshot taken at his secondary school.",
+      "source": "Museo Che Guevara",
+      "tags": [
+        "che-guevara"
+      ]
+    }
+  ]
+}

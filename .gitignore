@@ -1,0 +1,15 @@
+# Local Archive Admin Portal & Auto-Save Server
+archive-admin.html
+assets/js/archive-admin.js
+assets/css/archive-admin.css
+admin-server.js
+
+# Templates & Context Notes
+articles/templates
+CONTEXT.md
+
+# Editor & OS Metadata
+.vscode/
+.DS_Store
+Thumbs.db
+
