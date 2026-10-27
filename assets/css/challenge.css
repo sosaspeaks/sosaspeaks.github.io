@@ -1215,6 +1215,25 @@ select.sosa-search-input {
   transform: translateY(-1px) !important;
 }
 
+.aero-btn-action.rym-import-btn {
+  background: linear-gradient(180deg, #ffffff 0%, #ecfdf5 48%, #d1fae5 50%, #e6fcf1 100%) !important;
+  border-color: rgba(16, 185, 129, 0.45) !important;
+  color: #065f46 !important;
+}
+
+.aero-btn-action.rym-import-btn:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #a7f3d0 48%, #6ee7b7 50%, #d1fae5 100%) !important;
+  border-color: #10b981 !important;
+  color: #047857 !important;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4), inset 0 1px 0 #ffffff !important;
+}
+
+.aero-btn-action.rym-import-btn.btn-import-success {
+  background: linear-gradient(180deg, #34d399 0%, #059669 100%) !important;
+  color: #ffffff !important;
+  border-color: #047857 !important;
+}
+
 .aero-btn-action.primary-save-btn {
   width: 100% !important;
   justify-content: center !important;
@@ -2765,3 +2784,166 @@ body.dark-mode .w7-auth-footer {
 .dark-mode .footer-divider {
     color: rgba(255, 255, 255, 0.15);
 }
+
+/* ============================================================
+   AERO SORT DROPDOWN MENU & RYM BADGES
+   ============================================================ */
+.aero-sort-dropdown-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.aero-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 999999;
+  min-width: 220px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: 8px;
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: aeroMenuFadeIn 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes aeroMenuFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.aero-menu-header {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #64748b;
+  padding: 4px 8px 2px;
+  user-select: none;
+}
+
+.aero-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  background: transparent;
+  font-family: var(--font-body), sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #1e293b;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.12s ease;
+}
+
+.aero-menu-item i {
+  font-size: 0.95rem;
+  color: #10b981;
+}
+
+.aero-menu-item:hover {
+  background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #065f46;
+  box-shadow: inset 0 1px 0 #ffffff;
+}
+
+.aero-menu-item.active {
+  background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+  color: #ffffff !important;
+  border-color: rgba(5, 150, 105, 0.6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.aero-menu-item.active i {
+  color: #ffffff !important;
+}
+
+.aero-menu-divider {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.08);
+  margin: 3px 2px;
+}
+
+/* Dark Mode Menu */
+body.dark-mode .aero-menu-dropdown {
+  background: rgba(15, 23, 42, 0.96);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 14px 36px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .aero-menu-header {
+  color: #94a3b8;
+}
+
+body.dark-mode .aero-menu-item {
+  color: #e2e8f0;
+}
+
+body.dark-mode .aero-menu-item:hover {
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.35) 100%);
+  border-color: rgba(16, 185, 129, 0.5);
+  color: #a7f3d0;
+}
+
+body.dark-mode .aero-menu-item.active {
+  background: linear-gradient(180deg, #10b981 0%, #047857 100%);
+  color: #ffffff !important;
+}
+
+body.dark-mode .aero-menu-divider {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* RYM Rating Badges */
+.aero-rym-rating-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.15) 0%, rgba(14, 165, 233, 0.22) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #0284c7;
+  margin-top: 4px;
+}
+
+body.dark-mode .aero-rym-rating-badge {
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.2) 0%, rgba(14, 165, 233, 0.3) 100%);
+  border-color: rgba(56, 189, 248, 0.5);
+  color: #7dd3fc;
+}
+
+.cf-genre-chip.rym-chip {
+  background: rgba(56, 189, 248, 0.2) !important;
+  border: 1px solid rgba(56, 189, 248, 0.45) !important;
+  color: #0284c7 !important;
+  font-weight: 700 !important;
+}
+
+body.dark-mode .cf-genre-chip.rym-chip {
+  color: #7dd3fc !important;
+  border-color: rgba(56, 189, 248, 0.4) !important;
+}
+

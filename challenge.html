@@ -101,6 +101,53 @@
           <button type="button" id="gridSizeBtn" class="aero-command-btn" title="Cycle grid layout size">
             <i class='bx bx-grid-alt'></i> Size: Standard
           </button>
+
+          <!-- Aero Sort Dropdown -->
+          <div class="aero-sort-dropdown-wrap" style="position: relative; display: inline-block;">
+            <button type="button" id="gridSortBtn" class="aero-command-btn" title="Sort challenge albums" aria-haspopup="true" aria-expanded="false">
+              <i class='bx bx-sort-alt-2'></i> <span id="gridSortBtnLabel">Sort: Default</span> <i class='bx bx-chevron-down' style="font-size: 0.85rem; margin-left: 1px;"></i>
+            </button>
+            <div class="aero-menu-dropdown" id="gridSortMenu" style="display: none;">
+              <button type="button" class="aero-menu-item active" data-sort="default">
+                <i class='bx bx-list-ol'></i> Default (Saved Order)
+              </button>
+              <div class="aero-menu-divider"></div>
+              <div class="aero-menu-header">Runtime</div>
+              <button type="button" class="aero-menu-item" data-sort="runtime-asc">
+                <i class='bx bx-time'></i> Runtime: Shortest first
+              </button>
+              <button type="button" class="aero-menu-item" data-sort="runtime-desc">
+                <i class='bx bx-time-five'></i> Runtime: Longest first
+              </button>
+              <div class="aero-menu-divider"></div>
+              <div class="aero-menu-header">Release Year</div>
+              <button type="button" class="aero-menu-item" data-sort="year-asc">
+                <i class='bx bx-calendar'></i> Year: Oldest first
+              </button>
+              <button type="button" class="aero-menu-item" data-sort="year-desc">
+                <i class='bx bx-calendar-event'></i> Year: Newest first
+              </button>
+              <div class="aero-menu-divider"></div>
+              <div class="aero-menu-header">Alphabetical</div>
+              <button type="button" class="aero-menu-item" data-sort="artist-asc">
+                <i class='bx bx-user'></i> Artist: A → Z
+              </button>
+              <button type="button" class="aero-menu-item" data-sort="title-asc">
+                <i class='bx bx-disc'></i> Title: A → Z
+              </button>
+              <div class="aero-menu-divider"></div>
+              <div class="aero-menu-header">Ratings & Status</div>
+              <button type="button" class="aero-menu-item" data-sort="rym-desc">
+                <i class='bx bxs-star' style="color: #38bdf8;"></i> RYM Rating: Highest first
+              </button>
+              <button type="button" class="aero-menu-item" data-sort="rating-desc">
+                <i class='bx bxs-star' style="color: #f59e0b;"></i> My Rating: Highest first
+              </button>
+              <button type="button" class="aero-menu-item" data-sort="status">
+                <i class='bx bx-check-circle' style="color: #10b981;"></i> Status: Completed first
+              </button>
+            </div>
+          </div>
           <button type="button" id="exportImageBtn" class="aero-command-btn export-emerald-btn" title="Download Topster image">
             <i class='bx bx-camera'></i> Export Image
           </button>
@@ -238,6 +285,9 @@
             <button type="button" id="fetchRuntimeBtn" class="aero-btn-action">
               <i class='bx bx-time'></i> Fetch Runtime
             </button>
+            <button type="button" id="rymImportBtn" class="aero-btn-action rym-import-btn" title="Import release data from Rate Your Music clipboard">
+              <i class='bx bx-clipboard'></i> Import RYM
+            </button>
           </div>
         </div>
       </div>
@@ -248,7 +298,10 @@
           <div id="artThumbnailsRow" class="thumbnails-scroll-row"></div>
         </div>
 
-        <input type="text" id="addRuntime" class="sosa-search-input" placeholder="Runtime (e.g. 42m 15s)">
+        <div class="modal-split-row">
+          <input type="text" id="addRuntime" class="sosa-search-input" placeholder="Runtime (e.g. 42m 15s)">
+          <input type="number" id="addRymRating" class="sosa-search-input" placeholder="RYM Rating (e.g. 3.75)" step="0.01" min="0" max="5.0">
+        </div>
         <input type="text" id="addCoverUrl" class="sosa-search-input" placeholder="Cover URL">
        <!-- Primary Genres Tag Box -->
         <div class="tag-field-row">

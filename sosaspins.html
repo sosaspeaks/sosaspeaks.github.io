@@ -139,13 +139,13 @@
           <!-- Populated dynamically -->
         </div>
       </div>
-      <!-- Rating Filter Widget -->
-        <div class="sidebar-card aero-card">
-        <h3 class="sidebar-heading">Ratings</h3>
-        <div id="ratingCloud" class="rating-filter-list">
-            <!-- Dynamic rating rows injected here -->
+      <!-- Rating Scale & Distribution Widget -->
+      <div class="sidebar-card aero-card">
+        <h3 class="sidebar-heading"><i class='bx bxs-star-half'></i> Rating Scale</h3>
+        <div id="ratingDistributionWidget" class="rating-dist-list">
+          <!-- Dynamic rating distribution rows injected here -->
         </div>
-        </div>
+      </div>
       <div class="sidebar-card">
         <h3 class="sidebar-heading">Top Genres</h3>
         <div class="category-group" id="genreCloud"></div>
@@ -174,6 +174,9 @@
           <div class="modal-cover-preview">
             <img id="previewImg" src="assets/images/spins/placeholder.png" alt="Preview" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
             <button type="button" id="fetchCoverBtn" class="review-action-btn" style="width: 100%; justify-content: center;">Fetch Art</button>
+            <button type="button" id="rymImportBtn" class="review-action-btn rym-import-btn" style="width: 100%; justify-content: center; margin-top: 5px;" title="Import release data from Rate Your Music clipboard">
+              <i class='bx bx-clipboard'></i> Import RYM
+            </button>
           </div>
 
           <div class="modal-main-inputs">
@@ -245,7 +248,8 @@
             <div class="aero-autocomplete-menu" id="descriptorsDropdown" style="display: none;"></div>
           </div>
           <input type="hidden" id="logDescriptors" value="">
-          <input type="text" id="logFavTracks" placeholder="Favorite Tracks (semicolon or comma separated, e.g. Song | https://link)" class="sosa-search-input">
+          <input type="text" id="logFavTracks" placeholder="Favorite Tracks (semicolon-separated, e.g. Song, Pt. 1; Song 2 | https://link)" class="sosa-search-input">
+          <input type="text" id="logSingleAudioUrl" placeholder="Audio / Stream Link (YouTube, SoundCloud, MP4...)" class="sosa-search-input" style="display: none;">
           <input type="text" id="logReviewUrl" placeholder="Full Review URL (e.g. reviews/cork_tree.html)" class="sosa-search-input">
           <textarea id="logMemo" placeholder="Notes & Thoughts..." rows="3" class="sosa-search-input" style="resize: vertical;"></textarea>
         </div>
@@ -385,6 +389,6 @@
     <!-- Link to JS -->
     <button class="to-top"><i class='bx bx-up-arrow-alt' style="scale: 250%;"></i></button>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="assets/js/archive.js"></script>
+    <script src="assets/js/sosaspins.js"></script>
 </body>
 </html>

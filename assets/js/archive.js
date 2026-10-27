@@ -15,12 +15,26 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
   const ICON_LOCKED = "assets/images/homepics/CP070.ico";
   const ICON_UNLOCKED = "assets/images/homepics/CP073.ico";
 
+  const RATING_RUBRIC = [
+  { score: "5.0", label: "mindblowing" },
+  { score: "4.5", label: "incredible; almost flawless" },
+  { score: "4.0", label: "great" },
+  { score: "3.5", label: "good; worth revisiting" },
+  { score: "3.0", label: "promising/decent; some good ideas" },
+  { score: "2.5", label: "mediocre; ambivalent to" },
+  { score: "2.0", label: "subpar; unfocused, underwhelming" },
+  { score: "1.5", label: "poor" },
+  { score: "1.0", label: "unlistenable" },
+  { score: "0.5", label: "abysmal, agonizing" }
+];
+
 
   // Filter widgets
   const yearCloud = document.getElementById("yearCloud");
   const genreCloud = document.getElementById("genreCloud");
   const descriptorCloud = document.getElementById("descriptorCloud");
   const ratingCloud = document.getElementById("ratingCloud");
+  const ratingDistWidget = document.getElementById("ratingDistributionWidget");
   const artistCloud = document.getElementById("artistCloud");
 
   // Modal & composer controls
@@ -49,8 +63,25 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
   const logRelisten = document.getElementById("logRelisten");
   const logPrevRating = document.getElementById("logPrevRating");
   const logReviewUrl = document.getElementById("logReviewUrl");
+  const logFavTracks = document.getElementById("logFavTracks");
+  const logSingleAudioUrl = document.getElementById("logSingleAudioUrl");
+  const logType = document.getElementById("logType");
   const downloadArtBtn = document.getElementById("downloadArtBtn");
   const exportJsonBtn = document.getElementById("exportJsonBtn");
+
+  function updateSingleModeFields() {
+    const isSingle = (logType && logType.value.trim().toLowerCase() === "single");
+    if (logFavTracks) {
+      logFavTracks.style.display = isSingle ? "none" : "";
+    }
+    if (logSingleAudioUrl) {
+      logSingleAudioUrl.style.display = isSingle ? "block" : "none";
+    }
+  }
+
+  if (logType) {
+    logType.addEventListener("change", updateSingleModeFields);
+  }
 
   // Artwork Candidates & Datalist
   const artCandidatesContainer = document.getElementById("artCandidatesContainer");
@@ -856,6 +887,18 @@ function getDominantColorFromImg(imgUrl) {
         }
       });
 
+      this.input.addEventListener("paste", (e) => {
+        const pasteText = (e.clipboardData || window.clipboardData)?.getData("text");
+        if (pasteText && (pasteText.includes(",") || pasteText.toLowerCase().startsWith("descriptors"))) {
+          e.preventDefault();
+          const cleanText = pasteText.replace(/^\s*descriptors\s*:?\s*/i, "").trim();
+          const parts = cleanText.split(",").map(p => p.trim()).filter(Boolean);
+          parts.forEach(val => this.addTag(val));
+          this.input.value = "";
+          this.closeDropdown();
+        }
+      });
+
       document.addEventListener("click", (e) => {
         if (!this.container.contains(e.target) && !this.dropdown.contains(e.target)) {
           this.closeDropdown();
@@ -929,8 +972,10 @@ function getDominantColorFromImg(imgUrl) {
     }
 
     addTag(val) {
-      const cleaned = String(val).trim();
-      if (cleaned && !this.tags.includes(cleaned)) {
+      let cleaned = String(val).replace(/^\s*descriptors\s*:?\s*/i, "").trim();
+      if (!cleaned || cleaned.toLowerCase() === "descriptors") return;
+      if (cleaned.length > 50 || cleaned.split(/\s+/).length > 6) return;
+      if (!this.tags.includes(cleaned)) {
         this.tags.push(cleaned);
         this.render();
       }
@@ -946,9 +991,15 @@ function getDominantColorFromImg(imgUrl) {
       if (!arrayOrString) {
         this.tags = [];
       } else if (Array.isArray(arrayOrString)) {
-        this.tags = arrayOrString.map(s => String(s).trim()).filter(Boolean);
+        this.tags = arrayOrString
+          .map(s => String(s).replace(/^\s*descriptors\s*:?\s*/i, "").trim())
+          .filter(s => s && s.toLowerCase() !== "descriptors" && s.length <= 50 && s.split(/\s+/).length <= 6);
       } else {
-        this.tags = String(arrayOrString).split(",").map(s => s.trim()).filter(Boolean);
+        this.tags = String(arrayOrString)
+          .replace(/^\s*descriptors\s*:?\s*/i, "")
+          .split(",")
+          .map(s => s.trim())
+          .filter(s => s && s.toLowerCase() !== "descriptors" && s.length <= 50 && s.split(/\s+/).length <= 6);
       }
       if (this.input) this.input.value = "";
       this.render();
@@ -1024,6 +1075,9 @@ function getDominantColorFromImg(imgUrl) {
       if (window.logGenresManager) window.logGenresManager.setTags([]);
       if (window.logSecondaryGenresManager) window.logSecondaryGenresManager.setTags([]);
       if (window.logDescriptorsManager) window.logDescriptorsManager.setTags([]);
+      if (logFavTracks) logFavTracks.value = "";
+      if (logSingleAudioUrl) logSingleAudioUrl.value = "";
+      updateSingleModeFields();
     }
     if (modalOverlay) modalOverlay.style.display = "flex";
     if (modalTitle) modalTitle.textContent = isEdit ? "Edit Spin" : "Log a Spin";
@@ -1037,9 +1091,8 @@ function getDominantColorFromImg(imgUrl) {
     items.forEach(entry => {
       const str = String(entry || "").trim();
       if (!str) return;
-      const parts = str.includes("|")
-        ? str.split(/\s*;\s*|\s*,\s*(?=[^;|]+?\|\s*https?:\/\/)/i)
-        : str.split(/\s*[;,]\s*/);
+      // Semicolon is the sole separator between favorite tracks so track titles can contain commas
+      const parts = str.split(/\s*;\s*/);
       parts.forEach(p => {
         const cleaned = p.trim();
         if (cleaned) result.push(cleaned);
@@ -1074,6 +1127,8 @@ function getDominantColorFromImg(imgUrl) {
     if (dateInput) dateInput.value = todayFormatted;
     if (trackRatingsList) trackRatingsList.innerHTML = "";
     if (logRuntime) logRuntime.value = "";
+    if (logSingleAudioUrl) logSingleAudioUrl.value = "";
+    updateSingleModeFields();
   }
 
   if (composerPrompt) composerPrompt.addEventListener("click", () => openModal(false));
@@ -1686,16 +1741,34 @@ window.closeMiniPlayer = function() {
 
     if (spinsCfFavTracks) {
       const favList = parseFavTracks(item.fav_tracks);
+      const isSingle = (item.type || "").trim().toLowerCase() === "single";
       if (favList.length) {
-        spinsCfFavTracks.style.display = "flex";
-        spinsCfFavTracks.innerHTML = favList.map(t => {
-          if (t.includes("|")) {
-            const [name, url] = t.split("|").map(s => s.trim());
-            const safeTrack = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-            return `<span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')"><i class='bx bx-play-circle'></i>${escapeHtml(name)}</span>`;
+        if (isSingle) {
+          const first = favList[0];
+          const url = first.includes("|") ? first.split("|")[1].trim() : (first.startsWith("http") ? first.trim() : null);
+          if (url) {
+            const safeTrack = (item.title || "Track").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+            spinsCfFavTracks.style.display = "flex";
+            spinsCfFavTracks.innerHTML = `
+              <span class="fav-track-chip song-embed-link single-play-chip" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')">
+                <i class='bx bx-play-circle'></i> Play Single (${escapeHtml(item.title)})
+              </span>
+            `;
+          } else {
+            spinsCfFavTracks.style.display = "none";
+            spinsCfFavTracks.innerHTML = "";
           }
-          return `<span class="fav-track-chip"><i class='bx bx-music'></i>${escapeHtml(t)}</span>`;
-        }).join("");
+        } else {
+          spinsCfFavTracks.style.display = "flex";
+          spinsCfFavTracks.innerHTML = favList.map(t => {
+            if (t.includes("|")) {
+              const [name, url] = t.split("|").map(s => s.trim());
+              const safeTrack = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+              return `<span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')"><i class='bx bx-play-circle'></i>${escapeHtml(name)}</span>`;
+            }
+            return `<span class="fav-track-chip"><i class='bx bx-music'></i>${escapeHtml(t)}</span>`;
+          }).join("");
+        }
       } else {
         spinsCfFavTracks.style.display = "none";
         spinsCfFavTracks.innerHTML = "";
@@ -1894,10 +1967,27 @@ window.closeMiniPlayer = function() {
               </div>
             ` : ""}
 
-            <!-- 1. Favorite Tracks Row -->
+            <!-- 1. Favorite Tracks Row (or Single Audio Stream Row) -->
             ${(() => {
               const favList = parseFavTracks(item.fav_tracks);
               if (!favList.length) return "";
+              const isSingle = (item.type || "").trim().toLowerCase() === "single";
+              if (isSingle) {
+                const first = favList[0];
+                const url = first && first.includes("|") ? first.split("|")[1].trim() : (first && first.startsWith("http") ? first.trim() : null);
+                if (!url) return "";
+                const safeTrack = (item.title || "Track").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+                return `
+                  <div class="fav-tracks-row single-audio-row">
+                    <span class="fav-label"><i class='bx bx-play-circle'></i> Audio:</span>
+                    <div class="fav-tracks-chips">
+                      <span class="fav-track-chip song-embed-link single-play-chip" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')">
+                        <i class='bx bx-play-circle'></i> Play Single (${escapeHtml(item.title)})
+                      </span>
+                    </div>
+                  </div>
+                `;
+              }
               return `
                 <div class="fav-tracks-row">
                   <span class="fav-label"><i class='bx bxs-playlist'></i> Fav Tracks:</span>
@@ -2089,33 +2179,54 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       <span class="category cloud-tag" data-type="descriptor" data-val="${d}" style="cursor: pointer;" onclick="setSidebarFilter('descriptor', '${d}')">${d}</span>
     `).join("");
 
-    // --- Rating Counts & Filter Cloud ---
-    if (ratingCloud) {
+    // --- Rating Distribution & Legend Widget ---
+    const targetRatingWidget = ratingDistWidget || document.getElementById("ratingDistributionWidget") || ratingCloud;
+    if (targetRatingWidget) {
       const ratingCounts = {};
+      RATING_RUBRIC.forEach(r => {
+        ratingCounts[r.score] = 0;
+      });
 
       entries.forEach(e => {
         if (e.rating !== null && e.rating !== undefined && e.rating !== "") {
           const rKey = Number(e.rating).toFixed(1);
-          ratingCounts[rKey] = (ratingCounts[rKey] || 0) + 1;
+          if (ratingCounts[rKey] !== undefined) {
+            ratingCounts[rKey]++;
+          }
         }
       });
 
-      // Sort scores descending: 5.0, 4.5, 4.0, etc.
-      const sortedRatings = Object.keys(ratingCounts).sort((a, b) => parseFloat(b) - parseFloat(a));
+      const maxCount = Math.max(...Object.values(ratingCounts), 0);
 
-      if (sortedRatings.length === 0) {
-        ratingCloud.innerHTML = `<span style="font-size: 0.75rem; opacity: 0.6; padding: 4px;">No ratings yet.</span>`;
-      } else {
-        ratingCloud.innerHTML = sortedRatings.map(r => `
-          <div class="rating-filter-row cloud-tag" data-type="rating" data-val="${r}" onclick="setSidebarFilter('rating', '${r}')">
-            <div class="rating-row-left">
-              <span class="rating-row-stars">${getStarString(r)}</span>
-              <span class="rating-row-num">(${r})</span>
+      targetRatingWidget.innerHTML = RATING_RUBRIC.map(item => {
+        const count = ratingCounts[item.score] || 0;
+        const percent = maxCount > 0 ? ((count / maxCount) * 100).toFixed(1) : 0;
+        const isZero = count === 0;
+
+        const parts = item.label.split(";");
+        const primary = parts[0].trim();
+        const secondary = parts[1] ? parts[1].trim() : "";
+
+        return `
+          <div class="rating-dist-row cloud-tag ${isZero ? 'zero-count' : ''}" 
+               data-type="rating" 
+               data-val="${item.score}" 
+               ${!isZero ? `onclick="setSidebarFilter('rating', '${item.score}')"` : ''}
+               title="${item.label}">
+            <div class="rating-bg-bar" style="width: ${percent}%;"></div>
+            <div class="rating-meta-line">
+              <div class="rating-label-group">
+                <span class="rating-score">${item.score} ★</span>
+                <div class="rating-text-wrapper ${secondary ? 'has-secondary' : ''}">
+                  <span class="rating-primary-label">${primary}</span>
+                  ${secondary ? `<span class="rating-secondary-label">${secondary}</span>` : ''}
+                </div>
+              </div>
+              <span class="rating-count">${count}</span>
             </div>
-            <span class="rating-row-count">${ratingCounts[r]}</span>
           </div>
-        `).join("");
-      }
+        `;
+      }).join("");
     }
 
     // --- Aggregate Top Artists by Average Score ---
@@ -2223,6 +2334,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         });
       }
     }
+    updateCloudActiveStates();
   }
 
   window.setSidebarFilter = function(type, val) {
@@ -2247,8 +2359,8 @@ if (addTrackRatingRowBtn && trackRatingsList) {
 
   if (clearFilterBtn) clearFilterBtn.addEventListener("click", clearActiveFilter);
 
- function updateCloudActiveStates() {
-    document.querySelectorAll(".cloud-tag").forEach(tag => {
+  function updateCloudActiveStates() {
+    document.querySelectorAll(".cloud-tag, .rating-dist-row").forEach(tag => {
       const rawVal = decodeURIComponent(tag.getAttribute("data-val") || "");
       const match = tag.getAttribute("data-type") === activeFilter.type &&
                     rawVal.toLowerCase() === String(activeFilter.value || "").toLowerCase();
@@ -2294,8 +2406,8 @@ if (addTrackRatingRowBtn && trackRatingsList) {
           matchesTag = entryArtists.includes(activeFilter.value.toLowerCase());
         }
       }
-        else if (activeFilter.type === "rating") {
-        matchesTag = i.rating !== null && i.rating !== undefined && Number(i.rating).toFixed(1) === activeFilter.value;
+      else if (activeFilter.type === "rating") {
+        matchesTag = i.rating !== null && i.rating !== undefined && i.rating !== "" && Number(i.rating).toFixed(1) === activeFilter.value;
       }
       return matchesSearch && matchesFormat && matchesTag;
     });
@@ -2358,7 +2470,21 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     } else if (document.getElementById("logDescriptors")) {
       document.getElementById("logDescriptors").value = (item.descriptors || []).join(", ");
     }
-    document.getElementById("logFavTracks").value = parseFavTracks(item.fav_tracks).join("; ");
+    const isSingle = (item.type || "").trim().toLowerCase() === "single";
+    if (isSingle) {
+      const rawFav = parseFavTracks(item.fav_tracks);
+      let audioUrl = "";
+      if (rawFav.length > 0) {
+        const first = rawFav[0];
+        audioUrl = first.includes("|") ? first.split("|")[1].trim() : (first.startsWith("http") ? first.trim() : "");
+      }
+      if (logSingleAudioUrl) logSingleAudioUrl.value = audioUrl;
+      if (logFavTracks) logFavTracks.value = "";
+    } else {
+      if (logFavTracks) logFavTracks.value = parseFavTracks(item.fav_tracks).join("; ");
+      if (logSingleAudioUrl) logSingleAudioUrl.value = "";
+    }
+    updateSingleModeFields();
     document.getElementById("logMemo").value = item.memo || "";
     if (logRuntime) logRuntime.value = item.runtime || "";
     if (trackRatingsList) {
@@ -2421,11 +2547,25 @@ if (addTrackRatingRowBtn && trackRatingsList) {
 
       const logRuntimeEl = document.getElementById("logRuntime");
       const runtimeVal = logRuntimeEl ? logRuntimeEl.value.trim() : null;
+      const logTypeVal = document.getElementById("logType").value;
+      const isSubmittingSingle = (logTypeVal || "").trim().toLowerCase() === "single";
+      let favTracksPayload = [];
+      if (isSubmittingSingle) {
+        const singleAudio = logSingleAudioUrl ? logSingleAudioUrl.value.trim() : "";
+        if (singleAudio) {
+          favTracksPayload = singleAudio.includes("|")
+            ? [singleAudio]
+            : [`${titleVal} | ${singleAudio}`];
+        }
+      } else {
+        favTracksPayload = parseFavTracks(document.getElementById("logFavTracks").value || "");
+      }
+
       const spinData = {
         artist: artistVal,
         title: titleVal,
         year: yearVal,
-        type: document.getElementById("logType").value,
+        type: logTypeVal,
         log_date: document.getElementById("logDate").value.trim(),
         rating: currentRatingVal,
         genres: window.logGenresManager
@@ -2440,7 +2580,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         cover_url: finalCoverUrl,
         runtime: runtimeVal || null,
         review_url: logReviewUrl && logReviewUrl.value.trim() ? logReviewUrl.value.trim() : null,
-        fav_tracks: parseFavTracks(document.getElementById("logFavTracks").value || ""),
+        fav_tracks: favTracksPayload,
         memo: document.getElementById("logMemo").value.trim(),
         relisten: isRelistenChecked,
         track_ratings: trackRatings,
@@ -2659,6 +2799,122 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     document.querySelectorAll(".art-choice-item").forEach(el => el.classList.remove("selected"));
     if (element) element.classList.add("selected");
   };
+
+  // ============================================================
+  // RYM CLIPBOARD IMPORTER
+  // ============================================================
+  const rymImportBtn = document.getElementById("rymImportBtn");
+  if (rymImportBtn) {
+    rymImportBtn.addEventListener("click", async () => {
+      let jsonText = "";
+      try {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          jsonText = await navigator.clipboard.readText();
+        }
+      } catch (err) {
+        console.warn("Clipboard read permission issue:", err);
+      }
+
+      if (!jsonText || !jsonText.trim().startsWith("{")) {
+        jsonText = prompt("Paste the Rate Your Music JSON below:", jsonText || "");
+      }
+
+      if (!jsonText || !jsonText.trim()) return;
+
+      let data;
+      try {
+        data = JSON.parse(jsonText.trim());
+      } catch (e) {
+        alert("Could not parse clipboard data as JSON. Please ensure you copied data from RYM.");
+        return;
+      }
+
+      if (!data || (!data.artist && !data.title)) {
+        alert("Clipboard JSON does not contain valid album data (missing artist or title).");
+        return;
+      }
+
+      // Sanitize fields
+      let cleanArtist = (data.artist || "").trim();
+      if (cleanArtist.includes(" & ")) {
+        const parts = cleanArtist.split(/\s*&\s*/).map(p => p.trim()).filter(Boolean);
+        const unique = Array.from(new Set(parts));
+        cleanArtist = unique.length > 3 ? unique[0] : unique.join(" & ");
+      }
+
+      const cleanTitle = (data.title || "")
+        .replace(/\s+(?:by|\/)\s*$/i, "")
+        .replace(/\s+by\s+[\s\S]*$/i, "")
+        .replace(/\s*[\(\[]\s*(?:19\d\d|20\d\d)\s*[\)\]]/g, "")
+        .replace(/^["“']|["”']$/g, "")
+        .trim();
+
+      // Populate Inputs
+      if (cleanArtist && logArtist) logArtist.value = cleanArtist;
+      if (cleanTitle && logTitle) logTitle.value = cleanTitle;
+
+      const logYearEl = document.getElementById("logYear");
+      if (data.year && logYearEl) logYearEl.value = data.year;
+
+      const logTypeEl = document.getElementById("logType");
+      if (data.type && logTypeEl) {
+        const tLower = String(data.type).toLowerCase();
+        for (let opt of logTypeEl.options) {
+          if (opt.value.toLowerCase() === tLower) {
+            logTypeEl.value = opt.value;
+            break;
+          }
+        }
+      }
+      updateSingleModeFields();
+
+      const logRatingEl = document.getElementById("logRating");
+      if (data.rating !== undefined && data.rating !== null && logRatingEl) {
+        logRatingEl.value = data.rating;
+      }
+
+      const logRuntimeEl = document.getElementById("logRuntime");
+      if (data.runtime && logRuntimeEl) {
+        logRuntimeEl.value = data.runtime;
+      }
+
+      if (data.cover_url) {
+        if (logCoverUrl) logCoverUrl.value = data.cover_url;
+        if (previewImg) previewImg.src = data.cover_url;
+        if (downloadArtBtn) downloadArtBtn.style.display = "inline-block";
+      }
+
+      // Tag Managers
+      if (window.logGenresManager) {
+        window.logGenresManager.setTags(data.genres || []);
+      }
+      if (window.logSecondaryGenresManager) {
+        window.logSecondaryGenresManager.setTags(data.secondary_genres || []);
+      }
+      if (window.logDescriptorsManager) {
+        let cleanDescriptors = [];
+        if (Array.isArray(data.descriptors)) {
+          data.descriptors.forEach(d => {
+            if (!d) return;
+            const s = String(d).replace(/^\s*descriptors\s*:?\s*/i, "").trim();
+            if (!s || s.toLowerCase() === "descriptors") return;
+            if (s.split(/\s+/).length > 5 || s.length > 45) return;
+            if (!cleanDescriptors.includes(s)) cleanDescriptors.push(s);
+          });
+        }
+        window.logDescriptorsManager.setTags(cleanDescriptors);
+      }
+
+      // Visual success confirmation on button
+      const origHtml = rymImportBtn.innerHTML;
+      rymImportBtn.innerHTML = `<i class='bx bx-check'></i> Imported!`;
+      rymImportBtn.classList.add("btn-import-success");
+      setTimeout(() => {
+        rymImportBtn.innerHTML = origHtml;
+        rymImportBtn.classList.remove("btn-import-success");
+      }, 1800);
+    });
+  }
 
   // ============================================================
   // DOWNLOAD ART BUTTON
