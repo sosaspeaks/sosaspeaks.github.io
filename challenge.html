@@ -54,15 +54,21 @@
     <div class="challenge-actions-bar">
 
       <!-- Left side: The Tabs + The Add Button sitting flush together -->
-      <div class="tabs-and-actions-left" style="display: flex; align-items: flex-end; gap: 4px;">
+      <div class="tabs-and-actions-left">
         <menu role="tablist" class="w7-month-tabs" id="monthTabsList">
           <button type="button" role="tab" class="active" aria-selected="true" data-month="october" data-year="2026">October (36/36)</button>
           <button type="button" role="tab" aria-selected="false" data-month="november" data-year="2026">November (0/36)</button>
+          <button type="button" role="tab" aria-selected="false" data-month="recalibrate" data-tab-type="relisten" id="recalibrateTabBtn" style="display: none;">Recalibrate (<span id="relistenCount">0</span>)</button>
         </menu>
 
         <!-- Admin New Month Button: Aligns perfectly to the bottom border baseline -->
         <button type="button" id="addNewMonthBtn" class="aero-add-tab-btn admin-only" style="display: none;" title="Create New Month Challenge">
           + New Month
+        </button>
+
+        <!-- Redo / Recalibrate Queue Toggle Button -->
+        <button type="button" id="recalibrateToggleBtn" class="aero-redo-tab-btn" title="Recalibrate Queue (Relistens)">
+          <i class='bx bx-redo'></i>
         </button>
       </div>
 
@@ -163,6 +169,22 @@
         </div>
       </div>
 
+      <!-- Recalibrate Category Filter Bar (Only visible on Recalibrate tab) -->
+      <div id="recalibrateFilterBar" class="aero-recalibrate-filter-bar" style="display: none;">
+        <span class="recalibrate-filter-label"><i class='bx bx-revision'></i> Slices:</span>
+        <div class="recalibrate-filter-chips">
+          <button type="button" class="recalibrate-chip active" data-reason="all">All (<span id="countReasonAll">0</span>)</button>
+          <button type="button" class="recalibrate-chip" data-reason="Memory Fog">Memory Fog (<span id="countReasonMemoryFog">0</span>)</button>
+          <button type="button" class="recalibrate-chip" data-reason="Perspective Shift">Perspective Shift (<span id="countReasonPerspectiveShift">0</span>)</button>
+          <button type="button" class="recalibrate-chip" data-reason="Tunnel Vision">Tunnel Vision (<span id="countReasonTunnelVision">0</span>)</button>
+          <button type="button" class="recalibrate-chip" data-reason="Second Chance">Second Chance (<span id="countReasonSecondChance">0</span>)</button>
+          <button type="button" class="recalibrate-chip" data-reason="Time Capsule">Time Capsule (<span id="countReasonTimeCapsule">0</span>)</button>
+          <button type="button" class="recalibrate-chip" data-reason="Ill-Timed">Ill-Timed (<span id="countReasonIllTimed">0</span>)</button>
+          <button type="button" class="recalibrate-chip" data-reason="Discography Run">Discography Run (<span id="countReasonDiscographyRun">0</span>)</button>
+          <button type="button" class="recalibrate-chip" data-reason="Slow Burn">Slow Burn (<span id="countReasonSlowBurn">0</span>)</button>
+        </div>
+      </div>
+
       <!-- Window Body (Recessed Clean Background for the 7x7 Grid & Cover Flow) -->
       <div class="window-body grid-window-body">
         <div id="exportWrapper" class="export-capture-zone">
@@ -241,59 +263,90 @@
 
         <!-- Top Section: Locked Square Preview + Inputs -->
         <div class="add-album-top-row">
-          <div class="w7-preview-box">
+          <div class="modal-cover-preview">
+            <div class="w7-preview-box">
               <img
                 id="addPreviewImg"
                 src="assets/images/spins/placeholder.png"
                 alt="Artwork Preview"
                 onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
             </div>
-          <div class="add-album-inputs-group">
-          <input type="text" id="addArtist" class="sosa-search-input" placeholder="Artist" required>
-          <input type="text" id="addTitle" class="sosa-search-input" placeholder="Album Title" required>
-          <div class="modal-split-row">
-            <input
-              type="number"
-              id="addReleaseYear"
-              class="sosa-search-input"
-              placeholder="Release Year (YYYY)"
-              min="1900"
-              max="2099">
-            <select id="addMonth" class="sosa-search-input modal-month-select" title="Challenge Month">
-              <option value="october" data-year="2026">Month: October</option>
-              <option value="november" data-year="2026">Month: November</option>
-              <option value="december" data-year="2026">Month: December</option>
-              <option value="january" data-year="2027">Month: January '27</option>
-              <option value="february" data-year="2027">Month: February '27</option>
-              <option value="march" data-year="2027">Month: March '27</option>
-              <option value="april" data-year="2027">Month: April '27</option>
-              <option value="may" data-year="2027">Month: May '27</option>
-              <option value="june" data-year="2027">Month: June '27</option>
-              <option value="july" data-year="2027">Month: July '27</option>
-              <option value="august" data-year="2027">Month: August '27</option>
-              <option value="september" data-year="2027">Month: September '27</option>
-            </select>
+            <div class="modal-cover-btns">
+              <button type="button" id="fetchCoverBtn" class="aero-btn-action modal-cover-action-btn" title="Fetch high-res album artwork">
+                <i class='bx bx-image'></i> Fetch Art
+              </button>
+              <button type="button" id="fetchSpinCoverBtn" class="aero-btn-action modal-cover-action-btn" title="Match cover from previously logged spins">
+                <i class='bx bx-disc'></i> Get Spin Cover
+              </button>
+              <button type="button" id="rymImportBtn" class="aero-btn-action rym-import-btn modal-cover-action-btn" title="Import release data from Rate Your Music clipboard">
+                <i class='bx bx-clipboard'></i> Import RYM
+              </button>
+            </div>
           </div>
+          <div class="add-album-inputs-group">
+            <input type="text" id="addArtist" class="sosa-search-input" placeholder="Artist" required>
+            <input type="text" id="addTitle" class="sosa-search-input" placeholder="Album Title" required>
+            <div class="modal-split-row">
+              <input
+                type="number"
+                id="addReleaseYear"
+                class="sosa-search-input"
+                placeholder="Release Year (YYYY)"
+                min="1900"
+                max="2099">
+              <div class="custom-month-dropdown-wrap" id="customMonthDropdownWrap">
+                <button type="button" class="sosa-search-input custom-month-trigger" id="customMonthDropdownBtn" aria-haspopup="listbox" aria-expanded="false" title="Challenge Month / Queue">
+                  <span class="custom-month-trigger-text" id="customMonthTriggerText">
+                    <i class='bx bx-revision queue-icon'></i> <span>Queue: Recalibrate (Relistens)</span>
+                  </span>
+                  <i class='bx bx-chevron-down custom-dropdown-arrow'></i>
+                </button>
+                <div class="aero-menu-dropdown custom-month-menu" id="customMonthMenu" style="display: none;" role="listbox"></div>
+                <select id="addMonth" class="sosa-search-input modal-month-select" title="Challenge Month" style="display: none;">
+                  <option value="recalibrate" data-tab-type="relisten" class="queue-option">Queue: Recalibrate (Relistens)</option>
+                  <option value="october" data-year="2026">Month: October</option>
+                  <option value="november" data-year="2026">Month: November</option>
+                  <option value="december" data-year="2026">Month: December</option>
+                  <option value="january" data-year="2027">Month: January '27</option>
+                  <option value="february" data-year="2027">Month: February '27</option>
+                  <option value="march" data-year="2027">Month: March '27</option>
+                  <option value="april" data-year="2027">Month: April '27</option>
+                  <option value="may" data-year="2027">Month: May '27</option>
+                  <option value="june" data-year="2027">Month: June '27</option>
+                  <option value="july" data-year="2027">Month: July '27</option>
+                  <option value="august" data-year="2027">Month: August '27</option>
+                  <option value="september" data-year="2027">Month: September '27</option>
+                </select>
+              </div>
+            </div>
 
-          <div class="modal-btn-row">
-            <button type="button" id="fetchCoverBtn" class="aero-btn-action">
-              <i class='bx bx-image'></i> Fetch Art
-            </button>
-            <button type="button" id="fetchSpinCoverBtn" class="aero-btn-action">
-              <i class='bx bx-disc'></i> Get Spin Cover
-            </button>
-            <button type="button" id="fetchRuntimeBtn" class="aero-btn-action">
-              <i class='bx bx-time'></i> Fetch Runtime
-            </button>
-            <button type="button" id="rymImportBtn" class="aero-btn-action rym-import-btn" title="Import release data from Rate Your Music clipboard">
-              <i class='bx bx-clipboard'></i> Import RYM
-            </button>
+            <!-- Relisten Metadata Fields (Shown when Month is Recalibrate) -->
+            <div id="relistenFieldsContainer" class="modal-relisten-fields-box" style="display: none; margin-bottom: 0.25rem;">
+              <div class="modal-split-row">
+                <div style="flex: 1;">
+                  <label class="modal-field-sublabel" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-color, #334155); margin-bottom: 3px;"><i class='bx bx-revision'></i> Relisten Reason:</label>
+                  <select id="addRelistenReason" class="sosa-search-input">
+                    <option value="Memory Fog">Memory Fog (Years since spin; impressions faded)</option>
+                    <option value="Perspective Shift">Perspective Shift (Tastes matured; revisiting with new ears)</option>
+                    <option value="Tunnel Vision">Tunnel Vision (Loved 1-2 standout tracks, need full album re-eval)</option>
+                    <option value="Second Chance">Second Chance (Didn't click initially; deserves a fresh listen)</option>
+                    <option value="Time Capsule">Time Capsule (Past era favorite; seeing if it still holds up today)</option>
+                    <option value="Ill-Timed">Ill-Timed (Heard in wrong setting or headspace; deserves proper focus)</option>
+                    <option value="Discography Run">Discography Run (Revisiting in context of artist's catalog)</option>
+                    <option value="Slow Burn">Slow Burn (Challenging or gradual record; revisiting with deeper appreciation)</option>
+                  </select>
+                </div>
+                <div style="width: 130px;">
+                  <label class="modal-field-sublabel" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-color, #334155); margin-bottom: 3px;">Prior Rating:</label>
+                  <input type="number" id="addPrevRating" class="sosa-search-input" placeholder="e.g. 3.5" min="0.5" max="5.0" step="0.5">
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
         <!-- Cover Selector Carousel -->
-        <div id="artCandidatesContainer" class="art-candidates-picker" style="display: none;">
+        <div id="artCandidatesContainer" class="art-candidates-picker is-hidden" style="display: none;">
           <span class="picker-label">Select Artwork:</span>
           <div id="artThumbnailsRow" class="thumbnails-scroll-row"></div>
         </div>

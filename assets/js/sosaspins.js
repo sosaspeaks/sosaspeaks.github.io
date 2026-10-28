@@ -1162,6 +1162,10 @@ function getDominantColorFromImg(imgUrl) {
         // 2. Pre-fill artist, title, and cover
         if (logArtist) logArtist.value = item.artist || "";
         if (logTitle) logTitle.value = item.title || "";
+        const logYearEl = document.getElementById("logYear");
+        if (logYearEl && (item.release_year || item.year)) {
+          logYearEl.value = item.release_year || item.year;
+        }
 
         let cover = item.cover_url || "";
         // Remove challenge relative subfolder prefix if present
@@ -1169,6 +1173,15 @@ function getDominantColorFromImg(imgUrl) {
 
         if (logCoverUrl) logCoverUrl.value = cover;
         if (previewImg && cover) previewImg.src = cover;
+
+        // Pre-fill relisten state if arriving from recalibration queue
+        if (item.relisten && logRelisten) {
+          logRelisten.checked = true;
+          if (logPrevRating) {
+            logPrevRating.style.display = "inline-block";
+            logPrevRating.value = item.prevRating || item.prev_rating || "";
+          }
+        }
 
         // 3. Pre-fill metadata (genres, descriptors, runtime) via TagInputManagers
         if (window.logGenresManager) {
