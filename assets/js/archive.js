@@ -96,6 +96,7 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
   let editingIndex = null;
   let activeFilter = { type: null, value: null };
   let currentFormat = "all";
+  let isTop100Editing = false;
 // Extracts the average/dominant hex color from an image URL
 function getDominantColorFromImg(imgUrl) {
   return new Promise((resolve) => {
@@ -455,13 +456,36 @@ function getDominantColorFromImg(imgUrl) {
       adminTriggerBtn.style.color = isAdmin ? "#10b981" : "";
     }
 
+    const spinsAdminBarWrap = document.getElementById("spinsAdminBarWrap");
+    if (spinsAdminBarWrap) {
+      spinsAdminBarWrap.style.display = isAdmin ? "block" : "none";
+    }
+
     document.querySelectorAll(".admin-only").forEach(el => {
-      if (el.classList.contains("row-actions") || el.classList.contains("aero-queue-btn")) {
+      if (el.id === "spinsAdminBarWrap") {
+        el.style.display = isAdmin ? "block" : "none";
+      } else if (el.classList.contains("row-actions") || el.classList.contains("aero-queue-btn") || el.classList.contains("aero-command-btn")) {
         el.style.display = isAdmin ? "inline-flex" : "none";
       } else {
         el.style.display = isAdmin ? "" : "none";
       }
     });
+
+    const top100EditBtn = document.getElementById("top100EditModeBtn");
+    const top100SaveBtn = document.getElementById("top100SaveOrderBtn");
+    const top100CancelBtn = document.getElementById("top100CancelEditBtn");
+    if (top100EditBtn) {
+      top100EditBtn.style.display = (isAdmin && !isTop100Editing) ? "inline-flex" : "none";
+    }
+    if (top100SaveBtn) {
+      top100SaveBtn.style.display = (isAdmin && isTop100Editing) ? "inline-flex" : "none";
+    }
+    if (top100CancelBtn) {
+      top100CancelBtn.style.display = (isAdmin && isTop100Editing) ? "inline-flex" : "none";
+    }
+    if (!isAdmin && typeof exitTop100EditMode === "function") {
+      exitTop100EditMode();
+    }
 
     if (!isAdmin && commentQueueModal) {
       commentQueueModal.style.display = "none";
@@ -1846,7 +1870,898 @@ window.closeMiniPlayer = function() {
     }
   }
 
+  // ============================================================
+  // SOSASPINS TOP 100 ALBUMS SHOWCASE CONTROLLER
+  // ============================================================
+  const spinsTop100ToggleBtn = document.getElementById("spinsTop100ToggleBtn");
+  const top100ViewContainer = document.getElementById("top100ViewContainer");
+  const top100Podium = document.getElementById("top100Podium");
+  const top100TierGrid = document.getElementById("top100TierGrid");
+  const top100MainGrid = document.getElementById("top100MainGrid");
+  const top100ExportWrapper = document.getElementById("top100ExportWrapper");
+  const top100ExportImageBtn = document.getElementById("top100ExportImageBtn");
+  const top100BackToTimelineBtn = document.getElementById("top100BackToTimelineBtn");
+  const top100EditModeBtn = document.getElementById("top100EditModeBtn");
+  const top100SaveOrderBtn = document.getElementById("top100SaveOrderBtn");
+  const top100CancelEditBtn = document.getElementById("top100CancelEditBtn");
+  const top100StatusCount = document.getElementById("top100StatusCount");
+  const top100StatusMode = document.getElementById("top100StatusMode");
+
+  // Album Bank Drawer Controls
+  const albumBankDrawer = document.getElementById("albumBankDrawer");
+  const albumBankSearchInput = document.getElementById("albumBankSearchInput");
+  const albumBankSortSelect = document.getElementById("albumBankSortSelect");
+  const albumBankList = document.getElementById("albumBankList");
+  const albumBankCountBadge = document.getElementById("albumBankCountBadge");
+  const albumBankClearSearchBtn = document.getElementById("albumBankClearSearchBtn");
+  const closeAlbumBankBtn = document.getElementById("closeAlbumBankBtn");
+
+  // Detail Modal Controls
+  const top100DetailModal = document.getElementById("top100DetailModal");
+  const top100ModalBody = document.getElementById("top100ModalBody");
+  const closeTop100DetailModal = document.getElementById("closeTop100DetailModal");
+
+  // Toast Notification
+  const top100AeroToast = document.getElementById("top100AeroToast");
+  let toastTimer = null;
+
+  let topAlbumsState = {}; // Keyed by rank 1..100
+  let topAlbumsOriginal = {}; // Snapshot for cancel
+  let isTop100Loaded = false;
+  isTop100Editing = false;
+  let isTop100View = false;
+  let draggedPayload = null; // { type: 'bank'|'grid', spinId: ..., rank: ... }
+  let albumBankSpins = [];
+  let albumBankSearchTerm = "";
+  let albumBankSortMode = "rating-desc";
+
+  function showTop100Toast(msg, title) {
+    if (!top100AeroToast) return;
+    if (toastTimer) clearTimeout(toastTimer);
+    const titleEl = top100AeroToast.querySelector(".toast-title");
+    const msgEl = top100AeroToast.querySelector(".toast-msg");
+    if (titleEl) titleEl.textContent = title || "Top 100 Saved";
+    if (msgEl) msgEl.textContent = msg;
+    top100AeroToast.style.display = "flex";
+    toastTimer = setTimeout(() => {
+      top100AeroToast.style.display = "none";
+    }, 3500);
+  }
+
+  function resolveTopAlbumData(album) {
+    if (!album) return null;
+    let resolved = { ...album };
+    if (album.spin_id && Array.isArray(allEntries)) {
+      const match = allEntries.find(s => String(s.id) === String(album.spin_id));
+      if (match) {
+        resolved.live_spin = match;
+        resolved.artist = match.artist || album.artist;
+        resolved.title = match.title || album.title;
+        resolved.cover_url = match.cover_url || album.cover_url;
+        resolved.rating = (match.rating !== null && match.rating !== undefined && match.rating !== "") ? match.rating : album.rating;
+        resolved.release_year = match.year || album.release_year;
+        resolved.genres = match.genres || [];
+        resolved.secondary_genres = match.secondary_genres || [];
+        resolved.descriptors = match.descriptors || [];
+        resolved.fav_tracks = match.fav_tracks || "";
+        resolved.memo = match.memo || album.custom_note || "";
+        resolved.review_url = match.review_url || "";
+        resolved.type = match.type || "";
+      }
+    }
+    return resolved;
+  }
+
+  async function fetchTopAlbumsData() {
+    try {
+      const { data, error } = await supabaseClient
+        .from("top_albums")
+        .select("*")
+        .order("rank", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching top_albums:", error);
+        return;
+      }
+
+      topAlbumsState = {};
+      (data || []).forEach(row => {
+        if (row.rank >= 1 && row.rank <= 100) {
+          topAlbumsState[row.rank] = row;
+        }
+      });
+      topAlbumsOriginal = JSON.parse(JSON.stringify(topAlbumsState));
+      isTop100Loaded = true;
+      renderTop100View();
+    } catch (err) {
+      console.error("fetchTopAlbumsData exception:", err);
+    }
+  }
+
+  function setTop100View(active) {
+    isTop100View = active;
+    document.body.classList.toggle("top100-view-active", isTop100View);
+
+    if (top100ViewContainer) {
+      top100ViewContainer.style.display = isTop100View ? "block" : "none";
+    }
+    if (feed) {
+      feed.style.display = isTop100View ? "none" : "";
+    }
+    if (spinsCoverFlowWrapper && isTop100View) {
+      spinsCoverFlowWrapper.style.display = "none";
+      isSpinsCoverFlow = false;
+      if (spinsCoverFlowToggleBtn) {
+        spinsCoverFlowToggleBtn.classList.remove("active-filter");
+        spinsCoverFlowToggleBtn.innerHTML = `<i class='bx bx-carousel'></i> Cover Flow`;
+      }
+    }
+
+    if (spinsTop100ToggleBtn) {
+      spinsTop100ToggleBtn.classList.toggle("active-filter", isTop100View);
+      spinsTop100ToggleBtn.setAttribute("aria-pressed", isTop100View ? "true" : "false");
+      spinsTop100ToggleBtn.innerHTML = isTop100View
+        ? `<i class='bx bx-list-ul'></i> Timeline`
+        : `<i class='bx bx-trophy'></i> Top 100`;
+    }
+
+    if (feedFilterLabel) {
+      if (isTop100View) {
+        feedFilterLabel.textContent = "Top 100 Albums Showcase";
+      } else {
+        feedFilterLabel.textContent = "All Spins";
+      }
+    }
+
+    if (isTop100View) {
+      if (window.location.hash !== "#top100" && !document.getElementById("top100DedicatedPage")) {
+        history.replaceState(null, null, "#top100");
+      }
+      if (!isTop100Loaded) {
+        fetchTopAlbumsData();
+      } else {
+        renderTop100View();
+      }
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      if (window.location.hash === "#top100") {
+        history.replaceState(null, null, " ");
+      }
+      exitTop100EditMode();
+    }
+  }
+
+  function setTop100EditMode(editing) {
+    if (editing && !isAdmin) {
+      alert("Administrator passkey required to edit Top 100.");
+      return;
+    }
+
+    isTop100Editing = editing;
+    document.body.classList.toggle("top100-editing-mode", isTop100Editing);
+    if (top100ViewContainer) {
+      top100ViewContainer.classList.toggle("top100-editing-mode", isTop100Editing);
+    }
+
+    if (top100EditModeBtn) {
+      top100EditModeBtn.style.display = (isAdmin && !isTop100Editing) ? "inline-flex" : "none";
+    }
+    if (top100SaveOrderBtn) {
+      top100SaveOrderBtn.style.display = (isAdmin && isTop100Editing) ? "inline-flex" : "none";
+    }
+    if (top100CancelEditBtn) {
+      top100CancelEditBtn.style.display = (isAdmin && isTop100Editing) ? "inline-flex" : "none";
+    }
+    if (top100StatusMode) {
+      top100StatusMode.textContent = isTop100Editing ? "Editing Mode" : "Viewing";
+      top100StatusMode.style.color = isTop100Editing ? "#10b981" : "";
+      top100StatusMode.style.fontWeight = isTop100Editing ? "700" : "";
+    }
+
+    if (albumBankDrawer) {
+      if (isTop100Editing) {
+        albumBankDrawer.style.display = "flex";
+        requestAnimationFrame(() => albumBankDrawer.classList.add("is-open"));
+        renderAlbumBank();
+      } else {
+        albumBankDrawer.classList.remove("is-open");
+        setTimeout(() => {
+          if (!isTop100Editing && albumBankDrawer) albumBankDrawer.style.display = "none";
+        }, 300);
+      }
+    }
+
+    renderTop100View();
+  }
+
+  function exitTop100EditMode() {
+    if (isTop100Editing) {
+      topAlbumsState = JSON.parse(JSON.stringify(topAlbumsOriginal));
+      setTop100EditMode(false);
+    }
+  }
+
+  function renderTop100View() {
+    if (!top100ViewContainer) return;
+
+    let assignedCount = 0;
+    for (let r = 1; r <= 100; r++) {
+      if (topAlbumsState[r] && topAlbumsState[r].artist && topAlbumsState[r].title) {
+        assignedCount++;
+      }
+    }
+    if (top100StatusCount) {
+      top100StatusCount.textContent = `${assignedCount} / 100 assigned`;
+    }
+
+    renderPodium();
+    renderTier();
+    renderMainGrid();
+  }
+
+  function renderPodium() {
+    if (!top100Podium) return;
+
+    const podiumRanks = [
+      { rank: 2, slotClass: "rank-2", badgeText: "2", medal: "Silver" },
+      { rank: 1, slotClass: "rank-1", badgeText: "1", medal: "Gold" },
+      { rank: 3, slotClass: "rank-3", badgeText: "3", medal: "Bronze" }
+    ];
+
+    top100Podium.innerHTML = podiumRanks.map(p => {
+      const albumRaw = topAlbumsState[p.rank];
+      const album = resolveTopAlbumData(albumRaw);
+      const isPopulated = !!(album && album.artist && album.title);
+
+      if (isPopulated) {
+        const coverSrc = album.cover_url || "assets/images/spins/placeholder.png";
+        const ratingVal = (album.rating !== null && album.rating !== undefined && album.rating !== "") ? parseFloat(album.rating).toFixed(1) : "";
+        const ratingBadge = ratingVal ? `<div class="top100-rating-chip"><i class='bx bxs-star'></i> ${ratingVal}</div>` : "";
+        const yearVal = album.release_year ? `(${album.release_year})` : "";
+
+        return `
+          <div class="podium-slot ${p.slotClass}" data-rank="${p.rank}" draggable="${isTop100Editing}">
+            <div class="podium-cover-wrap" data-rank="${p.rank}">
+              <div class="podium-badge">${p.badgeText}</div>
+              ${ratingBadge}
+              <img src="${coverSrc}" alt="${escapeHtml(album.title)}" class="podium-cover-img" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+              ${isTop100Editing ? `<button type="button" class="slot-clear-btn" data-rank="${p.rank}" title="Clear slot #${p.rank}">✕</button>` : ""}
+            </div>
+            <div class="podium-pedestal">
+              <span class="podium-pedestal-num">${p.badgeText}</span>
+            </div>
+            <div class="podium-info">
+              <div class="podium-artist" title="${escapeHtml(album.artist)}">${escapeHtml(album.artist)}</div>
+              <div class="podium-title" title="${escapeHtml(album.title)} ${yearVal}">${escapeHtml(album.title)} ${yearVal ? `<span style="font-size: 0.8rem; opacity: 0.75;">${yearVal}</span>` : ""}</div>
+            </div>
+          </div>
+        `;
+      } else {
+        return `
+          <div class="podium-slot ${p.slotClass} is-empty" data-rank="${p.rank}">
+            <div class="podium-cover-wrap top100-slot-empty" data-rank="${p.rank}">
+              <div class="podium-badge">${p.badgeText}</div>
+              <span class="slot-empty-rank">#${p.rank}</span>
+              <span class="slot-empty-label">Empty Slot</span>
+            </div>
+            <div class="podium-pedestal">
+              <span class="podium-pedestal-num">${p.badgeText}</span>
+            </div>
+            <div class="podium-info">
+              <div class="podium-artist" style="opacity: 0.5;">— Empty Slot —</div>
+            </div>
+          </div>
+        `;
+      }
+    }).join("");
+
+    attachSlotEvents(top100Podium);
+  }
+
+  function renderTier() {
+    if (!top100TierGrid) return;
+
+    let tierHtml = "";
+    for (let r = 4; r <= 10; r++) {
+      const albumRaw = topAlbumsState[r];
+      const album = resolveTopAlbumData(albumRaw);
+      const isPopulated = !!(album && album.artist && album.title);
+
+      if (isPopulated) {
+        const coverSrc = album.cover_url || "assets/images/spins/placeholder.png";
+        const ratingVal = (album.rating !== null && album.rating !== undefined && album.rating !== "") ? parseFloat(album.rating).toFixed(1) : "";
+        const ratingBadge = ratingVal ? `<div class="top100-rating-chip"><i class='bx bxs-star'></i> ${ratingVal}</div>` : "";
+        const yearVal = album.release_year ? `(${album.release_year})` : "";
+        const genreVal = Array.isArray(album.genres) && album.genres.length ? album.genres[0] : "";
+
+        tierHtml += `
+          <div class="top100-card" data-rank="${r}" draggable="${isTop100Editing}">
+            <div class="top100-rank-chip">#${r}</div>
+            ${ratingBadge}
+            <img src="${coverSrc}" alt="${escapeHtml(album.title)}" class="top100-card-img" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+            ${isTop100Editing ? `<button type="button" class="slot-clear-btn" data-rank="${r}" title="Clear slot #${r}">✕</button>` : ""}
+            <div class="top100-tooltip">
+              <div class="tooltip-artist">${escapeHtml(album.artist)}</div>
+              <div class="tooltip-title">${escapeHtml(album.title)} ${yearVal ? `<span class="tooltip-year">${yearVal}</span>` : ""}</div>
+              ${genreVal ? `<div class="tooltip-genre">${escapeHtml(genreVal)}</div>` : ""}
+            </div>
+          </div>
+        `;
+      } else {
+        tierHtml += `
+          <div class="top100-slot-empty" data-rank="${r}">
+            <span class="slot-empty-rank">#${r}</span>
+            <span class="slot-empty-label">Empty</span>
+          </div>
+        `;
+      }
+    }
+
+    top100TierGrid.innerHTML = tierHtml;
+    attachSlotEvents(top100TierGrid);
+  }
+
+  function renderMainGrid() {
+    if (!top100MainGrid) return;
+
+    let mainHtml = "";
+    for (let r = 11; r <= 100; r++) {
+      const albumRaw = topAlbumsState[r];
+      const album = resolveTopAlbumData(albumRaw);
+      const isPopulated = !!(album && album.artist && album.title);
+
+      if (isPopulated) {
+        const coverSrc = album.cover_url || "assets/images/spins/placeholder.png";
+        const ratingVal = (album.rating !== null && album.rating !== undefined && album.rating !== "") ? parseFloat(album.rating).toFixed(1) : "";
+        const ratingBadge = ratingVal ? `<div class="top100-rating-chip">${ratingVal}</div>` : "";
+        const yearVal = album.release_year ? `(${album.release_year})` : "";
+        const genreVal = Array.isArray(album.genres) && album.genres.length ? album.genres[0] : "";
+
+        mainHtml += `
+          <div class="top100-tile" data-rank="${r}" draggable="${isTop100Editing}">
+            <div class="top100-rank-chip">#${r}</div>
+            ${ratingBadge}
+            <img src="${coverSrc}" alt="${escapeHtml(album.title)}" class="top100-tile-img" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+            ${isTop100Editing ? `<button type="button" class="slot-clear-btn" data-rank="${r}" title="Clear slot #${r}">✕</button>` : ""}
+            <div class="top100-tooltip">
+              <div class="tooltip-artist">${escapeHtml(album.artist)}</div>
+              <div class="tooltip-title">${escapeHtml(album.title)} ${yearVal ? `<span class="tooltip-year">${yearVal}</span>` : ""}</div>
+              ${genreVal ? `<div class="tooltip-genre">${escapeHtml(genreVal)}</div>` : ""}
+            </div>
+          </div>
+        `;
+      } else {
+        mainHtml += `
+          <div class="top100-slot-empty" data-rank="${r}">
+            <span class="slot-empty-rank">#${r}</span>
+            <span class="slot-empty-label">Empty</span>
+          </div>
+        `;
+      }
+    }
+
+    top100MainGrid.innerHTML = mainHtml;
+    attachSlotEvents(top100MainGrid);
+  }
+
+  function attachSlotEvents(container) {
+    if (!container) return;
+
+    container.querySelectorAll("[data-rank]").forEach(el => {
+      const rank = parseInt(el.getAttribute("data-rank"), 10);
+      if (!rank) return;
+
+      el.addEventListener("click", (e) => {
+        if (e.target.closest(".slot-clear-btn")) {
+          e.stopPropagation();
+          e.preventDefault();
+          clearSlot(rank);
+          return;
+        }
+
+        if (!isTop100Editing) {
+          const album = resolveTopAlbumData(topAlbumsState[rank]);
+          if (album && album.artist && album.title) {
+            openTop100DetailModal(rank, album);
+          }
+        }
+      });
+
+      el.addEventListener("dragstart", (e) => {
+        if (!isTop100Editing) return;
+        draggedPayload = { type: "grid", rank: rank };
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", JSON.stringify(draggedPayload));
+        el.classList.add("is-dragging");
+      });
+
+      el.addEventListener("dragend", () => {
+        el.classList.remove("is-dragging");
+        document.querySelectorAll(".drag-over").forEach(node => node.classList.remove("drag-over"));
+        draggedPayload = null;
+      });
+
+      el.addEventListener("dragover", (e) => {
+        if (!isTop100Editing) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        el.classList.add("drag-over");
+      });
+
+      el.addEventListener("dragleave", (e) => {
+        if (!el.contains(e.relatedTarget)) {
+          el.classList.remove("drag-over");
+        }
+      });
+
+      el.addEventListener("drop", (e) => {
+        if (!isTop100Editing) return;
+        e.preventDefault();
+        el.classList.remove("drag-over");
+
+        let payload = draggedPayload;
+        if (!payload) {
+          try {
+            const raw = e.dataTransfer.getData("text/plain");
+            if (raw) payload = JSON.parse(raw);
+          } catch (err) {}
+        }
+        if (!payload) return;
+
+        handleSlotDrop(payload, rank);
+      });
+    });
+  }
+
+  function handleSlotDrop(payload, targetRank) {
+    if (!targetRank || targetRank < 1 || targetRank > 100) return;
+
+    if (payload.type === "bank") {
+      const spin = allEntries.find(s => String(s.id) === String(payload.spinId));
+      if (!spin) return;
+
+      topAlbumsState[targetRank] = {
+        rank: targetRank,
+        spin_id: spin.id,
+        artist: spin.artist,
+        title: spin.title,
+        release_year: spin.year ? parseInt(spin.year, 10) : null,
+        cover_url: spin.cover_url || "assets/images/spins/placeholder.png",
+        rating: (spin.rating !== null && spin.rating !== undefined && spin.rating !== "") ? parseFloat(spin.rating) : null,
+        custom_note: spin.memo || null
+      };
+      renderTop100View();
+    } else if (payload.type === "grid") {
+      const sourceRank = payload.rank;
+      if (sourceRank && sourceRank !== targetRank) {
+        const temp = topAlbumsState[targetRank];
+        topAlbumsState[targetRank] = topAlbumsState[sourceRank]
+          ? { ...topAlbumsState[sourceRank], rank: targetRank }
+          : null;
+        topAlbumsState[sourceRank] = temp
+          ? { ...temp, rank: sourceRank }
+          : null;
+        renderTop100View();
+      }
+    }
+  }
+
+  function clearSlot(rank) {
+    if (!isTop100Editing || !rank) return;
+    topAlbumsState[rank] = null;
+    renderTop100View();
+  }
+
+  function renderAlbumBank() {
+    if (!albumBankList) return;
+
+    albumBankSpins = (allEntries || []).filter(s => s.rating !== null && s.rating !== undefined && s.rating !== "");
+
+    let filtered = [...albumBankSpins];
+    if (albumBankSearchTerm) {
+      const term = albumBankSearchTerm.toLowerCase();
+      filtered = filtered.filter(s =>
+        (s.artist && s.artist.toLowerCase().includes(term)) ||
+        (s.title && s.title.toLowerCase().includes(term)) ||
+        (s.year && String(s.year).includes(term)) ||
+        (Array.isArray(s.genres) && s.genres.some(g => g.toLowerCase().includes(term)))
+      );
+    }
+
+    filtered.sort((a, b) => {
+      if (albumBankSortMode === "rating-desc") {
+        const diff = (parseFloat(b.rating) || 0) - (parseFloat(a.rating) || 0);
+        return diff !== 0 ? diff : (b.id || 0) - (a.id || 0);
+      }
+      if (albumBankSortMode === "rating-asc") {
+        const diff = (parseFloat(a.rating) || 0) - (parseFloat(b.rating) || 0);
+        return diff !== 0 ? diff : (b.id || 0) - (a.id || 0);
+      }
+      if (albumBankSortMode === "artist-asc") {
+        return (a.artist || "").localeCompare(b.artist || "");
+      }
+      if (albumBankSortMode === "title-asc") {
+        return (a.title || "").localeCompare(b.title || "");
+      }
+      if (albumBankSortMode === "year-desc") {
+        return (parseInt(b.year, 10) || 0) - (parseInt(a.year, 10) || 0);
+      }
+      if (albumBankSortMode === "year-asc") {
+        return (parseInt(a.year, 10) || 0) - (parseInt(b.year, 10) || 0);
+      }
+      if (albumBankSortMode === "recent") {
+        return (b.id || 0) - (a.id || 0);
+      }
+      return 0;
+    });
+
+    if (albumBankCountBadge) {
+      albumBankCountBadge.textContent = filtered.length;
+    }
+
+    if (filtered.length === 0) {
+      albumBankList.innerHTML = `<div style="text-align: center; padding: 2rem 1rem; color: #64748b; font-size: 0.85rem;">No rated spins match "${escapeHtml(albumBankSearchTerm)}".</div>`;
+      return;
+    }
+
+    albumBankList.innerHTML = filtered.map(spin => {
+      const ratingVal = parseFloat(spin.rating).toFixed(1);
+      const coverSrc = spin.cover_url || "assets/images/spins/placeholder.png";
+      const yearStr = spin.year ? `(${spin.year})` : "";
+
+      return `
+        <div class="bank-item" draggable="true" data-spin-id="${spin.id}">
+          <div class="bank-item-cover-wrap">
+            <img src="${coverSrc}" alt="${escapeHtml(spin.title)}" class="bank-item-cover" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+          </div>
+          <div class="bank-item-meta">
+            <div class="bank-item-artist" title="${escapeHtml(spin.artist)}">${escapeHtml(spin.artist)}</div>
+            <div class="bank-item-title" title="${escapeHtml(spin.title)} ${yearStr}">${escapeHtml(spin.title)} <span style="opacity: 0.7; font-size: 0.72rem;">${yearStr}</span></div>
+            <div class="bank-item-rating"><i class='bx bxs-star'></i> ${ratingVal}</div>
+          </div>
+          <div class="bank-item-drag-handle" title="Drag to place on grid">
+            <i class='bx bx-grid-vertical'></i>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    albumBankList.querySelectorAll(".bank-item").forEach(item => {
+      const spinId = parseInt(item.getAttribute("data-spin-id"), 10);
+      item.addEventListener("dragstart", (e) => {
+        draggedPayload = { type: "bank", spinId: spinId };
+        e.dataTransfer.effectAllowed = "copyMove";
+        e.dataTransfer.setData("text/plain", JSON.stringify(draggedPayload));
+        item.classList.add("is-dragging");
+      });
+
+      item.addEventListener("dragend", () => {
+        item.classList.remove("is-dragging");
+        document.querySelectorAll(".drag-over").forEach(node => node.classList.remove("drag-over"));
+        draggedPayload = null;
+      });
+    });
+  }
+
+  function openTop100DetailModal(rank, album) {
+    if (!top100DetailModal || !top100ModalBody) return;
+
+    const coverSrc = album.cover_url || "assets/images/spins/placeholder.png";
+    const ratingVal = (album.rating !== null && album.rating !== undefined && album.rating !== "") ? parseFloat(album.rating).toFixed(1) : "";
+    const yearStr = album.release_year ? ` (${album.release_year})` : "";
+    const primaryGenres = Array.isArray(album.genres) ? album.genres : [];
+    const secondaryGenres = Array.isArray(album.secondary_genres) ? album.secondary_genres : [];
+    const descriptors = Array.isArray(album.descriptors) ? album.descriptors : [];
+    const favTracks = parseFavTracks(album.fav_tracks);
+
+    let genresHtml = "";
+    if (primaryGenres.length || secondaryGenres.length) {
+      genresHtml = `
+        <div class="genre-container" style="margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 4px;">
+          ${primaryGenres.map(g => `<span class="cf-genre-chip" style="font-size: 0.76rem;">${escapeHtml(g)}</span>`).join("")}
+          ${secondaryGenres.map(g => `<span class="cf-genre-chip" style="font-size: 0.76rem; opacity: 0.8; font-style: italic;">${escapeHtml(g)}</span>`).join("")}
+        </div>
+      `;
+    }
+
+    let descHtml = "";
+    if (descriptors.length) {
+      descHtml = `
+        <div class="desc-row" style="margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 4px;">
+          <span style="font-size: 0.75rem; color: #64748b; font-weight: 600;">Descriptors:</span>
+          ${descriptors.map(d => `<span class="desc-pill" style="font-size: 0.72rem;">${escapeHtml(d)}</span>`).join("")}
+        </div>
+      `;
+    }
+
+    let favTracksHtml = "";
+    if (favTracks.length) {
+      favTracksHtml = `
+        <div style="margin-top: 0.75rem;">
+          <span style="font-size: 0.75rem; color: #059669; font-weight: 700;">Favorite Tracks:</span>
+          <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px;">
+            ${favTracks.map(t => {
+              const name = t.includes("|") ? t.split("|")[0].trim() : t.trim();
+              return `<span class="fav-track-chip" style="font-size: 0.75rem;"><i class='bx bx-music'></i> ${escapeHtml(name)}</span>`;
+            }).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    let memoHtml = "";
+    if (album.memo) {
+      memoHtml = `
+        <div class="top100-memo-box" style="margin-top: 0.85rem; padding: 8px 12px; background: rgba(0, 0, 0, 0.04); border-radius: 6px; font-size: 0.82rem; font-style: italic; line-height: 1.4; border-left: 3px solid #38bdf8;">
+          "${escapeHtml(album.memo)}"
+        </div>
+      `;
+    }
+
+    let jumpActionHtml = "";
+    if (album.spin_id) {
+      jumpActionHtml = `
+        <button type="button" class="aero-command-btn" style="margin-top: 1rem;" onclick="closeTop100Modal(); window.jumpToSpinInTimeline(${album.spin_id});">
+          <i class='bx bx-list-ul'></i> View in Timeline
+        </button>
+      `;
+    }
+    if (album.review_url) {
+      jumpActionHtml += `
+        <a href="${album.review_url}" target="_blank" rel="noopener noreferrer" class="aero-command-btn export-emerald-btn" style="margin-top: 1rem; text-decoration: none;">
+          <i class='bx bx-book-open'></i> Read Review ➔
+        </a>
+      `;
+    }
+
+    top100ModalBody.innerHTML = `
+      <div class="top100-detail-body">
+        <div class="top100-detail-header-row">
+          <img src="${coverSrc}" alt="${escapeHtml(album.title)}" class="top100-detail-cover" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+          <div class="top100-detail-info">
+            <div class="top100-detail-rank-badge"><i class='bx bxs-trophy'></i> Rank #${rank}</div>
+            <div class="top100-detail-title">${escapeHtml(album.title)}${yearStr}</div>
+            <div class="top100-detail-artist">${escapeHtml(album.artist)}</div>
+            ${ratingVal ? `
+              <div class="top100-detail-rating-row">
+                <span class="top100-detail-stars"><i class='bx bxs-star'></i></span>
+                <span class="top100-detail-score">${ratingVal} / 5.0</span>
+              </div>
+            ` : ""}
+            ${genresHtml}
+          </div>
+        </div>
+        ${descHtml}
+        ${favTracksHtml}
+        ${memoHtml}
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          ${jumpActionHtml}
+        </div>
+      </div>
+    `;
+
+    top100DetailModal.style.display = "flex";
+  }
+
+  function closeTop100Modal() {
+    if (top100DetailModal) top100DetailModal.style.display = "none";
+  }
+  window.closeTop100Modal = closeTop100Modal;
+
+  async function saveTop100Order() {
+    if (!isAdmin) {
+      alert("Administrator passkey required.");
+      return;
+    }
+
+    if (!top100SaveOrderBtn) return;
+    const origHtml = top100SaveOrderBtn.innerHTML;
+    top100SaveOrderBtn.disabled = true;
+    top100SaveOrderBtn.innerHTML = `<i class='bx bx-loader-alt bx-spin'></i> Saving...`;
+
+    try {
+      const upsertRows = [];
+      const deleteRanks = [];
+
+      for (let r = 1; r <= 100; r++) {
+        const item = topAlbumsState[r];
+        if (item && item.artist && item.title) {
+          upsertRows.push({
+            rank: r,
+            spin_id: item.spin_id || null,
+            artist: item.artist,
+            title: item.title,
+            release_year: item.release_year ? parseInt(item.release_year, 10) : null,
+            cover_url: item.cover_url || "assets/images/spins/placeholder.png",
+            rating: (item.rating !== null && item.rating !== undefined && item.rating !== "") ? parseFloat(item.rating) : null,
+            custom_note: item.custom_note || null,
+            updated_at: new Date().toISOString()
+          });
+        } else if (topAlbumsOriginal[r]) {
+          deleteRanks.push(r);
+        }
+      }
+
+      if (upsertRows.length > 0) {
+        const { error: upsertErr } = await supabaseClient
+          .from("top_albums")
+          .upsert(upsertRows, { onConflict: "rank" });
+        if (upsertErr) throw upsertErr;
+      }
+
+      if (deleteRanks.length > 0) {
+        const { error: delErr } = await supabaseClient
+          .from("top_albums")
+          .delete()
+          .in("rank", deleteRanks);
+        if (delErr) throw delErr;
+      }
+
+      topAlbumsOriginal = JSON.parse(JSON.stringify(topAlbumsState));
+      showTop100Toast("Top 100 order updated and saved successfully.");
+      setTop100EditMode(false);
+    } catch (err) {
+      console.error("Save Top 100 error:", err);
+      alert("Failed to save Top 100 order: " + err.message);
+    } finally {
+      top100SaveOrderBtn.disabled = false;
+      top100SaveOrderBtn.innerHTML = origHtml;
+    }
+  }
+
+  async function exportTop100Image() {
+    if (!window.htmlToImage) {
+      alert("Export library is still loading. Please try again in a moment.");
+      return;
+    }
+    if (!top100ExportWrapper || !top100ExportImageBtn) return;
+
+    const origBtnHtml = top100ExportImageBtn.innerHTML;
+    top100ExportImageBtn.disabled = true;
+    top100ExportImageBtn.innerHTML = `<i class='bx bx-loader-alt bx-spin'></i> Rendering...`;
+
+    const wasEditing = isTop100Editing;
+    if (wasEditing) {
+      setTop100EditMode(false);
+    }
+
+    try {
+      document.body.classList.remove("is-admin");
+
+      const dataUrl = await htmlToImage.toPng(top100ExportWrapper, {
+        quality: 0.95,
+        pixelRatio: 2,
+        backgroundColor: document.body.classList.contains("dark-mode") ? "#0d1117" : "#f8fafc",
+        style: {
+          margin: "0 auto",
+          padding: "20px"
+        }
+      });
+
+      const link = document.createElement("a");
+      link.download = "SosaSpins-Top100.png";
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error("Export image error:", err);
+      alert("Failed to render Top 100 image: " + err.message);
+    } finally {
+      top100ExportImageBtn.disabled = false;
+      top100ExportImageBtn.innerHTML = origBtnHtml;
+      if (isAdmin) document.body.classList.add("is-admin");
+      if (wasEditing) setTop100EditMode(true);
+    }
+  }
+
+  function initTop100Controller() {
+    if (!top100ViewContainer) return;
+
+    if (spinsTop100ToggleBtn) {
+      spinsTop100ToggleBtn.addEventListener("click", () => {
+        setTop100View(!isTop100View);
+      });
+    }
+
+    if (top100BackToTimelineBtn) {
+      top100BackToTimelineBtn.addEventListener("click", () => {
+        setTop100View(false);
+      });
+    }
+
+    if (top100EditModeBtn) {
+      top100EditModeBtn.addEventListener("click", () => {
+        setTop100EditMode(true);
+      });
+    }
+
+    if (top100CancelEditBtn) {
+      top100CancelEditBtn.addEventListener("click", () => {
+        exitTop100EditMode();
+      });
+    }
+
+    if (top100SaveOrderBtn) {
+      top100SaveOrderBtn.addEventListener("click", () => {
+        saveTop100Order();
+      });
+    }
+
+    if (top100ExportImageBtn) {
+      top100ExportImageBtn.addEventListener("click", () => {
+        exportTop100Image();
+      });
+    }
+
+    if (closeAlbumBankBtn) {
+      closeAlbumBankBtn.addEventListener("click", () => {
+        if (albumBankDrawer) {
+          albumBankDrawer.classList.remove("is-open");
+          setTimeout(() => {
+            if (!isTop100Editing && albumBankDrawer) albumBankDrawer.style.display = "none";
+          }, 300);
+        }
+      });
+    }
+
+    if (albumBankSearchInput) {
+      albumBankSearchInput.addEventListener("input", (e) => {
+        albumBankSearchTerm = e.target.value.trim();
+        if (albumBankClearSearchBtn) {
+          albumBankClearSearchBtn.style.display = albumBankSearchTerm ? "block" : "none";
+        }
+        renderAlbumBank();
+      });
+    }
+
+    if (albumBankClearSearchBtn) {
+      albumBankClearSearchBtn.addEventListener("click", () => {
+        albumBankSearchTerm = "";
+        if (albumBankSearchInput) albumBankSearchInput.value = "";
+        albumBankClearSearchBtn.style.display = "none";
+        renderAlbumBank();
+      });
+    }
+
+    if (albumBankSortSelect) {
+      albumBankSortSelect.addEventListener("change", (e) => {
+        albumBankSortMode = e.target.value;
+        renderAlbumBank();
+      });
+    }
+
+    if (closeTop100DetailModal) {
+      closeTop100DetailModal.addEventListener("click", closeTop100Modal);
+    }
+    if (top100DetailModal) {
+      top100DetailModal.addEventListener("click", (e) => {
+        if (e.target === top100DetailModal) closeTop100Modal();
+      });
+    }
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        if (top100DetailModal && top100DetailModal.style.display !== "none") {
+          closeTop100Modal();
+        }
+      }
+    });
+
+    window.addEventListener("hashchange", () => {
+      if (window.location.hash === "#top100") {
+        if (!isTop100View) setTop100View(true);
+      } else if (isTop100View && !document.getElementById("top100DedicatedPage")) {
+        setTop100View(false);
+      }
+    });
+
+    // Check if loaded with #top100 or on top100.html
+    if (window.location.hash === "#top100" || document.getElementById("top100DedicatedPage")) {
+      setTop100View(true);
+    }
+  }
+
   await loadSpins();
+  initTop100Controller();
 
   // ============================================================
   // RENDER FEED
@@ -1856,6 +2771,12 @@ window.closeMiniPlayer = function() {
     renderSpinsCoverFlow(entries);
 
     if (!feed) return;
+
+    // Trigger smooth fade transition
+    feed.classList.remove("feed-fade-in");
+    void feed.offsetWidth;
+    feed.classList.add("feed-fade-in");
+
     if (entries.length === 0) {
       feed.innerHTML = `<div style="padding: 2rem; text-align: center; color: var(--text-color); opacity: 0.7;">No spins match your filter.</div>`;
       return;
@@ -1963,12 +2884,18 @@ window.closeMiniPlayer = function() {
             ${descriptors.length ? `
               <div class="descriptors-wrapper" id="desc-box-${originalIdx}">
                 <span class="desc-label">descriptors:</span>
-                ${initialDesc.map(d => `<span class="descriptor-pill" onclick="setSidebarFilter('descriptor', '${d}')">${d}</span>`).join("")}
+                ${initialDesc.map(d => {
+                  const escapedD = d.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+                  return `<span class="descriptor-pill" onclick="setSidebarFilter('descriptor', '${escapedD}')">${d}</span>`;
+                }).join("")}
                 ${hasManyDesc ? `
-                  <span class="remaining-descriptors" style="display: none;">
-                    ${remainingDesc.map(d => `<span class="descriptor-pill" onclick="setSidebarFilter('descriptor', '${d}')">${d}</span>`).join("")}
+                  <span class="remaining-descriptors is-hidden">
+                    ${remainingDesc.map(d => {
+                      const escapedD = d.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+                      return `<span class="descriptor-pill" onclick="setSidebarFilter('descriptor', '${escapedD}')">${d}</span>`;
+                    }).join("")}
                   </span>
-                  <button type="button" class="desc-expand-btn" onclick="toggleDescriptors(${originalIdx}, this)">▾</button>
+                  <button type="button" class="desc-expand-btn" data-count="${remainingDesc.length}" aria-expanded="false" onclick="toggleDescriptors(${originalIdx}, this)">▾ +${remainingDesc.length}</button>
                 ` : ""}
               </div>
             ` : ""}
@@ -2112,9 +3039,19 @@ window.toggleDescriptors = function(idx, btn) {
     const box = document.getElementById(`desc-box-${idx}`);
     if (!box) return;
     const extra = box.querySelector(".remaining-descriptors");
-    const isHidden = extra.style.display === "none";
-    extra.style.display = isHidden ? "inline" : "none";
-    btn.textContent = isHidden ? "▴" : "▾";
+    if (!extra) return;
+    extra.style.display = "";
+    const isHidden = extra.classList.contains("is-hidden");
+    const count = btn.getAttribute("data-count") || "";
+    if (isHidden) {
+      extra.classList.remove("is-hidden");
+      btn.textContent = "▴";
+      btn.setAttribute("aria-expanded", "true");
+    } else {
+      extra.classList.add("is-hidden");
+      btn.textContent = count ? `▾ +${count}` : "▾";
+      btn.setAttribute("aria-expanded", "false");
+    }
   };
 
 window.toggleTrackRatings = function(idx, btn) {
@@ -2164,33 +3101,142 @@ if (addTrackRatingRowBtn && trackRatingsList) {
  // ============================================================
   // SIDEBAR CLOUDS & FILTERS
   // ============================================================
+  window.toggleSidebarGroup = function (containerId, btnId, totalCount) {
+    const container = document.getElementById(containerId);
+    const btn = document.getElementById(btnId);
+    if (!container || !btn) return;
+    const isHidden = container.classList.contains("is-hidden");
+    if (isHidden) {
+      container.classList.remove("is-hidden");
+      btn.setAttribute("aria-expanded", "true");
+      btn.innerHTML = `<span>Show less</span> <i class='bx bx-chevron-up'></i>`;
+    } else {
+      container.classList.add("is-hidden");
+      btn.setAttribute("aria-expanded", "false");
+      btn.innerHTML = `<span>Show all (${totalCount})</span> <i class='bx bx-chevron-down'></i>`;
+    }
+  };
+
   function buildSidebarWidgets(entries) {
     if (!yearCloud || !genreCloud || !descriptorCloud) return;
 
     const yearCounts = {};
-    const genreCounts = {};
-    const descCounts = {};
+    const genreStats = {};
+    const descStats = {};
 
     entries.forEach(e => {
       if (e.year) yearCounts[e.year] = (yearCounts[e.year] || 0) + 1;
-      (e.genres || []).forEach(g => genreCounts[g] = (genreCounts[g] || 0) + 1);
-      (e.descriptors || []).forEach(d => descCounts[d] = (descCounts[d] || 0) + 1);
+
+      (e.genres || []).forEach(g => {
+        if (!g) return;
+        const raw = String(g).trim();
+        if (!raw) return;
+        const key = raw.toLowerCase();
+        if (!genreStats[key]) {
+          genreStats[key] = { name: raw, count: 0 };
+        }
+        genreStats[key].count += 1;
+        if (raw !== raw.toLowerCase() && genreStats[key].name === genreStats[key].name.toLowerCase()) {
+          genreStats[key].name = raw;
+        }
+      });
+
+      (e.descriptors || []).forEach(d => {
+        if (!d) return;
+        const raw = String(d).trim();
+        if (!raw) return;
+        const key = raw.toLowerCase();
+        if (!descStats[key]) {
+          descStats[key] = { name: raw, count: 0 };
+        }
+        descStats[key].count += 1;
+        if (raw !== raw.toLowerCase() && descStats[key].name === descStats[key].name.toLowerCase()) {
+          descStats[key].name = raw;
+        }
+      });
     });
 
+    // --- Years Cloud ---
     const sortedYears = Object.keys(yearCounts).sort((a, b) => b - a);
     yearCloud.innerHTML = sortedYears.map(y => `
       <span class="category cloud-tag" data-type="year" data-val="${y}" style="cursor: pointer;" onclick="setSidebarFilter('year', '${y}')">${y} (${yearCounts[y]})</span>
     `).join("");
 
-    const sortedGenres = Object.entries(genreCounts).sort((a, b) => b[1] - a[1]).slice(0, 14);
-    genreCloud.innerHTML = sortedGenres.map(([g]) => `
-      <span class="category cloud-tag" data-type="genre" data-val="${g}" style="cursor: pointer;" onclick="setSidebarFilter('genre', '${g}')">${g}</span>
-    `).join("");
+    // --- Top Genres (Cloud Style, Sorted Descending by Spin Count with Expand Button) ---
+    const sortedGenres = Object.values(genreStats).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    const GENRE_LIMIT = 15;
+    const initialGenres = sortedGenres.slice(0, GENRE_LIMIT);
+    const extraGenres = sortedGenres.slice(GENRE_LIMIT);
 
-    const sortedDescs = Object.entries(descCounts).sort((a, b) => b[1] - a[1]).slice(0, 24);
-    descriptorCloud.innerHTML = sortedDescs.map(([d]) => `
-      <span class="category cloud-tag" data-type="descriptor" data-val="${d}" style="cursor: pointer;" onclick="setSidebarFilter('descriptor', '${d}')">${d}</span>
-    `).join("");
+    const renderGenreTag = (g) => {
+      const escaped = g.name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+      return `
+        <span
+          class="category cloud-tag"
+          data-type="genre"
+          data-val="${encodeURIComponent(g.name)}"
+          style="cursor: pointer;"
+          onclick="setSidebarFilter('genre', '${escaped}')"
+        >
+          ${g.name} <small style="opacity: 0.7; font-size: 0.75rem;">(${g.count})</small>
+        </span>
+      `;
+    };
+
+    if (sortedGenres.length === 0) {
+      genreCloud.innerHTML = `<span style="font-size: 0.75rem; opacity: 0.6; padding: 4px;">No genres logged yet.</span>`;
+    } else {
+      let genreHtml = initialGenres.map(renderGenreTag).join("");
+      if (extraGenres.length > 0) {
+        genreHtml += `
+          <div class="remaining-items is-hidden" id="remainingGenres">
+            ${extraGenres.map(renderGenreTag).join("")}
+          </div>
+          <button type="button" class="aero-cloud-toggle-btn" id="toggleGenresBtn" aria-expanded="false" onclick="toggleSidebarGroup('remainingGenres', 'toggleGenresBtn', ${sortedGenres.length})">
+            <span>Show all (${sortedGenres.length})</span> <i class='bx bx-chevron-down'></i>
+          </button>
+        `;
+      }
+      genreCloud.innerHTML = genreHtml;
+    }
+
+    // --- Descriptors (Cloud Style, Sorted Descending by Spin Count with Expand Button) ---
+    const sortedDescs = Object.values(descStats).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    const DESC_LIMIT = 20;
+    const initialDescs = sortedDescs.slice(0, DESC_LIMIT);
+    const extraDescs = sortedDescs.slice(DESC_LIMIT);
+
+    const renderDescTag = (d) => {
+      const escaped = d.name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+      return `
+        <span
+          class="category cloud-tag"
+          data-type="descriptor"
+          data-val="${encodeURIComponent(d.name)}"
+          style="cursor: pointer;"
+          onclick="setSidebarFilter('descriptor', '${escaped}')"
+        >
+          ${d.name} <small style="opacity: 0.7; font-size: 0.75rem;">(${d.count})</small>
+        </span>
+      `;
+    };
+
+    if (sortedDescs.length === 0) {
+      descriptorCloud.innerHTML = `<span style="font-size: 0.75rem; opacity: 0.6; padding: 4px;">No descriptors logged yet.</span>`;
+    } else {
+      let descHtml = initialDescs.map(renderDescTag).join("");
+      if (extraDescs.length > 0) {
+        descHtml += `
+          <div class="remaining-items is-hidden" id="remainingDescriptors">
+            ${extraDescs.map(renderDescTag).join("")}
+          </div>
+          <button type="button" class="aero-cloud-toggle-btn" id="toggleDescriptorsBtn" aria-expanded="false" onclick="toggleSidebarGroup('remainingDescriptors', 'toggleDescriptorsBtn', ${sortedDescs.length})">
+            <span>Show all (${sortedDescs.length})</span> <i class='bx bx-chevron-down'></i>
+          </button>
+        `;
+      }
+      descriptorCloud.innerHTML = descHtml;
+    }
 
     // --- Rating Distribution & Legend Widget ---
     const targetRatingWidget = ratingDistWidget || document.getElementById("ratingDistributionWidget") || ratingCloud;
@@ -2327,24 +3373,20 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       if (sortedBySpins.length === 0) {
         artistCloud.innerHTML = `<span style="font-size: 0.75rem; opacity: 0.6; padding: 4px;">No artists logged yet.</span>`;
       } else {
-        artistCloud.innerHTML = sortedBySpins.map(([name, count]) => `
-          <span
-            class="category cloud-tag"
-            data-type="artist"
-            data-val="${encodeURIComponent(name)}"
-            style="cursor: pointer;"
-          >
-            ${name} <small style="opacity: 0.7; font-size: 0.75rem;">(${count})</small>
-          </span>
-        `).join("");
-
-        // Attach click listeners to trigger the artist filter safely
-        artistCloud.querySelectorAll(".cloud-tag").forEach(tag => {
-          tag.onclick = () => {
-            const rawArtist = decodeURIComponent(tag.getAttribute("data-val"));
-            setSidebarFilter("artist", rawArtist);
-          };
-        });
+        artistCloud.innerHTML = sortedBySpins.map(([name, count]) => {
+          const escaped = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+          return `
+            <span
+              class="category cloud-tag"
+              data-type="artist"
+              data-val="${encodeURIComponent(name)}"
+              style="cursor: pointer;"
+              onclick="setSidebarFilter('artist', '${escaped}')"
+            >
+              ${name} <small style="opacity: 0.7; font-size: 0.75rem;">(${count})</small>
+            </span>
+          `;
+        }).join("");
       }
     }
     updateCloudActiveStates();
@@ -2378,6 +3420,18 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       const match = tag.getAttribute("data-type") === activeFilter.type &&
                     rawVal.toLowerCase() === String(activeFilter.value || "").toLowerCase();
       tag.classList.toggle("active-aero-tag", match);
+
+      if (match) {
+        const parentRemaining = tag.closest(".remaining-items");
+        if (parentRemaining && parentRemaining.classList.contains("is-hidden")) {
+          parentRemaining.classList.remove("is-hidden");
+          const toggleBtn = parentRemaining.nextElementSibling;
+          if (toggleBtn && toggleBtn.classList.contains("aero-cloud-toggle-btn")) {
+            toggleBtn.setAttribute("aria-expanded", "true");
+            toggleBtn.innerHTML = `<span>Show less</span> <i class='bx bx-chevron-up'></i>`;
+          }
+        }
+      }
     });
   }
 
@@ -2400,10 +3454,12 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       if (activeFilter.type === "year") {
         matchesTag = String(i.year) === activeFilter.value;
       } else if (activeFilter.type === "genre") {
-        matchesTag = (i.genres && i.genres.includes(activeFilter.value)) ||
-                     (i.secondary_genres && i.secondary_genres.includes(activeFilter.value));
+        const fVal = String(activeFilter.value || "").toLowerCase();
+        matchesTag = (i.genres && i.genres.some(g => String(g).toLowerCase() === fVal)) ||
+                     (i.secondary_genres && i.secondary_genres.some(g => String(g).toLowerCase() === fVal));
       } else if (activeFilter.type === "descriptor") {
-        matchesTag = i.descriptors && i.descriptors.includes(activeFilter.value);
+        const fVal = String(activeFilter.value || "").toLowerCase();
+        matchesTag = i.descriptors && i.descriptors.some(d => String(d).toLowerCase() === fVal);
       }
         else if (activeFilter.type === "artist") {
         if (!i.artist) {

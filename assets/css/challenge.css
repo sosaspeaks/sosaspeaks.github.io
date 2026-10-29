@@ -1752,7 +1752,11 @@ body.dark-mode .custom-month-item.queue-item.active .queue-icon {
 }
 
 .descriptor-pill {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
   font-size: 0.72rem;
+  line-height: 1.3;
   color: #334155;
   background: rgba(0, 0, 0, 0.04);
   border: 1px solid rgba(0, 0, 0, 0.08);

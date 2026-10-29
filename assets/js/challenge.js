@@ -767,9 +767,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function populateMonthSelectOptions() {
     if (!addMonth) return;
-    const existingValues = Array.from(addMonth.options).map(o => o.value.toLowerCase());
+    const currentVal = addMonth.value;
+    addMonth.innerHTML = "";
 
     const tabButtons = document.querySelectorAll('menu.w7-month-tabs button[role="tab"]');
+    const existingValues = [];
+
     tabButtons.forEach(btn => {
       const m = (btn.getAttribute("data-month") || "").toLowerCase().trim();
       const yr = btn.getAttribute("data-year");
@@ -785,24 +788,14 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    backlogEntries.forEach(entry => {
-      const m = (entry.month || "").toLowerCase().trim();
-      if (m && !existingValues.includes(m)) {
-        const opt = document.createElement("option");
-        opt.value = m;
-        if (entry.year) opt.setAttribute("data-year", entry.year);
-        opt.textContent = m === "recalibrate"
-          ? "Queue: Recalibrate (Relistens)"
-          : `Month: ${formatMonthDisplay(m, entry.year)}`;
-        addMonth.appendChild(opt);
-        existingValues.push(m);
-      }
-    });
-
     // Ensure recalibrate is always the first item in addMonth
     const recalOpt = Array.from(addMonth.options).find(o => o.value.toLowerCase() === "recalibrate");
     if (recalOpt && addMonth.options[0] !== recalOpt) {
       addMonth.insertBefore(recalOpt, addMonth.options[0]);
+    }
+
+    if (currentVal && existingValues.includes(currentVal.toLowerCase())) {
+      addMonth.value = currentVal.toLowerCase();
     }
 
     syncCustomMonthDropdownUI();
@@ -908,35 +901,95 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  function getMonthYearSortKey(monthStr, yearVal) {
+    if (!monthStr) return 999999;
+    const clean = String(monthStr).trim().toLowerCase();
+    if (clean === "recalibrate" || clean === "relisten") return 999999;
+
+    let y = yearVal ? parseInt(yearVal, 10) : null;
+    let mName = clean;
+
+    const matchWithYear = clean.match(/^([a-z]+)[-_ ](?:'|20)?(\d{2,4})$/);
+    if (matchWithYear) {
+      mName = matchWithYear[1];
+      const yParsed = parseInt(matchWithYear[2], 10);
+      y = yParsed < 100 ? 2000 + yParsed : yParsed;
+    }
+
+    const monthIdx = MONTH_NAMES.findIndex(m => m.toLowerCase() === mName);
+    if (monthIdx === -1) return 999990;
+
+    if (!y) {
+      // Challenge started in Oct 2026:
+      // Oct (9), Nov (10), Dec (11) -> 2026
+      // Jan (0) through Sep (8) -> 2027
+      y = (monthIdx >= 9) ? 2026 : 2027;
+    }
+
+    return (y * 100) + monthIdx;
+  }
+
   function syncMonthTabs() {
     if (!monthTabsList) return;
 
     const existingButtons = Array.from(monthTabsList.querySelectorAll('button[role="tab"]'));
-    const existingMonths = existingButtons.map(b => (b.getAttribute("data-month") || "").toLowerCase());
+    const tabMap = new Map();
 
-    const dbMonths = Array.from(new Set(backlogEntries.map(e => (e.month || "").toLowerCase()).filter(Boolean)));
-    const relistenTab = monthTabsList.querySelector('button[data-tab-type="relisten"], button[data-month="recalibrate"]');
+    existingButtons.forEach(btn => {
+      const m = (btn.getAttribute("data-month") || "").toLowerCase().trim();
+      if (m) {
+        tabMap.set(m, btn);
+      }
+    });
+
+    const dbMonths = Array.from(new Set(backlogEntries.map(e => (e.month || "").toLowerCase().trim()).filter(Boolean)));
 
     dbMonths.forEach(m => {
       if (m === "recalibrate" || m === "relisten") return;
-      if (!existingMonths.includes(m)) {
+      if (!tabMap.has(m)) {
         const newTabBtn = document.createElement("button");
         newTabBtn.type = "button";
         newTabBtn.setAttribute("role", "tab");
         newTabBtn.setAttribute("data-month", m);
-        const entryWithYear = backlogEntries.find(e => (e.month || "").toLowerCase() === m && e.year);
-        if (entryWithYear) newTabBtn.setAttribute("data-year", entryWithYear.year);
+        const entryWithYear = backlogEntries.find(e => (e.month || "").toLowerCase().trim() === m && e.year);
+        const mIdx = MONTH_NAMES.findIndex(x => x.toLowerCase() === m);
+        const yr = entryWithYear ? entryWithYear.year : (mIdx >= 9 ? 2026 : 2027);
+        newTabBtn.setAttribute("data-year", yr);
         newTabBtn.setAttribute("aria-selected", m === activeMonth ? "true" : "false");
         if (m === activeMonth) newTabBtn.classList.add("active");
-        const label = formatMonthDisplay(m, entryWithYear ? entryWithYear.year : null);
+        const label = formatMonthDisplay(m, yr);
         newTabBtn.textContent = `${label} (0/36)`;
-        if (relistenTab) {
-          monthTabsList.insertBefore(newTabBtn, relistenTab);
-        } else {
-          monthTabsList.appendChild(newTabBtn);
-        }
-        existingMonths.push(m);
+        tabMap.set(m, newTabBtn);
       }
+    });
+
+    // Ensure data-year on existing tabs
+    tabMap.forEach((btn, m) => {
+      if (m === "recalibrate" || m === "relisten") return;
+      if (!btn.getAttribute("data-year")) {
+        const entryWithYear = backlogEntries.find(e => (e.month || "").toLowerCase().trim() === m && e.year);
+        const mIdx = MONTH_NAMES.findIndex(x => x.toLowerCase() === m);
+        const yr = entryWithYear ? entryWithYear.year : (mIdx >= 9 ? 2026 : 2027);
+        btn.setAttribute("data-year", yr);
+      }
+    });
+
+    // Re-order all tab buttons chronologically (with recalibrate always at the end)
+    const allTabs = Array.from(tabMap.values());
+    allTabs.sort((a, b) => {
+      const mA = (a.getAttribute("data-month") || "").toLowerCase().trim();
+      const mB = (b.getAttribute("data-month") || "").toLowerCase().trim();
+      const isRelA = a.getAttribute("data-tab-type") === "relisten" || mA === "recalibrate" || mA === "relisten";
+      const isRelB = b.getAttribute("data-tab-type") === "relisten" || mB === "recalibrate" || mB === "relisten";
+      if (isRelA) return 1;
+      if (isRelB) return -1;
+      const keyA = getMonthYearSortKey(mA, a.getAttribute("data-year"));
+      const keyB = getMonthYearSortKey(mB, b.getAttribute("data-year"));
+      return keyA - keyB;
+    });
+
+    allTabs.forEach(tab => {
+      monthTabsList.appendChild(tab);
     });
 
     attachMonthTabListeners();
@@ -989,8 +1042,7 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         monthTabsList.appendChild(newTabBtn);
       }
-      attachMonthTabListeners();
-      populateMonthSelectOptions();
+      syncMonthTabs();
 
       activeMonth = nextMonthName.toLowerCase();
       lastActiveChallengeMonth = activeMonth;

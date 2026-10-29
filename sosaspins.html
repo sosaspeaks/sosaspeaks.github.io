@@ -14,7 +14,7 @@
     <meta name="apple-mobile-web-app-title" content="SosaSpeaks" />
     <link rel="manifest" href="assets/images/homepics/site.webmanifest?v=20260527" />
     <!-- Link to CSS -->
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/sosaspins.css">
     <!-- Box icons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 </head>
@@ -53,9 +53,35 @@
             <span class="home-subtitle">"When Sosa Speaks, <i>we listen</i>."</span>
         </div>
     </section>
+    <!-- Admin Management Center Bar (Visible only when Admin is unlocked) -->
+    <div class="spins-admin-bar-wrap container admin-only" id="spinsAdminBarWrap" style="display: none;">
+      <div class="spins-admin-bar">
+        <div class="spins-admin-bar-left">
+          <div class="spins-admin-badge" title="Administrator Mode Active">
+            <img src="assets/images/homepics/CP073.ico" alt="Admin" class="admin-badge-icon">
+            <span class="admin-badge-text">Admin Center</span>
+          </div>
+          <div class="spins-admin-divider"></div>
+          <button type="button" id="composerPrompt" class="aero-command-btn add-emerald-btn admin-only" style="display: none;" title="Log a new spin to the archive">
+            <i class="bx bx-plus"></i> Log a Spin
+          </button>
+          <button type="button" id="openQueueModalBtn" class="aero-command-btn aero-queue-btn admin-only" style="display: none;" title="Review pending spin comments">
+            <i class="bx bx-message-square-dots"></i> Comment Queue
+            <span id="queueCountBadge" class="aero-queue-badge">0</span>
+          </button>
+          <button type="button" id="batchFetchRuntimesBtn" class="aero-command-btn admin-only" style="display: none;" title="Fetch runtimes for all existing spins missing them">
+            <i class='bx bx-time'></i> Backfill Runtimes
+          </button>
+        </div>
+        <div class="spins-admin-bar-right">
+          <span class="spins-admin-chip"><i class='bx bx-shield-quarter'></i> Authorized Session</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Filters -->
     <div class="post-filter container" id="formatFilters">
-    <button type="button" class="filter-item active-filter" data-filter="all">All</button>
+        <button type="button" class="filter-item active-filter" data-filter="all">All</button>
         <button type="button" class="filter-item" data-filter="Album">Albums</button>
         <button type="button" class="filter-item" data-filter="EP">EPs</button>
         <button type="button" class="filter-item" data-filter="Single">Singles</button>
@@ -68,21 +94,14 @@
             <div class="feed-status-bar">
         <div class="feed-status-left" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
           <span class="status-heading" id="feedFilterLabel">All Spins</span>
-            <button type="button" id="batchFetchRuntimesBtn" class="aero-command-btn admin-only" style="display: none;" title="Fetch runtimes for all existing spins missing them">
-              <i class='bx bx-time'></i> Backfill Runtimes
-            </button>
-          <button type="button" id="clearFilterBtn" class="filter-item" style="display: none; padding: 2px 8px; font-size: 0.75rem;">✕ Clear</button>
+          <button type="button" id="clearFilterBtn" class="aero-command-btn" style="display: none; padding: 2px 8px; font-size: 0.75rem;">✕ Clear</button>
         </div>
         <div class="feed-status-right" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-          <button type="button" id="spinsCoverFlowToggleBtn" class="filter-item aero-cf-toggle-btn" title="Switch between Timeline and iPod Cover Flow view" aria-pressed="false" style="font-weight: 600; display: inline-flex; align-items: center; gap: 5px;">
+          <button type="button" id="spinsTop100ToggleBtn" class="aero-command-btn aero-top100-btn" title="View Sosa's Top 100 Albums Showcase" aria-pressed="false">
+            <i class='bx bx-trophy'></i> Top 100
+          </button>
+          <button type="button" id="spinsCoverFlowToggleBtn" class="aero-command-btn aero-cf-btn" title="Switch between Timeline and iPod Cover Flow view" aria-pressed="false">
             <i class='bx bx-carousel'></i> Cover Flow
-          </button>
-          <button type="button" id="openQueueModalBtn" class="filter-item admin-only aero-queue-btn" style="display: none; font-weight: 600;" title="Review pending spin comments">
-            <i class="bx bx-message-square-dots"></i> Comment Queue
-            <span id="queueCountBadge" class="aero-queue-badge">0</span>
-          </button>
-          <button type="button" id="composerPrompt" class="filter-item admin-only" style="display: none; font-weight: 600;">
-            <i class="bx bx-plus"></i> Log a Spin
           </button>
         </div>
       </div>
@@ -117,6 +136,98 @@
         </div>
       </section>
 
+      <!-- Top 100 Showcase View -->
+      <section id="top100ViewContainer" class="top100-view-container" style="display: none;">
+        <div class="window glass w7-window top100-window-frame" id="top100WindowFrame">
+          <!-- Window Title Bar -->
+          <div class="title-bar">
+            <div class="title-bar-text">
+              <i class='bx bxs-trophy' style="color: #f59e0b; margin-right: 4px; vertical-align: middle;"></i>
+              Sosa's Top 100 Albums Showcase
+            </div>
+            <div class="title-bar-controls">
+              <span class="top100-version-pill">Aero Edition</span>
+            </div>
+          </div>
+
+          <!-- Attached Windows 7 Command Bar -->
+          <div class="window-command-bar top100-command-bar">
+            <div class="command-group-left">
+              <button type="button" id="top100BackToTimelineBtn" class="aero-command-btn" title="Back to Spins Timeline">
+                <i class='bx bx-arrow-back'></i> Timeline
+              </button>
+              <button type="button" id="top100ExportImageBtn" class="aero-command-btn export-emerald-btn" title="Export clean image of Top 100">
+                <i class='bx bx-image'></i> Export Image
+              </button>
+            </div>
+            <div class="command-group-right">
+              <!-- Admin Edit Actions -->
+              <button type="button" id="top100EditModeBtn" class="aero-command-btn admin-only" style="display: none;" title="Edit Top 100 Ranks">
+                <i class='bx bx-edit'></i> Edit Top 100
+              </button>
+              <button type="button" id="top100SaveOrderBtn" class="aero-command-btn save-emerald-btn admin-only" style="display: none;" title="Save Top 100 Order">
+                <i class='bx bx-save'></i> Save Order
+              </button>
+              <button type="button" id="top100CancelEditBtn" class="aero-command-btn admin-only" style="display: none;" title="Cancel Editing">
+                <i class='bx bx-x'></i> Cancel
+              </button>
+            </div>
+          </div>
+
+          <!-- Main Window Body -->
+          <div class="window-body top100-window-body">
+            <!-- Image Export Wrapper (Clean capture zone) -->
+            <div id="top100ExportWrapper" class="top100-export-wrapper">
+              
+              <!-- Header Banner Inside Export Zone -->
+              <div class="top100-showcase-header">
+                <div class="top100-header-title">Sosa's All-Time Top 100 Albums</div>
+                <div class="top100-header-subtitle">"When Sosa Speaks, we listen." &bull; Curated Listening Showcase</div>
+              </div>
+
+              <!-- 1. The Crown Showcase: The Top 3 Podium (Ranks 1–3) -->
+              <div class="top100-podium-section" id="top100Podium">
+                <!-- Injected dynamically: #2 Silver, #1 Gold, #3 Bronze -->
+              </div>
+
+              <!-- 2. The Upper Tier: Ranks 4 to 10 (Sub-Grid) -->
+              <div class="top100-tier-section">
+                <div class="top100-tier-banner">
+                  <span class="tier-banner-pill">[ TOP 10 ]</span>
+                  <div class="tier-banner-line"></div>
+                </div>
+                <div class="top100-tier-grid" id="top100TierGrid">
+                  <!-- Injected dynamically: Ranks 4-10 -->
+                </div>
+              </div>
+
+              <!-- 3. The Main Field: Ranks 11 to 100 (Topster Grid) -->
+              <div class="top100-main-section">
+                <div class="top100-tier-banner">
+                  <span class="tier-banner-pill">[ THE TOPSTER FIELD &bull; RANKS 11 &ndash; 100 ]</span>
+                  <div class="tier-banner-line"></div>
+                </div>
+                <div class="top100-main-grid" id="top100MainGrid">
+                  <!-- Injected dynamically: Ranks 11-100 -->
+                </div>
+              </div>
+
+              <!-- Showcase Footer in Export Zone -->
+              <div class="top100-showcase-footer">
+                <span>sosaspeaks.org/sosaspins &bull; SosaSpins</span>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Window Status Bar Footer -->
+          <div class="status-bar top100-status-bar">
+            <div class="status-bar-field" id="top100StatusCount">100 items</div>
+            <div class="status-bar-field" id="top100StatusMode" style="text-align: right; max-width: 160px;">Viewing</div>
+          </div>
+        </div>
+      </section>
+
       <section id="timelineFeed" class="timeline-continuous-sheet">
         <div class="review-action-btn" style="padding: 2rem; text-align: center; color: var(--text-color); opacity: 0.7;">Loading archive...</div>
       </section>
@@ -146,13 +257,13 @@
           <!-- Dynamic rating distribution rows injected here -->
         </div>
       </div>
-      <div class="sidebar-card">
+      <div class="sidebar-card aero-card">
         <h3 class="sidebar-heading">Top Genres</h3>
-        <div class="category-group" id="genreCloud"></div>
+        <div class="cloud-container" id="genreCloud"></div>
       </div>
-      <div class="sidebar-card">
+      <div class="sidebar-card aero-card">
         <h3 class="sidebar-heading">Descriptors</h3>
-        <div class="category-group" id="descriptorCloud"></div>
+        <div class="cloud-container" id="descriptorCloud"></div>
       </div>
       <div class="sidebar-card">
         <h3 class="sidebar-heading">Release Years</h3>
@@ -389,6 +500,71 @@
     <!-- Link to JS -->
     <button class="to-top"><i class='bx bx-up-arrow-alt' style="scale: 250%;"></i></button>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="assets/js/sosaspins.js"></script>
+    <!-- Admin Album Bank Slide-Out Drawer -->
+  <aside id="albumBankDrawer" class="album-bank-drawer admin-only" style="display: none;" aria-label="Album Bank Drawer">
+    <div class="album-bank-header">
+      <div class="album-bank-title">
+        <i class='bx bx-archive-in'></i> Album Bank
+        <span id="albumBankCountBadge" class="aero-count-badge">0</span>
+      </div>
+      <button type="button" id="closeAlbumBankBtn" class="aero-icon-btn is-close" title="Close Album Bank" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: #64748b;">
+        <i class='bx bx-x'></i>
+      </button>
+    </div>
+
+    <div class="album-bank-controls">
+      <div class="bank-search-wrap">
+        <i class='bx bx-search search-icon'></i>
+        <input type="text" id="albumBankSearchInput" class="sosa-search-input bank-search-input" placeholder="Filter rated albums...">
+        <button type="button" id="albumBankClearSearchBtn" class="bank-clear-btn" style="display: none;">✕</button>
+      </div>
+      <div class="bank-sort-wrap">
+        <label for="albumBankSortSelect" class="bank-sort-label">Sort:</label>
+        <select id="albumBankSortSelect" class="sosa-search-input bank-sort-select">
+          <option value="rating-desc">Rating: High to Low</option>
+          <option value="rating-asc">Rating: Low to High</option>
+          <option value="artist-asc">Artist (A → Z)</option>
+          <option value="title-asc">Title (A → Z)</option>
+          <option value="year-desc">Year: Newest</option>
+          <option value="year-asc">Year: Oldest</option>
+          <option value="recent">Recent: Last Logged</option>
+        </select>
+      </div>
+      <div class="bank-hint-text">
+        <i class='bx bx-info-circle'></i> Drag an album onto any slot (1–100) to assign. Drag between slots to reorder.
+      </div>
+    </div>
+
+    <div class="album-bank-list" id="albumBankList">
+      <!-- Populated dynamically with rated spins -->
+    </div>
+  </aside>
+
+  <!-- TOP 100 DETAIL MODAL: Authentic Windows 7 Glass Window -->
+  <div id="top100DetailModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="window glass w7-modal-window top100-detail-window">
+      <div class="title-bar">
+        <div class="title-bar-text">
+          <i class='bx bx-disc'></i> Album Details
+        </div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeTop100DetailModal" aria-label="Close" class="is-close"></button>
+        </div>
+      </div>
+      <div class="window-body" id="top100ModalBody"></div>
+    </div>
+  </div>
+
+  <!-- Windows 7 Aero Success Toast Notification -->
+  <div id="top100AeroToast" class="top100-aero-toast" style="display: none;">
+    <i class='bx bxs-check-circle toast-icon'></i>
+    <div class="toast-content">
+      <div class="toast-title">Top 100 Saved</div>
+      <div class="toast-msg">Top 100 order updated successfully.</div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
+  <script src="assets/js/sosaspins.js"></script>
 </body>
 </html>
