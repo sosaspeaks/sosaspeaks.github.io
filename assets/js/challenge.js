@@ -958,7 +958,7 @@ document.addEventListener("DOMContentLoaded", () => {
         newTabBtn.setAttribute("aria-selected", m === activeMonth ? "true" : "false");
         if (m === activeMonth) newTabBtn.classList.add("active");
         const label = formatMonthDisplay(m, yr);
-        newTabBtn.textContent = `${label} (0/36)`;
+        newTabBtn.textContent = `${label} ${isAdmin ? "(0/36)" : "(0)"}`;
         tabMap.set(m, newTabBtn);
       }
     });
@@ -1034,7 +1034,7 @@ document.addEventListener("DOMContentLoaded", () => {
       newTabBtn.className = "active";
       newTabBtn.setAttribute("data-month", nextMonthName.toLowerCase());
       newTabBtn.setAttribute("data-year", targetYear);
-      newTabBtn.textContent = `${tabLabel} (0/36)`;
+      newTabBtn.textContent = `${tabLabel} ${isAdmin ? "(0/36)" : "(0)"}`;
 
       const relistenTab = monthTabsList.querySelector('button[data-tab-type="relisten"], button[data-month="recalibrate"]');
       if (relistenTab) {
@@ -1254,6 +1254,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (typeof updateCoverFlowPositions === "function") {
       updateCoverFlowPositions();
     }
+    updateMonthPillCounts();
   }
 
   function closeAuthDialog(result = false) {
@@ -2442,7 +2443,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const yr = btn.getAttribute("data-year");
       const count = backlogEntries.filter(e => (e.month || "").toLowerCase() === month).length;
       const label = formatMonthDisplay(month, yr);
-      btn.textContent = `${label} (${count}/36)`;
+      const countStr = isAdmin ? `(${count}/36)` : `(${count})`;
+      btn.textContent = `${label} ${countStr}`;
     });
 
     // Also update reason counts in recalibrateFilterBar
@@ -2835,6 +2837,16 @@ document.addEventListener("DOMContentLoaded", () => {
       progressSubtitle.textContent = isRelistenTab
         ? `Album Recalibration & Relisten Queue (${list.length} Albums)`
         : `${displayMonth} 6×6 Listening Challenge (36 Albums)`;
+    }
+
+    const progressBox = document.querySelector(".challenge-progress-box");
+    const now = new Date();
+    const currentCalendarMonth = MONTH_NAMES[now.getMonth()].toLowerCase();
+    const currentCalendarYear = now.getFullYear();
+    const activeYearNum = activeYear ? parseInt(activeYear, 10) : currentCalendarYear;
+    const isCurrentCalendarMonth = !isRelistenTab && (activeMonth === currentCalendarMonth) && (activeYearNum === currentCalendarYear);
+    if (progressBox) {
+      progressBox.style.display = isCurrentCalendarMonth ? "" : "none";
     }
 
     list.forEach(album => {

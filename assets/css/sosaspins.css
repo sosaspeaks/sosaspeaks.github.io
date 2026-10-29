@@ -1525,6 +1525,7 @@ button.filter-item {
   transition: all 0.15s ease;
   cursor: pointer;
   user-select: none;
+  text-transform: none !important;
 }
 
 .descriptor-pill:hover {
@@ -5258,11 +5259,17 @@ body.dark-mode .top100-header-subtitle {
   overflow: visible;
 }
 
+.podium-badge {
+  position: relative;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
 .podium-slot.rank-1 .podium-badge {
-  position: absolute;
-  top: -16px;
-  left: 50%;
-  transform: translateX(-50%);
   width: 44px;
   height: 44px;
   border-radius: 50%;
@@ -5320,10 +5327,6 @@ body.dark-mode .top100-header-subtitle {
 }
 
 .podium-slot.rank-2 .podium-badge {
-  position: absolute;
-  top: -14px;
-  left: 50%;
-  transform: translateX(-50%);
   width: 38px;
   height: 38px;
   border-radius: 50%;
@@ -5381,10 +5384,6 @@ body.dark-mode .top100-header-subtitle {
 }
 
 .podium-slot.rank-3 .podium-badge {
-  position: absolute;
-  top: -14px;
-  left: 50%;
-  transform: translateX(-50%);
   width: 38px;
   height: 38px;
   border-radius: 50%;
@@ -5478,6 +5477,42 @@ body.dark-mode .podium-artist {
 
 body.dark-mode .podium-title {
   color: #94a3b8;
+}
+
+.podium-rating-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.podium-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  color: #fbbf24;
+  font-size: 0.92rem;
+  filter: drop-shadow(0 1px 2px rgba(245, 158, 11, 0.45));
+}
+
+.podium-stars i.bx-star {
+  color: rgba(0, 0, 0, 0.18);
+  filter: none;
+}
+
+body.dark-mode .podium-stars i.bx-star {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.podium-score {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #b45309;
+}
+
+body.dark-mode .podium-score {
+  color: #fde047;
 }
 
 /* Corner Rating Chip for Podium & Cards */
@@ -6153,91 +6188,264 @@ body.dark-mode .bank-item-rating {
 }
 
 /* ============================================================
-   6. TOP 100 DETAIL MODAL
+   6. TOP 100 DETAIL MODAL: Authentic Windows 7 Aero Chrome
    ============================================================ */
-.top100-detail-window {
-  max-width: 580px !important;
-  width: 90% !important;
+.window.w7-modal-window.top100-detail-window {
+  max-width: 520px !important;
+  width: 92% !important;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.6) 0%,
+      rgba(255, 255, 255, 0.15) 38%,
+      rgba(255, 255, 255, 0) 39%,
+      rgba(200, 230, 245, 0.28) 100%
+    ),
+    linear-gradient(180deg, #dce9f5 0%, #c2d8ec 45%, #b2cce0 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.92) !important;
+  border-radius: 8px 8px 6px 6px !important;
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.48),
+    0 2px 8px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    inset 0 0 0 1px rgba(95, 130, 165, 0.5) !important;
+  backdrop-filter: blur(8px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(140%) !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  box-sizing: border-box;
+}
+
+.window.w7-modal-window.top100-detail-window .title-bar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 6px 10px 5px 12px !important;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.85) 0%,
+    rgba(235, 245, 255, 0.4) 49%,
+    rgba(195, 215, 235, 0.55) 50%,
+    rgba(215, 230, 245, 0.75) 100%
+  ) !important;
+  border-bottom: 1px solid rgba(130, 160, 185, 0.55) !important;
+  user-select: none;
+}
+
+.window.w7-modal-window.top100-detail-window .title-bar-text {
+  font-family: "Segoe UI", "Plus Jakarta Sans", sans-serif !important;
+  font-size: 0.88rem !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9) !important;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.window.w7-modal-window.top100-detail-window .title-bar-controls .is-close {
+  width: 44px !important;
+  height: 19px !important;
+  background: linear-gradient(180deg, #e67d73 0%, #c43828 48%, #aa2214 52%, #c93b2a 100%) !important;
+  border: 1px solid #7c1a10 !important;
+  border-radius: 3px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 1px 2px rgba(0, 0, 0, 0.25) !important;
+  position: relative !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  outline: none !important;
+}
+
+.window.w7-modal-window.top100-detail-window .title-bar-controls .is-close::before,
+.window.w7-modal-window.top100-detail-window .title-bar-controls .is-close::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 8px !important;
+  left: 17px !important;
+  width: 10px !important;
+  height: 2px !important;
+  background: #ffffff !important;
+  border-radius: 1px !important;
+}
+
+.window.w7-modal-window.top100-detail-window .title-bar-controls .is-close::before {
+  transform: rotate(45deg) !important;
+}
+
+.window.w7-modal-window.top100-detail-window .title-bar-controls .is-close::after {
+  transform: rotate(-45deg) !important;
+}
+
+.window.w7-modal-window.top100-detail-window .window-body {
+  background: #ffffff !important;
+  margin: 3px !important;
+  padding: 1.15rem !important;
+  border-radius: 4px !important;
+  border: 1px solid #9aa7b2 !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08) !important;
+  max-height: 82vh !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+body.dark-mode .window.w7-modal-window.top100-detail-window {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0.02) 40%,
+      rgba(30, 41, 59, 0.4) 100%
+    ),
+    linear-gradient(180deg, #1e293b 0%, #0f172a 100%) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+body.dark-mode .window.w7-modal-window.top100-detail-window .title-bar {
+  background: linear-gradient(
+    180deg,
+    rgba(51, 65, 85, 0.9) 0%,
+    rgba(30, 41, 59, 0.85) 100%
+  ) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+body.dark-mode .window.w7-modal-window.top100-detail-window .title-bar-text {
+  color: #f1f5f9 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8) !important;
+}
+
+body.dark-mode .window.w7-modal-window.top100-detail-window .window-body {
+  background: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #f1f5f9 !important;
 }
 
 .top100-detail-body {
-  padding: 1.25rem;
+  padding: 0;
 }
 
 .top100-detail-header-row {
   display: flex;
-  gap: 1.25rem;
-  align-items: flex-start;
-  margin-bottom: 1.25rem;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 0.6rem;
 }
 
 .top100-detail-cover {
-  width: 140px;
-  height: 140px;
-  border-radius: 6px;
-  object-fit: cover;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-  flex-shrink: 0;
+  width: 90px !important;
+  height: 90px !important;
+  border-radius: 4px !important;
+  object-fit: cover !important;
+  flex-shrink: 0 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+body.dark-mode .top100-detail-cover {
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .top100-detail-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .top100-detail-rank-badge {
+  align-self: flex-start;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 800;
   padding: 2px 8px;
   border-radius: 999px;
   background: linear-gradient(135deg, #fef08a 0%, #f59e0b 100%);
   color: #78350f;
   border: 1px solid #ffffff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-  margin-bottom: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  margin-bottom: 2px;
 }
 
 .top100-detail-title {
-  font-size: 1.2rem;
+  font-size: 1.15rem;
   font-weight: 800;
   color: #1e293b;
-  line-height: 1.2;
+  line-height: 1.25;
+  word-break: break-word;
 }
 
 body.dark-mode .top100-detail-title {
-  color: #f1f5f9;
+  color: #f8fafc;
 }
 
 .top100-detail-artist {
   font-size: 0.95rem;
-  font-weight: 600;
-  color: #3b82f6;
-  margin-top: 2px;
+  font-weight: 700;
+  color: #0284c7;
+  word-break: break-word;
+}
+
+body.dark-mode .top100-detail-artist {
+  color: #38bdf8;
 }
 
 .top100-detail-rating-row {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: 8px;
+  margin-top: 2px;
 }
 
 .top100-detail-stars {
-  color: #f59e0b;
-  font-size: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  color: #fbbf24;
+  font-size: 0.95rem;
+  filter: drop-shadow(0 1px 2px rgba(245, 158, 11, 0.45));
+}
+
+.top100-detail-stars i.bx-star {
+  color: rgba(0, 0, 0, 0.18);
+  filter: none;
+}
+
+body.dark-mode .top100-detail-stars i.bx-star {
+  color: rgba(255, 255, 255, 0.2);
 }
 
 .top100-detail-score {
-  font-weight: 800;
-  font-size: 0.95rem;
-  color: #1e293b;
+  font-weight: 700;
+  font-size: 0.84rem;
+  color: #b45309;
 }
 
 body.dark-mode .top100-detail-score {
-  color: #f1f5f9;
+  color: #fde047;
+}
+
+.top100-detail-footer {
+  margin-top: 1.15rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+body.dark-mode .top100-detail-footer {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .top100-memo-box {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #e2e8f0 !important;
 }
 
 /* Responsive Grid Breakpoints */

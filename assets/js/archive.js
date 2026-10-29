@@ -2116,14 +2116,12 @@ window.closeMiniPlayer = function() {
       if (isPopulated) {
         const coverSrc = album.cover_url || "assets/images/spins/placeholder.png";
         const ratingVal = (album.rating !== null && album.rating !== undefined && album.rating !== "") ? parseFloat(album.rating).toFixed(1) : "";
-        const ratingBadge = ratingVal ? `<div class="top100-rating-chip"><i class='bx bxs-star'></i> ${ratingVal}</div>` : "";
         const yearVal = album.release_year ? `(${album.release_year})` : "";
 
         return `
           <div class="podium-slot ${p.slotClass}" data-rank="${p.rank}" draggable="${isTop100Editing}">
-            <div class="podium-cover-wrap" data-rank="${p.rank}">
-              <div class="podium-badge">${p.badgeText}</div>
-              ${ratingBadge}
+            <div class="podium-badge">${p.badgeText}</div>
+            <div class="podium-cover-wrap">
               <img src="${coverSrc}" alt="${escapeHtml(album.title)}" class="podium-cover-img" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
               ${isTop100Editing ? `<button type="button" class="slot-clear-btn" data-rank="${p.rank}" title="Clear slot #${p.rank}">✕</button>` : ""}
             </div>
@@ -2133,14 +2131,20 @@ window.closeMiniPlayer = function() {
             <div class="podium-info">
               <div class="podium-artist" title="${escapeHtml(album.artist)}">${escapeHtml(album.artist)}</div>
               <div class="podium-title" title="${escapeHtml(album.title)} ${yearVal}">${escapeHtml(album.title)} ${yearVal ? `<span style="font-size: 0.8rem; opacity: 0.75;">${yearVal}</span>` : ""}</div>
+              ${ratingVal ? `
+                <div class="podium-rating-row">
+                  <span class="podium-stars">${getStarString(album.rating)}</span>
+                  <span class="podium-score">${ratingVal}/5.0</span>
+                </div>
+              ` : ""}
             </div>
           </div>
         `;
       } else {
         return `
           <div class="podium-slot ${p.slotClass} is-empty" data-rank="${p.rank}">
-            <div class="podium-cover-wrap top100-slot-empty" data-rank="${p.rank}">
-              <div class="podium-badge">${p.badgeText}</div>
+            <div class="podium-badge">${p.badgeText}</div>
+            <div class="podium-cover-wrap top100-slot-empty">
               <span class="slot-empty-rank">#${p.rank}</span>
               <span class="slot-empty-label">Empty Slot</span>
             </div>
@@ -2449,17 +2453,69 @@ window.closeMiniPlayer = function() {
     const coverSrc = album.cover_url || "assets/images/spins/placeholder.png";
     const ratingVal = (album.rating !== null && album.rating !== undefined && album.rating !== "") ? parseFloat(album.rating).toFixed(1) : "";
     const yearStr = album.release_year ? ` (${album.release_year})` : "";
-    const primaryGenres = Array.isArray(album.genres) ? album.genres : [];
-    const secondaryGenres = Array.isArray(album.secondary_genres) ? album.secondary_genres : [];
-    const descriptors = Array.isArray(album.descriptors) ? album.descriptors : [];
-    const favTracks = parseFavTracks(album.fav_tracks);
+
+    let primaryGenres = [];
+    if (Array.isArray(album.genres)) {
+      primaryGenres = album.genres;
+    } else if (typeof album.genres === "string" && album.genres.trim()) {
+      try {
+        const p = JSON.parse(album.genres);
+        primaryGenres = Array.isArray(p) ? p : album.genres.split(",");
+      } catch (e) {
+        primaryGenres = album.genres.split(",");
+      }
+    }
+    primaryGenres = primaryGenres.map(g => String(g).trim()).filter(Boolean);
+
+    let secondaryGenres = [];
+    if (Array.isArray(album.secondary_genres)) {
+      secondaryGenres = album.secondary_genres;
+    } else if (typeof album.secondary_genres === "string" && album.secondary_genres.trim()) {
+      try {
+        const p = JSON.parse(album.secondary_genres);
+        secondaryGenres = Array.isArray(p) ? p : album.secondary_genres.split(",");
+      } catch (e) {
+        secondaryGenres = album.secondary_genres.split(",");
+      }
+    }
+    secondaryGenres = secondaryGenres.map(g => String(g).trim()).filter(Boolean);
+
+    let descriptors = [];
+    if (Array.isArray(album.descriptors)) {
+      descriptors = album.descriptors;
+    } else if (typeof album.descriptors === "string" && album.descriptors.trim()) {
+      try {
+        const parsed = JSON.parse(album.descriptors);
+        if (Array.isArray(parsed)) descriptors = parsed;
+        else descriptors = album.descriptors.split(",");
+      } catch (e) {
+        descriptors = album.descriptors.split(",");
+      }
+    }
+    descriptors = descriptors
+      .map(d => String(d).replace(/^\s*descriptors\s*:?\s*/i, "").trim())
+      .filter(Boolean);
+
+    let favTracks = [];
+    if (Array.isArray(album.fav_tracks)) {
+      favTracks = album.fav_tracks;
+    } else if (typeof album.fav_tracks === "string" && album.fav_tracks.trim()) {
+      try {
+        const p = JSON.parse(album.fav_tracks);
+        favTracks = Array.isArray(p) ? p : parseFavTracks(album.fav_tracks);
+      } catch (e) {
+        favTracks = parseFavTracks(album.fav_tracks);
+      }
+    } else if (album.fav_tracks) {
+      favTracks = parseFavTracks(album.fav_tracks);
+    }
 
     let genresHtml = "";
     if (primaryGenres.length || secondaryGenres.length) {
       genresHtml = `
-        <div class="genre-container" style="margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 4px;">
-          ${primaryGenres.map(g => `<span class="cf-genre-chip" style="font-size: 0.76rem;">${escapeHtml(g)}</span>`).join("")}
-          ${secondaryGenres.map(g => `<span class="cf-genre-chip" style="font-size: 0.76rem; opacity: 0.8; font-style: italic;">${escapeHtml(g)}</span>`).join("")}
+        <div class="genre-container" style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 0.65rem;">
+          ${primaryGenres.map(g => `<span class="genre-pill genre-primary">${escapeHtml(g)}</span>`).join("")}
+          ${secondaryGenres.map(g => `<span class="genre-pill genre-secondary">${escapeHtml(g)}</span>`).join("")}
         </div>
       `;
     }
@@ -2467,9 +2523,9 @@ window.closeMiniPlayer = function() {
     let descHtml = "";
     if (descriptors.length) {
       descHtml = `
-        <div class="desc-row" style="margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 4px;">
-          <span style="font-size: 0.75rem; color: #64748b; font-weight: 600;">Descriptors:</span>
-          ${descriptors.map(d => `<span class="desc-pill" style="font-size: 0.72rem;">${escapeHtml(d)}</span>`).join("")}
+        <div class="descriptors-wrapper" style="margin-top: 0.65rem;">
+          <span class="desc-label">descriptors:</span>
+          ${descriptors.map(d => `<span class="descriptor-pill" style="text-transform: none !important;">${escapeHtml(d)}</span>`).join("")}
         </div>
       `;
     }
@@ -2477,12 +2533,21 @@ window.closeMiniPlayer = function() {
     let favTracksHtml = "";
     if (favTracks.length) {
       favTracksHtml = `
-        <div style="margin-top: 0.75rem;">
-          <span style="font-size: 0.75rem; color: #059669; font-weight: 700;">Favorite Tracks:</span>
-          <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px;">
+        <div class="top100-fav-tracks-wrap" style="margin-top: 0.75rem;">
+          <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+            <span style="font-size: 0.75rem; font-weight: 700; color: #059669; margin-right: 4px;">Favorite Tracks:</span>
             ${favTracks.map(t => {
-              const name = t.includes("|") ? t.split("|")[0].trim() : t.trim();
-              return `<span class="fav-track-chip" style="font-size: 0.75rem;"><i class='bx bx-music'></i> ${escapeHtml(name)}</span>`;
+              const parts = t.split("|");
+              const name = parts[0].trim();
+              const url = parts.length > 1 ? parts[1].trim() : (name.startsWith("http") ? name : null);
+              const safeTrack = escapeHtml(name).replace(/'/g, "\\'");
+              const safeArtist = escapeHtml(album.artist || "").replace(/'/g, "\\'");
+              const safeAlbum = escapeHtml(album.title || "").replace(/'/g, "\\'");
+              const safeCover = (album.cover_url || "").replace(/'/g, "\\'");
+              if (url && (url.startsWith("http://") || url.startsWith("https://"))) {
+                return `<span class="fav-track-chip song-embed-link single-play-chip" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')" title="Play ${escapeHtml(name)}"><i class='bx bx-play-circle'></i> ${escapeHtml(name)}</span>`;
+              }
+              return `<span class="fav-track-chip"><i class='bx bx-music'></i> ${escapeHtml(name)}</span>`;
             }).join("")}
           </div>
         </div>
@@ -2500,17 +2565,26 @@ window.closeMiniPlayer = function() {
 
     let jumpActionHtml = "";
     if (album.spin_id) {
-      jumpActionHtml = `
-        <button type="button" class="aero-command-btn" style="margin-top: 1rem;" onclick="closeTop100Modal(); window.jumpToSpinInTimeline(${album.spin_id});">
+      jumpActionHtml += `
+        <button type="button" class="aero-command-btn" onclick="closeTop100Modal(); window.jumpToSpinInTimeline(${album.spin_id});">
           <i class='bx bx-list-ul'></i> View in Timeline
         </button>
       `;
     }
     if (album.review_url) {
       jumpActionHtml += `
-        <a href="${album.review_url}" target="_blank" rel="noopener noreferrer" class="aero-command-btn export-emerald-btn" style="margin-top: 1rem; text-decoration: none;">
+        <a href="${album.review_url}" target="_blank" rel="noopener noreferrer" class="aero-command-btn export-emerald-btn" style="text-decoration: none;">
           <i class='bx bx-book-open'></i> Read Review ➔
         </a>
+      `;
+    }
+
+    let footerHtml = "";
+    if (jumpActionHtml) {
+      footerHtml = `
+        <div class="top100-detail-footer">
+          ${jumpActionHtml}
+        </div>
       `;
     }
 
@@ -2519,24 +2593,22 @@ window.closeMiniPlayer = function() {
         <div class="top100-detail-header-row">
           <img src="${coverSrc}" alt="${escapeHtml(album.title)}" class="top100-detail-cover" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
           <div class="top100-detail-info">
-            <div class="top100-detail-rank-badge"><i class='bx bxs-trophy'></i> Rank #${rank}</div>
+            <div class="top100-detail-rank-badge">🏆 Rank #${rank}</div>
             <div class="top100-detail-title">${escapeHtml(album.title)}${yearStr}</div>
             <div class="top100-detail-artist">${escapeHtml(album.artist)}</div>
             ${ratingVal ? `
               <div class="top100-detail-rating-row">
-                <span class="top100-detail-stars"><i class='bx bxs-star'></i></span>
-                <span class="top100-detail-score">${ratingVal} / 5.0</span>
+                <span class="top100-detail-stars">${getStarString(album.rating)}</span>
+                <span class="top100-detail-score">${ratingVal}/5.0</span>
               </div>
             ` : ""}
-            ${genresHtml}
           </div>
         </div>
+        ${genresHtml}
         ${descHtml}
         ${favTracksHtml}
         ${memoHtml}
-        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-          ${jumpActionHtml}
-        </div>
+        ${footerHtml}
       </div>
     `;
 
