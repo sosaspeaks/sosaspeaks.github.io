@@ -31,7 +31,7 @@
               <button type="button" id="adminTriggerBtn" class="aero-btn" title="Admin Mode">
                   <img
                     id="adminLockIcon"
-                    src="assets/images/homepics/CP070.ico"
+                    src="assets/icons/aero/lock_closed.png"
                     alt="Admin Status"
                     class="aero-lock-icon nav-custom-icon"
                   />
@@ -400,50 +400,67 @@
     </div>
   </div>
 
-  <!-- MODAL: Windows 7 Aero Admin Security / Passkey Dialog -->
+  <!-- MODAL: Windows 7 Aero Admin Security / Auth Dialog -->
   <div id="adminAuthModal" class="sosa-modal-backdrop" style="display: none;">
-    <div class="window glass w7-modal-window w7-auth-window">
+    <div class="modal-dialog w7-window window glass w7-modal-window w7-auth-window">
       <div class="title-bar">
         <div class="title-bar-text">
-          <img src="assets/images/homepics/CP070.ico" alt="" class="w7-title-icon" id="authModalTitleIcon">
-          <span id="authModalTitleText">SosaSpins Security</span>
+          <img src="assets/icons/aero/lock_closed.png" alt="" class="w7-title-icon" id="authModalTitleIcon">
+          <span id="authModalTitleText">Windows Security — SosaSpins Admin</span>
         </div>
         <div class="title-bar-controls">
-          <button type="button" id="closeAdminAuthModal" aria-label="Close" class="is-close"></button>
+          <button type="button" id="closeAdminAuthModalBtn" aria-label="Close" class="is-close"></button>
         </div>
       </div>
       <div class="window-body w7-auth-body">
-        <form id="adminAuthForm" class="w7-auth-form" autocomplete="off">
+        <form id="adminAuthForm" class="w7-auth-form" autocomplete="on">
           <div class="w7-auth-header-row">
-            <img src="assets/images/homepics/CP070.ico" alt="Security Lock" class="w7-auth-hero-icon" id="authHeroIcon">
+            <img src="assets/icons/aero/lock_closed.png" alt="Security Lock" class="w7-auth-hero-icon" id="authHeroIcon">
             <div class="w7-auth-copy">
-              <div class="w7-auth-heading" id="authHeadingText">Enter Admin Passkey</div>
-              <div class="w7-auth-subtext" id="authSubText">Type your administrator passkey to unlock SosaSpins management controls.</div>
+              <div class="w7-auth-heading" id="authHeadingText">Windows Security</div>
+              <div class="w7-auth-subtext" id="authSubText">Enter your administrator credentials to sign in.</div>
             </div>
           </div>
 
-          <div class="w7-pass-field-wrap" id="authPassFieldWrap">
-            <input
-              type="password"
-              id="adminPasskeyInput"
-              class="sosa-search-input w7-pass-input"
-              placeholder="••••••••"
-              autocomplete="current-password"
-            >
-            <button type="button" id="togglePassVisibilityBtn" class="w7-pass-eye-btn" title="Show / Hide Passkey" tabindex="-1">
-              <i class="bx bx-hide" id="togglePassEyeIcon"></i>
-            </button>
+          <div class="w7-auth-fields-wrap" style="display: flex; flex-direction: column; gap: 12px; margin: 1rem 1.2rem 1.1rem 1.2rem;">
+            <div class="w7-auth-field-group">
+              <label for="authEmailInput" class="w7-auth-subtext" style="display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.8rem;">Email</label>
+              <input
+                type="email"
+                id="authEmailInput"
+                class="sosa-search-input w7-pass-input"
+                placeholder="admin@sosaspeaks.org"
+                autocomplete="username"
+                required
+              >
+            </div>
+            <div class="w7-auth-field-group" style="position: relative;">
+              <label for="authPasswordInput" class="w7-auth-subtext" style="display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.8rem;">Password</label>
+              <div style="position: relative; display: flex; align-items: center;">
+                <input
+                  type="password"
+                  id="authPasswordInput"
+                  class="sosa-search-input w7-pass-input"
+                  placeholder="••••••••"
+                  autocomplete="current-password"
+                  required
+                >
+                <button type="button" id="togglePassVisibilityBtn" class="w7-pass-eye-btn" title="Show / Hide Password" tabindex="-1">
+                  <i class="bx bx-hide" id="togglePassEyeIcon"></i>
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div id="adminAuthError" class="w7-auth-error" style="display: none;">
+          <div id="authErrorMessage" class="w7-auth-error" style="display: none;">
             <i class="bx bx-error-circle"></i>
-            <span>Access Denied: Incorrect passkey.</span>
+            <span class="auth-error-text"></span>
           </div>
 
           <div class="w7-auth-footer">
-            <button type="button" id="cancelAdminAuthBtn" class="aero-btn-action w7-auth-btn-secondary">Cancel</button>
-            <button type="submit" id="submitAdminAuthBtn" class="aero-btn-action primary-save-btn w7-auth-btn-primary">
-              <i class="bx bx-lock-open-alt"></i> Unlock
+            <button type="button" id="cancelAuthBtn" class="aero-btn-action w7-auth-btn-secondary">Cancel</button>
+            <button type="submit" id="submitAuthBtn" class="aero-btn-action primary-save-btn w7-auth-btn-primary">
+              Log On
             </button>
           </div>
         </form>

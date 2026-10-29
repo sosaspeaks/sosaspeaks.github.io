@@ -132,7 +132,7 @@ button .bx {
 
 .container {
   width: 100%;
-  max-width: 1068px;
+  max-width: 1140px;
   margin: auto;
 }
 
@@ -530,9 +530,9 @@ button.filter-item {
 .spins-layout-grid {
   display: grid;
   align-items: start;
-  gap: 1.5rem;
+  gap: 1.75rem;
   margin-bottom: 4rem;
-  grid-template-columns: 1fr 280px;
+  grid-template-columns: 1fr 340px;
 }
 
 .spins-feed-column {
@@ -1054,24 +1054,16 @@ button.filter-item {
 /* ============================================================
    Continuous Timeline Sheet & Spin Rows
    ============================================================ */
-@keyframes feedSmoothFade {
+@keyframes feedFadeIn {
   0% {
     opacity: 0;
     transform: translateY(6px);
+    filter: blur(1px);
   }
   100% {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-.timeline-continuous-sheet.feed-fade-in {
-  animation: feedSmoothFade 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .timeline-continuous-sheet.feed-fade-in {
-    animation: none !important;
+    filter: blur(0);
   }
 }
 
@@ -1083,6 +1075,39 @@ button.filter-item {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   overflow: visible !important;
+  transition: opacity 0.14s ease-out, filter 0.14s ease-out, transform 0.14s ease-out;
+  will-change: opacity, filter, transform;
+}
+
+.timeline-continuous-sheet.feed-fading-out {
+  opacity: 0 !important;
+  filter: blur(1.5px) !important;
+  transform: translateY(-4px) !important;
+  pointer-events: none !important;
+}
+
+.timeline-continuous-sheet.feed-fade-in,
+.timeline-continuous-sheet.feed-fading-in {
+  animation: feedFadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, filter, transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline-continuous-sheet {
+    transition: none !important;
+  }
+  .timeline-continuous-sheet.feed-fading-out {
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+  }
+  .timeline-continuous-sheet.feed-fade-in,
+  .timeline-continuous-sheet.feed-fading-in {
+    animation: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+  }
 }
 
 .dark-mode .timeline-continuous-sheet {
@@ -2386,7 +2411,7 @@ body.dark-mode .sosa-search-input:focus {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 10px;
+  padding: 6px 12px;
   font-family: 'Plus Jakarta Sans', sans-serif;
   text-decoration: none;
   background: rgba(255, 255, 255, 0.45);
@@ -2394,6 +2419,7 @@ body.dark-mode .sosa-search-input:focus {
   border-radius: 7px;
   transition: all 0.18s ease;
   cursor: pointer;
+  min-width: 0;
 }
 
 .top-artist-row:hover,
@@ -2416,7 +2442,8 @@ body.dark-mode .rating-filter-row:hover {
 }
 
 .top-artist-row.active-aero-tag,
-.rating-filter-row.active-aero-tag {
+.rating-filter-row.active-aero-tag,
+.rating-dist-row.active-aero-tag {
   background: linear-gradient(180deg,#34d399 0%,#059669 100%) !important;
   border: 1px solid rgba(255,255,255,0.7) !important;
   box-shadow: inset 0 1px 1px rgba(255,255,255,0.8),0 2px 8px rgba(16,185,129,0.45);
@@ -2426,7 +2453,11 @@ body.dark-mode .rating-filter-row:hover {
 .top-artist-row.active-aero-tag .top-artist-name,
 .top-artist-row.active-aero-tag .top-artist-spins,
 .top-artist-row.active-aero-tag .top-artist-stars i,
-.top-artist-row.active-aero-tag .top-artist-score {
+.top-artist-row.active-aero-tag .top-artist-score,
+.rating-dist-row.active-aero-tag .rating-dist-score,
+.rating-dist-row.active-aero-tag .rating-dist-count,
+.rating-dist-row.active-aero-tag .rating-dist-stars i,
+.rating-dist-row.active-aero-tag .rating-dist-label {
   color: #fff !important;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
@@ -2436,17 +2467,20 @@ body.dark-mode .rating-filter-row:hover {
   align-items: baseline;
   gap: 6px;
   overflow: hidden;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .top-artist-rank {
-  width: 14px;
+  width: 18px;
+  flex-shrink: 0;
   font-family: 'Noto Sans Mono', monospace;
   font-size: 0.72rem;
   opacity: 0.5;
 }
 
 .top-artist-name {
-  max-width: 135px;
+  max-width: 165px;
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--text-color, #111);
@@ -2462,17 +2496,25 @@ body.dark-mode .top-artist-name {
 .top-artist-spins {
   font-size: 0.68rem;
   opacity: 0.55;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .top-artist-right {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .top-artist-stars {
   font-size: 0.75rem;
   color: #fbbf24;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .top-artist-score {
@@ -2480,6 +2522,8 @@ body.dark-mode .top-artist-name {
   font-size: 0.76rem;
   font-weight: 700;
   color: #fbbf24;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .top-artist-row,
@@ -2500,10 +2544,11 @@ body.dark-mode .top-artist-name {
   gap: 6px;
   width: 100%;
   overflow: hidden;
+  min-width: 0;
 }
 
 .sidebar-rank-row .top-artist-name {
-  max-width: 175px;
+  max-width: 215px;
   font-size: 0.8rem;
   font-weight: 700;
   white-space: nowrap;
@@ -2516,6 +2561,7 @@ body.dark-mode .top-artist-name {
   font-size: 0.68rem;
   opacity: 0.55;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .aero-cloud-toggle-btn {

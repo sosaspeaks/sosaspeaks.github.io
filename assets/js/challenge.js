@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   const SUPABASE_URL = "https://gxgfuomkjrhixcjfvhvj.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_tgeBo35B4k__uyfMyaxXnA_O5KUKlL7";
   const LASTFM_API_KEY = localStorage.getItem("lastfm_api_key") || "54dae88eb8fc817f7745c41968fca582";
@@ -1197,35 +1197,152 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Admin Auth (Windows 7 Aero Security Dialog)
   const adminLockIcon = document.getElementById("adminLockIcon");
-  const ICON_LOCKED = "assets/images/homepics/CP070.ico";
-  const ICON_UNLOCKED = "assets/images/homepics/CP073.ico";
+  const ICON_LOCKED = "assets/icons/aero/lock_closed.png";
+  const ICON_UNLOCKED = "assets/icons/aero/lock_open.png";
+
+  // Native Supabase Authentication State
+  let isAdmin = false;
+  if (sb && sb.auth) {
+    const { data: { session } } = await sb.auth.getSession();
+    isAdmin = !!session;
+
+    sb.auth.onAuthStateChange((_event, newSession) => {
+      isAdmin = !!newSession;
+      updateAdminVisibility();
+      if (typeof renderFeed === "function") renderFeed(allEntries);
+      if (typeof renderGrid === "function") renderGrid();
+    });
+  }
 
   const adminAuthModal = document.getElementById("adminAuthModal");
   const adminAuthForm = document.getElementById("adminAuthForm");
-  const adminPasskeyInput = document.getElementById("adminPasskeyInput");
-  const togglePassVisibilityBtn = document.getElementById("togglePassVisibilityBtn");
-  const togglePassEyeIcon = document.getElementById("togglePassEyeIcon");
-  const adminAuthError = document.getElementById("adminAuthError");
-  const closeAdminAuthModal = document.getElementById("closeAdminAuthModal");
-  const cancelAdminAuthBtn = document.getElementById("cancelAdminAuthBtn");
-  const submitAdminAuthBtn = document.getElementById("submitAdminAuthBtn");
+  const authEmailInput = document.getElementById("authEmailInput");
+  const authPasswordInput = document.getElementById("authPasswordInput");
+  const authErrorMessage = document.getElementById("authErrorMessage");
+  const closeAdminAuthModalBtn = document.getElementById("closeAdminAuthModalBtn") || document.getElementById("closeAdminAuthModal");
+  const cancelAuthBtn = document.getElementById("cancelAuthBtn") || document.getElementById("cancelAdminAuthBtn");
+  const submitAuthBtn = document.getElementById("submitAuthBtn") || document.getElementById("submitAdminAuthBtn");
   const authModalTitleIcon = document.getElementById("authModalTitleIcon");
   const authHeroIcon = document.getElementById("authHeroIcon");
-  const authHeadingText = document.getElementById("authHeadingText");
-  const authSubText = document.getElementById("authSubText");
-  const authPassFieldWrap = document.getElementById("authPassFieldWrap");
+  const togglePassVisibilityBtn = document.getElementById("togglePassVisibilityBtn");
+  const togglePassEyeIcon = document.getElementById("togglePassEyeIcon");
 
   let authModalResolver = null;
-  let authModalMode = "login";
 
-  async function sha256(str) {
-    const buffer = new TextEncoder().encode(str);
-    const hash = await crypto.subtle.digest("SHA-256", buffer);
-    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
+  function closeAuthDialog(result = false) {
+    if (adminAuthModal) adminAuthModal.style.display = "none";
+    if (authErrorMessage) authErrorMessage.style.display = "none";
+    if (authModalResolver) {
+      const resolve = authModalResolver;
+      authModalResolver = null;
+      resolve(result);
+    }
   }
 
-  const DEFAULT_HASH = "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918";
-  let isAdmin = sessionStorage.getItem("sosaspins_admin_auth") === "true";
+  function openAdminAuthModal() {
+    if (!adminAuthModal) return Promise.resolve(false);
+    if (authErrorMessage) authErrorMessage.style.display = "none";
+    if (authModalTitleIcon) authModalTitleIcon.src = ICON_LOCKED;
+    if (authHeroIcon) authHeroIcon.src = ICON_LOCKED;
+    adminAuthModal.style.display = "flex";
+    setTimeout(() => {
+      if (authEmailInput) authEmailInput.focus();
+    }, 40);
+
+    return new Promise((resolve) => {
+      authModalResolver = resolve;
+    });
+  }
+
+  function checkAdminLoginPrompt() {
+    if (isAdmin) return Promise.resolve(true);
+    return openAdminAuthModal();
+  }
+
+  if (togglePassVisibilityBtn && authPasswordInput) {
+    togglePassVisibilityBtn.addEventListener("click", () => {
+      const isHidden = authPasswordInput.type === "password";
+      authPasswordInput.type = isHidden ? "text" : "password";
+      if (togglePassEyeIcon) {
+        togglePassEyeIcon.className = isHidden ? "bx bx-show" : "bx bx-hide";
+      }
+      authPasswordInput.focus();
+    });
+  }
+
+  if (authErrorMessage) {
+    if (authEmailInput) {
+      authEmailInput.addEventListener("input", () => {
+        authErrorMessage.style.display = "none";
+      });
+    }
+    if (authPasswordInput) {
+      authPasswordInput.addEventListener("input", () => {
+        authErrorMessage.style.display = "none";
+      });
+    }
+  }
+
+  if (closeAdminAuthModalBtn) closeAdminAuthModalBtn.addEventListener("click", () => closeAuthDialog(false));
+  if (cancelAuthBtn) cancelAuthBtn.addEventListener("click", () => closeAuthDialog(false));
+  if (adminAuthModal) {
+    adminAuthModal.addEventListener("click", (e) => {
+      if (e.target === adminAuthModal) closeAuthDialog(false);
+    });
+  }
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && adminAuthModal && adminAuthModal.style.display === "flex") {
+      closeAuthDialog(false);
+    }
+  });
+
+  if (adminAuthForm) {
+    adminAuthForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = authEmailInput ? authEmailInput.value.trim() : "";
+      const password = authPasswordInput ? authPasswordInput.value : "";
+      if (!email || !password) return;
+
+      if (submitAuthBtn) submitAuthBtn.disabled = true;
+
+      try {
+        const { data, error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) {
+          if (authErrorMessage) {
+            const errSpan = authErrorMessage.querySelector(".auth-error-text");
+            if (errSpan) {
+              errSpan.textContent = error.message;
+            } else {
+              authErrorMessage.textContent = error.message;
+            }
+            authErrorMessage.style.display = "flex";
+          }
+          const winEl = adminAuthModal ? adminAuthModal.querySelector(".w7-auth-window") : null;
+          if (winEl) {
+            winEl.classList.remove("w7-shake");
+            void winEl.offsetWidth;
+            winEl.classList.add("w7-shake");
+          }
+        } else {
+          if (adminAuthForm) adminAuthForm.reset();
+          closeAuthDialog(true);
+        }
+      } catch (err) {
+        if (authErrorMessage) {
+          const errSpan = authErrorMessage.querySelector(".auth-error-text");
+          if (errSpan) {
+            errSpan.textContent = err.message || "Authentication error.";
+          } else {
+            authErrorMessage.textContent = err.message || "Authentication error.";
+          }
+          authErrorMessage.style.display = "flex";
+        }
+      } finally {
+        if (submitAuthBtn) submitAuthBtn.disabled = false;
+      }
+    });
+  }
 
   function updateAdminVisibility() {
     document.body.classList.toggle("is-admin", isAdmin);
@@ -1257,168 +1374,31 @@ document.addEventListener("DOMContentLoaded", () => {
     updateMonthPillCounts();
   }
 
-  function closeAuthDialog(result = false) {
-    if (adminAuthModal) adminAuthModal.style.display = "none";
-    if (adminPasskeyInput) {
-      adminPasskeyInput.value = "";
-      adminPasskeyInput.type = "password";
-    }
-    if (togglePassEyeIcon) togglePassEyeIcon.className = "bx bx-hide";
-    if (adminAuthError) adminAuthError.style.display = "none";
-    if (authModalResolver) {
-      const resolve = authModalResolver;
-      authModalResolver = null;
-      resolve(result);
-    }
-  }
-
-  if (togglePassVisibilityBtn && adminPasskeyInput) {
-    togglePassVisibilityBtn.addEventListener("click", () => {
-      const isHidden = adminPasskeyInput.type === "password";
-      adminPasskeyInput.type = isHidden ? "text" : "password";
-      if (togglePassEyeIcon) {
-        togglePassEyeIcon.className = isHidden ? "bx bx-show" : "bx bx-hide";
-      }
-      adminPasskeyInput.focus();
-    });
-  }
-
-  if (adminPasskeyInput && adminAuthError) {
-    adminPasskeyInput.addEventListener("input", () => {
-      adminAuthError.style.display = "none";
-    });
-  }
-
-  if (closeAdminAuthModal) closeAdminAuthModal.addEventListener("click", () => closeAuthDialog(false));
-  if (cancelAdminAuthBtn) cancelAdminAuthBtn.addEventListener("click", () => closeAuthDialog(false));
-  if (adminAuthModal) {
-    adminAuthModal.addEventListener("click", (e) => {
-      if (e.target === adminAuthModal) closeAuthDialog(false);
-    });
-  }
-
-  window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && adminAuthModal && adminAuthModal.style.display === "flex") {
-      closeAuthDialog(false);
-    }
-  });
-
-  if (adminAuthForm) {
-    adminAuthForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      if (authModalMode === "logout") {
-        sessionStorage.removeItem("sosaspins_admin_auth");
-        isAdmin = false;
-        updateAdminVisibility();
-        renderGrid();
-        closeAuthDialog(true);
-        return;
-      }
-
-      const enteredPass = adminPasskeyInput ? adminPasskeyInput.value.trim() : "";
-      if (!enteredPass) {
-        if (adminPasskeyInput) adminPasskeyInput.focus();
-        return;
-      }
-
-      const storedHash = localStorage.getItem("sosaspins_admin_hash") || DEFAULT_HASH;
-      const enteredHash = await sha256(enteredPass);
-
-      if (enteredHash === storedHash) {
-        sessionStorage.setItem("sosaspins_admin_auth", "true");
-        isAdmin = true;
-        updateAdminVisibility();
-        renderGrid();
-        closeAuthDialog(true);
+  // Admin Trigger Button (#adminTriggerBtn) & Hotkey (Ctrl + Shift + A)
+  if (adminTriggerBtn) {
+    adminTriggerBtn.addEventListener("click", async () => {
+      if (isAdmin) {
+        if (confirm("Log out of Admin mode?")) {
+          await sb.auth.signOut();
+        }
       } else {
-        if (adminAuthError) adminAuthError.style.display = "flex";
-        const winEl = adminAuthModal ? adminAuthModal.querySelector(".w7-auth-window") : null;
-        if (winEl) {
-          winEl.classList.remove("w7-shake");
-          void winEl.offsetWidth;
-          winEl.classList.add("w7-shake");
-        }
-        if (adminPasskeyInput) {
-          adminPasskeyInput.select();
-          adminPasskeyInput.focus();
-        }
+        openAdminAuthModal();
       }
     });
-  }
-
-  function checkAdminLoginPrompt() {
-    if (!adminAuthModal) return Promise.resolve(false);
-    authModalMode = "login";
-
-    if (authModalTitleIcon) authModalTitleIcon.src = ICON_LOCKED;
-    if (authHeroIcon) authHeroIcon.src = ICON_LOCKED;
-    if (authHeadingText) authHeadingText.textContent = "Enter Admin Passkey";
-    if (authSubText) authSubText.textContent = "Type your administrator passkey to unlock Challenge management controls.";
-    if (authPassFieldWrap) authPassFieldWrap.style.display = "flex";
-    if (adminAuthError) adminAuthError.style.display = "none";
-    if (submitAdminAuthBtn) {
-      submitAdminAuthBtn.className = "aero-btn-action primary-save-btn w7-auth-btn-primary";
-      submitAdminAuthBtn.innerHTML = `<i class="bx bx-lock-open-alt"></i> Unlock`;
-    }
-    if (adminPasskeyInput) {
-      adminPasskeyInput.value = "";
-      adminPasskeyInput.type = "password";
-    }
-    if (togglePassEyeIcon) togglePassEyeIcon.className = "bx bx-hide";
-
-    adminAuthModal.style.display = "flex";
-    setTimeout(() => {
-      if (adminPasskeyInput) adminPasskeyInput.focus();
-    }, 30);
-
-    return new Promise((resolve) => {
-      authModalResolver = resolve;
-    });
-  }
-
-  function handleAdminLogout() {
-    if (!adminAuthModal) return;
-    authModalMode = "logout";
-
-    if (authModalTitleIcon) authModalTitleIcon.src = ICON_UNLOCKED;
-    if (authHeroIcon) authHeroIcon.src = ICON_UNLOCKED;
-    if (authHeadingText) authHeadingText.textContent = "Admin Session Active";
-    if (authSubText) authSubText.textContent = "Challenge management controls are currently unlocked. Would you like to lock Admin mode?";
-    if (authPassFieldWrap) authPassFieldWrap.style.display = "none";
-    if (adminAuthError) adminAuthError.style.display = "none";
-    if (submitAdminAuthBtn) {
-      submitAdminAuthBtn.className = "aero-btn-action primary-save-btn w7-auth-btn-primary";
-      submitAdminAuthBtn.innerHTML = `<i class="bx bx-lock-alt"></i> Lock Session`;
-    }
-
-    adminAuthModal.style.display = "flex";
-    setTimeout(() => {
-      if (submitAdminAuthBtn) submitAdminAuthBtn.focus();
-    }, 30);
   }
 
   window.addEventListener("keydown", async (e) => {
     if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "a") {
       e.preventDefault();
-      if (!isAdmin) {
-        await checkAdminLoginPrompt();
+      if (isAdmin) {
+        if (confirm("Log out of Admin mode?")) {
+          await sb.auth.signOut();
+        }
       } else {
-        handleAdminLogout();
+        openAdminAuthModal();
       }
     }
   });
-
-  if (adminTriggerBtn) {
-    adminTriggerBtn.addEventListener("click", () => {
-      if (!isAdmin) {
-        checkAdminLoginPrompt();
-      } else {
-        handleAdminLogout();
-      }
-    });
-  }
-
   // Cover Fetcher
   window.selectCandidateArt = function(url, element) {
     if (addPreviewImg) addPreviewImg.src = url;

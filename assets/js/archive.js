@@ -7,13 +7,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   const SUPABASE_URL = "https://gxgfuomkjrhixcjfvhvj.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_tgeBo35B4k__uyfMyaxXnA_O5KUKlL7";
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const sb = supabaseClient;
+  window.supabaseClient = supabaseClient;
   const LASTFM_API_KEY = localStorage.getItem("lastfm_api_key") || "54dae88eb8fc817f7745c41968fca582";
   const logRuntime = document.getElementById("logRuntime");
 const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
 
   const adminLockIcon = document.getElementById("adminLockIcon");
-  const ICON_LOCKED = "assets/images/homepics/CP070.ico";
-  const ICON_UNLOCKED = "assets/images/homepics/CP073.ico";
+  const ICON_LOCKED = "assets/icons/aero/lock_closed.png";
+  const ICON_UNLOCKED = "assets/icons/aero/lock_open.png";
 
   const RATING_RUBRIC = [
   { score: "5.0", label: "mindblowing" },
@@ -264,48 +266,37 @@ function getDominantColorFromImg(imgUrl) {
   }
 
   // ============================================================
-  // SECURE CLIENT-SIDE ADMIN AUTHENTICATION (AERO MODAL)
+  // NATIVE SUPABASE CLIENT ADMIN AUTHENTICATION (AERO MODAL)
   // ============================================================
-  async function sha256(str) {
-    const buffer = new TextEncoder().encode(str);
-    const hash = await crypto.subtle.digest("SHA-256", buffer);
-    return Array.from(new Uint8Array(hash))
-      .map(b => b.toString(16).padStart(2, "0"))
-      .join("");
-  }
+  const { data: { session } } = await sb.auth.getSession();
+  let isAdmin = !!session;
 
-  const DEFAULT_HASH = "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918";
-
-  let isAdmin = sessionStorage.getItem("sosaspins_admin_auth") === "true";
+  sb.auth.onAuthStateChange((_event, newSession) => {
+    isAdmin = !!newSession;
+    updateAdminVisibility();
+    if (typeof applyFilters === "function") applyFilters(false);
+    else if (typeof renderFeed === "function") renderFeed(allEntries);
+    if (typeof renderGrid === "function") renderGrid();
+  });
 
   const adminAuthModal = document.getElementById("adminAuthModal");
   const adminAuthForm = document.getElementById("adminAuthForm");
-  const adminPasskeyInput = document.getElementById("adminPasskeyInput");
-  const togglePassVisibilityBtn = document.getElementById("togglePassVisibilityBtn");
-  const togglePassEyeIcon = document.getElementById("togglePassEyeIcon");
-  const adminAuthError = document.getElementById("adminAuthError");
-  const closeAdminAuthModal = document.getElementById("closeAdminAuthModal");
-  const cancelAdminAuthBtn = document.getElementById("cancelAdminAuthBtn");
-  const submitAdminAuthBtn = document.getElementById("submitAdminAuthBtn");
+  const authEmailInput = document.getElementById("authEmailInput");
+  const authPasswordInput = document.getElementById("authPasswordInput");
+  const authErrorMessage = document.getElementById("authErrorMessage");
+  const closeAdminAuthModalBtn = document.getElementById("closeAdminAuthModalBtn") || document.getElementById("closeAdminAuthModal");
+  const cancelAuthBtn = document.getElementById("cancelAuthBtn") || document.getElementById("cancelAdminAuthBtn");
+  const submitAuthBtn = document.getElementById("submitAuthBtn") || document.getElementById("submitAdminAuthBtn");
   const authModalTitleIcon = document.getElementById("authModalTitleIcon");
   const authHeroIcon = document.getElementById("authHeroIcon");
-  const authHeadingText = document.getElementById("authHeadingText");
-  const authSubText = document.getElementById("authSubText");
-  const authPassFieldWrap = document.getElementById("authPassFieldWrap");
+  const togglePassVisibilityBtn = document.getElementById("togglePassVisibilityBtn");
+  const togglePassEyeIcon = document.getElementById("togglePassEyeIcon");
 
   let authModalResolver = null;
-  let authModalMode = "login"; // "login" or "logout"
 
   function closeAuthDialog(result = false) {
     if (adminAuthModal) adminAuthModal.style.display = "none";
-    if (adminPasskeyInput) {
-      adminPasskeyInput.value = "";
-      adminPasskeyInput.type = "password";
-    }
-    if (togglePassEyeIcon) {
-      togglePassEyeIcon.className = "bx bx-hide";
-    }
-    if (adminAuthError) adminAuthError.style.display = "none";
+    if (authErrorMessage) authErrorMessage.style.display = "none";
     if (authModalResolver) {
       const resolve = authModalResolver;
       authModalResolver = null;
@@ -313,25 +304,52 @@ function getDominantColorFromImg(imgUrl) {
     }
   }
 
-  if (togglePassVisibilityBtn && adminPasskeyInput) {
+  function openAdminAuthModal() {
+    if (!adminAuthModal) return Promise.resolve(false);
+    if (authErrorMessage) authErrorMessage.style.display = "none";
+    if (authModalTitleIcon) authModalTitleIcon.src = ICON_LOCKED;
+    if (authHeroIcon) authHeroIcon.src = ICON_LOCKED;
+    adminAuthModal.style.display = "flex";
+    setTimeout(() => {
+      if (authEmailInput) authEmailInput.focus();
+    }, 40);
+
+    return new Promise((resolve) => {
+      authModalResolver = resolve;
+    });
+  }
+
+  function checkAdminLoginPrompt() {
+    if (isAdmin) return Promise.resolve(true);
+    return openAdminAuthModal();
+  }
+
+  if (togglePassVisibilityBtn && authPasswordInput) {
     togglePassVisibilityBtn.addEventListener("click", () => {
-      const isHidden = adminPasskeyInput.type === "password";
-      adminPasskeyInput.type = isHidden ? "text" : "password";
+      const isHidden = authPasswordInput.type === "password";
+      authPasswordInput.type = isHidden ? "text" : "password";
       if (togglePassEyeIcon) {
         togglePassEyeIcon.className = isHidden ? "bx bx-show" : "bx bx-hide";
       }
-      adminPasskeyInput.focus();
+      authPasswordInput.focus();
     });
   }
 
-  if (adminPasskeyInput && adminAuthError) {
-    adminPasskeyInput.addEventListener("input", () => {
-      adminAuthError.style.display = "none";
-    });
+  if (authErrorMessage) {
+    if (authEmailInput) {
+      authEmailInput.addEventListener("input", () => {
+        authErrorMessage.style.display = "none";
+      });
+    }
+    if (authPasswordInput) {
+      authPasswordInput.addEventListener("input", () => {
+        authErrorMessage.style.display = "none";
+      });
+    }
   }
 
-  if (closeAdminAuthModal) closeAdminAuthModal.addEventListener("click", () => closeAuthDialog(false));
-  if (cancelAdminAuthBtn) cancelAdminAuthBtn.addEventListener("click", () => closeAuthDialog(false));
+  if (closeAdminAuthModalBtn) closeAdminAuthModalBtn.addEventListener("click", () => closeAuthDialog(false));
+  if (cancelAuthBtn) cancelAuthBtn.addEventListener("click", () => closeAuthDialog(false));
   if (adminAuthModal) {
     adminAuthModal.addEventListener("click", (e) => {
       if (e.target === adminAuthModal) closeAuthDialog(false);
@@ -347,100 +365,48 @@ function getDominantColorFromImg(imgUrl) {
   if (adminAuthForm) {
     adminAuthForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+      const email = authEmailInput ? authEmailInput.value.trim() : "";
+      const password = authPasswordInput ? authPasswordInput.value : "";
+      if (!email || !password) return;
 
-      if (authModalMode === "logout") {
-        sessionStorage.removeItem("sosaspins_admin_auth");
-        isAdmin = false;
-        closeModal();
-        closeQueueModal();
-        applyFilters();
-        updateAdminVisibility();
-        updateQueueBadge();
-        closeAuthDialog(true);
-        return;
-      }
+      if (submitAuthBtn) submitAuthBtn.disabled = true;
 
-      const enteredPass = adminPasskeyInput ? adminPasskeyInput.value.trim() : "";
-      if (!enteredPass) {
-        if (adminPasskeyInput) adminPasskeyInput.focus();
-        return;
-      }
-
-      const storedHash = localStorage.getItem("sosaspins_admin_hash") || DEFAULT_HASH;
-      const enteredHash = await sha256(enteredPass);
-
-      if (enteredHash === storedHash) {
-        sessionStorage.setItem("sosaspins_admin_auth", "true");
-        isAdmin = true;
-        applyFilters();
-        updateAdminVisibility();
-        updateQueueBadge();
-        closeAuthDialog(true);
-      } else {
-        if (adminAuthError) adminAuthError.style.display = "flex";
-        const winEl = adminAuthModal ? adminAuthModal.querySelector(".w7-auth-window") : null;
-        if (winEl) {
-          winEl.classList.remove("w7-shake");
-          void winEl.offsetWidth;
-          winEl.classList.add("w7-shake");
+      try {
+        const { data, error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) {
+          if (authErrorMessage) {
+            const errSpan = authErrorMessage.querySelector(".auth-error-text");
+            if (errSpan) {
+              errSpan.textContent = error.message;
+            } else {
+              authErrorMessage.textContent = error.message;
+            }
+            authErrorMessage.style.display = "flex";
+          }
+          const winEl = adminAuthModal ? adminAuthModal.querySelector(".w7-auth-window") : null;
+          if (winEl) {
+            winEl.classList.remove("w7-shake");
+            void winEl.offsetWidth;
+            winEl.classList.add("w7-shake");
+          }
+        } else {
+          if (adminAuthForm) adminAuthForm.reset();
+          closeAuthDialog(true);
         }
-        if (adminPasskeyInput) {
-          adminPasskeyInput.select();
-          adminPasskeyInput.focus();
+      } catch (err) {
+        if (authErrorMessage) {
+          const errSpan = authErrorMessage.querySelector(".auth-error-text");
+          if (errSpan) {
+            errSpan.textContent = err.message || "Authentication error.";
+          } else {
+            authErrorMessage.textContent = err.message || "Authentication error.";
+          }
+          authErrorMessage.style.display = "flex";
         }
+      } finally {
+        if (submitAuthBtn) submitAuthBtn.disabled = false;
       }
     });
-  }
-
-  function checkAdminLoginPrompt() {
-    if (!adminAuthModal) return Promise.resolve(false);
-    authModalMode = "login";
-
-    if (authModalTitleIcon) authModalTitleIcon.src = ICON_LOCKED;
-    if (authHeroIcon) authHeroIcon.src = ICON_LOCKED;
-    if (authHeadingText) authHeadingText.textContent = "Enter Admin Passkey";
-    if (authSubText) authSubText.textContent = "Type your administrator passkey to unlock SosaSpins management controls.";
-    if (authPassFieldWrap) authPassFieldWrap.style.display = "flex";
-    if (adminAuthError) adminAuthError.style.display = "none";
-    if (submitAdminAuthBtn) {
-      submitAdminAuthBtn.className = "aero-btn-action primary-save-btn w7-auth-btn-primary";
-      submitAdminAuthBtn.innerHTML = `<i class="bx bx-lock-open-alt"></i> Unlock`;
-    }
-    if (adminPasskeyInput) {
-      adminPasskeyInput.value = "";
-      adminPasskeyInput.type = "password";
-    }
-    if (togglePassEyeIcon) togglePassEyeIcon.className = "bx bx-hide";
-
-    adminAuthModal.style.display = "flex";
-    setTimeout(() => {
-      if (adminPasskeyInput) adminPasskeyInput.focus();
-    }, 30);
-
-    return new Promise((resolve) => {
-      authModalResolver = resolve;
-    });
-  }
-
-  function handleAdminLogout() {
-    if (!adminAuthModal) return;
-    authModalMode = "logout";
-
-    if (authModalTitleIcon) authModalTitleIcon.src = ICON_UNLOCKED;
-    if (authHeroIcon) authHeroIcon.src = ICON_UNLOCKED;
-    if (authHeadingText) authHeadingText.textContent = "Admin Session Active";
-    if (authSubText) authSubText.textContent = "Management controls are currently unlocked. Would you like to lock Admin mode?";
-    if (authPassFieldWrap) authPassFieldWrap.style.display = "none";
-    if (adminAuthError) adminAuthError.style.display = "none";
-    if (submitAdminAuthBtn) {
-      submitAdminAuthBtn.className = "aero-btn-action primary-save-btn w7-auth-btn-primary";
-      submitAdminAuthBtn.innerHTML = `<i class="bx bx-lock-alt"></i> Lock Session`;
-    }
-
-    adminAuthModal.style.display = "flex";
-    setTimeout(() => {
-      if (submitAdminAuthBtn) submitAdminAuthBtn.focus();
-    }, 30);
   }
 
   function updateAdminVisibility() {
@@ -492,28 +458,31 @@ function getDominantColorFromImg(imgUrl) {
     }
   }
 
-  // Hotkey: Ctrl + Shift + A to log in / out
-  window.addEventListener("keydown", async (e) => {
-    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "a") {
-      e.preventDefault();
-      if (!isAdmin) {
-        await checkAdminLoginPrompt();
-      } else {
-        handleAdminLogout();
-      }
-    }
-  });
-
+  // Admin Trigger Button (#adminTriggerBtn) & Hotkey (Ctrl + Shift + A)
   if (adminTriggerBtn) {
-    adminTriggerBtn.addEventListener("click", () => {
-      if (!isAdmin) {
-        checkAdminLoginPrompt();
+    adminTriggerBtn.addEventListener("click", async () => {
+      if (isAdmin) {
+        if (confirm("Log out of Admin mode?")) {
+          await sb.auth.signOut();
+        }
       } else {
-        handleAdminLogout();
+        openAdminAuthModal();
       }
     });
   }
 
+  window.addEventListener("keydown", async (e) => {
+    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "a") {
+      e.preventDefault();
+      if (isAdmin) {
+        if (confirm("Log out of Admin mode?")) {
+          await sb.auth.signOut();
+        }
+      } else {
+        openAdminAuthModal();
+      }
+    }
+  });
   // ============================================================
   // SPIN COMMENTS & MODERATION QUEUE CONTROLLER
   // ============================================================
@@ -1293,7 +1262,7 @@ function getDominantColorFromImg(imgUrl) {
 
       buildSidebarWidgets(allEntries);
       populatePathSuggestions();
-      applyFilters();
+      applyFilters(false);
       updateAdminVisibility();
     } catch (err) {
       console.error("Supabase load error:", err);
@@ -2835,26 +2804,32 @@ window.closeMiniPlayer = function() {
   await loadSpins();
   initTop100Controller();
 
+  let feedFadeTimer = null;
+  let feedMinHeightTimer = null;
+
   // ============================================================
   // RENDER FEED
   // ============================================================
-  function renderFeed(entries) {
-    spinsCfIndex = 0;
-    renderSpinsCoverFlow(entries);
-
+  function renderFeed(entries, animateFade = false) {
     if (!feed) return;
 
-    // Trigger smooth fade transition
-    feed.classList.remove("feed-fade-in");
-    void feed.offsetWidth;
-    feed.classList.add("feed-fade-in");
-
-    if (entries.length === 0) {
-      feed.innerHTML = `<div style="padding: 2rem; text-align: center; color: var(--text-color); opacity: 0.7;">No spins match your filter.</div>`;
-      return;
+    if (feedFadeTimer) {
+      clearTimeout(feedFadeTimer);
+      feedFadeTimer = null;
+    }
+    if (feedMinHeightTimer) {
+      clearTimeout(feedMinHeightTimer);
+      feedMinHeightTimer = null;
     }
 
- feed.innerHTML = entries.map((item) => {
+    const performUpdate = () => {
+      spinsCfIndex = 0;
+      renderSpinsCoverFlow(entries);
+
+      if (entries.length === 0) {
+        feed.innerHTML = `<div style="padding: 2rem; text-align: center; color: var(--text-color); opacity: 0.7;">No spins match your filter.</div>`;
+      } else {
+        feed.innerHTML = entries.map((item) => {
       const originalIdx = allEntries.indexOf(item);
 
       const hasPrimary = item.genres && item.genres.length > 0;
@@ -3103,8 +3078,41 @@ window.closeMiniPlayer = function() {
         </article>
       `;
     }).join("");
+      }
 
-    updateAdminVisibility();
+      updateAdminVisibility();
+
+      // Trigger smooth fade-in
+      feed.classList.remove("feed-fading-out");
+      feed.classList.remove("feed-fade-in");
+      feed.classList.remove("feed-fading-in");
+      void feed.offsetWidth;
+      feed.classList.add("feed-fading-in");
+
+      // Release min-height after entrance animation settles
+      feedMinHeightTimer = setTimeout(() => {
+        if (feed) feed.style.minHeight = "";
+        feedMinHeightTimer = null;
+      }, 350);
+    };
+
+    const prefersReducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (animateFade && feed.children.length > 0 && !prefersReducedMotion) {
+      // Preserve current height to prevent sudden layout jumping during transition
+      feed.style.minHeight = `${feed.offsetHeight}px`;
+      feed.classList.remove("feed-fade-in");
+      feed.classList.remove("feed-fading-in");
+      feed.classList.add("feed-fading-out");
+
+      feedFadeTimer = setTimeout(() => {
+        feedFadeTimer = null;
+        performUpdate();
+      }, 140);
+    } else {
+      feed.classList.remove("feed-fading-out");
+      performUpdate();
+    }
   }
 
 window.toggleDescriptors = function(idx, btn) {
@@ -3464,6 +3472,17 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     updateCloudActiveStates();
   }
 
+  function scrollFeedToTopIfNeeded() {
+    if (!feed) return;
+    const feedRect = feed.getBoundingClientRect();
+    if (feedRect.top < 60) {
+      window.scrollTo({
+        top: Math.max(0, window.scrollY + feedRect.top - 80),
+        behavior: "smooth"
+      });
+    }
+  }
+
   window.setSidebarFilter = function(type, val) {
     if (activeFilter.type === type && activeFilter.value === String(val)) {
       clearActiveFilter();
@@ -3472,7 +3491,8 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       if (feedFilterLabel) feedFilterLabel.textContent = `Filtered by ${type}: "${val}"`;
       if (clearFilterBtn) clearFilterBtn.style.display = "inline-block";
       updateCloudActiveStates();
-      applyFilters();
+      applyFilters(true);
+      scrollFeedToTopIfNeeded();
     }
   };
 
@@ -3481,7 +3501,8 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     if (feedFilterLabel) feedFilterLabel.textContent = "All Spins";
     if (clearFilterBtn) clearFilterBtn.style.display = "none";
     updateCloudActiveStates();
-    applyFilters();
+    applyFilters(true);
+    scrollFeedToTopIfNeeded();
   }
 
   if (clearFilterBtn) clearFilterBtn.addEventListener("click", clearActiveFilter);
@@ -3507,7 +3528,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     });
   }
 
-  function applyFilters() {
+  function applyFilters(animateFade = false) {
     const val = searchInput ? searchInput.value.toLowerCase() : "";
     const activeFormat = (currentFormat || "all").toLowerCase();
 
@@ -3552,18 +3573,28 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       }
       return matchesSearch && matchesFormat && matchesTag;
     });
-    renderFeed(filtered);
+    renderFeed(filtered, animateFade);
   }
 
-  if (searchInput) searchInput.addEventListener("input", applyFilters);
+  let searchDebounceTimer = null;
+  if (searchInput) {
+    searchInput.addEventListener("input", () => {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(() => {
+        applyFilters(false);
+      }, 120);
+    });
+  }
 
   filterPills.forEach(pill => {
     pill.addEventListener("click", () => {
+      if (pill.classList.contains("active-filter")) return;
       filterPills.forEach(p => p.classList.remove("active-filter"));
       pill.classList.add("active-filter");
       // Default to "all" if data-filter is missing or null
       currentFormat = pill.getAttribute("data-filter") || "all";
-      applyFilters();
+      applyFilters(true);
+      scrollFeedToTopIfNeeded();
     });
   });
 
@@ -4216,7 +4247,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       batchFetchRuntimesBtn.disabled = false;
 
       alert(`Backfill finished! Successfully fetched and added runtime for ${updatedCount} of ${targets.length} spins.`);
-      renderFeed(allEntries);
+      applyFilters(false);
     });
   }
 
