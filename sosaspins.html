@@ -1,4 +1,15 @@
 <!DOCTYPE html>
+<!--
+                                           _
+                                          | |
+  ___  ___  ___  __ _ ___ _ __   ___  __ _| | _____
+ / __|/ _ \/ __|/ _` / __| '_ \ / _ \/ _` | |/ / __|
+ \__ \ (_) \__ \ (_| \__ \ |_) |  __/ (_| |   <\__ \
+ |___/\___/|___/\__,_|___/ .__/ \___|\__,_|_|\_\___/
+                         | |
+                         |_|
+
+-->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -53,7 +64,7 @@
             <span class="home-subtitle">"When Sosa Speaks, <i>we listen</i>."</span>
         </div>
     </section>
-    <!-- Admin Management Center Bar (Visible only when Admin is unlocked) -->
+    <!-- Admin Management Center Bar -->
     <div class="spins-admin-bar-wrap container admin-only" id="spinsAdminBarWrap" style="display: none;">
       <div class="spins-admin-bar">
         <div class="spins-admin-bar-left">
@@ -106,7 +117,7 @@
         </div>
       </div>
 
-      <!-- iPod / iTunes Cover Flow 3D Carousel View for Spins -->
+      <!-- Cover Flow -->
       <section id="spinsCoverFlowWrapper" class="coverflow-wrapper spins-coverflow-wrapper" style="display: none;">
         <div class="coverflow-stage" id="spinsCoverFlowStage" tabindex="0" aria-label="SosaSpins Cover Flow Carousel">
           <div class="coverflow-track" id="spinsCoverFlowTrack"></div>
@@ -176,39 +187,39 @@
 
           <!-- Main Window Body -->
           <div class="window-body top100-window-body">
-            <!-- Image Export Wrapper (Clean capture zone) -->
+            <!-- Image Export Wrapper -->
             <div id="top100ExportWrapper" class="top100-export-wrapper">
-              
-              <!-- Header Banner Inside Export Zone -->
+
+              <!-- Header Banner -->
               <div class="top100-showcase-header">
                 <div class="top100-header-title">Sosa's All-Time Top 100 Albums</div>
                 <div class="top100-header-subtitle">"When Sosa Speaks, we listen." &bull; Curated Listening Showcase</div>
               </div>
 
-              <!-- 1. The Crown Showcase: The Top 3 Podium (Ranks 1–3) -->
+              <!-- The Top 3 Podium -->
               <div class="top100-podium-section" id="top100Podium">
-                <!-- Injected dynamically: #2 Silver, #1 Gold, #3 Bronze -->
+                <!-- #2 Silver, #1 Gold, #3 Bronze (Content) -->
               </div>
 
-              <!-- 2. The Upper Tier: Ranks 4 to 10 (Sub-Grid) -->
+              <!-- Ranks 4 to 10 -->
               <div class="top100-tier-section">
                 <div class="top100-tier-banner">
                   <span class="tier-banner-pill">[ TOP 10 ]</span>
                   <div class="tier-banner-line"></div>
                 </div>
                 <div class="top100-tier-grid" id="top100TierGrid">
-                  <!-- Injected dynamically: Ranks 4-10 -->
+                  <!-- Ranks 4-10 (Content) -->
                 </div>
               </div>
 
-              <!-- 3. The Main Field: Ranks 11 to 100 (Topster Grid) -->
+              <!-- Ranks 11 to 100 -->
               <div class="top100-main-section">
                 <div class="top100-tier-banner">
                   <span class="tier-banner-pill">[ THE TOPSTER FIELD &bull; RANKS 11 &ndash; 100 ]</span>
                   <div class="tier-banner-line"></div>
                 </div>
                 <div class="top100-main-grid" id="top100MainGrid">
-                  <!-- Injected dynamically: Ranks 11-100 -->
+                  <!-- Ranks 11-100 (Content) -->
                 </div>
               </div>
 
@@ -220,7 +231,7 @@
             </div>
           </div>
 
-          <!-- Window Status Bar Footer -->
+          <!-- Status Bar Footer -->
           <div class="status-bar top100-status-bar">
             <div class="status-bar-field" id="top100StatusCount">100 items</div>
             <div class="status-bar-field" id="top100StatusMode" style="text-align: right; max-width: 160px;">Viewing</div>
@@ -247,14 +258,14 @@
       <div class="sidebar-card aero-card">
         <h3 class="sidebar-heading">Artists</h3>
         <div id="artistCloud" class="cloud-container">
-          <!-- Populated dynamically -->
+          <!-- Artist Cloud (Content) -->
         </div>
       </div>
       <!-- Rating Scale & Distribution Widget -->
       <div class="sidebar-card aero-card">
         <h3 class="sidebar-heading"><i class='bx bxs-star-half'></i> Rating Scale</h3>
         <div id="ratingDistributionWidget" class="rating-dist-list">
-          <!-- Dynamic rating distribution rows injected here -->
+          <!-- rating distribution rows injected here -->
         </div>
       </div>
       <div class="sidebar-card aero-card">
@@ -272,7 +283,7 @@
     </aside>
   </main>
 
-<!-- MODAL: Add / Edit Spin -->
+<!-- Add / Edit Spin -->
   <div id="modalOverlay" class="sosa-modal-backdrop" style="display: none;">
     <div class="modal-dialog">
       <div class="modal-header">
@@ -308,7 +319,7 @@
               <input type="number" id="logRating" placeholder="Rating (0.5–5.0)" min="0.5" max="5.0" step="0.5" class="sosa-search-input">
             </div>
 
-            <!-- Cleaned 3-part Row: Runtime | Date | Relisten Checkbox -->
+            <!-- Runtime | Date | Relisten Checkbox -->
             <div class="input-row triple align-center">
               <input type="text" id="logRuntime" placeholder="Runtime (e.g. 42m 15s)" class="sosa-search-input">
               <input type="text" id="logDate" placeholder="Date (MM/DD/YY)" class="sosa-search-input">

@@ -1260,9 +1260,12 @@ function getDominantColorFromImg(imgUrl) {
         return (b.id || 0) - (a.id || 0);
       });
 
+      allEntriesById = null;
       buildSidebarWidgets(allEntries);
       populatePathSuggestions();
-      applyFilters(false);
+      if (!document.getElementById("top100DedicatedPage")) {
+        applyFilters(false);
+      }
       updateAdminVisibility();
     } catch (err) {
       console.error("Supabase load error:", err);
@@ -1897,11 +1900,26 @@ window.closeMiniPlayer = function() {
     }, 3500);
   }
 
+  let allEntriesById = null;
+
+  function getSpinById(id) {
+    if (!id) return null;
+    if (!allEntriesById) {
+      allEntriesById = new Map();
+      (allEntries || []).forEach(s => {
+        if (s && s.id !== undefined && s.id !== null) {
+          allEntriesById.set(String(s.id), s);
+        }
+      });
+    }
+    return allEntriesById.get(String(id)) || null;
+  }
+
   function resolveTopAlbumData(album) {
     if (!album) return null;
     let resolved = { ...album };
-    if (album.spin_id && Array.isArray(allEntries)) {
-      const match = allEntries.find(s => String(s.id) === String(album.spin_id));
+    if (album.spin_id) {
+      const match = getSpinById(album.spin_id);
       if (match) {
         resolved.live_spin = match;
         resolved.artist = match.artist || album.artist;
@@ -1991,12 +2009,17 @@ window.closeMiniPlayer = function() {
       } else {
         renderTop100View();
       }
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      if (!document.getElementById("top100DedicatedPage")) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
     } else {
       if (window.location.hash === "#top100") {
         history.replaceState(null, null, " ");
       }
       exitTop100EditMode();
+      if (feed && feed.children.length === 0) {
+        applyFilters(false);
+      }
     }
   }
 
@@ -2091,7 +2114,7 @@ window.closeMiniPlayer = function() {
           <div class="podium-slot ${p.slotClass}" data-rank="${p.rank}" draggable="${isTop100Editing}">
             <div class="podium-badge">${p.badgeText}</div>
             <div class="podium-cover-wrap">
-              <img src="${coverSrc}" alt="${escapeHtml(album.title)}" class="podium-cover-img" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+              <img src="${coverSrc}" alt="${escapeHtml(album.title)}" class="podium-cover-img" decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
               ${isTop100Editing ? `<button type="button" class="slot-clear-btn" data-rank="${p.rank}" title="Clear slot #${p.rank}">✕</button>` : ""}
             </div>
             <div class="podium-pedestal">
@@ -2151,7 +2174,7 @@ window.closeMiniPlayer = function() {
           <div class="top100-card" data-rank="${r}" draggable="${isTop100Editing}">
             <div class="top100-rank-chip">#${r}</div>
             ${ratingBadge}
-            <img src="${coverSrc}" alt="${escapeHtml(album.title)}" class="top100-card-img" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+            <img src="${coverSrc}" alt="${escapeHtml(album.title)}" class="top100-card-img" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
             ${isTop100Editing ? `<button type="button" class="slot-clear-btn" data-rank="${r}" title="Clear slot #${r}">✕</button>` : ""}
             <div class="top100-tooltip">
               <div class="tooltip-artist">${escapeHtml(album.artist)}</div>
@@ -2194,7 +2217,7 @@ window.closeMiniPlayer = function() {
           <div class="top100-tile" data-rank="${r}" draggable="${isTop100Editing}">
             <div class="top100-rank-chip">#${r}</div>
             ${ratingBadge}
-            <img src="${coverSrc}" alt="${escapeHtml(album.title)}" class="top100-tile-img" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+            <img src="${coverSrc}" alt="${escapeHtml(album.title)}" class="top100-tile-img" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
             ${isTop100Editing ? `<button type="button" class="slot-clear-btn" data-rank="${r}" title="Clear slot #${r}">✕</button>` : ""}
             <div class="top100-tooltip">
               <div class="tooltip-artist">${escapeHtml(album.artist)}</div>
@@ -2240,49 +2263,48 @@ window.closeMiniPlayer = function() {
         }
       });
 
-      el.addEventListener("dragstart", (e) => {
-        if (!isTop100Editing) return;
-        draggedPayload = { type: "grid", rank: rank };
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", JSON.stringify(draggedPayload));
-        el.classList.add("is-dragging");
-      });
+      if (isTop100Editing) {
+        el.addEventListener("dragstart", (e) => {
+          draggedPayload = { type: "grid", rank: rank };
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", JSON.stringify(draggedPayload));
+          el.classList.add("is-dragging");
+        });
 
-      el.addEventListener("dragend", () => {
-        el.classList.remove("is-dragging");
-        document.querySelectorAll(".drag-over").forEach(node => node.classList.remove("drag-over"));
-        draggedPayload = null;
-      });
+        el.addEventListener("dragend", () => {
+          el.classList.remove("is-dragging");
+          document.querySelectorAll(".drag-over").forEach(node => node.classList.remove("drag-over"));
+          draggedPayload = null;
+        });
 
-      el.addEventListener("dragover", (e) => {
-        if (!isTop100Editing) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
-        el.classList.add("drag-over");
-      });
+        el.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          el.classList.add("drag-over");
+        });
 
-      el.addEventListener("dragleave", (e) => {
-        if (!el.contains(e.relatedTarget)) {
+        el.addEventListener("dragleave", (e) => {
+          if (!el.contains(e.relatedTarget)) {
+            el.classList.remove("drag-over");
+          }
+        });
+
+        el.addEventListener("drop", (e) => {
+          e.preventDefault();
           el.classList.remove("drag-over");
-        }
-      });
 
-      el.addEventListener("drop", (e) => {
-        if (!isTop100Editing) return;
-        e.preventDefault();
-        el.classList.remove("drag-over");
+          let payload = draggedPayload;
+          if (!payload) {
+            try {
+              const raw = e.dataTransfer.getData("text/plain");
+              if (raw) payload = JSON.parse(raw);
+            } catch (err) {}
+          }
+          if (!payload) return;
 
-        let payload = draggedPayload;
-        if (!payload) {
-          try {
-            const raw = e.dataTransfer.getData("text/plain");
-            if (raw) payload = JSON.parse(raw);
-          } catch (err) {}
-        }
-        if (!payload) return;
-
-        handleSlotDrop(payload, rank);
-      });
+          handleSlotDrop(payload, rank);
+        });
+      }
     });
   }
 
@@ -2801,17 +2823,17 @@ window.closeMiniPlayer = function() {
     }
   }
 
-  await loadSpins();
-  initTop100Controller();
-
   let feedFadeTimer = null;
   let feedMinHeightTimer = null;
+
+  await loadSpins();
+  initTop100Controller();
 
   // ============================================================
   // RENDER FEED
   // ============================================================
   function renderFeed(entries, animateFade = false) {
-    if (!feed) return;
+    if (!feed || document.getElementById("top100DedicatedPage")) return;
 
     if (feedFadeTimer) {
       clearTimeout(feedFadeTimer);
@@ -3529,6 +3551,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
   }
 
   function applyFilters(animateFade = false) {
+    if (document.getElementById("top100DedicatedPage")) return;
     const val = searchInput ? searchInput.value.toLowerCase() : "";
     const activeFormat = (currentFormat || "all").toLowerCase();
 

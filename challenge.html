@@ -1,4 +1,15 @@
 <!DOCTYPE html>
+<!--
+                                           _
+                                          | |
+  ___  ___  ___  __ _ ___ _ __   ___  __ _| | _____
+ / __|/ _ \/ __|/ _` / __| '_ \ / _ \/ _` | |/ / __|
+ \__ \ (_) \__ \ (_| \__ \ |_) |  __/ (_| |   <\__ \
+ |___/\___/|___/\__,_|___/ .__/ \___|\__,_|_|\_\___/
+                         | |
+                         |_|
+
+-->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -14,7 +25,7 @@
   <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
 </head>
 <body>
-  <!-- Header with Admin Lock -->
+  <!-- Header -->
   <header id="siteHeader">
     <div class="nav container">
             <!-- Logo -->
@@ -53,7 +64,7 @@
   <div class="challenge-controls container">
     <div class="challenge-actions-bar">
 
-      <!-- Left side: The Tabs + The Add Button sitting flush together -->
+      <!-- Tabs -->
       <div class="tabs-and-actions-left">
         <menu role="tablist" class="w7-month-tabs" id="monthTabsList">
           <button type="button" role="tab" class="active" aria-selected="true" data-month="october" data-year="2026">October (36)</button>
@@ -61,7 +72,7 @@
           <button type="button" role="tab" aria-selected="false" data-month="recalibrate" data-tab-type="relisten" id="recalibrateTabBtn" style="display: none;">Recalibrate (<span id="relistenCount">0</span>)</button>
         </menu>
 
-        <!-- Admin New Month Button: Aligns perfectly to the bottom border baseline -->
+        <!-- New Month Button -->
         <button type="button" id="addNewMonthBtn" class="aero-add-tab-btn admin-only" style="display: none;" title="Create New Month Challenge">
           + New Month
         </button>
