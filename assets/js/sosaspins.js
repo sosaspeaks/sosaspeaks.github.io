@@ -1736,7 +1736,7 @@ window.closeMiniPlayer = function() {
         metaPills.push(`<span class="cf-status-badge unlistened"><i class='bx bx-time-five'></i> ${escapeHtml(item.runtime)}</span>`);
       }
       if (item.relisten) {
-        metaPills.push(`<span class="cf-status-badge completed">RELISTEN</span>`);
+        metaPills.push(`<span class="cf-status-badge completed relisten-badge" title="Relisten: This symbol signifies that this spin is a relisten" aria-label="Relisten: This symbol signifies that this spin is a relisten"><i class='bx bx-rotate-left'></i></span>`);
       } else {
         const recalMeta = getActiveRecalibrateMeta(item);
         if (recalMeta) {
@@ -2985,7 +2985,6 @@ window.closeMiniPlayer = function() {
                 <span class="spin-title">${item.artist} — ${item.title}</span>
                 <span class="spin-year">${item.year ? `(${item.year})` : ''}</span>
                 <span class="category spin-format-tag">${displayType}</span>${item.runtime ? `<span class="category spin-runtime-tag" style="background: rgba(16, 185, 129, 0.12); color: #065f46; font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; border: 1px solid rgba(16, 185, 129, 0.25);"><i class='bx bx-time' style='font-size: 0.8rem; vertical-align: middle;'></i> ${item.runtime}</span>` : ""}
-                ${item.relisten ? `<span class="category relisten-tag">RELISTEN</span>` : ""}
                 ${(() => {
                   const recalMeta = getActiveRecalibrateMeta(item);
                   if (!recalMeta) return "";
@@ -3011,8 +3010,13 @@ window.closeMiniPlayer = function() {
                   <span class="active-spin-stars">${getStarString(item.rating)}</span>
                   <small class="spin-rating-num">(${Number(item.rating).toFixed(1)})</small>
                 `}
+                ${item.relisten ? `<span class="relisten-icon" title="Relisten: This symbol signifies that this spin is a relisten" aria-label="Relisten: This symbol signifies that this spin is a relisten"><i class='bx bx-rotate-left'></i></span>` : ""}
               </div>
-            ` : ""}
+            ` : (item.relisten ? `
+              <div class="spin-star-rating">
+                <span class="relisten-icon" title="Relisten: This symbol signifies that this spin is a relisten" aria-label="Relisten: This symbol signifies that this spin is a relisten"><i class='bx bx-rotate-left'></i></span>
+              </div>
+            ` : "")}
 
             <!-- Primary and Secondary Genres -->
             ${(hasPrimary || hasSecondary) ? `

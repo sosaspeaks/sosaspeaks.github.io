@@ -184,14 +184,14 @@
               <span style="opacity: 0.65;">${renderLargeStars(spin.rating_shift.from)}</span>
               <span class="shift-arrow">➔</span>
               <span>${renderLargeStars(spin.rating_shift.to || spin.rating)}</span>
-              <span class="category relisten-tag">RELISTEN</span>
+              <span class="relisten-icon" title="Relisten: This symbol signifies that this spin is a relisten" aria-label="Relisten: This symbol signifies that this spin is a relisten"><i class='bx bx-rotate-left'></i></span>
             </div>
           `;
         } else {
           ratingSlot.innerHTML = `
             <div class="study-rating-shift">
-              <span class="category relisten-tag">RELISTEN</span>
               ${spin.rating ? renderLargeStars(spin.rating) : ""}
+              <span class="relisten-icon" title="Relisten: This symbol signifies that this spin is a relisten" aria-label="Relisten: This symbol signifies that this spin is a relisten"><i class='bx bx-rotate-left'></i></span>
             </div>
           `;
         }
