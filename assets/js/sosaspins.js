@@ -2557,20 +2557,41 @@ window.closeMiniPlayer = function() {
 
     let genresHtml = "";
     if (primaryGenres.length || secondaryGenres.length) {
-      genresHtml = `
-        <div class="genre-container" style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 0.65rem;">
+      const primaryHtml = primaryGenres.length ? `
+        <div class="top100-primary-genres" style="display: flex; flex-wrap: wrap; gap: 5px;">
           ${primaryGenres.map(g => `<span class="genre-pill genre-primary">${escapeHtml(g)}</span>`).join("")}
+        </div>
+      ` : "";
+      const secondaryHtml = secondaryGenres.length ? `
+        <div class="top100-secondary-genres" style="display: flex; flex-wrap: wrap; gap: 5px;">
           ${secondaryGenres.map(g => `<span class="genre-pill genre-secondary">${escapeHtml(g)}</span>`).join("")}
+        </div>
+      ` : "";
+
+      genresHtml = `
+        <div class="top100-modal-genres" style="display: flex; flex-direction: column; gap: 6px; margin-top: 0.65rem;">
+          ${primaryHtml}
+          ${secondaryHtml}
         </div>
       `;
     }
 
     let descHtml = "";
     if (descriptors.length) {
+      const hasManyDesc = descriptors.length > 3;
+      const initialDesc = descriptors.slice(0, 3);
+      const remainingDesc = descriptors.slice(3);
+
       descHtml = `
-        <div class="descriptors-wrapper" style="margin-top: 0.65rem;">
+        <div class="descriptors-wrapper" id="desc-box-top100" style="margin-top: 0.65rem;">
           <span class="desc-label">descriptors:</span>
-          ${descriptors.map(d => `<span class="descriptor-pill" style="text-transform: none !important;">${escapeHtml(d)}</span>`).join("")}
+          ${initialDesc.map(d => `<span class="descriptor-pill" style="text-transform: none !important;">${escapeHtml(d)}</span>`).join("")}
+          ${hasManyDesc ? `
+            <span class="remaining-descriptors is-hidden">
+              ${remainingDesc.map(d => `<span class="descriptor-pill" style="text-transform: none !important;">${escapeHtml(d)}</span>`).join("")}
+            </span>
+            <button type="button" class="desc-expand-btn" data-count="${remainingDesc.length}" aria-expanded="false" title="Show ${remainingDesc.length} more descriptors" onclick="toggleDescriptors('top100', this)">▾ +${remainingDesc.length}</button>
+          ` : ""}
         </div>
       `;
     }
@@ -3202,17 +3223,24 @@ window.toggleDescriptors = function(idx, btn) {
     if (!box) return;
     const extra = box.querySelector(".remaining-descriptors");
     if (!extra) return;
+    if (!btn) btn = box.querySelector(".desc-expand-btn");
     extra.style.display = "";
     const isHidden = extra.classList.contains("is-hidden");
-    const count = btn.getAttribute("data-count") || "";
+    const count = btn ? (btn.getAttribute("data-count") || "") : "";
     if (isHidden) {
       extra.classList.remove("is-hidden");
-      btn.textContent = "▴";
-      btn.setAttribute("aria-expanded", "true");
+      if (btn) {
+        btn.textContent = "▴";
+        btn.setAttribute("aria-expanded", "true");
+        btn.setAttribute("title", "Collapse descriptors");
+      }
     } else {
       extra.classList.add("is-hidden");
-      btn.textContent = count ? `▾ +${count}` : "▾";
-      btn.setAttribute("aria-expanded", "false");
+      if (btn) {
+        btn.textContent = count ? `▾ +${count}` : "▾";
+        btn.setAttribute("aria-expanded", "false");
+        btn.setAttribute("title", count ? `Show ${count} more descriptors` : "Expand descriptors");
+      }
     }
   };
 

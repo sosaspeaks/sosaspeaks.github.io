@@ -6441,6 +6441,21 @@ body.dark-mode .window.w7-modal-window.top100-detail-window .window-body {
   padding: 0;
 }
 
+.top100-modal-genres {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px;
+  margin-top: 0.65rem;
+}
+
+.top100-primary-genres,
+.top100-secondary-genres {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center;
+  gap: 5px;
+}
+
 .top100-detail-header-row {
   display: flex;
   gap: 14px;

@@ -1978,7 +1978,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             </div>
 
             <p style="color: var(--text-color, #334155); opacity: 0.85; margin: 0.75rem 0 0.85rem; font-size: 0.88rem;">
-              ${isRecalibrate 
+              ${isRecalibrate
                 ? (isAdmin ? "This album is queued for recalibration. Ready for a fresh spin?" : "This album is in Sosa's recalibration queue for a fresh spin.")
                 : (isAdmin ? "You haven't logged this album on <strong>SosaSpins</strong> yet." : "Sosa hasn't logged this album on <strong>SosaSpins</strong> yet.")}
             </p>
@@ -2832,7 +2832,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (progressSubtitle) {
       progressSubtitle.textContent = isRelistenTab
         ? `Album Recalibration & Relisten Queue (${list.length} Albums)`
-        : `${displayMonth} 6×6 Listening Challenge (36 Albums)`;
+        : `${displayMonth} Listening Challenge`;
     }
 
     const progressBox = document.querySelector(".challenge-progress-box");
