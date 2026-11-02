@@ -887,7 +887,41 @@ body.recalibrate-active menu.w7-month-tabs button[data-tab-type="relisten"] {
   color: #fbbf24;
   font-size: 0.64rem;
   line-height: 1;
-  filter: drop-shadow(0 0 3px rgba(251, 191, 36, 0.65));
+  filter: drop-shadow(0 0 2px rgba(251, 191, 36, 0.35));
+}
+
+.modal-detail-rating .stars-gold {
+  color: #fbbf24;
+  font-size: 1.05rem;
+  letter-spacing: 2px;
+  filter: drop-shadow(0 1px 1px rgba(245, 158, 11, 0.25));
+}
+
+.modal-detail-rating .stars-gold i.bx {
+  color: #fbbf24;
+  filter: drop-shadow(0 1px 1px rgba(245, 158, 11, 0.25));
+}
+
+.modal-detail-rating .stars-gold i.bx-star {
+  color: rgba(0, 0, 0, 0.18);
+  filter: none;
+}
+
+body.dark-mode .modal-detail-rating .stars-gold i.bx-star {
+  color: rgba(255, 255, 255, 0.2);
+  filter: none;
+}
+
+.cf-gold-star {
+  color: #fbbf24;
+  font-weight: 800;
+  filter: drop-shadow(0 0 2px rgba(251, 191, 36, 0.35));
+}
+
+.aero-rym-rating-badge i.bx,
+.cf-genre-chip.rym-chip i.bx {
+  color: #38bdf8;
+  filter: drop-shadow(0 0 2px rgba(56, 189, 248, 0.5));
 }
 
 .topster-grid.size-compact .aero-completed-pill {
@@ -1695,9 +1729,10 @@ body.dark-mode .custom-month-item.queue-item.active .queue-icon {
 }
 
 .modal-detail-rating .stars-gold {
-  color: #f59e0b;
+  color: #fbbf24;
   font-size: 1.05rem;
   letter-spacing: 2px;
+  filter: drop-shadow(0 1px 1px rgba(245, 158, 11, 0.25));
 }
 
 .modal-detail-rating .rating-num {
@@ -2904,6 +2939,7 @@ body.dark-mode .w7-auth-footer {
 .cf-gold-star {
   color: #fbbf24;
   font-weight: 800;
+  filter: drop-shadow(0 0 2px rgba(251, 191, 36, 0.35));
 }
 
 .cf-genre-chip {

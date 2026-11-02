@@ -349,6 +349,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.addEventListener("scroll", () => {
       header.classList.toggle("shadow", window.scrollY > 0);
     });
+
+    window.addEventListener("hashchange", () => {
+      if (window.location.hash === "#recalibrate") {
+        setActiveMonthTab("recalibrate");
+      }
+    });
   }
 
   const themeToggleBtn = document.querySelector(".theme-toggle");
@@ -415,11 +421,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (rating === null || rating === undefined || rating === "") return "";
     const num = parseFloat(rating);
     if (isNaN(num)) return "";
-    const clamped = Math.max(0, Math.min(5, num));
-    const full = Math.floor(clamped);
-    const half = (clamped % 1) >= 0.25 && (clamped % 1) <= 0.75;
-    const emptyCount = Math.max(0, 5 - full - (half ? 1 : 0));
-    return "★".repeat(full) + (half ? "½" : "") + "☆".repeat(emptyCount);
+    let html = "";
+    for (let i = 1; i <= 5; i++) {
+      if (num >= i) {
+        html += `<i class='bx bxs-star'></i>`;
+      } else if (num >= i - 0.5) {
+        html += `<i class='bx bxs-star-half'></i>`;
+      } else {
+        html += `<i class='bx bx-star'></i>`;
+      }
+    }
+    return html;
   }
 
   // Dynamic Suggestion Pool Getters
@@ -2364,6 +2376,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       updateMonthPillCounts();
       renderGrid();
       updateAdminVisibility();
+
+      if (window.location.hash === "#recalibrate" || new URLSearchParams(window.location.search).get("tab") === "recalibrate") {
+        setActiveMonthTab("recalibrate");
+      }
 
       if (isAdmin) {
         migrateLegacyReasonsInDatabase();

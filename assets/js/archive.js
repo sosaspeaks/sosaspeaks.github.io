@@ -1238,7 +1238,7 @@ function getDominantColorFromImg(imgUrl) {
     try {
       const [{ data, error }, backlogRes] = await Promise.all([
         supabaseClient.from("spins").select("*"),
-        supabaseClient.from("challenge_backlog").select("genres, secondary_genres, descriptors"),
+        supabaseClient.from("challenge_backlog").select("artist, title, month, relisten_reason, prev_rating, genres, secondary_genres, descriptors"),
         loadComments()
       ]);
 
@@ -1261,6 +1261,7 @@ function getDominantColorFromImg(imgUrl) {
       });
 
       allEntriesById = null;
+      buildActiveRecalibrateMap();
       buildSidebarWidgets(allEntries);
       populatePathSuggestions();
       if (!document.getElementById("top100DedicatedPage")) {
@@ -1736,6 +1737,12 @@ window.closeMiniPlayer = function() {
       }
       if (item.relisten) {
         metaPills.push(`<span class="cf-status-badge completed">RELISTEN</span>`);
+      } else {
+        const recalMeta = getActiveRecalibrateMeta(item);
+        if (recalMeta) {
+          const reasonLabel = recalMeta.relisten_reason ? ` (${escapeHtml(recalMeta.relisten_reason)})` : "";
+          metaPills.push(`<a href="challenge.html#recalibrate" class="cf-status-badge recalibrate-queue" title="Active in Recalibrate Queue${reasonLabel} &bull; Click to view in Challenge"><i class='bx bx-revision'></i> RECALIBRATE QUEUE</a>`);
+        }
       }
       (item.genres || []).slice(0, 4).forEach(g => {
         metaPills.push(`<span class="cf-genre-chip" style="cursor: pointer;" onclick="setSidebarFilter('genre', '${g.replace(/'/g, "\\'")}')">${escapeHtml(g)}</span>`);
@@ -1901,6 +1908,53 @@ window.closeMiniPlayer = function() {
   }
 
   let allEntriesById = null;
+  let activeRecalibrateMap = new Map();
+
+  function buildActiveRecalibrateMap() {
+    activeRecalibrateMap.clear();
+
+    const recalBacklog = (backlogTagEntries || []).filter(item => {
+      const m = (item.month || "").toLowerCase();
+      return m === "recalibrate" || m === "relisten" || !!item.relisten_reason;
+    });
+
+    recalBacklog.forEach(item => {
+      const bArt = (item.artist || "").trim().toLowerCase();
+      const bTit = (item.title || "").trim().toLowerCase();
+      if (!bArt || !bTit) return;
+      const key = `${bArt}::${bTit}`;
+
+      // Check if a completed relisten spin has already been logged for this album
+      const hasCompletedRelisten = (allEntries || []).some(s => {
+        const sArt = (s.artist || "").trim().toLowerCase();
+        const sTit = (s.title || "").trim().toLowerCase();
+        const isRel = s.relisten === true || s.relisten === "true" || !!s.rating_shift;
+        return sArt === bArt && sTit === bTit && isRel && !s.relisten_pending;
+      });
+
+      if (!hasCompletedRelisten) {
+        activeRecalibrateMap.set(key, item);
+      }
+    });
+
+    // Also include any spins explicitly flagged with relisten_pending
+    (allEntries || []).forEach(s => {
+      if (s.relisten_pending === true) {
+        const key = `${(s.artist || "").trim().toLowerCase()}::${(s.title || "").trim().toLowerCase()}`;
+        if (!activeRecalibrateMap.has(key)) {
+          activeRecalibrateMap.set(key, { relisten_reason: s.relisten_reason || "Queued" });
+        }
+      }
+    });
+  }
+
+  function getActiveRecalibrateMeta(item) {
+    if (!item) return null;
+    // If this spin itself is already a completed relisten, it's not active in the queue
+    if (item.relisten && !item.relisten_pending) return null;
+    const key = `${(item.artist || "").trim().toLowerCase()}::${(item.title || "").trim().toLowerCase()}`;
+    return activeRecalibrateMap.get(key) || null;
+  }
 
   function getSpinById(id) {
     if (!id) return null;
@@ -2911,6 +2965,12 @@ window.closeMiniPlayer = function() {
                 <span class="spin-year">${item.year ? `(${item.year})` : ''}</span>
                 <span class="category spin-format-tag">${displayType}</span>${item.runtime ? `<span class="category spin-runtime-tag" style="background: rgba(16, 185, 129, 0.12); color: #065f46; font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; border: 1px solid rgba(16, 185, 129, 0.25);"><i class='bx bx-time' style='font-size: 0.8rem; vertical-align: middle;'></i> ${item.runtime}</span>` : ""}
                 ${item.relisten ? `<span class="category relisten-tag">RELISTEN</span>` : ""}
+                ${(() => {
+                  const recalMeta = getActiveRecalibrateMeta(item);
+                  if (!recalMeta) return "";
+                  const reasonLabel = recalMeta.relisten_reason ? ` (${escapeHtml(recalMeta.relisten_reason)})` : "";
+                  return `<a href="challenge.html#recalibrate" class="category recalibrate-queue-tag" title="Active in Recalibrate Queue${reasonLabel} &bull; Click to view in Challenge"><i class='bx bx-revision'></i> RECALIBRATE QUEUE</a>`;
+                })()}
               </div>
               <span class="post-date">${item.log_date || ""}</span>
             </div>
