@@ -1275,13 +1275,46 @@ button.filter-item {
 }
 
 .spin-runtime-tag {
-  background: rgba(16, 185, 129, 0.12);
-  color: #065f46;
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 4px;
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  font-family: "Noto Sans Mono", monospace;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-color);
+  opacity: 0.65;
+}
+
+.spin-runtime-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: 0.35rem;
+  font-family: "Noto Sans Mono", monospace;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-color);
+  opacity: 0.65;
+  user-select: none;
+  vertical-align: middle;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.spin-runtime-text .runtime-bullet {
+  opacity: 0.5;
+  font-size: 0.75rem;
+}
+
+.spin-runtime-text:hover {
+  opacity: 0.95;
+}
+
+body.dark-mode .spin-runtime-text,
+.dark-mode .spin-runtime-text,
+body.dark-mode .spin-runtime-tag,
+.dark-mode .spin-runtime-tag {
+  color: var(--dark-text-color) !important;
 }
 
 .spin-header .post-date {

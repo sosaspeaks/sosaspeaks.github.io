@@ -2984,7 +2984,7 @@ window.closeMiniPlayer = function() {
               <div class="title-meta-group">
                 <span class="spin-title">${item.artist} — ${item.title}</span>
                 <span class="spin-year">${item.year ? `(${item.year})` : ''}</span>
-                <span class="category spin-format-tag">${displayType}</span>${item.runtime ? `<span class="category spin-runtime-tag" style="background: rgba(16, 185, 129, 0.12); color: #065f46; font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; border: 1px solid rgba(16, 185, 129, 0.25);"><i class='bx bx-time' style='font-size: 0.8rem; vertical-align: middle;'></i> ${item.runtime}</span>` : ""}
+                <span class="category spin-format-tag">${displayType}</span>${item.runtime ? `<span class="spin-runtime-text" title="Runtime: ${escapeHtml(item.runtime)}"><span class="runtime-bullet">•</span> ${escapeHtml(item.runtime)}</span>` : ""}
                 ${(() => {
                   const recalMeta = getActiveRecalibrateMeta(item);
                   if (!recalMeta) return "";
