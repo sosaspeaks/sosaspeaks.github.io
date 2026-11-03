@@ -593,7 +593,7 @@ body.recalibrate-active menu.w7-month-tabs button[data-tab-type="relisten"] {
   );
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  overflow: hidden;
+  overflow: visible;
   position: relative;
 }
 
@@ -602,6 +602,7 @@ body.recalibrate-active menu.w7-month-tabs button[data-tab-type="relisten"] {
   justify-content: space-between;
   align-items: center;
   padding: 5px 8px 5px 12px;
+  border-radius: 7px 7px 0 0;
   background: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0.88) 0%,
@@ -625,6 +626,8 @@ body.recalibrate-active menu.w7-month-tabs button[data-tab-type="relisten"] {
 }
 
 .window-command-bar {
+  position: relative;
+  z-index: 100;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1058,6 +1061,7 @@ body.is-admin .tile-icon-btn.delete {
 .status-bar {
   background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
   border-top: 1px solid #9aa7b2;
+  border-radius: 0 0 7px 7px;
   display: flex;
   font-size: 0.75rem;
   color: #475569;
@@ -3176,6 +3180,7 @@ body.dark-mode .w7-auth-footer {
 .aero-sort-dropdown-wrap {
   position: relative;
   display: inline-block;
+  z-index: 101;
 }
 
 .aero-menu-dropdown {
@@ -3184,6 +3189,9 @@ body.dark-mode .w7-auth-footer {
   left: 0;
   z-index: 999999;
   min-width: 220px;
+  max-height: min(440px, calc(100vh - 160px));
+  overflow-y: auto;
+  overflow-x: hidden;
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -3197,6 +3205,24 @@ body.dark-mode .w7-auth-footer {
   flex-direction: column;
   gap: 2px;
   animation: aeroMenuFadeIn 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.aero-menu-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.aero-menu-dropdown::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 4px;
+}
+
+.aero-menu-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.35);
+  border-radius: 4px;
+}
+
+.aero-menu-dropdown::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.6);
 }
 
 @keyframes aeroMenuFadeIn {
@@ -3297,6 +3323,18 @@ body.dark-mode .aero-menu-item.active {
 
 body.dark-mode .aero-menu-divider {
   background: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .aero-menu-dropdown::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+body.dark-mode .aero-menu-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(52, 211, 153, 0.35);
+}
+
+body.dark-mode .aero-menu-dropdown::-webkit-scrollbar-thumb:hover {
+  background: rgba(52, 211, 153, 0.6);
 }
 
 /* RYM Rating Badges */

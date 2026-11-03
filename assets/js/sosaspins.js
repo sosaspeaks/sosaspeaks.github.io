@@ -575,7 +575,16 @@ function getDominantColorFromImg(imgUrl) {
     }
     const countEl = document.getElementById(`spin-discuss-count-${spinId}`);
     if (countEl) {
-      countEl.textContent = `Discuss (${approved.length})`;
+      countEl.textContent = approved.length > 0 ? approved.length : "";
+      countEl.style.display = approved.length > 0 ? "inline-flex" : "none";
+    }
+    const btnEl = document.getElementById(`spin-discuss-btn-${spinId}`);
+    if (btnEl) {
+      btnEl.title = approved.length > 0
+        ? `Discussion (${approved.length} comment${approved.length === 1 ? '' : 's'})`
+        : "Discussion";
+      if (approved.length > 0) btnEl.classList.add("has-comments");
+      else btnEl.classList.remove("has-comments");
     }
   }
 
@@ -584,12 +593,15 @@ function getDominantColorFromImg(imgUrl) {
     if (!drawer) return;
     const isHidden = drawer.style.display === "none";
     drawer.style.display = isHidden ? "flex" : "none";
+    const actualBtn = btn || document.getElementById(`spin-discuss-btn-${spinId}`);
     if (isHidden) {
       openDiscussSpinIds.add(Number(spinId));
+      if (actualBtn) actualBtn.classList.add("is-open");
     } else {
       openDiscussSpinIds.delete(Number(spinId));
+      if (actualBtn) actualBtn.classList.remove("is-open");
     }
-    const arrow = btn ? btn.querySelector(".discuss-arrow") : null;
+    const arrow = actualBtn ? actualBtn.querySelector(".discuss-arrow") : null;
     if (arrow) arrow.textContent = isHidden ? "▴" : "▾";
   };
 
@@ -1804,8 +1816,11 @@ window.closeMiniPlayer = function() {
           /\[(?:<span class="inline-quoted-track">)?["“]?([^"”]+?)["”]?(?:<\/span>)?\]\((https?:\/\/[^\s)]+)\)/g,
           `<a class="inline-quoted-track song-embed-link" onclick="playAudioTrack('$2', '$1', '${safeArtist}', '${safeAlbum}', '${safeCover}')">“$1”</a>`
         );
+        let cfMemoHtml = cleanText.replace(/\r?\n/g, "<br>")
+          .replace(/<blockquote>\s*<br\s*\/?>/gi, "<blockquote>")
+          .replace(/<br\s*\/?>\s*<\/blockquote>/gi, "</blockquote>");
         spinsCfMemo.style.display = "block";
-        spinsCfMemo.innerHTML = cleanText.replace(/\r?\n/g, "<br>");
+        spinsCfMemo.innerHTML = cfMemoHtml;
       } else {
         spinsCfMemo.style.display = "none";
         spinsCfMemo.innerHTML = "";
@@ -2294,12 +2309,51 @@ window.closeMiniPlayer = function() {
     attachSlotEvents(top100MainGrid);
   }
 
+  function adjustTop100Tooltip(tile) {
+    const tooltip = tile.querySelector(".top100-tooltip");
+    if (!tooltip) return;
+
+    // Reset shift to measure true unshifted geometry
+    tooltip.style.setProperty("--arrow-shift", "0px");
+
+    const tileRect = tile.getBoundingClientRect();
+    const tooltipWidth = tooltip.offsetWidth;
+    if (!tooltipWidth) return;
+
+    const tileCenter = tileRect.left + tileRect.width / 2;
+    const halfWidth = tooltipWidth / 2;
+
+    const container = document.getElementById("top100ExportWrapper") || tile.closest(".top100-window-body") || document.documentElement;
+    const containerRect = container.getBoundingClientRect();
+
+    const minLeft = Math.max(containerRect.left + 8, 8);
+    const maxRight = Math.min(containerRect.right - 8, (window.innerWidth || 1200) - 8);
+
+    let shift = 0;
+    if (tileCenter - halfWidth < minLeft) {
+      shift = minLeft - (tileCenter - halfWidth);
+    } else if (tileCenter + halfWidth > maxRight) {
+      shift = maxRight - (tileCenter + halfWidth);
+    }
+
+    const maxAllowedShift = Math.max(0, halfWidth - 12);
+    shift = Math.max(-maxAllowedShift, Math.min(maxAllowedShift, shift));
+
+    tooltip.style.setProperty("--arrow-shift", `${Math.round(shift)}px`);
+  }
+
   function attachSlotEvents(container) {
     if (!container) return;
 
     container.querySelectorAll("[data-rank]").forEach(el => {
       const rank = parseInt(el.getAttribute("data-rank"), 10);
       if (!rank) return;
+
+      el.addEventListener("mouseenter", () => {
+        if (!isTop100Editing) {
+          adjustTop100Tooltip(el);
+        }
+      });
 
       el.addEventListener("click", (e) => {
         if (e.target.closest(".slot-clear-btn")) {
@@ -2623,8 +2677,8 @@ window.closeMiniPlayer = function() {
     let memoHtml = "";
     if (album.memo) {
       memoHtml = `
-        <div class="top100-memo-box" style="margin-top: 0.85rem; padding: 8px 12px; background: rgba(0, 0, 0, 0.04); border-radius: 6px; font-size: 0.82rem; font-style: italic; line-height: 1.4; border-left: 3px solid #38bdf8;">
-          "${escapeHtml(album.memo)}"
+        <div class="top100-memo-box" style="margin-top: 0.85rem; padding: 8px 12px; background: rgba(0, 0, 0, 0.04); border-radius: 6px; font-size: 0.82rem; font-style: italic; line-height: 1.4; border-left: 3px solid #38bdf8; white-space: pre-wrap;">
+          "${escapeHtml(album.memo).replace(/\r?\n/g, "<br>")}"
         </div>
       `;
     }
@@ -2969,8 +3023,10 @@ window.closeMiniPlayer = function() {
         `<a class="inline-quoted-track song-embed-link" onclick="playAudioTrack('$2', '$1', '${safeArtist}', '${safeAlbum}', '${safeCover}')">“$1”</a>`
         );
 
-        // 3. Line breaks
-        formattedMemo = cleanText.replace(/\r?\n/g, "<br>");
+        // 3. Line breaks & clean redundant breaks touching blockquote boundaries
+        formattedMemo = cleanText.replace(/\r?\n/g, "<br>")
+          .replace(/<blockquote>\s*<br\s*\/?>/gi, "<blockquote>")
+          .replace(/<br\s*\/?>\s*<\/blockquote>/gi, "</blockquote>");
       }
 
       const reflectCoverUrl = safeCover || 'assets/images/spins/placeholder.png';
@@ -3148,12 +3204,9 @@ window.closeMiniPlayer = function() {
               const safePlaceholderTitle = escapeHtml(item.title || "this spin");
               return `
                 <div class="spin-discuss-wrapper">
-                  <button type="button" class="track-ratings-toggle-btn spin-discuss-toggle-btn ${approvedCount > 0 ? 'has-comments' : ''}" onclick="toggleSpinDiscuss(${spinId}, this)">
-                    <span class="track-ratings-label">
-                      <i class="bx bx-message-rounded-dots"></i>
-                      <span id="spin-discuss-count-${spinId}">Discuss (${approvedCount})</span>
-                    </span>
-                    <span class="discuss-arrow">${isOpen ? '▴' : '▾'}</span>
+                  <button type="button" class="spin-discuss-btn ${approvedCount > 0 ? 'has-comments' : ''} ${isOpen ? 'is-open' : ''}" id="spin-discuss-btn-${spinId}" onclick="toggleSpinDiscuss(${spinId}, this)" title="${approvedCount > 0 ? `Discussion (${approvedCount} comment${approvedCount === 1 ? '' : 's'})` : 'Discussion'}" aria-label="Discussion">
+                    <i class="bx bx-message-rounded-dots"></i>
+                    <span class="discuss-count-badge" id="spin-discuss-count-${spinId}" style="${approvedCount > 0 ? '' : 'display: none;'}">${approvedCount > 0 ? approvedCount : ''}</span>
                   </button>
                   <div class="spin-discuss-drawer" id="spin-discuss-${spinId}" style="display: ${isOpen ? 'flex' : 'none'};">
                     <div class="spin-comments-list" id="spin-comments-list-${spinId}">
