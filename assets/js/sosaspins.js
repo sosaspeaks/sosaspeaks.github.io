@@ -2973,10 +2973,13 @@ window.closeMiniPlayer = function() {
         formattedMemo = cleanText.replace(/\r?\n/g, "<br>");
       }
 
+      const reflectCoverUrl = safeCover || 'assets/images/spins/placeholder.png';
+
       return `
         <article class="timeline-row" id="spin-row-${item.id}" data-type="${displayType}">
           <div class="spin-cover-wrap">
-            <img class="spin-cover-img" src="${item.cover_url || 'assets/images/spins/placeholder.png'}" alt="${item.title} cover" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+            <img class="spin-cover-img" src="${item.cover_url || 'assets/images/spins/placeholder.png'}" alt="${item.title} cover" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png'; if (this.nextElementSibling) this.nextElementSibling.style.backgroundImage='url(assets/images/spins/placeholder.png)';">
+            <div class="spin-cover-reflection" style="background-image: url('${reflectCoverUrl}');" aria-hidden="true"></div>
           </div>
           <div class="spin-body">
             <!-- 1. Header Line: Title on left, Date on right -->
