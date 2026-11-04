@@ -1,0 +1,655 @@
+/* ============================================================
+   SosaSpins Windows 7 Aero Taskbar ("Superbar")
+   Authentic Aero Glass, Start Orb, Hot-Tracking & Show Desktop
+   ============================================================ */
+
+:root {
+  --taskbar-height: 42px;
+  --taskbar-orb-size: 46px;
+  --taskbar-feed-glow: #10b981;
+  --taskbar-challenge-glow: #0284c7;
+  --taskbar-top100-glow: #f59e0b;
+  --taskbar-stats-glow: #a855f7;
+}
+
+/* ============================================================
+   Main Taskbar Container (Docked Flush at Viewport Bottom)
+   ============================================================ */
+.aero-taskbar-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: var(--taskbar-height);
+  z-index: 9999;
+  user-select: none;
+  pointer-events: auto;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(240, 246, 252, 0.40) 12%,
+    rgba(215, 228, 242, 0.32) 48%,
+    rgba(180, 205, 235, 0.45) 52%,
+    rgba(165, 195, 228, 0.55) 100%
+  );
+  border-top: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 2px 4px rgba(255, 255, 255, 0.25),
+    0 -3px 12px rgba(0, 0, 0, 0.12);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+
+/* Top Specular Rim Gloss */
+.aero-taskbar-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(255, 255, 255, 0.03) 100%
+  );
+  pointer-events: none;
+}
+
+/* Dark Mode Taskbar Glass */
+body.dark-mode .aero-taskbar-container {
+  background: linear-gradient(
+    180deg,
+    rgba(51, 65, 85, 0.75) 0%,
+    rgba(30, 41, 59, 0.82) 15%,
+    rgba(15, 23, 42, 0.90) 50%,
+    rgba(10, 15, 26, 0.96) 100%
+  );
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 -4px 18px rgba(0, 0, 0, 0.6);
+}
+
+body.dark-mode .aero-taskbar-container::before {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.01) 100%
+  );
+}
+
+/* Auto-Hide / Peeking State */
+.aero-taskbar-container.is-tucked {
+  transform: translateY(calc(100% - 4px));
+}
+
+.aero-taskbar-container.is-tucked:not(.just-tucked):hover,
+.aero-taskbar-container.is-tucked:not(.just-tucked):focus-within,
+.aero-taskbar-container.is-tucked.is-expanded {
+  transform: translateY(0);
+}
+
+/* Inner Layout Flex Row */
+.taskbar-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+  padding: 0 0 0 6px;
+  box-sizing: border-box;
+}
+
+/* ============================================================
+   Windows 7 Start Orb (SosaSpins Spinning Vinyl Emblem)
+   ============================================================ */
+.taskbar-start-orb {
+  position: relative;
+  width: var(--taskbar-orb-size);
+  height: var(--taskbar-orb-size);
+  margin-top: -6px; /* Authentic Windows 7 top overhang */
+  margin-right: 8px;
+  margin-left: 2px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none !important;
+  cursor: pointer;
+  z-index: 10;
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0.2, 1);
+  outline: none;
+}
+
+.start-orb-glass {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 30%,
+    #48e5a6 0%,
+    #10b981 30%,
+    #059669 65%,
+    #044e3b 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow:
+    0 2px 7px rgba(0, 0, 0, 0.35),
+    inset 0 1px 2px rgba(255, 255, 255, 0.9),
+    inset 0 -2px 5px rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: all 0.25s ease;
+}
+
+/* 3D Glass Cap Curved Highlight */
+.start-orb-reflection {
+  position: absolute;
+  top: 2px;
+  left: 6px;
+  right: 6px;
+  height: 48%;
+  border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.85) 0%,
+    rgba(255, 255, 255, 0.15) 100%
+  );
+  pointer-events: none;
+}
+
+/* Start Orb Icon (Folder203.ico) */
+.start-orb-icon {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 2;
+}
+
+/* Start Orb Hover State (Luminous Bloom) */
+.taskbar-start-orb:hover .start-orb-glass {
+  background: radial-gradient(
+    circle at 35% 30%,
+    #6ee7b7 0%,
+    #34d399 30%,
+    #10b981 65%,
+    #065f46 100%
+  );
+  box-shadow:
+    0 0 18px rgba(52, 211, 153, 0.95),
+    0 0 32px rgba(16, 185, 129, 0.65),
+    inset 0 1px 2px #ffffff,
+    inset 0 -2px 5px rgba(0, 0, 0, 0.35);
+  transform: scale(1.05);
+}
+
+.taskbar-start-orb:hover .start-orb-icon {
+  transform: scale(1.12);
+}
+
+.taskbar-start-orb:active .start-orb-glass {
+  transform: scale(0.96);
+  box-shadow:
+    0 0 10px rgba(52, 211, 153, 0.7),
+    inset 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Start Orb Active State (when viewing Timeline Feed / Home) */
+.taskbar-start-orb.is-active .start-orb-glass {
+  box-shadow:
+    0 0 16px rgba(52, 211, 153, 0.85),
+    0 0 28px rgba(16, 185, 129, 0.55),
+    inset 0 1px 2px #ffffff,
+    inset 0 -2px 5px rgba(0, 0, 0, 0.35);
+}
+
+/* Start Orb Tooltip (Left-aligned so it never clips against viewport edge) */
+.taskbar-start-orb .taskbar-tooltip {
+  left: 2px;
+  transform: translateY(4px);
+}
+
+.taskbar-start-orb:hover .taskbar-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.taskbar-start-orb .taskbar-tooltip::after {
+  left: 22px;
+  transform: none;
+}
+
+/* ============================================================
+   Superbar App Buttons (Windows 7 Hot-Track Glass Plates)
+   ============================================================ */
+.taskbar-apps {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 100%;
+}
+
+.taskbar-app-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 34px;
+  border-radius: 3px;
+  text-decoration: none !important;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.app-btn-plate {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: all 0.2s cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+/* Gloss Split Top Half */
+.app-btn-plate::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.25) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+/* Windows 7 Application Icons (3D Vector Plates & Aero Images) */
+.win7-app-icon {
+  display: block;
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
+  transition: transform 0.22s cubic-bezier(0.2, 0, 0.2, 1), filter 0.2s ease;
+  z-index: 2;
+}
+
+.taskbar-app-btn:hover .win7-app-icon {
+  transform: translateY(-1.5px) scale(1.08);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+}
+
+.taskbar-app-btn:active .win7-app-icon {
+  transform: translateY(0.5px) scale(0.96);
+}
+
+/* Legacy Icon support fallback */
+.app-btn-icon {
+  font-size: 1.45rem;
+  transition: transform 0.2s ease, filter 0.2s ease;
+  z-index: 2;
+}
+
+/* Portal Icon Hues */
+.app-btn-icon.feed-icon { color: #047857; }
+.app-btn-icon.challenge-icon { color: #0369a1; }
+.app-btn-icon.top100-icon { color: #b45309; }
+.app-btn-icon.stats-icon { color: #7e22ce; }
+
+body.dark-mode .app-btn-icon.feed-icon { color: #34d399; }
+body.dark-mode .app-btn-icon.challenge-icon { color: #38bdf8; }
+body.dark-mode .app-btn-icon.top100-icon { color: #fbbf24; }
+body.dark-mode .app-btn-icon.stats-icon { color: #c084fc; }
+
+/* ------------------------------------------------------------
+   Aero Hot-Tracking (Hover Glows)
+   ------------------------------------------------------------ */
+.taskbar-app-btn:hover .app-btn-plate {
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 1px 4px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.taskbar-app-btn:hover .app-btn-plate::before {
+  opacity: 1;
+}
+
+.taskbar-app-btn:hover .app-btn-icon {
+  transform: scale(1.08);
+}
+
+/* Feed Hot-Track (Emerald) */
+.taskbar-app-btn[data-portal="feed"]:hover .app-btn-plate {
+  background: radial-gradient(
+    circle at center,
+    rgba(16, 185, 129, 0.45) 0%,
+    rgba(16, 185, 129, 0.15) 60%,
+    rgba(255, 255, 255, 0.25) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    inset 0 0 12px rgba(16, 185, 129, 0.4),
+    0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+/* Challenge Hot-Track (Sky Azure) */
+.taskbar-app-btn[data-portal="challenge"]:hover .app-btn-plate {
+  background: radial-gradient(
+    circle at center,
+    rgba(2, 132, 199, 0.45) 0%,
+    rgba(2, 132, 199, 0.15) 60%,
+    rgba(255, 255, 255, 0.25) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    inset 0 0 12px rgba(2, 132, 199, 0.4),
+    0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+/* Top 100 Hot-Track (Amber Gold) */
+.taskbar-app-btn[data-portal="top100"]:hover .app-btn-plate {
+  background: radial-gradient(
+    circle at center,
+    rgba(245, 158, 11, 0.45) 0%,
+    rgba(245, 158, 11, 0.15) 60%,
+    rgba(255, 255, 255, 0.25) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    inset 0 0 12px rgba(245, 158, 11, 0.4),
+    0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+/* Stats Hot-Track (Amethyst) */
+.taskbar-app-btn[data-portal="stats"]:hover .app-btn-plate {
+  background: radial-gradient(
+    circle at center,
+    rgba(168, 85, 247, 0.45) 0%,
+    rgba(168, 85, 247, 0.15) 60%,
+    rgba(255, 255, 255, 0.25) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    inset 0 0 12px rgba(168, 85, 247, 0.4),
+    0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+/* ------------------------------------------------------------
+   Active Running Portal Plate (Authentic Windows 7 Active App)
+   ------------------------------------------------------------ */
+.taskbar-app-btn.is-active .app-btn-plate {
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0.25) 50%,
+    rgba(235, 243, 252, 0.45) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+body.dark-mode .taskbar-app-btn.is-active .app-btn-plate {
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.18) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(15, 23, 42, 0.45) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.taskbar-app-btn.is-active .app-btn-plate::before {
+  opacity: 1;
+}
+
+/* Active Bottom Highlight Strip (3px Windows 7 plate stripe) */
+.taskbar-app-btn.is-active[data-portal="feed"] .app-btn-plate {
+  box-shadow: inset 0 1px 0 #ffffff, inset 0 -3px 0 var(--taskbar-feed-glow), 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.taskbar-app-btn.is-active[data-portal="challenge"] .app-btn-plate {
+  box-shadow: inset 0 1px 0 #ffffff, inset 0 -3px 0 var(--taskbar-challenge-glow), 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.taskbar-app-btn.is-active[data-portal="top100"] .app-btn-plate {
+  box-shadow: inset 0 1px 0 #ffffff, inset 0 -3px 0 var(--taskbar-top100-glow), 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.taskbar-app-btn.is-active[data-portal="stats"] .app-btn-plate {
+  box-shadow: inset 0 1px 0 #ffffff, inset 0 -3px 0 var(--taskbar-stats-glow), 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* ============================================================
+   Aero Taskbar Tooltips
+   ============================================================ */
+.taskbar-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  padding: 4px 10px;
+  border-radius: 4px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(240, 245, 250, 0.90) 100%
+  );
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 #ffffff;
+  color: #1e293b;
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  z-index: 99;
+}
+
+.taskbar-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 4px;
+  border-style: solid;
+  border-color: rgba(240, 245, 250, 0.9) transparent transparent transparent;
+}
+
+.taskbar-app-btn:hover .taskbar-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+body.dark-mode .taskbar-tooltip {
+  background: linear-gradient(
+    180deg,
+    rgba(30, 41, 59, 0.95) 0%,
+    rgba(15, 23, 42, 0.95) 100%
+  );
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #f1f5f9;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+body.dark-mode .taskbar-tooltip::after {
+  border-color: rgba(15, 23, 42, 0.95) transparent transparent transparent;
+}
+
+/* ============================================================
+   Taskbar Spacer & System Tray
+   ============================================================ */
+.taskbar-spacer {
+  flex: 1;
+}
+
+.taskbar-tray {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  height: 100%;
+  border-left: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.4);
+}
+
+body.dark-mode .taskbar-tray {
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 1px 0 0 rgba(0, 0, 0, 0.4);
+}
+
+.tray-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: default;
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.15;
+  transition: background 0.15s ease;
+}
+
+.tray-clock:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+body.dark-mode .tray-clock:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.tray-time {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.tray-date {
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+body.dark-mode .tray-time {
+  color: #f1f5f9;
+}
+
+body.dark-mode .tray-date {
+  color: #94a3b8;
+}
+
+/* ============================================================
+   Windows 7 "Show Desktop" / Aero Peek Strip
+   ============================================================ */
+.taskbar-show-desktop {
+  position: relative;
+  width: 14px;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  border-left: 1px solid rgba(0, 0, 0, 0.2);
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.taskbar-show-desktop:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0.3) 100%
+  );
+  box-shadow:
+    inset 1px 0 0 rgba(255, 255, 255, 0.7),
+    inset 0 0 6px rgba(255, 255, 255, 0.6);
+}
+
+body.dark-mode .taskbar-show-desktop {
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 1px 0 0 rgba(0, 0, 0, 0.5);
+}
+
+body.dark-mode .taskbar-show-desktop:hover {
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow:
+    inset 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 0 8px rgba(255, 255, 255, 0.4);
+}
+
+/* ============================================================
+   Backward Compatibility Alias (Legacy .aero-dock-container)
+   ============================================================ */
+.aero-dock-container {
+  display: none !important;
+}
+
+/* Mobile Responsive Optimization */
+@media (max-width: 640px) {
+  :root {
+    --taskbar-height: 40px;
+    --taskbar-orb-size: 40px;
+  }
+  .taskbar-start-orb {
+    margin-top: -4px;
+    margin-right: 4px;
+  }
+  .taskbar-app-btn {
+    width: 44px;
+    height: 32px;
+  }
+  .app-btn-icon {
+    font-size: 1.25rem;
+  }
+  .tray-date {
+    display: none;
+  }
+}
+
+/* Ensure clearance for body content and scroll-to-top button */
+body {
+  padding-bottom: calc(var(--taskbar-height) + 16px);
+}
+
+.to-top.active {
+  bottom: calc(var(--taskbar-height) + 0.75rem) !important;
+}

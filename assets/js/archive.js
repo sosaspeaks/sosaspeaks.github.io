@@ -1,4 +1,15 @@
 document.addEventListener("DOMContentLoaded", async () => {
+  // Auto-redirect legacy / hash link #top100 to dedicated standalone top100.html
+  if (window.location.hash === "#top100" && !document.getElementById("top100DedicatedPage")) {
+    window.location.replace("top100.html");
+    return;
+  }
+  window.addEventListener("hashchange", () => {
+    if (window.location.hash === "#top100" && !document.getElementById("top100DedicatedPage")) {
+      window.location.replace("top100.html");
+    }
+  });
+
   const feed = document.getElementById("timelineFeed");
   const searchInput = document.getElementById("searchInput");
   const filterPills = document.querySelectorAll(".filter-item");
@@ -11,6 +22,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   window.supabaseClient = supabaseClient;
   const LASTFM_API_KEY = localStorage.getItem("lastfm_api_key") || "54dae88eb8fc817f7745c41968fca582";
   const logRuntime = document.getElementById("logRuntime");
+  const logRymRating = document.getElementById("logRymRating");
 const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
 
   const adminLockIcon = document.getElementById("adminLockIcon");
@@ -556,8 +568,8 @@ function getDominantColorFromImg(imgUrl) {
           <div class="spin-comment-meta-right">
             <span class="spin-comment-date">${escapeHtml(formatCommentDate(c.created_at))}</span>
             ${isAdmin ? `
-              <button type="button" class="comment-delete-btn admin-only" onclick="deleteSpinComment(${Number(c.id)}, ${Number(spinId)})" title="Delete comment">
-                <i class="bx bx-trash"></i>
+              <button type="button" class="comment-delete-btn admin-only" onclick="deleteSpinComment(${Number(c.id)}, ${Number(spinId)})" title="Delete comment" onmouseenter="const img=this.querySelector('img'); if(img) img.src='assets/icons/aero/delete-full.ico';" onmouseleave="const img=this.querySelector('img'); if(img) img.src='assets/icons/aero/delete-empty.ico';">
+                <img src="assets/icons/aero/delete-empty.ico" alt="Delete" class="aero-action-icon delete-icon" style="width: 14px; height: 14px;">
               </button>
             ` : ""}
           </div>
@@ -578,13 +590,18 @@ function getDominantColorFromImg(imgUrl) {
       countEl.textContent = approved.length > 0 ? approved.length : "";
       countEl.style.display = approved.length > 0 ? "inline-flex" : "none";
     }
+    const tooltipEl = document.getElementById(`spin-discuss-tooltip-${spinId}`);
+    if (tooltipEl) {
+      tooltipEl.textContent = approved.length > 0
+        ? `Leave a comment (${approved.length} comment${approved.length === 1 ? '' : 's'})`
+        : "Leave a comment";
+    }
     const btnEl = document.getElementById(`spin-discuss-btn-${spinId}`);
     if (btnEl) {
-      btnEl.title = approved.length > 0
-        ? `Discussion (${approved.length} comment${approved.length === 1 ? '' : 's'})`
-        : "Discussion";
-      if (approved.length > 0) btnEl.classList.add("has-comments");
-      else btnEl.classList.remove("has-comments");
+      btnEl.setAttribute("aria-label", approved.length > 0
+        ? `Leave a comment (${approved.length} comment${approved.length === 1 ? '' : 's'})`
+        : "Leave a comment");
+      btnEl.classList.toggle("has-comments", approved.length > 0);
     }
   }
 
@@ -1068,6 +1085,9 @@ function getDominantColorFromImg(imgUrl) {
     getPool: getLiveDescriptorPool
   });
 
+
+
+
   // ============================================================
   // MODAL CONTROLS
   // ============================================================
@@ -1132,6 +1152,7 @@ function getDominantColorFromImg(imgUrl) {
     if (dateInput) dateInput.value = todayFormatted;
     if (trackRatingsList) trackRatingsList.innerHTML = "";
     if (logRuntime) logRuntime.value = "";
+    if (logRymRating) logRymRating.value = "";
     if (logSingleAudioUrl) logSingleAudioUrl.value = "";
     updateSingleModeFields();
   }
@@ -1211,6 +1232,9 @@ function getDominantColorFromImg(imgUrl) {
         if (logRuntime && item.runtime) {
           logRuntime.value = item.runtime;
         }
+        if (logRymRating && item.rym_rating) {
+          logRymRating.value = item.rym_rating;
+        }
 
         // 5. Clean up sessionStorage so it doesn't reopen on every refresh
         sessionStorage.removeItem("sosaspins_prefill_spin");
@@ -1278,6 +1302,16 @@ function getDominantColorFromImg(imgUrl) {
       populatePathSuggestions();
       if (!document.getElementById("top100DedicatedPage")) {
         applyFilters(false);
+        if (window.location.hash && window.location.hash.startsWith("#spin-row-")) {
+          setTimeout(() => {
+            const targetEl = document.querySelector(window.location.hash);
+            if (targetEl) {
+              targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+              targetEl.classList.add("cf-jump-highlight");
+              setTimeout(() => targetEl.classList.remove("cf-jump-highlight"), 1800);
+            }
+          }, 160);
+        }
       }
       updateAdminVisibility();
     } catch (err) {
@@ -1341,117 +1375,348 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     return html;
   }
 
-  window.playAudioTrack = async function(url, track = "Track", artist = "", album = "", coverUrl = "") {
-  const dock = document.getElementById("miniPlayerDock");
-  const trackEl = document.getElementById("miniPlayerTrack");
-  const artistEl = document.getElementById("miniPlayerArtist");
-  const albumEl = document.getElementById("miniPlayerAlbum");
-  const sepEl = document.querySelector(".aero-meta-sep");
-  const wrap = document.getElementById("miniPlayerFrameWrap");
-  const bgEl = document.getElementById("miniPlayerBg");
-  if (!dock || !wrap) return;
+  // ============================================================
+  // WINDOWS MEDIA PLAYER AERO GLASS MINIPLAYER CONTROLLER
+  // ============================================================
+  let wmpIsSeeking = false;
 
-  const cleanTrack = track.replace(/^["“]|["”]$/g, "");
+  window.formatWmpTime = function(seconds) {
+    if (isNaN(seconds) || seconds < 0) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  };
 
-  if (trackEl) trackEl.textContent = cleanTrack;
-  if (artistEl) artistEl.textContent = artist || "Unknown Artist";
-  if (albumEl) albumEl.textContent = album || "";
-  if (sepEl) sepEl.style.display = album ? "inline" : "none";
-
-  if (bgEl) {
-    if (coverUrl) {
-      bgEl.style.backgroundImage = `url('${coverUrl}')`;
-      bgEl.style.opacity = "";
-    } else {
-      bgEl.style.backgroundImage = "none";
-      bgEl.style.opacity = "0";
+  window.wmpUpdatePlayPauseUI = function(isPlaying) {
+    const playIcon = document.getElementById("wmpOrbPlayIcon");
+    const pauseIcon = document.getElementById("wmpOrbPauseIcon");
+    const orbBtn = document.getElementById("wmpPlayPauseBtn");
+    const eq = document.getElementById("wmpEqualizer");
+    if (playIcon) playIcon.style.display = isPlaying ? "none" : "block";
+    if (pauseIcon) pauseIcon.style.display = isPlaying ? "block" : "none";
+    if (orbBtn) {
+      if (isPlaying) orbBtn.classList.add("is-playing");
+      else orbBtn.classList.remove("is-playing");
     }
-  }
+    if (eq) {
+      eq.style.animationPlayState = isPlaying ? "running" : "paused";
+      const spans = eq.querySelectorAll("span");
+      spans.forEach(s => s.style.animationPlayState = isPlaying ? "running" : "paused");
+    }
+  };
 
-  wrap.innerHTML = "";
+  window.wmpTogglePlayPause = function() {
+    const media = document.getElementById("wmpActiveMedia");
+    if (!media) return;
+    if (media.paused) {
+      media.play().catch(() => {});
+    } else {
+      media.pause();
+    }
+  };
 
-  // 1. YouTube Match
-  const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/);
-  if (ytMatch) {
-    const videoId = ytMatch[1];
-    wrap.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-  }
-  // 2. SoundCloud Match with Dynamic Accent Color
-  else if (url.includes("soundcloud.com")) {
-    // Extract cover color or use emerald fallback
-    const dynamicHex = await getDominantColorFromImg(coverUrl);
-    const encoded = encodeURIComponent(url);
+  window.wmpStop = function() {
+    const media = document.getElementById("wmpActiveMedia");
+    if (!media) return;
+    media.pause();
+    media.currentTime = 0;
+    const progressFill = document.getElementById("wmpProgressFill");
+    const currentTimeEl = document.getElementById("wmpCurrentTime");
+    if (progressFill) progressFill.style.width = "0%";
+    if (currentTimeEl) currentTimeEl.textContent = "0:00";
+    wmpUpdatePlayPauseUI(false);
+  };
 
-    // Inject the extracted hex via %23 + dynamicHex
-    wrap.innerHTML = `<iframe src="https://w.soundcloud.com/player/?url=${encoded}&color=%23${dynamicHex}&auto_play=true&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false"></iframe>`;
-  }
+  window.wmpSkip = function(delta) {
+    const media = document.getElementById("wmpActiveMedia");
+    if (!media) return;
+    media.currentTime = Math.max(0, Math.min(media.duration || 0, media.currentTime + delta));
+  };
 
-  // 4. Direct HTML5 Video (.mp4 / .webm)
-else if (url.match(/\.(mp4|webm)(\?.*)?$/i)) {
-  wrap.innerHTML = `
-    <video src="${url}" controls autoplay style="width:100%; height:100%; border-radius: 6px; background:#000;"></video>
-  `;
-}
+  window.wmpToggleLoop = function() {
+    const media = document.getElementById("wmpActiveMedia");
+    const loopBtn = document.getElementById("wmpLoopBtn");
+    if (!media || !loopBtn) return;
+    media.loop = !media.loop;
+    if (media.loop) loopBtn.classList.add("is-active");
+    else loopBtn.classList.remove("is-active");
+  };
 
-// Bandcamp Match
-  else if (url.includes("bandcamp.com/EmbeddedPlayer") || url.includes("bandcamp.com")) {
-    const dynamicHex = await getDominantColorFromImg(coverUrl);
-
-    // Check if user pasted the raw EmbeddedPlayer source URL
-    if (url.includes("EmbeddedPlayer")) {
-      // Inject transparent background and our dynamic Aero accent color
-      let playerSrc = url;
-      if (!playerSrc.includes("transparent=")) playerSrc += "/transparent=true";
-      if (playerSrc.includes("linkcol=")) {
-        playerSrc = playerSrc.replace(/linkcol=[^/&]+/, `linkcol=${dynamicHex}`);
+  window.wmpToggleMute = function() {
+    const media = document.getElementById("wmpActiveMedia");
+    const volIcon = document.getElementById("wmpVolIcon");
+    if (!media) return;
+    media.muted = !media.muted;
+    if (volIcon) {
+      if (media.muted || media.volume === 0) {
+        volIcon.className = "bx bx-volume-mute";
       } else {
-        playerSrc += `/linkcol=${dynamicHex}`;
+        volIcon.className = "bx bx-volume-full";
       }
+    }
+  };
+
+  window.wmpSetVolume = function(val) {
+    const media = document.getElementById("wmpActiveMedia");
+    const volIcon = document.getElementById("wmpVolIcon");
+    if (!media) return;
+    media.volume = parseFloat(val);
+    media.muted = false;
+    if (volIcon) {
+      if (media.volume === 0) volIcon.className = "bx bx-volume-mute";
+      else if (media.volume < 0.5) volIcon.className = "bx bx-volume-low";
+      else volIcon.className = "bx bx-volume-full";
+    }
+  };
+
+  window.wmpToggleFullscreen = function() {
+    const media = document.getElementById("wmpActiveMedia");
+    if (!media) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    } else if (media.requestFullscreen) {
+      media.requestFullscreen().catch(() => {});
+    } else if (media.webkitEnterFullscreen) {
+      media.webkitEnterFullscreen();
+    }
+  };
+
+  window.initWmpScrubber = function(media) {
+    const track = document.getElementById("wmpScrubberTrack");
+    const fill = document.getElementById("wmpProgressFill");
+    const curTime = document.getElementById("wmpCurrentTime");
+    const durEl = document.getElementById("wmpDuration");
+    if (!track || !media) return;
+
+    function seek(e) {
+      const rect = track.getBoundingClientRect();
+      const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      if (media.duration) {
+        media.currentTime = pos * media.duration;
+      }
+    }
+
+    track.onmousedown = function(e) {
+      wmpIsSeeking = true;
+      seek(e);
+      function onMove(ev) {
+        if (wmpIsSeeking) seek(ev);
+      }
+      function onUp() {
+        wmpIsSeeking = false;
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      }
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    };
+
+    track.onkeydown = function(e) {
+      if (!media.duration) return;
+      if (e.key === "ArrowLeft") {
+        media.currentTime = Math.max(0, media.currentTime - 5);
+      } else if (e.key === "ArrowRight") {
+        media.currentTime = Math.min(media.duration, media.currentTime + 5);
+      }
+    };
+
+    media.ontimeupdate = function() {
+      if (!wmpIsSeeking && media.duration) {
+        const pct = (media.currentTime / media.duration) * 100;
+        if (fill) fill.style.width = `${pct}%`;
+        if (curTime) curTime.textContent = formatWmpTime(media.currentTime);
+      }
+    };
+
+    media.onloadedmetadata = function() {
+      if (durEl) durEl.textContent = formatWmpTime(media.duration);
+    };
+
+    media.ondurationchange = function() {
+      if (durEl) durEl.textContent = formatWmpTime(media.duration);
+    };
+
+    media.onplay = function() {
+      wmpUpdatePlayPauseUI(true);
+    };
+
+    media.onpause = function() {
+      wmpUpdatePlayPauseUI(false);
+    };
+
+    media.onended = function() {
+      wmpUpdatePlayPauseUI(false);
+    };
+  };
+
+  window.playAudioTrack = async function(url, track = "Track", artist = "", album = "", coverUrl = "") {
+    const dock = document.getElementById("miniPlayerDock");
+    const trackEl = document.getElementById("miniPlayerTrack");
+    const artistEl = document.getElementById("miniPlayerArtist");
+    const albumEl = document.getElementById("miniPlayerAlbum");
+    const sepEl = document.querySelector(".aero-meta-sep");
+    const wrap = document.getElementById("miniPlayerFrameWrap");
+    const bgEl = document.getElementById("miniPlayerBg");
+    const controlsBar = document.getElementById("wmpControlsBar");
+    const fsBtn = document.getElementById("wmpFullscreenBtn");
+    const statusEl = document.getElementById("wmpStatusText");
+    if (!dock || !wrap) return;
+
+    const cleanTrack = track.replace(/^["“]|["”]$/g, "");
+
+    if (trackEl) trackEl.textContent = cleanTrack;
+    if (artistEl) artistEl.textContent = artist || "Unknown Artist";
+    if (albumEl) albumEl.textContent = album || "";
+    if (sepEl) sepEl.style.display = album ? "inline" : "none";
+
+    if (bgEl) {
+      if (coverUrl) {
+        bgEl.style.backgroundImage = `url('${coverUrl}')`;
+        bgEl.style.opacity = "";
+      } else {
+        bgEl.style.backgroundImage = "none";
+        bgEl.style.opacity = "0";
+      }
+    }
+
+    wrap.innerHTML = "";
+
+    // 1. Intercept Direct Video (.mp4 / .webm)
+    if (url.match(/\.(mp4|webm)(\?.*)?$/i)) {
+      dock.classList.add("is-video");
+      if (fsBtn) fsBtn.style.display = "inline-flex";
+      if (controlsBar) controlsBar.style.display = "flex";
+      if (statusEl) statusEl.textContent = "sosaspins video player";
 
       wrap.innerHTML = `
-        <iframe
-          style="border: 0; width: 100%; height: 120px;"
-          src="${playerSrc}"
-          seamless>
-        </iframe>`;
-    } else {
-      // If a regular bandcamp link is passed, fall back to opening in Bandcamp
-      window.open(url, "_blank");
-      return;
-    }
-  }
+        <div class="wmp-video-stage">
+          <video id="wmpActiveMedia" src="${url}" preload="metadata" playsinline class="wmp-video-element"></video>
+          <div class="wmp-video-overlay" onclick="wmpTogglePlayPause()">
+            <div class="wmp-video-hud" id="wmpVideoHud"><i class='bx bx-play'></i></div>
+          </div>
+        </div>
+      `;
 
-  else if (url.includes("vimeo.com")) {
-    const vimeoMatch = url.match(/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+)/);
-    if (vimeoMatch && vimeoMatch[3]) {
-      const vimeoId = vimeoMatch[3];
+      const video = document.getElementById("wmpActiveMedia");
+      if (video) {
+        initWmpScrubber(video);
+        video.play().catch(e => console.warn("Video playback was prevented:", e));
+      }
+    }
+    // 2. Intercept Direct HTML5 Audio (.mp3, .wav, .ogg, .m4a, .aac)
+    else if (url.match(/\.(mp3|wav|ogg|m4a|aac)(\?.*)?$/i)) {
+      dock.classList.remove("is-video");
+      if (fsBtn) fsBtn.style.display = "none";
+      if (controlsBar) controlsBar.style.display = "flex";
+      if (statusEl) statusEl.textContent = "WINDOWS MEDIA PLAYER";
+
+      wrap.innerHTML = `
+        <div class="wmp-audio-stage">
+          <div class="wmp-audio-art-wrap">
+            <img src="${coverUrl || 'assets/images/spins/placeholder.png'}" alt="Cover" class="wmp-audio-art">
+            <div class="wmp-audio-art-reflection" style="background-image: url('${coverUrl || 'assets/images/spins/placeholder.png'}');"></div>
+          </div>
+          <audio id="wmpActiveMedia" src="${url}" preload="metadata"></audio>
+        </div>
+      `;
+
+      const audio = document.getElementById("wmpActiveMedia");
+      if (audio) {
+        initWmpScrubber(audio);
+        audio.play().catch(e => console.warn("Audio playback was prevented:", e));
+      }
+    }
+    // 3. YouTube Match
+    else if (url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/)) {
+      dock.classList.remove("is-video");
+      if (fsBtn) fsBtn.style.display = "none";
+      if (controlsBar) controlsBar.style.display = "none";
+      if (statusEl) statusEl.textContent = "YOUTUBE PLAYER";
+
+      const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/);
+      const videoId = ytMatch[1];
+      wrap.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+      wmpUpdatePlayPauseUI(true);
+    }
+    // 4. SoundCloud Match with Dynamic Accent Color
+    else if (url.includes("soundcloud.com")) {
+      dock.classList.remove("is-video");
+      if (fsBtn) fsBtn.style.display = "none";
+      if (controlsBar) controlsBar.style.display = "none";
+      if (statusEl) statusEl.textContent = "SOUNDCLOUD PLAYER";
+
       const dynamicHex = await getDominantColorFromImg(coverUrl);
-      wrap.innerHTML = `
-        <iframe
-          src="https://player.vimeo.com/video/${vimeoId}?autoplay=1&color=${dynamicHex}&dnt=1"
-          allow="autoplay; fullscreen; picture-in-picture"
-          allowfullscreen>
-        </iframe>`;
-    } else {
+      const encoded = encodeURIComponent(url);
+      wrap.innerHTML = `<iframe style="border: 0; width: 100%; height: 120px; display: block;" src="https://w.soundcloud.com/player/?url=${encoded}&color=%23${dynamicHex}&auto_play=true&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false"></iframe>`;
+      wmpUpdatePlayPauseUI(true);
+    }
+    // 5. Bandcamp Match
+    else if (url.includes("bandcamp.com/EmbeddedPlayer") || url.includes("bandcamp.com")) {
+      dock.classList.remove("is-video");
+      if (fsBtn) fsBtn.style.display = "none";
+      if (controlsBar) controlsBar.style.display = "none";
+      if (statusEl) statusEl.textContent = "BANDCAMP PLAYER";
+
+      const dynamicHex = await getDominantColorFromImg(coverUrl);
+      if (url.includes("EmbeddedPlayer")) {
+        let playerSrc = url;
+        if (!playerSrc.includes("transparent=")) playerSrc += "/transparent=true";
+        if (playerSrc.includes("linkcol=")) {
+          playerSrc = playerSrc.replace(/linkcol=[^/&]+/, `linkcol=${dynamicHex}`);
+        } else {
+          playerSrc += `/linkcol=${dynamicHex}`;
+        }
+        wrap.innerHTML = `<iframe style="border: 0; width: 100%; height: 120px;" src="${playerSrc}" seamless></iframe>`;
+        wmpUpdatePlayPauseUI(true);
+      } else {
+        window.open(url, "_blank");
+        return;
+      }
+    }
+    // 6. Vimeo Match
+    else if (url.includes("vimeo.com")) {
+      dock.classList.remove("is-video");
+      if (fsBtn) fsBtn.style.display = "none";
+      if (controlsBar) controlsBar.style.display = "none";
+      if (statusEl) statusEl.textContent = "VIMEO PLAYER";
+
+      const vimeoMatch = url.match(/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+)/);
+      if (vimeoMatch && vimeoMatch[3]) {
+        const vimeoId = vimeoMatch[3];
+        const dynamicHex = await getDominantColorFromImg(coverUrl);
+        wrap.innerHTML = `<iframe src="https://player.vimeo.com/video/${vimeoId}?autoplay=1&color=${dynamicHex}&dnt=1" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
+        wmpUpdatePlayPauseUI(true);
+      } else {
+        window.open(url, "_blank");
+        return;
+      }
+    }
+    // 7. Fallback
+    else {
       window.open(url, "_blank");
       return;
     }
-  }
-  // 3. Fallback
-  else {
-    window.open(url, "_blank");
-    return;
-  }
 
-  dock.style.display = "block";
-};
+    dock.style.display = "block";
+  };
 
-window.closeMiniPlayer = function() {
-  const dock = document.getElementById("miniPlayerDock");
-  const wrap = document.getElementById("miniPlayerFrameWrap");
-  if (dock) dock.style.display = "none";
-  if (wrap) wrap.innerHTML = "";
-};
+  window.closeMiniPlayer = function() {
+    const dock = document.getElementById("miniPlayerDock");
+    const wrap = document.getElementById("miniPlayerFrameWrap");
+    const media = document.getElementById("wmpActiveMedia");
+    if (media) {
+      try {
+        media.pause();
+        media.src = "";
+      } catch(e) {}
+    }
+    if (dock) {
+      dock.style.display = "none";
+      dock.classList.remove("is-video");
+    }
+    if (wrap) wrap.innerHTML = "";
+    wmpUpdatePlayPauseUI(false);
+  };
   // ============================================================
   // SOSASPINS IPOD / ITUNES COVER FLOW 3D CAROUSEL
   // ============================================================
@@ -1476,6 +1741,7 @@ window.closeMiniPlayer = function() {
 
   function setSpinsCoverFlowMode(active) {
     isSpinsCoverFlow = active;
+    document.body.classList.toggle("coverflow-active", isSpinsCoverFlow);
     if (spinsCoverFlowToggleBtn) {
       spinsCoverFlowToggleBtn.classList.toggle("active-filter", isSpinsCoverFlow);
       spinsCoverFlowToggleBtn.setAttribute("aria-pressed", isSpinsCoverFlow ? "true" : "false");
@@ -1512,6 +1778,10 @@ window.closeMiniPlayer = function() {
   }
 
   window.jumpToSpinInTimeline = function(spinId) {
+    if (document.getElementById("top100DedicatedPage") || !document.getElementById("timelineFeed")) {
+      window.location.href = `sosaspins.html#spin-row-${spinId}`;
+      return;
+    }
     setSpinsCoverFlowMode(false);
     setTimeout(() => {
       const row = document.getElementById(`spin-row-${spinId}`);
@@ -1628,17 +1898,6 @@ window.closeMiniPlayer = function() {
     spinsCoverFlowTrack.innerHTML = currentCfSpins.map((item, idx) => {
       const coverSrc = item.cover_url || "assets/images/spins/placeholder.png";
       const safeReflectUrl = coverSrc.replace(/'/g, "\\'");
-      let ratingBadgeHtml = "";
-      if (item.rating !== null && item.rating !== undefined && item.rating !== "") {
-        const rNum = parseFloat(item.rating);
-        if (!isNaN(rNum)) {
-          ratingBadgeHtml = `
-            <div class="aero-completed-pill">
-              <span class="pill-rating">${rNum.toFixed(1)}<span class="pill-star">★</span></span>
-            </div>
-          `;
-        }
-      }
 
       return `
         <div class="cf-card"
@@ -1648,7 +1907,6 @@ window.closeMiniPlayer = function() {
           <div class="cf-card-sleeve">
             <img src="${coverSrc}" alt="${escapeHtml(item.title || '')}" class="cf-card-art" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
             <div class="cf-card-gloss"></div>
-            ${ratingBadgeHtml}
           </div>
           <div class="cf-card-reflection" style="background-image: url('${safeReflectUrl}');"></div>
         </div>
@@ -1676,8 +1934,8 @@ window.closeMiniPlayer = function() {
 
     const cards = spinsCoverFlowTrack.querySelectorAll(".cf-card");
     const isMobile = window.innerWidth <= 640;
-    const baseOffset = isMobile ? 96 : 152;
-    const stepX = isMobile ? 34 : 52;
+    const baseOffset = isMobile ? 88 : 135;
+    const stepX = isMobile ? 30 : 44;
 
     cards.forEach((card, idx) => {
       const offset = idx - spinsCfIndex;
@@ -1733,34 +1991,70 @@ window.closeMiniPlayer = function() {
     }
 
     if (spinsCfMeta) {
-      const metaPills = [];
+      const rowsHtml = [];
+
+      // 1. Star Rating Row (Out of badge, dedicated row)
       if (item.rating !== null && item.rating !== undefined && item.rating !== "") {
         const rNum = parseFloat(item.rating);
         if (!isNaN(rNum)) {
-          metaPills.push(`<span class="cf-status-badge completed"><span class="cf-gold-star">${getStarString(rNum)}</span> (${rNum.toFixed(1)})</span>`);
+          rowsHtml.push(`
+            <div class="cf-meta-row cf-meta-rating-row" title="Rating: ${rNum.toFixed(1)} / 5.0">
+              <span class="cf-rating-stars">${getStarString(rNum)}</span>
+              <span class="cf-rating-score">${rNum.toFixed(1)}</span>
+            </div>
+          `);
         }
       }
-      metaPills.push(`<span class="cf-genre-chip">${displayType}</span>`);
+
+      // 2. Info Row (Release Type, Date, Runtime, Relisten / Recalibrate Queue)
+      const infoPills = [];
+      infoPills.push(`<span class="cf-status-badge cf-type-badge">${escapeHtml(displayType)}</span>`);
       if (item.log_date) {
-        metaPills.push(`<span class="cf-status-badge unlistened"><i class='bx bx-calendar'></i> ${escapeHtml(item.log_date)}</span>`);
+        infoPills.push(`<span class="cf-status-badge unlistened"><i class='bx bx-calendar'></i> ${escapeHtml(item.log_date)}</span>`);
       }
       if (item.runtime) {
-        metaPills.push(`<span class="cf-status-badge unlistened"><i class='bx bx-time-five'></i> ${escapeHtml(item.runtime)}</span>`);
+        infoPills.push(`<span class="cf-status-badge unlistened"><i class='bx bx-time-five'></i> ${escapeHtml(item.runtime)}</span>`);
       }
       if (item.relisten) {
-        metaPills.push(`<span class="cf-status-badge completed relisten-badge" title="Relisten: This symbol signifies that this spin is a relisten" aria-label="Relisten: This symbol signifies that this spin is a relisten"><i class='bx bx-rotate-left'></i></span>`);
+        infoPills.push(`<span class="cf-status-badge completed relisten-badge" title="Relisten: This symbol signifies that this spin is a relisten" aria-label="Relisten: This symbol signifies that this spin is a relisten"><i class='bx bx-rotate-left'></i></span>`);
       } else {
         const recalMeta = getActiveRecalibrateMeta(item);
         if (recalMeta) {
           const reasonLabel = recalMeta.relisten_reason ? ` (${escapeHtml(recalMeta.relisten_reason)})` : "";
-          metaPills.push(`<a href="challenge.html#recalibrate" class="cf-status-badge recalibrate-queue" title="Active in Recalibrate Queue${reasonLabel} &bull; Click to view in Challenge"><i class='bx bx-revision'></i> RECALIBRATE QUEUE</a>`);
+          infoPills.push(`<a href="challenge.html#recalibrate" class="cf-status-badge recalibrate-queue" title="Active in Recalibrate Queue${reasonLabel} &bull; Click to view in Challenge"><i class='bx bx-revision'></i> RECALIBRATE QUEUE</a>`);
         }
       }
-      (item.genres || []).slice(0, 4).forEach(g => {
-        metaPills.push(`<span class="cf-genre-chip" style="cursor: pointer;" onclick="setSidebarFilter('genre', '${g.replace(/'/g, "\\'")}')">${escapeHtml(g)}</span>`);
-      });
+      if (infoPills.length) {
+        rowsHtml.push(`<div class="cf-meta-row cf-meta-info-row">${infoPills.join("")}</div>`);
+      }
 
-      spinsCfMeta.innerHTML = metaPills.join("");
+      // 3. Primary Genres Row
+      const primGenrePills = [];
+      const primList = Array.isArray(item.genres) ? item.genres : (typeof item.genres === "string" ? item.genres.split(",") : []);
+      primList.forEach(g => {
+        const cleanG = g.trim();
+        if (cleanG) {
+          primGenrePills.push(`<span class="cf-genre-chip cf-genre-primary" style="cursor: pointer;" onclick="setSidebarFilter('genre', '${cleanG.replace(/'/g, "\\'")}')" title="Primary Genre: ${escapeHtml(cleanG)}">${escapeHtml(cleanG)}</span>`);
+        }
+      });
+      if (primGenrePills.length) {
+        rowsHtml.push(`<div class="cf-meta-row cf-meta-prim-genres-row">${primGenrePills.join("")}</div>`);
+      }
+
+      // 4. Secondary Genres Row (Dedicated row, dotted outline, fade)
+      const secGenrePills = [];
+      const secList = Array.isArray(item.secondary_genres) ? item.secondary_genres : (typeof item.secondary_genres === "string" ? item.secondary_genres.split(",") : []);
+      secList.forEach(g => {
+        const cleanG = g.trim();
+        if (cleanG) {
+          secGenrePills.push(`<span class="cf-genre-chip cf-genre-secondary" style="cursor: pointer;" onclick="setSidebarFilter('secondary_genre', '${cleanG.replace(/'/g, "\\'")}')" title="Secondary Genre: ${escapeHtml(cleanG)}">${escapeHtml(cleanG)}</span>`);
+        }
+      });
+      if (secGenrePills.length) {
+        rowsHtml.push(`<div class="cf-meta-row cf-meta-sec-genres-row">${secGenrePills.join("")}</div>`);
+      }
+
+      spinsCfMeta.innerHTML = rowsHtml.join("");
     }
 
     const safeArtist = (item.artist || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
@@ -1779,7 +2073,7 @@ window.closeMiniPlayer = function() {
             spinsCfFavTracks.style.display = "flex";
             spinsCfFavTracks.innerHTML = `
               <span class="fav-track-chip song-embed-link single-play-chip" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')">
-                <i class='bx bx-play-circle'></i> Play Single (${escapeHtml(item.title)})
+                <span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(item.title)}
               </span>
             `;
           } else {
@@ -1792,9 +2086,9 @@ window.closeMiniPlayer = function() {
             if (t.includes("|")) {
               const [name, url] = t.split("|").map(s => s.trim());
               const safeTrack = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-              return `<span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')"><i class='bx bx-play-circle'></i>${escapeHtml(name)}</span>`;
+              return `<span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(name)}</span>`;
             }
-            return `<span class="fav-track-chip"><i class='bx bx-music'></i>${escapeHtml(t)}</span>`;
+            return `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon">${escapeHtml(t)}</span>`;
           }).join("");
         }
       } else {
@@ -1844,7 +2138,7 @@ window.closeMiniPlayer = function() {
       if (isAdmin && originalIdx !== -1) {
         actionsHtml += `
           <button type="button" class="cf-action-btn" onclick="editSpin(${originalIdx})">
-            <i class='bx bx-edit-alt'></i> Edit Spin
+            <img src="assets/icons/aero/edit.ico" alt="Edit" class="aero-action-icon" style="width: 14px; height: 14px; margin-right: 4px;"> Edit Spin
           </button>
         `;
       }
@@ -1865,7 +2159,7 @@ window.closeMiniPlayer = function() {
   }
 
   // ============================================================
-  // SOSASPINS TOP 100 ALBUMS SHOWCASE CONTROLLER
+  // SOSASPINS TOP 100 ALBUMS & TOP ARTISTS SHOWCASE CONTROLLER
   // ============================================================
   const spinsTop100ToggleBtn = document.getElementById("spinsTop100ToggleBtn");
   const top100ViewContainer = document.getElementById("top100ViewContainer");
@@ -1881,7 +2175,40 @@ window.closeMiniPlayer = function() {
   const top100StatusCount = document.getElementById("top100StatusCount");
   const top100StatusMode = document.getElementById("top100StatusMode");
 
-  // Album Bank Drawer Controls
+  // Top 100 Tabs, Showcase & Artists Controls
+  const topAlbumsShowcase = document.getElementById("topAlbumsShowcase");
+  const topArtistsShowcase = document.getElementById("topArtistsShowcase");
+  const topArtistsPodium = document.getElementById("topArtistsPodium");
+  const topArtistsTierGrid = document.getElementById("topArtistsTierGrid");
+  const topArtistsMainGrid = document.getElementById("topArtistsMainGrid");
+  const topArtistsTierSection = document.getElementById("topArtistsTierSection");
+  const topArtistsMainSection = document.getElementById("topArtistsMainSection");
+  const top100TierSection = document.getElementById("top100TierSection");
+  const top100MainSection = document.getElementById("top100MainSection");
+  const topAlbumsCountWrap = document.getElementById("topAlbumsCountWrap");
+  const topArtistsCountWrap = document.getElementById("topArtistsCountWrap");
+  const top100HeaderTitle = document.getElementById("top100HeaderTitle");
+  const top100HeaderSubtitle = document.getElementById("top100HeaderSubtitle");
+  const top100WindowTitleSpan = document.getElementById("top100WindowTitleSpan");
+  const topAlbumsMainGridPill = document.getElementById("topAlbumsMainGridPill");
+  const topArtistsMainGridPill = document.getElementById("topArtistsMainGridPill");
+  const tabTopAlbums = document.getElementById("tabTopAlbums");
+  const tabTopArtists = document.getElementById("tabTopArtists");
+  const top100ToggleBankBtn = document.getElementById("top100ToggleBankBtn");
+  const top100ToggleBankLabel = document.getElementById("top100ToggleBankLabel");
+  const top100EditBtnText = document.getElementById("top100EditBtnText");
+  const bankEdgeTab = document.getElementById("bankEdgeTab");
+  const bankEdgeArrow = document.getElementById("bankEdgeArrow");
+  const bankEdgeText = document.getElementById("bankEdgeText");
+  const albumBankTitleText = document.getElementById("albumBankTitleText");
+
+  // Custom Image / GIF Modal Elements
+  const artistCustomImageModal = document.getElementById("artistCustomImageModal");
+  const customImgArtistName = document.getElementById("customImgArtistName");
+  const artistCustomImgInput = document.getElementById("artistCustomImgInput");
+  const artistModalCoversPicker = document.getElementById("artistModalCoversPicker");
+
+  // Album / Artist Bank Drawer Controls
   const albumBankDrawer = document.getElementById("albumBankDrawer");
   const albumBankSearchInput = document.getElementById("albumBankSearchInput");
   const albumBankSortSelect = document.getElementById("albumBankSortSelect");
@@ -1899,27 +2226,41 @@ window.closeMiniPlayer = function() {
   const top100AeroToast = document.getElementById("top100AeroToast");
   let toastTimer = null;
 
+  let activeTop100Tab = "albums";
+  let topAlbumsCount = 100;
+  let topArtistsCount = 20;
+
   let topAlbumsState = {}; // Keyed by rank 1..100
   let topAlbumsOriginal = {}; // Snapshot for cancel
+  let topArtistsCuratedState = {}; // Keyed by rank 1..50
+  let topArtistsCuratedOriginal = {}; // Snapshot for cancel
   let isTop100Loaded = false;
   isTop100Editing = false;
   let isTop100View = false;
-  let draggedPayload = null; // { type: 'bank'|'grid', spinId: ..., rank: ... }
+  let isBankOpen = false;
+  let draggedPayload = null; // { type: 'bank'|'grid'|'artist-bank'|'artist-grid', ... }
   let albumBankSpins = [];
   let albumBankSearchTerm = "";
   let albumBankSortMode = "rating-desc";
+  let editingArtistRank = null;
 
-  function showTop100Toast(msg, title) {
+  function showTop100Toast(msg, title = "SosaSpins Notice") {
     if (!top100AeroToast) return;
-    if (toastTimer) clearTimeout(toastTimer);
     const titleEl = top100AeroToast.querySelector(".toast-title");
     const msgEl = top100AeroToast.querySelector(".toast-msg");
-    if (titleEl) titleEl.textContent = title || "Top 100 Saved";
+    if (titleEl) titleEl.textContent = title;
     if (msgEl) msgEl.textContent = msg;
+
+    if (toastTimer) clearTimeout(toastTimer);
     top100AeroToast.style.display = "flex";
+    top100AeroToast.classList.add("is-visible");
+
     toastTimer = setTimeout(() => {
-      top100AeroToast.style.display = "none";
-    }, 3500);
+      top100AeroToast.classList.remove("is-visible");
+      setTimeout(() => {
+        top100AeroToast.style.display = "none";
+      }, 300);
+    }, 3200);
   }
 
   let allEntriesById = null;
@@ -1984,9 +2325,43 @@ window.closeMiniPlayer = function() {
     return allEntriesById.get(String(id)) || null;
   }
 
+  function adjustTop100Tooltip(tile) {
+    const tooltip = tile.querySelector(".top100-tooltip");
+    if (!tooltip) return;
+
+    // Reset shift to measure true unshifted geometry
+    tooltip.style.setProperty("--arrow-shift", "0px");
+
+    const tileRect = tile.getBoundingClientRect();
+    const tooltipWidth = tooltip.offsetWidth;
+    if (!tooltipWidth) return;
+
+    const tileCenter = tileRect.left + tileRect.width / 2;
+    const halfWidth = tooltipWidth / 2;
+
+    const container = document.getElementById("top100ExportWrapper") || tile.closest(".top100-window-body") || document.documentElement;
+    const containerRect = container.getBoundingClientRect();
+
+    const minLeft = Math.max(containerRect.left + 8, 8);
+    const maxRight = Math.min(containerRect.right - 8, (window.innerWidth || 1200) - 8);
+
+    let shift = 0;
+    if (tileCenter - halfWidth < minLeft) {
+      shift = minLeft - (tileCenter - halfWidth);
+    } else if (tileCenter + halfWidth > maxRight) {
+      shift = maxRight - (tileCenter + halfWidth);
+    }
+
+    const maxAllowedShift = Math.max(0, halfWidth - 12);
+    shift = Math.max(-maxAllowedShift, Math.min(maxAllowedShift, shift));
+
+    tooltip.style.setProperty("--arrow-shift", `${Math.round(shift)}px`);
+  }
+
   function resolveTopAlbumData(album) {
     if (!album) return null;
     let resolved = { ...album };
+
     if (album.spin_id) {
       const match = getSpinById(album.spin_id);
       if (match) {
@@ -2000,12 +2375,151 @@ window.closeMiniPlayer = function() {
         resolved.secondary_genres = match.secondary_genres || [];
         resolved.descriptors = match.descriptors || [];
         resolved.fav_tracks = match.fav_tracks || "";
-        resolved.memo = match.memo || album.custom_note || "";
-        resolved.review_url = match.review_url || "";
-        resolved.type = match.type || "";
+        resolved.rym_rating = (match.rym_rating !== null && match.rym_rating !== undefined && match.rym_rating !== "") ? match.rym_rating : (album.rym_rating || null);
       }
     }
     return resolved;
+  }
+
+  function getArtistStats(artistName) {
+    if (!artistName) return { artist: "", count: 0, avg: "0.00", topRating: "", topProject: null, cover: "assets/images/spins/placeholder.png", covers: [], commonGenres: [] };
+
+    let count = 0;
+    const ratings = [];
+    const covers = [];
+    let topProject = null;
+    let topRating = -1;
+    const genresMap = {};
+
+    (allEntries || []).forEach(s => {
+      if (!s.artist) return;
+      const raw = String(s.artist).trim();
+      let matches = false;
+      if (/^Tyler,\s*The Creator$/i.test(raw)) {
+        matches = (artistName.toLowerCase() === "tyler, the creator");
+      } else {
+        const split = raw.split(/(?:,|\s+(?:&|feat\.?|ft\.?|with)\s+)/i).map(a => a.trim().toLowerCase());
+        matches = split.includes(artistName.toLowerCase());
+      }
+
+      if (matches) {
+        count++;
+        const r = parseFloat(s.rating);
+        if (!isNaN(r)) {
+          ratings.push(r);
+          if (r > topRating) {
+            topRating = r;
+            topProject = s;
+          }
+        }
+        if (s.cover_url) covers.push(s.cover_url);
+        const gList = Array.isArray(s.genres) ? s.genres : (typeof s.genres === "string" ? s.genres.split(",") : []);
+        gList.map(g => String(g).trim()).filter(Boolean).forEach(g => {
+          genresMap[g] = (genresMap[g] || 0) + 1;
+        });
+      }
+    });
+
+    const avg = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(2) : "0.00";
+    return {
+      artist: artistName,
+      count,
+      ratingsCount: ratings.length,
+      avg,
+      topRating: topRating >= 0 ? topRating.toFixed(1) : "",
+      topProject,
+      cover: (topProject && topProject.cover_url) || covers[0] || "assets/images/spins/placeholder.png",
+      covers: Array.from(new Set(covers)),
+      commonGenres: Object.entries(genresMap).sort((a, b) => b[1] - a[1])
+    };
+  }
+
+  function calculateTopArtists(spins, minSpins = 1) {
+    const artistMap = {};
+    (spins || []).forEach(s => {
+      if (!s.artist) return;
+      const rawArtist = String(s.artist).trim();
+      if (!rawArtist) return;
+
+      let individualArtists;
+      if (/^Tyler,\s*The Creator$/i.test(rawArtist)) {
+        individualArtists = ["Tyler, The Creator"];
+      } else {
+        individualArtists = rawArtist
+          .split(/(?:,|\s+(?:&|feat\.?|ft\.?|with)\s+)/i)
+          .map(a => a.trim())
+          .filter(Boolean);
+      }
+
+      const r = parseFloat(s.rating);
+
+      individualArtists.forEach(a => {
+        if (!artistMap[a]) {
+          artistMap[a] = {
+            artist: a,
+            count: 0,
+            ratings: [],
+            covers: [],
+            topProject: null,
+            topRating: -1
+          };
+        }
+        artistMap[a].count++;
+        if (!isNaN(r)) {
+          artistMap[a].ratings.push(r);
+          if (r > artistMap[a].topRating) {
+            artistMap[a].topRating = r;
+            artistMap[a].topProject = s;
+          }
+        }
+        if (s.cover_url) artistMap[a].covers.push(s.cover_url);
+      });
+    });
+
+    const list = Object.values(artistMap).map(d => ({
+      artist: d.artist,
+      count: d.count,
+      ratingsCount: d.ratings.length,
+      avg: d.ratings.length ? (d.ratings.reduce((a, b) => a + b, 0) / d.ratings.length).toFixed(2) : "0.00",
+      topProject: d.topProject,
+      topRating: d.topRating >= 0 ? d.topRating.toFixed(1) : "",
+      cover: (d.topProject && d.topProject.cover_url) || d.covers[0] || "assets/images/spins/placeholder.png"
+    }));
+
+    const eligible = list.filter(a => a.count >= minSpins);
+    eligible.sort((a, b) => parseFloat(b.avg) - parseFloat(a.avg) || b.count - a.count || a.artist.localeCompare(b.artist));
+    return eligible;
+  }
+
+  function loadTopArtistsCurated() {
+    try {
+      const stored = localStorage.getItem("sosa_top_artists_curated");
+      if (stored) {
+        topArtistsCuratedState = JSON.parse(stored);
+      }
+    } catch (e) {
+      console.warn("Failed to load top_artists_curated from storage:", e);
+    }
+
+    // Auto-populate initial curated artists if state is empty
+    if (Object.keys(topArtistsCuratedState).length === 0) {
+      const calculated = calculateTopArtists(allEntries, 1);
+      calculated.slice(0, 50).forEach((a, idx) => {
+        const rank = idx + 1;
+        topArtistsCuratedState[rank] = {
+          rank,
+          artist: a.artist,
+          custom_image: null,
+          top_album_title: a.topProject ? a.topProject.title : "",
+          top_album_cover: (a.topProject && a.topProject.cover_url) || a.cover,
+          top_album_rating: a.topRating,
+          avg_rating: a.avg,
+          spins_count: a.count
+        };
+      });
+    }
+
+    topArtistsCuratedOriginal = JSON.parse(JSON.stringify(topArtistsCuratedState));
   }
 
   async function fetchTopAlbumsData() {
@@ -2028,7 +2542,14 @@ window.closeMiniPlayer = function() {
       });
       topAlbumsOriginal = JSON.parse(JSON.stringify(topAlbumsState));
       isTop100Loaded = true;
-      renderTop100View();
+
+      loadTopArtistsCurated();
+
+      if (activeTop100Tab === "albums") {
+        renderTop100View();
+      } else {
+        renderTopArtistsView();
+      }
     } catch (err) {
       console.error("fetchTopAlbumsData exception:", err);
     }
@@ -2047,6 +2568,7 @@ window.closeMiniPlayer = function() {
     if (spinsCoverFlowWrapper && isTop100View) {
       spinsCoverFlowWrapper.style.display = "none";
       isSpinsCoverFlow = false;
+      document.body.classList.remove("coverflow-active");
       if (spinsCoverFlowToggleBtn) {
         spinsCoverFlowToggleBtn.classList.remove("active-filter");
         spinsCoverFlowToggleBtn.innerHTML = `<i class='bx bx-carousel'></i> Cover Flow`;
@@ -2063,7 +2585,7 @@ window.closeMiniPlayer = function() {
 
     if (feedFilterLabel) {
       if (isTop100View) {
-        feedFilterLabel.textContent = "Top 100 Albums Showcase";
+        feedFilterLabel.textContent = "Top 100 Showcase";
       } else {
         feedFilterLabel.textContent = "All Spins";
       }
@@ -2076,7 +2598,8 @@ window.closeMiniPlayer = function() {
       if (!isTop100Loaded) {
         fetchTopAlbumsData();
       } else {
-        renderTop100View();
+        if (activeTop100Tab === "albums") renderTop100View();
+        else renderTopArtistsView();
       }
       if (!document.getElementById("top100DedicatedPage")) {
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -2092,9 +2615,39 @@ window.closeMiniPlayer = function() {
     }
   }
 
+  window.toggleBankDrawer = function(forceOpen) {
+    if (forceOpen !== undefined) {
+      isBankOpen = forceOpen;
+    } else {
+      isBankOpen = !isBankOpen;
+    }
+
+    document.body.classList.toggle("bank-is-open", isBankOpen);
+
+    if (albumBankDrawer) {
+      if (isBankOpen) {
+        albumBankDrawer.style.display = "flex";
+        requestAnimationFrame(() => albumBankDrawer.classList.add("is-open"));
+        renderAlbumBank();
+      } else {
+        albumBankDrawer.classList.remove("is-open");
+        setTimeout(() => {
+          if (!isBankOpen && albumBankDrawer) albumBankDrawer.style.display = "none";
+        }, 300);
+      }
+    }
+
+    if (bankEdgeTab) {
+      bankEdgeTab.style.display = (isAdmin && isTop100Editing) ? "flex" : "none";
+      if (bankEdgeArrow) {
+        bankEdgeArrow.className = isBankOpen ? "bx bxs-chevron-right" : "bx bxs-chevron-left";
+      }
+    }
+  };
+
   function setTop100EditMode(editing) {
     if (editing && !isAdmin) {
-      alert("Administrator passkey required to edit Top 100.");
+      alert("Administrator passkey required to edit.");
       return;
     }
 
@@ -2102,6 +2655,10 @@ window.closeMiniPlayer = function() {
     document.body.classList.toggle("top100-editing-mode", isTop100Editing);
     if (top100ViewContainer) {
       top100ViewContainer.classList.toggle("top100-editing-mode", isTop100Editing);
+    }
+
+    if (top100EditBtnText) {
+      top100EditBtnText.textContent = activeTop100Tab === "artists" ? "Edit Artists" : "Edit Top 100";
     }
 
     if (top100EditModeBtn) {
@@ -2113,51 +2670,145 @@ window.closeMiniPlayer = function() {
     if (top100CancelEditBtn) {
       top100CancelEditBtn.style.display = (isAdmin && isTop100Editing) ? "inline-flex" : "none";
     }
+    if (top100ToggleBankBtn) {
+      top100ToggleBankBtn.style.display = (isAdmin && isTop100Editing) ? "inline-flex" : "none";
+    }
+    if (bankEdgeTab) {
+      bankEdgeTab.style.display = (isAdmin && isTop100Editing) ? "flex" : "none";
+    }
+
     if (top100StatusMode) {
       top100StatusMode.textContent = isTop100Editing ? "Editing Mode" : "Viewing";
       top100StatusMode.style.color = isTop100Editing ? "#10b981" : "";
       top100StatusMode.style.fontWeight = isTop100Editing ? "700" : "";
     }
 
-    if (albumBankDrawer) {
-      if (isTop100Editing) {
-        albumBankDrawer.style.display = "flex";
-        requestAnimationFrame(() => albumBankDrawer.classList.add("is-open"));
-        renderAlbumBank();
-      } else {
-        albumBankDrawer.classList.remove("is-open");
-        setTimeout(() => {
-          if (!isTop100Editing && albumBankDrawer) albumBankDrawer.style.display = "none";
-        }, 300);
-      }
+    if (isTop100Editing) {
+      window.toggleBankDrawer(true);
+    } else {
+      window.toggleBankDrawer(false);
     }
 
-    renderTop100View();
+    if (activeTop100Tab === "albums") {
+      renderTop100View();
+    } else {
+      renderTopArtistsView();
+    }
   }
 
   function exitTop100EditMode() {
     if (isTop100Editing) {
-      topAlbumsState = JSON.parse(JSON.stringify(topAlbumsOriginal));
+      if (activeTop100Tab === "albums") {
+        topAlbumsState = JSON.parse(JSON.stringify(topAlbumsOriginal));
+      } else {
+        topArtistsCuratedState = JSON.parse(JSON.stringify(topArtistsCuratedOriginal));
+      }
       setTop100EditMode(false);
     }
   }
 
+  window.switchTop100Tab = function(tab) {
+    if (isTop100Editing) {
+      exitTop100EditMode();
+    }
+    activeTop100Tab = tab;
+
+    if (tabTopAlbums) {
+      tabTopAlbums.classList.toggle("active", tab === "albums");
+      tabTopAlbums.setAttribute("aria-selected", tab === "albums" ? "true" : "false");
+    }
+    if (tabTopArtists) {
+      tabTopArtists.classList.toggle("active", tab === "artists");
+      tabTopArtists.setAttribute("aria-selected", tab === "artists" ? "true" : "false");
+    }
+
+    if (top100EditBtnText) {
+      top100EditBtnText.textContent = tab === "artists" ? "Edit Artists" : "Edit Top 100";
+    }
+
+    if (tab === "albums") {
+      if (topAlbumsShowcase) topAlbumsShowcase.style.display = "block";
+      if (topArtistsShowcase) topArtistsShowcase.style.display = "none";
+      if (topAlbumsCountWrap) topAlbumsCountWrap.style.display = "inline-flex";
+      if (topArtistsCountWrap) topArtistsCountWrap.style.display = "none";
+      if (top100HeaderTitle) {
+        top100HeaderTitle.textContent = topAlbumsCount === "all" ? "Sosa's All-Time Top Albums" : `Sosa's All-Time Top ${topAlbumsCount} Albums`;
+      }
+      if (top100WindowTitleSpan) {
+        top100WindowTitleSpan.textContent = topAlbumsCount === "all" ? "Sosa's Top Albums Showcase" : `Sosa's Top ${topAlbumsCount} Albums Showcase`;
+      }
+      renderTop100View();
+    } else {
+      if (topAlbumsShowcase) topAlbumsShowcase.style.display = "none";
+      if (topArtistsShowcase) topArtistsShowcase.style.display = "block";
+      if (topAlbumsCountWrap) topAlbumsCountWrap.style.display = "none";
+      if (topArtistsCountWrap) topArtistsCountWrap.style.display = "inline-flex";
+      if (top100HeaderTitle) {
+        top100HeaderTitle.textContent = topArtistsCount === "all" ? "Sosa's All-Time Top Artists" : `Sosa's All-Time Top ${topArtistsCount} Artists`;
+      }
+      if (top100WindowTitleSpan) {
+        top100WindowTitleSpan.textContent = topArtistsCount === "all" ? "Sosa's Top Artists Showcase" : `Sosa's Top ${topArtistsCount} Artists Showcase`;
+      }
+      renderTopArtistsView();
+    }
+
+    if (isBankOpen) {
+      renderAlbumBank();
+    }
+  };
+
+  window.changeTopAlbumsCount = function(val) {
+    topAlbumsCount = val === "all" ? "all" : parseInt(val, 10);
+    if (top100HeaderTitle) {
+      top100HeaderTitle.textContent = topAlbumsCount === "all" ? "Sosa's All-Time Top Albums" : `Sosa's All-Time Top ${topAlbumsCount} Albums`;
+    }
+    if (top100WindowTitleSpan) {
+      top100WindowTitleSpan.textContent = topAlbumsCount === "all" ? "Sosa's Top Albums Showcase" : `Sosa's Top ${topAlbumsCount} Albums Showcase`;
+    }
+    renderTop100View();
+  };
+
+  window.changeTopArtistsCount = function(val) {
+    topArtistsCount = val === "all" ? "all" : parseInt(val, 10);
+    if (top100HeaderTitle) {
+      top100HeaderTitle.textContent = topArtistsCount === "all" ? "Sosa's All-Time Top Artists" : `Sosa's All-Time Top ${topArtistsCount} Artists`;
+    }
+    if (top100WindowTitleSpan) {
+      top100WindowTitleSpan.textContent = topArtistsCount === "all" ? "Sosa's Top Artists Showcase" : `Sosa's Top ${topArtistsCount} Artists Showcase`;
+    }
+    renderTopArtistsView();
+  };
+
+
   function renderTop100View() {
     if (!top100ViewContainer) return;
 
+    const maxRank = topAlbumsCount === "all" ? 100 : parseInt(topAlbumsCount, 10);
+
     let assignedCount = 0;
-    for (let r = 1; r <= 100; r++) {
+    for (let r = 1; r <= maxRank; r++) {
       if (topAlbumsState[r] && topAlbumsState[r].artist && topAlbumsState[r].title) {
         assignedCount++;
       }
     }
     if (top100StatusCount) {
-      top100StatusCount.textContent = `${assignedCount} / 100 assigned`;
+      top100StatusCount.textContent = `${assignedCount} / ${maxRank} assigned`;
     }
 
     renderPodium();
+
+    if (top100TierSection) {
+      top100TierSection.style.display = maxRank >= 4 ? "block" : "none";
+    }
     renderTier();
-    renderMainGrid();
+
+    if (top100MainSection) {
+      top100MainSection.style.display = maxRank >= 11 ? "block" : "none";
+    }
+    if (topAlbumsMainGridPill) {
+      topAlbumsMainGridPill.innerHTML = `[ RANKS 11 &ndash; ${maxRank} ]`;
+    }
+    renderMainGrid(maxRank);
   }
 
   function renderPodium() {
@@ -2220,7 +2871,7 @@ window.closeMiniPlayer = function() {
       }
     }).join("");
 
-    attachSlotEvents(top100Podium);
+    attachSlotEvents(top100Podium, false);
   }
 
   function renderTier() {
@@ -2263,14 +2914,15 @@ window.closeMiniPlayer = function() {
     }
 
     top100TierGrid.innerHTML = tierHtml;
-    attachSlotEvents(top100TierGrid);
+    attachSlotEvents(top100TierGrid, false);
   }
 
-  function renderMainGrid() {
+  function renderMainGrid(maxRank = 100) {
     if (!top100MainGrid) return;
 
+    const limit = (typeof maxRank === "number") ? maxRank : 100;
     let mainHtml = "";
-    for (let r = 11; r <= 100; r++) {
+    for (let r = 11; r <= limit; r++) {
       const albumRaw = topAlbumsState[r];
       const album = resolveTopAlbumData(albumRaw);
       const isPopulated = !!(album && album.artist && album.title);
@@ -2306,74 +2958,236 @@ window.closeMiniPlayer = function() {
     }
 
     top100MainGrid.innerHTML = mainHtml;
-    attachSlotEvents(top100MainGrid);
+    attachSlotEvents(top100MainGrid, false);
   }
 
-  function adjustTop100Tooltip(tile) {
-    const tooltip = tile.querySelector(".top100-tooltip");
-    if (!tooltip) return;
+  function renderTopArtistsView() {
+    if (!topArtistsPodium) return;
 
-    // Reset shift to measure true unshifted geometry
-    tooltip.style.setProperty("--arrow-shift", "0px");
+    const limit = topArtistsCount === "all" ? 50 : parseInt(topArtistsCount, 10);
 
-    const tileRect = tile.getBoundingClientRect();
-    const tooltipWidth = tooltip.offsetWidth;
-    if (!tooltipWidth) return;
-
-    const tileCenter = tileRect.left + tileRect.width / 2;
-    const halfWidth = tooltipWidth / 2;
-
-    const container = document.getElementById("top100ExportWrapper") || tile.closest(".top100-window-body") || document.documentElement;
-    const containerRect = container.getBoundingClientRect();
-
-    const minLeft = Math.max(containerRect.left + 8, 8);
-    const maxRight = Math.min(containerRect.right - 8, (window.innerWidth || 1200) - 8);
-
-    let shift = 0;
-    if (tileCenter - halfWidth < minLeft) {
-      shift = minLeft - (tileCenter - halfWidth);
-    } else if (tileCenter + halfWidth > maxRight) {
-      shift = maxRight - (tileCenter + halfWidth);
+    let assignedCount = 0;
+    for (let r = 1; r <= limit; r++) {
+      if (topArtistsCuratedState[r] && topArtistsCuratedState[r].artist) {
+        assignedCount++;
+      }
     }
 
-    const maxAllowedShift = Math.max(0, halfWidth - 12);
-    shift = Math.max(-maxAllowedShift, Math.min(maxAllowedShift, shift));
+    if (top100StatusCount) {
+      top100StatusCount.textContent = `${assignedCount} / ${limit} artists assigned`;
+    }
 
-    tooltip.style.setProperty("--arrow-shift", `${Math.round(shift)}px`);
+    // 1. Podium (Ranks 1 - 3)
+    const podiumRanks = [
+      { rank: 2, slotClass: "rank-2", badgeText: "2", medal: "Silver" },
+      { rank: 1, slotClass: "rank-1", badgeText: "1", medal: "Gold" },
+      { rank: 3, slotClass: "rank-3", badgeText: "3", medal: "Bronze" }
+    ];
+
+    topArtistsPodium.innerHTML = podiumRanks.map(p => {
+      const item = topArtistsCuratedState[p.rank];
+      const isPopulated = !!(item && item.artist);
+
+      if (isPopulated) {
+        const stats = getArtistStats(item.artist);
+        const displayImg = item.custom_image || item.top_album_cover || stats.cover;
+        const topTitle = item.top_album_title || (stats.topProject ? stats.topProject.title : "");
+        const ratingStr = item.avg_rating || stats.avg;
+        const spinsStr = item.spins_count || stats.count;
+
+        return `
+          <div class="podium-slot ${p.slotClass} artist-podium-slot" data-rank="${p.rank}" data-artist="${escapeHtml(item.artist)}" draggable="${isTop100Editing}">
+            <div class="podium-badge">${p.badgeText}</div>
+            <div class="podium-cover-wrap">
+              <img src="${displayImg}" alt="${escapeHtml(item.artist)}" class="podium-cover-img" decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+              ${topTitle ? `<div class="artist-podium-top-badge" title="Top: ${escapeHtml(topTitle)}">Top: ${escapeHtml(topTitle)}</div>` : ""}
+              ${isTop100Editing ? `
+                <button type="button" class="slot-clear-btn" data-rank="${p.rank}" title="Clear slot #${p.rank}">✕</button>
+                <button type="button" class="slot-custom-img-btn" data-rank="${p.rank}" title="Change Custom Image / GIF"><i class='bx bx-image-alt'></i></button>
+              ` : ""}
+            </div>
+            <div class="podium-pedestal">
+              <span class="podium-pedestal-num">${p.badgeText}</span>
+            </div>
+            <div class="podium-info">
+              <div class="podium-artist" title="${escapeHtml(item.artist)}">${escapeHtml(item.artist)}</div>
+              <div class="podium-rating-row">
+                <span class="podium-stars">${getStarString(ratingStr)}</span>
+                <span class="podium-score">${ratingStr} ★</span>
+              </div>
+              <div class="artist-podium-spins-chip">
+                <i class='bx bx-disc'></i> ${spinsStr} spin${spinsStr > 1 ? 's' : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        return `
+          <div class="podium-slot ${p.slotClass} is-empty" data-rank="${p.rank}">
+            <div class="podium-badge">${p.badgeText}</div>
+            <div class="podium-cover-wrap top100-slot-empty">
+              <span class="slot-empty-rank">#${p.rank}</span>
+              <span class="slot-empty-label">Empty Slot</span>
+            </div>
+            <div class="podium-pedestal">
+              <span class="podium-pedestal-num">${p.badgeText}</span>
+            </div>
+            <div class="podium-info">
+              <div class="podium-artist" style="opacity: 0.5;">— Empty Artist —</div>
+            </div>
+          </div>
+        `;
+      }
+    }).join("");
+
+    attachSlotEvents(topArtistsPodium, true);
+
+    // 2. Upper Tier (Ranks 4 - 10)
+    if (topArtistsTierGrid && topArtistsTierSection) {
+      if (limit >= 4) {
+        topArtistsTierSection.style.display = "block";
+        let tierHtml = "";
+        for (let r = 4; r <= 10; r++) {
+          const item = topArtistsCuratedState[r];
+          const isPopulated = !!(item && item.artist);
+          if (isPopulated) {
+            const stats = getArtistStats(item.artist);
+            const displayImg = item.custom_image || item.top_album_cover || stats.cover;
+            const topTitle = item.top_album_title || (stats.topProject ? stats.topProject.title : "");
+            const ratingStr = item.avg_rating || stats.avg;
+            const spinsStr = item.spins_count || stats.count;
+
+            tierHtml += `
+              <div class="artist-tier-card" data-rank="${r}" data-artist="${escapeHtml(item.artist)}" draggable="${isTop100Editing}" title="${escapeHtml(item.artist)}">
+                <div class="artist-tier-cover-wrap">
+                  <img src="${displayImg}" alt="${escapeHtml(item.artist)}" class="artist-tier-cover" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+                  <div class="artist-rank-badge">#${r}</div>
+                  ${isTop100Editing ? `
+                    <button type="button" class="slot-clear-btn" data-rank="${r}" title="Clear slot #${r}">✕</button>
+                    <button type="button" class="slot-custom-img-btn" data-rank="${r}" title="Change Custom Image / GIF"><i class='bx bx-image-alt'></i></button>
+                  ` : ""}
+                </div>
+                <div class="artist-tier-info">
+                  <div class="artist-tier-name" title="${escapeHtml(item.artist)}">${escapeHtml(item.artist)}</div>
+                  ${topTitle ? `<div class="artist-tier-top-album" title="Top: ${escapeHtml(topTitle)}">Top: ${escapeHtml(topTitle)}</div>` : ""}
+                  <div class="artist-tier-meta">
+                    <span class="artist-tier-score"><i class='bx bxs-star'></i> ${ratingStr}</span>
+                    <span class="artist-tier-spins">${spinsStr} spin${spinsStr > 1 ? 's' : ''}</span>
+                  </div>
+                </div>
+              </div>
+            `;
+          } else {
+            tierHtml += `
+              <div class="top100-slot-empty" data-rank="${r}">
+                <span class="slot-empty-rank">#${r}</span>
+                <span class="slot-empty-label">Empty</span>
+              </div>
+            `;
+          }
+        }
+        topArtistsTierGrid.innerHTML = tierHtml;
+        attachSlotEvents(topArtistsTierGrid, true);
+      } else {
+        topArtistsTierSection.style.display = "none";
+      }
+    }
+
+    // 3. Main Grid (Ranks 11 - limit)
+    if (topArtistsMainSection && topArtistsMainGrid) {
+      if (limit >= 11) {
+        topArtistsMainSection.style.display = "block";
+        if (topArtistsMainGridPill) {
+          topArtistsMainGridPill.innerHTML = `[ RANKS 11 &ndash; ${limit} ]`;
+        }
+        let mainHtml = "";
+        for (let r = 11; r <= limit; r++) {
+          const item = topArtistsCuratedState[r];
+          const isPopulated = !!(item && item.artist);
+          if (isPopulated) {
+            const stats = getArtistStats(item.artist);
+            const displayImg = item.custom_image || item.top_album_cover || stats.cover;
+            const ratingStr = item.avg_rating || stats.avg;
+            const spinsStr = item.spins_count || stats.count;
+
+            mainHtml += `
+              <div class="artist-grid-card" data-rank="${r}" data-artist="${escapeHtml(item.artist)}" draggable="${isTop100Editing}" title="${escapeHtml(item.artist)}">
+                <div class="artist-grid-rank">#${r}</div>
+                <img src="${displayImg}" alt="${escapeHtml(item.artist)}" class="artist-grid-avatar" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+                <div class="artist-grid-body">
+                  <div class="artist-grid-name" title="${escapeHtml(item.artist)}">${escapeHtml(item.artist)}</div>
+                  <div class="artist-grid-meta">
+                    <span class="artist-grid-score"><i class='bx bxs-star'></i> ${ratingStr}</span>
+                    <span class="artist-grid-count">${spinsStr} spin${spinsStr > 1 ? 's' : ''}</span>
+                  </div>
+                </div>
+                ${isTop100Editing ? `
+                  <button type="button" class="slot-clear-btn" data-rank="${r}" title="Clear slot #${r}" style="display:inline-flex; position:static; margin-left:auto;">✕</button>
+                  <button type="button" class="slot-custom-img-btn" data-rank="${r}" title="Change Custom Image / GIF" style="display:inline-flex; position:static; margin-left:4px;"><i class='bx bx-image-alt'></i></button>
+                ` : ""}
+              </div>
+            `;
+          } else {
+            mainHtml += `
+              <div class="top100-slot-empty" data-rank="${r}">
+                <span class="slot-empty-rank">#${r}</span>
+                <span class="slot-empty-label">Empty</span>
+              </div>
+            `;
+          }
+        }
+        topArtistsMainGrid.innerHTML = mainHtml;
+        attachSlotEvents(topArtistsMainGrid, true);
+      } else {
+        topArtistsMainSection.style.display = "none";
+      }
+    }
   }
 
-  function attachSlotEvents(container) {
+  function attachSlotEvents(container, isArtist = false) {
     if (!container) return;
 
-    container.querySelectorAll("[data-rank]").forEach(el => {
+    container.querySelectorAll(".podium-slot, .top100-card, .top100-tile, .artist-tier-card, .artist-grid-card, .top100-slot-empty").forEach(el => {
       const rank = parseInt(el.getAttribute("data-rank"), 10);
       if (!rank) return;
 
-      el.addEventListener("mouseenter", () => {
-        if (!isTop100Editing) {
-          adjustTop100Tooltip(el);
-        }
-      });
+      el.addEventListener("mouseenter", () => adjustTop100Tooltip(el));
+
+      const clearBtn = el.querySelector(".slot-clear-btn");
+      if (clearBtn) {
+        clearBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (isArtist) clearArtistSlot(rank);
+          else clearSlot(rank);
+        });
+      }
+
+      const imgBtn = el.querySelector(".slot-custom-img-btn");
+      if (imgBtn) {
+        imgBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openArtistCustomImageModal(rank);
+        });
+      }
 
       el.addEventListener("click", (e) => {
-        if (e.target.closest(".slot-clear-btn")) {
-          e.stopPropagation();
-          e.preventDefault();
-          clearSlot(rank);
-          return;
-        }
+        if (isTop100Editing) return;
+        if (e.target.closest(".slot-clear-btn") || e.target.closest(".slot-custom-img-btn")) return;
 
-        if (!isTop100Editing) {
-          const album = resolveTopAlbumData(topAlbumsState[rank]);
+        if (isArtist) {
+          const artistName = el.getAttribute("data-artist");
+          if (artistName) openArtistDetailModal(rank, artistName);
+        } else {
+          const album = topAlbumsState[rank];
           if (album && album.artist && album.title) {
-            openTop100DetailModal(rank, album);
+            openTop100DetailModal(rank, resolveTopAlbumData(album));
           }
         }
       });
 
       if (isTop100Editing) {
         el.addEventListener("dragstart", (e) => {
-          draggedPayload = { type: "grid", rank: rank };
+          draggedPayload = { type: isArtist ? "artist-grid" : "grid", rank: rank };
           e.dataTransfer.effectAllowed = "move";
           e.dataTransfer.setData("text/plain", JSON.stringify(draggedPayload));
           el.classList.add("is-dragging");
@@ -2410,41 +3224,105 @@ window.closeMiniPlayer = function() {
           }
           if (!payload) return;
 
-          handleSlotDrop(payload, rank);
+          handleSlotDrop(payload, rank, isArtist);
         });
       }
     });
   }
 
-  function handleSlotDrop(payload, targetRank) {
+  function handleSlotDrop(payload, targetRank, isArtist = false) {
     if (!targetRank || targetRank < 1 || targetRank > 100) return;
 
-    if (payload.type === "bank") {
-      const spin = allEntries.find(s => String(s.id) === String(payload.spinId));
-      if (!spin) return;
+    if (!isArtist) {
+      if (payload.type === "bank") {
+        const spin = allEntries.find(s => String(s.id) === String(payload.spinId));
+        if (!spin) return;
 
-      topAlbumsState[targetRank] = {
-        rank: targetRank,
-        spin_id: spin.id,
-        artist: spin.artist,
-        title: spin.title,
-        release_year: spin.year ? parseInt(spin.year, 10) : null,
-        cover_url: spin.cover_url || "assets/images/spins/placeholder.png",
-        rating: (spin.rating !== null && spin.rating !== undefined && spin.rating !== "") ? parseFloat(spin.rating) : null,
-        custom_note: spin.memo || null
-      };
-      renderTop100View();
-    } else if (payload.type === "grid") {
-      const sourceRank = payload.rank;
-      if (sourceRank && sourceRank !== targetRank) {
-        const temp = topAlbumsState[targetRank];
-        topAlbumsState[targetRank] = topAlbumsState[sourceRank]
-          ? { ...topAlbumsState[sourceRank], rank: targetRank }
-          : null;
-        topAlbumsState[sourceRank] = temp
-          ? { ...temp, rank: sourceRank }
-          : null;
+        // Duplicate check: ensure this album is not already assigned anywhere
+        const existingRank = Object.keys(topAlbumsState).find(r => {
+          const a = topAlbumsState[r];
+          return a && (
+            (spin.id && a.spin_id && String(a.spin_id) === String(spin.id)) ||
+            (a.artist && a.title && a.artist.toLowerCase() === spin.artist.toLowerCase() && a.title.toLowerCase() === spin.title.toLowerCase())
+          );
+        });
+
+        if (existingRank) {
+          if (parseInt(existingRank, 10) === targetRank) return;
+          showTop100Toast(`"${spin.title}" is already placed at #${existingRank}. Duplicate albums are not allowed.`);
+          return;
+        }
+
+        topAlbumsState[targetRank] = {
+          rank: targetRank,
+          spin_id: spin.id,
+          artist: spin.artist,
+          title: spin.title,
+          release_year: spin.year ? parseInt(spin.year, 10) : null,
+          cover_url: spin.cover_url || "assets/images/spins/placeholder.png",
+          rating: (spin.rating !== null && spin.rating !== undefined && spin.rating !== "") ? parseFloat(spin.rating) : null,
+          custom_note: spin.memo || null
+        };
         renderTop100View();
+        renderAlbumBank();
+      } else if (payload.type === "grid") {
+        const sourceRank = payload.rank;
+        if (sourceRank && sourceRank !== targetRank) {
+          const temp = topAlbumsState[targetRank];
+          topAlbumsState[targetRank] = topAlbumsState[sourceRank]
+            ? { ...topAlbumsState[sourceRank], rank: targetRank }
+            : null;
+          topAlbumsState[sourceRank] = temp
+            ? { ...temp, rank: sourceRank }
+            : null;
+          renderTop100View();
+          renderAlbumBank();
+        }
+      }
+    } else {
+      // Artist drop
+      if (payload.type === "artist-bank") {
+        const artistName = payload.artist;
+        if (!artistName) return;
+
+        // Duplicate check: ensure this artist is not already assigned anywhere
+        const existingRank = Object.keys(topArtistsCuratedState).find(r => {
+          const a = topArtistsCuratedState[r];
+          return a && a.artist && a.artist.toLowerCase() === artistName.toLowerCase();
+        });
+
+        if (existingRank) {
+          if (parseInt(existingRank, 10) === targetRank) return;
+          showTop100Toast(`"${artistName}" is already placed at #${existingRank}. Duplicate artists are not allowed.`);
+          return;
+        }
+
+        const stats = getArtistStats(artistName);
+        topArtistsCuratedState[targetRank] = {
+          rank: targetRank,
+          artist: artistName,
+          custom_image: null,
+          top_album_title: stats.topProject ? stats.topProject.title : "",
+          top_album_cover: (stats.topProject && stats.topProject.cover_url) || stats.cover,
+          top_album_rating: stats.topRating,
+          avg_rating: stats.avg,
+          spins_count: stats.count
+        };
+        renderTopArtistsView();
+        renderAlbumBank();
+      } else if (payload.type === "artist-grid") {
+        const sourceRank = payload.rank;
+        if (sourceRank && sourceRank !== targetRank) {
+          const temp = topArtistsCuratedState[targetRank];
+          topArtistsCuratedState[targetRank] = topArtistsCuratedState[sourceRank]
+            ? { ...topArtistsCuratedState[sourceRank], rank: targetRank }
+            : null;
+          topArtistsCuratedState[sourceRank] = temp
+            ? { ...temp, rank: sourceRank }
+            : null;
+          renderTopArtistsView();
+          renderAlbumBank();
+        }
       }
     }
   }
@@ -2453,97 +3331,235 @@ window.closeMiniPlayer = function() {
     if (!isTop100Editing || !rank) return;
     topAlbumsState[rank] = null;
     renderTop100View();
+    renderAlbumBank();
   }
+
+  function clearArtistSlot(rank) {
+    if (!isTop100Editing || !rank) return;
+    topArtistsCuratedState[rank] = null;
+    renderTopArtistsView();
+    renderAlbumBank();
+  }
+
+  window.openArtistCustomImageModal = function(rank) {
+    editingArtistRank = rank;
+    const item = topArtistsCuratedState[rank];
+    if (!item || !item.artist) return;
+
+    if (customImgArtistName) customImgArtistName.textContent = `Rank #${rank}: ${item.artist}`;
+    if (artistCustomImgInput) artistCustomImgInput.value = item.custom_image || "";
+
+    const stats = getArtistStats(item.artist);
+    if (artistModalCoversPicker) {
+      if (stats.covers.length) {
+        artistModalCoversPicker.innerHTML = stats.covers.map(url => `
+          <img src="${url}" alt="Cover" class="artist-modal-thumb ${(item.custom_image === url || (!item.custom_image && stats.cover === url)) ? 'is-selected' : ''}" onclick="selectArtistCoverThumb('${url}', this)">
+        `).join("");
+      } else {
+        artistModalCoversPicker.innerHTML = `<span style="font-size: 0.75rem; color: #64748b;">No logged covers found for this artist.</span>`;
+      }
+    }
+
+    if (artistCustomImageModal) artistCustomImageModal.style.display = "flex";
+  };
+
+  window.closeArtistCustomImageModal = function() {
+    if (artistCustomImageModal) artistCustomImageModal.style.display = "none";
+    editingArtistRank = null;
+  };
+
+  window.selectArtistCoverThumb = function(url, el) {
+    if (artistCustomImgInput) artistCustomImgInput.value = url;
+    if (artistModalCoversPicker) {
+      artistModalCoversPicker.querySelectorAll(".artist-modal-thumb").forEach(t => t.classList.remove("is-selected"));
+      if (el) el.classList.add("is-selected");
+    }
+  };
+
+  window.saveArtistCustomImage = function() {
+    if (!editingArtistRank || !topArtistsCuratedState[editingArtistRank]) return;
+    const url = artistCustomImgInput ? artistCustomImgInput.value.trim() : "";
+    topArtistsCuratedState[editingArtistRank].custom_image = url || null;
+    closeArtistCustomImageModal();
+    renderTopArtistsView();
+    showTop100Toast("Artist image updated.");
+  };
 
   function renderAlbumBank() {
     if (!albumBankList) return;
 
-    albumBankSpins = (allEntries || []).filter(s => s.rating !== null && s.rating !== undefined && s.rating !== "");
+    if (activeTop100Tab === "albums") {
+      if (albumBankTitleText) albumBankTitleText.textContent = "Album Bank";
+      if (albumBankSearchInput) albumBankSearchInput.placeholder = "Filter rated albums...";
+      if (top100ToggleBankLabel) top100ToggleBankLabel.textContent = "Album Bank";
+      if (bankEdgeText) bankEdgeText.textContent = "Album Bank";
 
-    let filtered = [...albumBankSpins];
-    if (albumBankSearchTerm) {
-      const term = albumBankSearchTerm.toLowerCase();
-      filtered = filtered.filter(s =>
-        (s.artist && s.artist.toLowerCase().includes(term)) ||
-        (s.title && s.title.toLowerCase().includes(term)) ||
-        (s.year && String(s.year).includes(term)) ||
-        (Array.isArray(s.genres) && s.genres.some(g => g.toLowerCase().includes(term)))
-      );
-    }
+      albumBankSpins = (allEntries || []).filter(s => s.rating !== null && s.rating !== undefined && s.rating !== "");
 
-    filtered.sort((a, b) => {
-      if (albumBankSortMode === "rating-desc") {
-        const diff = (parseFloat(b.rating) || 0) - (parseFloat(a.rating) || 0);
-        return diff !== 0 ? diff : (b.id || 0) - (a.id || 0);
+      let filtered = [...albumBankSpins];
+      if (albumBankSearchTerm) {
+        const term = albumBankSearchTerm.toLowerCase();
+        filtered = filtered.filter(s =>
+          (s.artist && s.artist.toLowerCase().includes(term)) ||
+          (s.title && s.title.toLowerCase().includes(term)) ||
+          (s.year && String(s.year).includes(term)) ||
+          (Array.isArray(s.genres) && s.genres.some(g => g.toLowerCase().includes(term)))
+        );
       }
-      if (albumBankSortMode === "rating-asc") {
-        const diff = (parseFloat(a.rating) || 0) - (parseFloat(b.rating) || 0);
-        return diff !== 0 ? diff : (b.id || 0) - (a.id || 0);
-      }
-      if (albumBankSortMode === "artist-asc") {
-        return (a.artist || "").localeCompare(b.artist || "");
-      }
-      if (albumBankSortMode === "title-asc") {
-        return (a.title || "").localeCompare(b.title || "");
-      }
-      if (albumBankSortMode === "year-desc") {
-        return (parseInt(b.year, 10) || 0) - (parseInt(a.year, 10) || 0);
-      }
-      if (albumBankSortMode === "year-asc") {
-        return (parseInt(a.year, 10) || 0) - (parseInt(b.year, 10) || 0);
-      }
-      if (albumBankSortMode === "recent") {
-        return (b.id || 0) - (a.id || 0);
-      }
-      return 0;
-    });
 
-    if (albumBankCountBadge) {
-      albumBankCountBadge.textContent = filtered.length;
-    }
-
-    if (filtered.length === 0) {
-      albumBankList.innerHTML = `<div style="text-align: center; padding: 2rem 1rem; color: #64748b; font-size: 0.85rem;">No rated spins match "${escapeHtml(albumBankSearchTerm)}".</div>`;
-      return;
-    }
-
-    albumBankList.innerHTML = filtered.map(spin => {
-      const ratingVal = parseFloat(spin.rating).toFixed(1);
-      const coverSrc = spin.cover_url || "assets/images/spins/placeholder.png";
-      const yearStr = spin.year ? `(${spin.year})` : "";
-
-      return `
-        <div class="bank-item" draggable="true" data-spin-id="${spin.id}">
-          <div class="bank-item-cover-wrap">
-            <img src="${coverSrc}" alt="${escapeHtml(spin.title)}" class="bank-item-cover" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
-          </div>
-          <div class="bank-item-meta">
-            <div class="bank-item-artist" title="${escapeHtml(spin.artist)}">${escapeHtml(spin.artist)}</div>
-            <div class="bank-item-title" title="${escapeHtml(spin.title)} ${yearStr}">${escapeHtml(spin.title)} <span style="opacity: 0.7; font-size: 0.72rem;">${yearStr}</span></div>
-            <div class="bank-item-rating"><i class='bx bxs-star'></i> ${ratingVal}</div>
-          </div>
-          <div class="bank-item-drag-handle" title="Drag to place on grid">
-            <i class='bx bx-grid-vertical'></i>
-          </div>
-        </div>
-      `;
-    }).join("");
-
-    albumBankList.querySelectorAll(".bank-item").forEach(item => {
-      const spinId = parseInt(item.getAttribute("data-spin-id"), 10);
-      item.addEventListener("dragstart", (e) => {
-        draggedPayload = { type: "bank", spinId: spinId };
-        e.dataTransfer.effectAllowed = "copyMove";
-        e.dataTransfer.setData("text/plain", JSON.stringify(draggedPayload));
-        item.classList.add("is-dragging");
+      filtered.sort((a, b) => {
+        if (albumBankSortMode === "rating-desc") {
+          const diff = (parseFloat(b.rating) || 0) - (parseFloat(a.rating) || 0);
+          return diff !== 0 ? diff : (b.id || 0) - (a.id || 0);
+        }
+        if (albumBankSortMode === "rating-asc") {
+          const diff = (parseFloat(a.rating) || 0) - (parseFloat(b.rating) || 0);
+          return diff !== 0 ? diff : (b.id || 0) - (a.id || 0);
+        }
+        if (albumBankSortMode === "artist-asc") return (a.artist || "").localeCompare(b.artist || "");
+        if (albumBankSortMode === "title-asc") return (a.title || "").localeCompare(b.title || "");
+        if (albumBankSortMode === "year-desc") return (parseInt(b.year, 10) || 0) - (parseInt(a.year, 10) || 0);
+        if (albumBankSortMode === "year-asc") return (parseInt(a.year, 10) || 0) - (parseInt(b.year, 10) || 0);
+        if (albumBankSortMode === "recent") return (b.id || 0) - (a.id || 0);
+        return 0;
       });
 
-      item.addEventListener("dragend", () => {
-        item.classList.remove("is-dragging");
-        document.querySelectorAll(".drag-over").forEach(node => node.classList.remove("drag-over"));
-        draggedPayload = null;
+      if (albumBankCountBadge) albumBankCountBadge.textContent = filtered.length;
+
+      if (filtered.length === 0) {
+        albumBankList.innerHTML = `<div style="text-align: center; padding: 2rem 1rem; color: #64748b; font-size: 0.85rem;">No rated spins match "${escapeHtml(albumBankSearchTerm)}".</div>`;
+        return;
+      }
+
+      albumBankList.innerHTML = filtered.map(spin => {
+        const coverSrc = spin.cover_url || "assets/images/spins/placeholder.png";
+        const ratingVal = (spin.rating !== null && spin.rating !== undefined && spin.rating !== "") ? parseFloat(spin.rating).toFixed(1) : "-";
+        const yearStr = spin.year ? `(${spin.year})` : "";
+
+        const assignedRank = Object.keys(topAlbumsState).find(r => {
+          const a = topAlbumsState[r];
+          return a && (
+            (spin.id && a.spin_id && String(a.spin_id) === String(spin.id)) ||
+            (a.artist && a.title && a.artist.toLowerCase() === spin.artist.toLowerCase() && a.title.toLowerCase() === spin.title.toLowerCase())
+          );
+        });
+
+        const isPlaced = !!assignedRank;
+        const placedBadge = isPlaced ? `<span class="bank-placed-badge" title="Already in Top 100 at Rank #${assignedRank}">#${assignedRank} In Grid</span>` : "";
+
+        return `
+          <div class="bank-item ${isPlaced ? 'is-placed' : ''}" draggable="${!isPlaced}" data-spin-id="${spin.id}">
+            <div class="bank-item-cover-wrap">
+              <img src="${coverSrc}" alt="${escapeHtml(spin.title)}" class="bank-item-cover" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+            </div>
+            <div class="bank-item-meta">
+              <div class="bank-item-artist" title="${escapeHtml(spin.artist)}">${escapeHtml(spin.artist)}</div>
+              <div class="bank-item-title" title="${escapeHtml(spin.title)} ${yearStr}">${escapeHtml(spin.title)} <span style="opacity: 0.7; font-size: 0.72rem;">${yearStr}</span></div>
+              <div class="bank-item-rating"><i class='bx bxs-star'></i> ${ratingVal} ${placedBadge}</div>
+            </div>
+            <div class="bank-item-drag-handle" title="${isPlaced ? 'Already placed on grid' : 'Drag to place on grid'}">
+              <i class='bx ${isPlaced ? 'bx-check-circle' : 'bx-grid-vertical'}'></i>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      albumBankList.querySelectorAll(".bank-item:not(.is-placed)").forEach(item => {
+        const spinId = parseInt(item.getAttribute("data-spin-id"), 10);
+        item.addEventListener("dragstart", (e) => {
+          draggedPayload = { type: "bank", spinId: spinId };
+          e.dataTransfer.effectAllowed = "copyMove";
+          e.dataTransfer.setData("text/plain", JSON.stringify(draggedPayload));
+          item.classList.add("is-dragging");
+        });
+
+        item.addEventListener("dragend", () => {
+          item.classList.remove("is-dragging");
+          document.querySelectorAll(".drag-over").forEach(node => node.classList.remove("drag-over"));
+          draggedPayload = null;
+        });
       });
-    });
+    } else {
+      // ARTIST BANK MODE
+      if (albumBankTitleText) albumBankTitleText.textContent = "Artist Bank";
+      if (albumBankSearchInput) albumBankSearchInput.placeholder = "Filter artists...";
+      if (top100ToggleBankLabel) top100ToggleBankLabel.textContent = "Artist Bank";
+      if (bankEdgeText) bankEdgeText.textContent = "Artist Bank";
+
+      const artists = calculateTopArtists(allEntries, 1);
+
+      let filtered = [...artists];
+      if (albumBankSearchTerm) {
+        const term = albumBankSearchTerm.toLowerCase();
+        filtered = filtered.filter(a => a.artist.toLowerCase().includes(term));
+      }
+
+      filtered.sort((a, b) => {
+        if (albumBankSortMode === "rating-desc") {
+          return parseFloat(b.avg) - parseFloat(a.avg) || b.count - a.count;
+        }
+        if (albumBankSortMode === "rating-asc") {
+          return parseFloat(a.avg) - parseFloat(b.avg) || a.count - b.count;
+        }
+        if (albumBankSortMode === "artist-asc") return a.artist.localeCompare(b.artist);
+        if (albumBankSortMode === "recent" || albumBankSortMode === "year-desc") {
+          return b.count - a.count || parseFloat(b.avg) - parseFloat(a.avg);
+        }
+        return b.count - a.count;
+      });
+
+      if (albumBankCountBadge) albumBankCountBadge.textContent = filtered.length;
+
+      if (filtered.length === 0) {
+        albumBankList.innerHTML = `<div style="text-align: center; padding: 2rem 1rem; color: #64748b; font-size: 0.85rem;">No artists match "${escapeHtml(albumBankSearchTerm)}".</div>`;
+        return;
+      }
+
+      albumBankList.innerHTML = filtered.map(a => {
+        const coverSrc = a.cover || "assets/images/spins/placeholder.png";
+        const topTitle = a.topProject ? a.topProject.title : "";
+
+        const assignedRank = Object.keys(topArtistsCuratedState).find(r => {
+          const item = topArtistsCuratedState[r];
+          return item && item.artist && item.artist.toLowerCase() === a.artist.toLowerCase();
+        });
+
+        const isPlaced = !!assignedRank;
+        const placedBadge = isPlaced ? `<span class="bank-placed-badge" title="Already in Top Artists at Rank #${assignedRank}">#${assignedRank} In Grid</span>` : "";
+
+        return `
+          <div class="bank-item ${isPlaced ? 'is-placed' : ''}" draggable="${!isPlaced}" data-artist-name="${escapeHtml(a.artist)}">
+            <div class="bank-item-cover-wrap">
+              <img src="${coverSrc}" alt="${escapeHtml(a.artist)}" class="bank-item-cover" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+            </div>
+            <div class="bank-item-meta">
+              <div class="bank-item-artist" title="${escapeHtml(a.artist)}">${escapeHtml(a.artist)}</div>
+              <div class="bank-item-title" title="${topTitle ? 'Top: ' + escapeHtml(topTitle) : ''}">${topTitle ? 'Top: ' + escapeHtml(topTitle) : `${a.count} spins`}</div>
+              <div class="bank-item-rating"><i class='bx bxs-star'></i> ${a.avg} (${a.count} spins) ${placedBadge}</div>
+            </div>
+            <div class="bank-item-drag-handle" title="${isPlaced ? 'Already placed on grid' : 'Drag to place on grid'}">
+              <i class='bx ${isPlaced ? 'bx-check-circle' : 'bx-grid-vertical'}'></i>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      albumBankList.querySelectorAll(".bank-item:not(.is-placed)").forEach(item => {
+        const artistName = item.getAttribute("data-artist-name");
+        item.addEventListener("dragstart", (e) => {
+          draggedPayload = { type: "artist-bank", artist: artistName };
+          e.dataTransfer.effectAllowed = "copyMove";
+          e.dataTransfer.setData("text/plain", JSON.stringify(draggedPayload));
+          item.classList.add("is-dragging");
+        });
+
+        item.addEventListener("dragend", () => {
+          item.classList.remove("is-dragging");
+          document.querySelectorAll(".drag-over").forEach(node => node.classList.remove("drag-over"));
+          draggedPayload = null;
+        });
+      });
+    }
   }
 
   function openTop100DetailModal(rank, album) {
@@ -2584,40 +3600,30 @@ window.closeMiniPlayer = function() {
       descriptors = album.descriptors;
     } else if (typeof album.descriptors === "string" && album.descriptors.trim()) {
       try {
-        const parsed = JSON.parse(album.descriptors);
-        if (Array.isArray(parsed)) descriptors = parsed;
-        else descriptors = album.descriptors.split(",");
+        const p = JSON.parse(album.descriptors);
+        descriptors = Array.isArray(p) ? p : album.descriptors.split(",");
       } catch (e) {
         descriptors = album.descriptors.split(",");
       }
     }
-    descriptors = descriptors
-      .map(d => String(d).replace(/^\s*descriptors\s*:?\s*/i, "").trim())
-      .filter(Boolean);
+    descriptors = descriptors.map(d => String(d).trim()).filter(Boolean);
 
     let favTracks = [];
     if (Array.isArray(album.fav_tracks)) {
       favTracks = album.fav_tracks;
     } else if (typeof album.fav_tracks === "string" && album.fav_tracks.trim()) {
-      try {
-        const p = JSON.parse(album.fav_tracks);
-        favTracks = Array.isArray(p) ? p : parseFavTracks(album.fav_tracks);
-      } catch (e) {
-        favTracks = parseFavTracks(album.fav_tracks);
-      }
-    } else if (album.fav_tracks) {
-      favTracks = parseFavTracks(album.fav_tracks);
+      favTracks = album.fav_tracks.split(",").map(t => t.trim()).filter(Boolean);
     }
 
     let genresHtml = "";
     if (primaryGenres.length || secondaryGenres.length) {
       const primaryHtml = primaryGenres.length ? `
-        <div class="top100-primary-genres" style="display: flex; flex-wrap: wrap; gap: 5px;">
+        <div class="primary-genres-row" style="display: flex; flex-wrap: wrap; gap: 5px;">
           ${primaryGenres.map(g => `<span class="genre-pill genre-primary">${escapeHtml(g)}</span>`).join("")}
         </div>
       ` : "";
       const secondaryHtml = secondaryGenres.length ? `
-        <div class="top100-secondary-genres" style="display: flex; flex-wrap: wrap; gap: 5px;">
+        <div class="secondary-genres-row" style="display: flex; flex-wrap: wrap; gap: 5px;">
           ${secondaryGenres.map(g => `<span class="genre-pill genre-secondary">${escapeHtml(g)}</span>`).join("")}
         </div>
       ` : "";
@@ -2644,7 +3650,7 @@ window.closeMiniPlayer = function() {
             <span class="remaining-descriptors is-hidden">
               ${remainingDesc.map(d => `<span class="descriptor-pill" style="text-transform: none !important;">${escapeHtml(d)}</span>`).join("")}
             </span>
-            <button type="button" class="desc-expand-btn" data-count="${remainingDesc.length}" aria-expanded="false" title="Show ${remainingDesc.length} more descriptors" onclick="toggleDescriptors('top100', this)">▾ +${remainingDesc.length}</button>
+            <button type="button" class="desc-expand-btn" data-count="${remainingDesc.length}" aria-expanded="false" title="Show ${remainingDesc.length} more descriptors" onclick="toggleDescriptors('top100', this)">... +${remainingDesc.length}</button>
           ` : ""}
         </div>
       `;
@@ -2665,9 +3671,9 @@ window.closeMiniPlayer = function() {
               const safeAlbum = escapeHtml(album.title || "").replace(/'/g, "\\'");
               const safeCover = (album.cover_url || "").replace(/'/g, "\\'");
               if (url && (url.startsWith("http://") || url.startsWith("https://"))) {
-                return `<span class="fav-track-chip song-embed-link single-play-chip" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')" title="Play ${escapeHtml(name)}"><i class='bx bx-play-circle'></i> ${escapeHtml(name)}</span>`;
+                return `<span class="fav-track-chip song-embed-link single-play-chip" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')" title="Play ${escapeHtml(name)}"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(name)}</span>`;
               }
-              return `<span class="fav-track-chip"><i class='bx bx-music'></i> ${escapeHtml(name)}</span>`;
+              return `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon"> ${escapeHtml(name)}</span>`;
             }).join("")}
           </div>
         </div>
@@ -2694,7 +3700,7 @@ window.closeMiniPlayer = function() {
     if (album.review_url) {
       jumpActionHtml += `
         <a href="${album.review_url}" target="_blank" rel="noopener noreferrer" class="aero-command-btn export-emerald-btn" style="text-decoration: none;">
-          <i class='bx bx-book-open'></i> Read Review ➔
+          <i class='bx bx-book-open'></i> Read Review ↗
         </a>
       `;
     }
@@ -2713,9 +3719,10 @@ window.closeMiniPlayer = function() {
         <div class="top100-detail-header-row">
           <img src="${coverSrc}" alt="${escapeHtml(album.title)}" class="top100-detail-cover" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
           <div class="top100-detail-info">
-            <div class="top100-detail-rank-badge">🏆 Rank #${rank}</div>
+            <div class="top100-detail-rank-badge"><i class=\'bx bxs-award\'></i> Rank #${rank}</div>
             <div class="top100-detail-title">${escapeHtml(album.title)}${yearStr}</div>
             <div class="top100-detail-artist">${escapeHtml(album.artist)}</div>
+            ${(album.rym_rating !== null && album.rym_rating !== undefined && album.rym_rating !== "") ? `<div style="margin-top: 4px;"><span class="category spin-rym-tag"><i class='bx bxs-star' style='color: #38bdf8;'></i> RYM: ${parseFloat(album.rym_rating).toFixed(2)}</span></div>` : ""}
             ${ratingVal ? `
               <div class="top100-detail-rating-row">
                 <span class="top100-detail-stars">${getStarString(album.rating)}</span>
@@ -2735,6 +3742,106 @@ window.closeMiniPlayer = function() {
     top100DetailModal.style.display = "flex";
   }
 
+  function openArtistDetailModal(rank, artistName) {
+    if (!top100DetailModal || !top100ModalBody) return;
+    const modalTitle = top100DetailModal.querySelector(".title-bar-text");
+    if (modalTitle) modalTitle.innerHTML = `<i class=\'bx bx-user-voice\'></i> Artist Details`;
+
+    const stats = getArtistStats(artistName);
+    const curated = topArtistsCuratedState[rank] || {};
+    const displayImg = curated.custom_image || stats.cover;
+
+    let genresHtml = "";
+    if (stats.commonGenres.length) {
+      genresHtml = `
+        <div style="margin-top: 0.65rem;">
+          <span style="font-size: 0.72rem; font-weight: 700; color: #059669; display: block; margin-bottom: 4px;">Top Genres:</span>
+          <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+            ${stats.commonGenres.slice(0, 8).map(([g, count]) => `
+              <span class="genre-pill genre-primary">${escapeHtml(g)} <span style="opacity: 0.7; font-size: 0.65rem;">(${count})</span></span>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    const artistSpins = allEntries.filter(s => {
+      if (!s.artist) return false;
+      const raw = String(s.artist).trim();
+      if (/^Tyler,\s*The Creator$/i.test(raw)) {
+        return artistName.toLowerCase() === "tyler, the creator";
+      }
+      const split = raw.split(/(?:,|\s+(?:&|feat\.?|ft\.?|with)\s+)/i).map(a => a.trim().toLowerCase());
+      return split.includes(artistName.toLowerCase());
+    });
+
+    artistSpins.sort((a, b) => (parseFloat(b.rating) || 0) - (parseFloat(a.rating) || 0) || (b.year || 0) - (a.year || 0));
+
+    let projectsHtml = "";
+    if (artistSpins.length) {
+      projectsHtml = `
+        <div style="margin-top: 0.85rem;">
+          <span style="font-size: 0.74rem; font-weight: 700; color: #1e293b; display: block; margin-bottom: 5px;">
+            <i class='bx bx-disc'></i> Discography & Ranked Projects (${artistSpins.length}):
+          </span>
+          <div class="artist-projects-list">
+            ${artistSpins.map((s, idx) => {
+              const coverSrc = s.cover_url || "assets/images/spins/placeholder.png";
+              const rVal = (s.rating !== null && s.rating !== undefined && s.rating !== "") ? parseFloat(s.rating).toFixed(1) : "-";
+              const yVal = s.year ? `(${s.year})` : "";
+              const typeVal = s.type ? `<span class="type-pill" style="font-size: 0.62rem; padding: 1px 5px;">${escapeHtml(s.type)}</span>` : "";
+              return `
+                <div class="artist-project-row">
+                  <div class="artist-project-left">
+                    <img src="${coverSrc}" alt="${escapeHtml(s.title)}" class="artist-project-cover" loading="lazy">
+                    <div class="artist-project-info">
+                      <div class="artist-project-title">${escapeHtml(s.title)} <span style="font-size: 0.72rem; opacity: 0.7;">${yVal}</span></div>
+                      <div class="artist-project-meta">${typeVal} <span>#${idx + 1} rated</span></div>
+                    </div>
+                  </div>
+                  <div class="artist-project-right">
+                    <span style="font-size: 0.76rem; font-weight: 800; color: #d97706;"><i class='bx bxs-star'></i> ${rVal}</span>
+                    <button type="button" class="aero-command-btn" style="padding: 2px 7px; font-size: 0.72rem;" onclick="closeTop100Modal(); window.jumpToSpinInTimeline(${s.id});" title="View in timeline">
+                      <i class='bx bx-link-external'></i>
+                    </button>
+                  </div>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    const editCustomImgBtn = isAdmin ? `
+      <button type="button" class="aero-command-btn" style="margin-top: 6px; font-size: 0.74rem; padding: 3px 8px;" onclick="closeTop100Modal(); openArtistCustomImageModal(${rank});">
+        <i class='bx bx-image-alt'></i> Change Image / GIF
+      </button>
+    ` : "";
+
+    top100ModalBody.innerHTML = `
+      <div class="top100-detail-body">
+        <div class="top100-detail-header-row">
+          <img src="${displayImg}" alt="${escapeHtml(artistName)}" class="top100-detail-cover" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+          <div class="top100-detail-info">
+            <div class="top100-detail-rank-badge"><i class=\'bx bxs-award\'></i> Rank #${rank}</div>
+            <div class="top100-detail-title" style="font-size: 1.25rem;">${escapeHtml(artistName)}</div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+              <span class="leaderboard-score-chip" style="font-weight: 800; font-size: 0.8rem;"><i class='bx bxs-star'></i> ${stats.avg} Avg</span>
+              <span class="leaderboard-count-chip" style="font-size: 0.75rem;"><i class='bx bx-disc'></i> ${stats.count} spins</span>
+            </div>
+            ${editCustomImgBtn}
+          </div>
+        </div>
+        ${genresHtml}
+        ${projectsHtml}
+      </div>
+    `;
+
+    top100DetailModal.style.display = "flex";
+  }
+  window.openArtistDetailModal = openArtistDetailModal;
+
   function closeTop100Modal() {
     if (top100DetailModal) top100DetailModal.style.display = "none";
   }
@@ -2752,49 +3859,57 @@ window.closeMiniPlayer = function() {
     top100SaveOrderBtn.innerHTML = `<i class='bx bx-loader-alt bx-spin'></i> Saving...`;
 
     try {
-      const upsertRows = [];
-      const deleteRanks = [];
+      if (activeTop100Tab === "albums") {
+        const upsertRows = [];
+        const deleteRanks = [];
 
-      for (let r = 1; r <= 100; r++) {
-        const item = topAlbumsState[r];
-        if (item && item.artist && item.title) {
-          upsertRows.push({
-            rank: r,
-            spin_id: item.spin_id || null,
-            artist: item.artist,
-            title: item.title,
-            release_year: item.release_year ? parseInt(item.release_year, 10) : null,
-            cover_url: item.cover_url || "assets/images/spins/placeholder.png",
-            rating: (item.rating !== null && item.rating !== undefined && item.rating !== "") ? parseFloat(item.rating) : null,
-            custom_note: item.custom_note || null,
-            updated_at: new Date().toISOString()
-          });
-        } else if (topAlbumsOriginal[r]) {
-          deleteRanks.push(r);
+        for (let r = 1; r <= 100; r++) {
+          const item = topAlbumsState[r];
+          if (item && item.artist && item.title) {
+            upsertRows.push({
+              rank: r,
+              spin_id: item.spin_id || null,
+              artist: item.artist,
+              title: item.title,
+              release_year: item.release_year || null,
+              cover_url: item.cover_url || null,
+              rating: (item.rating !== null && item.rating !== undefined && item.rating !== "") ? parseFloat(item.rating) : null,
+              custom_note: item.custom_note || null,
+              updated_at: new Date().toISOString()
+            });
+          } else if (topAlbumsOriginal[r]) {
+            deleteRanks.push(r);
+          }
         }
+
+        if (upsertRows.length > 0) {
+          const { error: upsertErr } = await supabaseClient
+            .from("top_albums")
+            .upsert(upsertRows, { onConflict: "rank" });
+          if (upsertErr) throw upsertErr;
+        }
+
+        if (deleteRanks.length > 0) {
+          const { error: delErr } = await supabaseClient
+            .from("top_albums")
+            .delete()
+            .in("rank", deleteRanks);
+          if (delErr) throw delErr;
+        }
+
+        topAlbumsOriginal = JSON.parse(JSON.stringify(topAlbumsState));
+        showTop100Toast("Top 100 Albums saved successfully.");
+      } else {
+        // SAVE ARTISTS CURATED ORDER
+        localStorage.setItem("sosa_top_artists_curated", JSON.stringify(topArtistsCuratedState));
+        topArtistsCuratedOriginal = JSON.parse(JSON.stringify(topArtistsCuratedState));
+        showTop100Toast("Top Artists Showcase saved successfully.");
       }
 
-      if (upsertRows.length > 0) {
-        const { error: upsertErr } = await supabaseClient
-          .from("top_albums")
-          .upsert(upsertRows, { onConflict: "rank" });
-        if (upsertErr) throw upsertErr;
-      }
-
-      if (deleteRanks.length > 0) {
-        const { error: delErr } = await supabaseClient
-          .from("top_albums")
-          .delete()
-          .in("rank", deleteRanks);
-        if (delErr) throw delErr;
-      }
-
-      topAlbumsOriginal = JSON.parse(JSON.stringify(topAlbumsState));
-      showTop100Toast("Top 100 order updated and saved successfully.");
       setTop100EditMode(false);
     } catch (err) {
-      console.error("Save Top 100 error:", err);
-      alert("Failed to save Top 100 order: " + err.message);
+      console.error("Save order error:", err);
+      alert("Failed to save order: " + err.message);
     } finally {
       top100SaveOrderBtn.disabled = false;
       top100SaveOrderBtn.innerHTML = origHtml;
@@ -2831,17 +3946,23 @@ window.closeMiniPlayer = function() {
       });
 
       const link = document.createElement("a");
-      link.download = "SosaSpins-Top100.png";
+      const countLabel = activeTop100Tab === "artists" ? topArtistsCount : topAlbumsCount;
+      const tabName = activeTop100Tab === "artists" ? "Artists" : "Albums";
+      link.download = `SosaSpins-Top${countLabel}-${tabName}.png`;
       link.href = dataUrl;
       link.click();
     } catch (err) {
       console.error("Export image error:", err);
-      alert("Failed to render Top 100 image: " + err.message);
+      alert("Failed to generate export image: " + err.message);
     } finally {
+      if (isAdmin) {
+        document.body.classList.add("is-admin");
+      }
+      if (wasEditing) {
+        setTop100EditMode(true);
+      }
       top100ExportImageBtn.disabled = false;
       top100ExportImageBtn.innerHTML = origBtnHtml;
-      if (isAdmin) document.body.classList.add("is-admin");
-      if (wasEditing) setTop100EditMode(true);
     }
   }
 
@@ -2866,15 +3987,15 @@ window.closeMiniPlayer = function() {
       });
     }
 
-    if (top100CancelEditBtn) {
-      top100CancelEditBtn.addEventListener("click", () => {
-        exitTop100EditMode();
-      });
-    }
-
     if (top100SaveOrderBtn) {
       top100SaveOrderBtn.addEventListener("click", () => {
         saveTop100Order();
+      });
+    }
+
+    if (top100CancelEditBtn) {
+      top100CancelEditBtn.addEventListener("click", () => {
+        exitTop100EditMode();
       });
     }
 
@@ -2886,12 +4007,7 @@ window.closeMiniPlayer = function() {
 
     if (closeAlbumBankBtn) {
       closeAlbumBankBtn.addEventListener("click", () => {
-        if (albumBankDrawer) {
-          albumBankDrawer.classList.remove("is-open");
-          setTimeout(() => {
-            if (!isTop100Editing && albumBankDrawer) albumBankDrawer.style.display = "none";
-          }, 300);
-        }
+        window.toggleBankDrawer(false);
       });
     }
 
@@ -2934,6 +4050,9 @@ window.closeMiniPlayer = function() {
       if (e.key === "Escape") {
         if (top100DetailModal && top100DetailModal.style.display !== "none") {
           closeTop100Modal();
+        }
+        if (artistCustomImageModal && artistCustomImageModal.style.display !== "none") {
+          window.closeArtistCustomImageModal();
         }
       }
     });
@@ -3056,7 +4175,8 @@ window.closeMiniPlayer = function() {
 
             <!-- Dedicated Spin Star Rating -->
             ${(item.rating !== null && item.rating !== undefined) ? `
-              <div class="spin-star-rating">
+              <div class="spin-star-rating" ${(item.rym_rating !== null && item.rym_rating !== undefined && item.rym_rating !== "") ? `title="RYM Avg: ${parseFloat(item.rym_rating).toFixed(2)}"` : ""}>
+                ${(item.rym_rating !== null && item.rym_rating !== undefined && item.rym_rating !== "") ? `<span class="rym-rating-tooltip"><i class=\'bx bxs-star\'></i> RYM Avg: ${parseFloat(item.rym_rating).toFixed(2)}</span>` : ""}
                 ${item.rating_shift ? `
                   <div class="rating-shift-box">
                     <span class="old-rating">${getStarString(item.rating_shift.from)}</span>
@@ -3132,10 +4252,10 @@ window.closeMiniPlayer = function() {
                 const safeTrack = (item.title || "Track").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
                 return `
                   <div class="fav-tracks-row single-audio-row">
-                    <span class="fav-label"><i class='bx bx-play-circle'></i> Audio:</span>
+                    <span class="fav-label"><img src="assets/icons/aero/audio.png" alt="Audio" class="aero-audio-icon"> Audio:</span>
                     <div class="fav-tracks-chips">
                       <span class="fav-track-chip song-embed-link single-play-chip" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')">
-                        <i class='bx bx-play-circle'></i> Play Single (${escapeHtml(item.title)})
+                        <span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(item.title)}
                       </span>
                     </div>
                   </div>
@@ -3143,15 +4263,15 @@ window.closeMiniPlayer = function() {
               }
               return `
                 <div class="fav-tracks-row">
-                  <span class="fav-label"><i class='bx bxs-playlist'></i> Fav Tracks:</span>
+                  <span class="fav-label">Fav Tracks:</span>
                   <div class="fav-tracks-chips">
                     ${favList.map(t => {
                       if (t.includes("|")) {
                         const [name, url] = t.split("|").map(s => s.trim());
                         const safeTrack = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-                        return `<span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')"><i class='bx bx-play-circle'></i>${name}</span>`;
+                        return `<span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${name}</span>`;
                       }
-                      return `<span class="fav-track-chip"><i class='bx bx-music'></i>${t}</span>`;
+                      return `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon">${t}</span>`;
                     }).join("")}
                   </div>
                 </div>
@@ -3174,7 +4294,7 @@ window.closeMiniPlayer = function() {
                         <span class="track-num">${tIdx + 1}.</span>
                         ${hasUrl ? `
                           <span class="track-name song-embed-link" onclick="playAudioTrack('${tr.url.trim()}', '${safeTrTitle}', '${safeArtist}', '${safeAlbum}', '${safeCover}')">
-                          ${tr.title}<i class='bx bx-play-circle track-play-icon'></i></span>
+                          ${tr.title}<span class="aero-play-wrap" style="margin-left: 6px; margin-right: 0;"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon track-play-icon"><span class="play-sheen-shine"></span></span></span>
                         ` : `
                           <span class="track-name">${tr.title}</span>
                         `}
@@ -3203,40 +4323,48 @@ window.closeMiniPlayer = function() {
               const isOpen = openDiscussSpinIds.has(Number(spinId));
               const safePlaceholderTitle = escapeHtml(item.title || "this spin");
               return `
-                <div class="spin-discuss-wrapper">
-                  <button type="button" class="spin-discuss-btn ${approvedCount > 0 ? 'has-comments' : ''} ${isOpen ? 'is-open' : ''}" id="spin-discuss-btn-${spinId}" onclick="toggleSpinDiscuss(${spinId}, this)" title="${approvedCount > 0 ? `Discussion (${approvedCount} comment${approvedCount === 1 ? '' : 's'})` : 'Discussion'}" aria-label="Discussion">
-                    <i class="bx bx-message-rounded-dots"></i>
+                <div class="spin-discuss-drawer" id="spin-discuss-${spinId}" style="display: ${isOpen ? 'flex' : 'none'};">
+                  <div class="spin-comments-list" id="spin-comments-list-${spinId}">
+                    ${renderApprovedCommentsHtml(spinId)}
+                  </div>
+                  <form class="spin-comment-form" onsubmit="submitSpinComment(event, ${spinId})">
+                    <div class="spin-comment-form-row">
+                      <input type="text" class="sosa-search-input comment-name-input" placeholder="Display Name (or Anonymous)" maxlength="40">
+                      <button type="submit" class="review-action-btn primary comment-submit-btn">
+                        <i class="bx bx-send"></i> Post
+                      </button>
+                    </div>
+                    <textarea class="sosa-search-input comment-body-input" placeholder="Leave a comment on ${safePlaceholderTitle}..." rows="2" maxlength="600" required></textarea>
+                    <div class="spin-comment-feedback" id="spin-comment-feedback-${spinId}" style="display: none;"></div>
+                  </form>
+                </div>
+
+                <div class="row-actions">
+                  <button type="button" class="action-icon-btn edit-btn admin-only" onclick="editSpin(${originalIdx})" aria-label="Edit Spin">
+                    <span class="action-tooltip">Edit Spin</span>
+                    <div class="action-icon-stage edit-icon-stage">
+                      <img src="assets/icons/aero/edit.ico" alt="Edit" class="aero-action-icon edit-icon">
+                      <div class="action-icon-reflection edit-reflection" aria-hidden="true"></div>
+                    </div>
+                  </button>
+                  <button type="button" class="action-icon-btn delete-btn admin-only" onclick="deleteSpin(${originalIdx})" aria-label="Delete Spin" onmouseenter="const img=this.querySelector('.delete-icon'); if(img) img.src='assets/icons/aero/delete-full.ico';" onmouseleave="const img=this.querySelector('.delete-icon'); if(img) img.src='assets/icons/aero/delete-empty.ico';">
+                    <span class="action-tooltip">Delete Spin</span>
+                    <div class="action-icon-stage delete-icon-stage">
+                      <img src="assets/icons/aero/delete-empty.ico" alt="Delete" class="aero-action-icon delete-icon">
+                      <div class="action-icon-reflection delete-reflection" aria-hidden="true"></div>
+                    </div>
+                  </button>
+                  <button type="button" class="spin-discuss-btn ${approvedCount > 0 ? 'has-comments' : ''} ${isOpen ? 'is-open' : ''}" id="spin-discuss-btn-${spinId}" onclick="toggleSpinDiscuss(${spinId}, this)" aria-label="${approvedCount > 0 ? `Leave a comment (${approvedCount} comment${approvedCount === 1 ? '' : 's'})` : 'Leave a comment'}">
+                    <span class="discuss-tooltip" id="spin-discuss-tooltip-${spinId}">${approvedCount > 0 ? `Leave a comment (${approvedCount} comment${approvedCount === 1 ? '' : 's'})` : 'Leave a comment'}</span>
+                    <div class="discuss-icon-stage">
+                      <img src="assets/icons/aero/discuss.png" alt="Discuss" class="discuss-icon">
+                      <div class="discuss-icon-reflection" aria-hidden="true"></div>
+                    </div>
                     <span class="discuss-count-badge" id="spin-discuss-count-${spinId}" style="${approvedCount > 0 ? '' : 'display: none;'}">${approvedCount > 0 ? approvedCount : ''}</span>
                   </button>
-                  <div class="spin-discuss-drawer" id="spin-discuss-${spinId}" style="display: ${isOpen ? 'flex' : 'none'};">
-                    <div class="spin-comments-list" id="spin-comments-list-${spinId}">
-                      ${renderApprovedCommentsHtml(spinId)}
-                    </div>
-                    <form class="spin-comment-form" onsubmit="submitSpinComment(event, ${spinId})">
-                      <div class="spin-comment-form-row">
-                        <input type="text" class="sosa-search-input comment-name-input" placeholder="Display Name (or Anonymous)" maxlength="40">
-                        <button type="submit" class="review-action-btn primary comment-submit-btn">
-                          <i class="bx bx-send"></i> Post
-                        </button>
-                      </div>
-                      <textarea class="sosa-search-input comment-body-input" placeholder="Leave a comment on ${safePlaceholderTitle}..." rows="2" maxlength="600" required></textarea>
-                      <div class="spin-comment-feedback" id="spin-comment-feedback-${spinId}" style="display: none;"></div>
-                    </form>
-                  </div>
                 </div>
               `;
             })()}
-
-            ${isAdmin ? `
-              <div class="row-actions admin-only">
-                <button type="button" class="action-icon-btn edit-btn" onclick="editSpin(${originalIdx})" title="Edit Spin">
-                  <i class='bx bxs-edit-alt'></i>
-                </button>
-                <button type="button" class="action-icon-btn delete-btn" onclick="deleteSpin(${originalIdx})" title="Delete Spin">
-                  <i class='bx bxs-trash'></i>
-                </button>
-              </div>
-            ` : ""}
           </div>
         </article>
       `;
@@ -3721,6 +4849,11 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         const fVal = String(activeFilter.value || "").toLowerCase();
         matchesTag = (i.genres && i.genres.some(g => String(g).toLowerCase() === fVal)) ||
                      (i.secondary_genres && i.secondary_genres.some(g => String(g).toLowerCase() === fVal));
+      } else if (activeFilter.type === "secondary_genre") {
+        const fVal = String(activeFilter.value || "").toLowerCase();
+        matchesTag = (i.secondary_genres && i.secondary_genres.some(g => String(g).toLowerCase() === fVal)) ||
+                     (i.genres && i.genres.some(g => String(g).toLowerCase() === fVal));
+
       } else if (activeFilter.type === "descriptor") {
         const fVal = String(activeFilter.value || "").toLowerCase();
         matchesTag = i.descriptors && i.descriptors.some(d => String(d).toLowerCase() === fVal);
@@ -3830,6 +4963,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     updateSingleModeFields();
     document.getElementById("logMemo").value = item.memo || "";
     if (logRuntime) logRuntime.value = item.runtime || "";
+    if (logRymRating) logRymRating.value = (item.rym_rating !== null && item.rym_rating !== undefined && item.rym_rating !== "") ? item.rym_rating : "";
     if (trackRatingsList) {
     trackRatingsList.innerHTML = "";
     (item.track_ratings || []).forEach(tr => {
@@ -3890,6 +5024,8 @@ if (addTrackRatingRowBtn && trackRatingsList) {
 
       const logRuntimeEl = document.getElementById("logRuntime");
       const runtimeVal = logRuntimeEl ? logRuntimeEl.value.trim() : null;
+      const logRymRatingEl = document.getElementById("logRymRating");
+      const rymRatingVal = (logRymRatingEl && logRymRatingEl.value.trim()) ? parseFloat(logRymRatingEl.value) : null;
       const logTypeVal = document.getElementById("logType").value;
       const isSubmittingSingle = (logTypeVal || "").trim().toLowerCase() === "single";
       let favTracksPayload = [];
@@ -3922,6 +5058,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
           : parseList(document.getElementById("logDescriptors").value),
         cover_url: finalCoverUrl,
         runtime: runtimeVal || null,
+        rym_rating: rymRatingVal,
         review_url: logReviewUrl && logReviewUrl.value.trim() ? logReviewUrl.value.trim() : null,
         fav_tracks: favTracksPayload,
         memo: document.getElementById("logMemo").value.trim(),
@@ -3936,19 +5073,44 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       if (editingIndex !== null) {
         // UPDATE existing row in Supabase using its unique database ID
         const targetId = allEntries[editingIndex].id;
-        const { error } = await supabaseClient
+        let { error } = await supabaseClient
           .from("spins")
           .update(spinData)
           .eq("id", targetId);
 
-        if (error) return alert("Error updating spin: " + error.message);
+        if (error) {
+          const errMsg = String(error.message || "").toLowerCase();
+          if (errMsg.includes("rym_rating")) {
+            const retryPayload = { ...spinData };
+            if (errMsg.includes("rym_rating")) delete retryPayload.rym_rating;
+            const retryRes = await supabaseClient
+              .from("spins")
+              .update(retryPayload)
+              .eq("id", targetId);
+            if (retryRes.error) return alert("Error updating spin: " + retryRes.error.message);
+          } else {
+            return alert("Error updating spin: " + error.message);
+          }
+        }
       } else {
         // INSERT brand-new row into Supabase
-        const { error } = await supabaseClient
+        let { error } = await supabaseClient
           .from("spins")
           .insert([spinData]);
 
-        if (error) return alert("Error saving spin: " + error.message);
+        if (error) {
+          const errMsg = String(error.message || "").toLowerCase();
+          if (errMsg.includes("rym_rating")) {
+            const retryPayload = { ...spinData };
+            if (errMsg.includes("rym_rating")) delete retryPayload.rym_rating;
+            const retryRes = await supabaseClient
+              .from("spins")
+              .insert([retryPayload]);
+            if (retryRes.error) return alert("Error saving spin: " + retryRes.error.message);
+          } else {
+            return alert("Error saving spin: " + error.message);
+          }
+        }
       }
 
       closeModal();
@@ -4220,7 +5382,9 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       if (data.runtime && logRuntimeEl) {
         logRuntimeEl.value = data.runtime;
       }
-
+      if (data.rym_rating !== undefined && data.rym_rating !== null && logRymRating) {
+        logRymRating.value = data.rym_rating;
+      }
       if (data.cover_url) {
         if (logCoverUrl) logCoverUrl.value = data.cover_url;
         if (previewImg) previewImg.src = data.cover_url;

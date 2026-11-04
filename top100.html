@@ -26,6 +26,7 @@
     <link rel="manifest" href="assets/images/homepics/site.webmanifest?v=20260527" />
     <!-- Link to CSS -->
     <link rel="stylesheet" href="assets/css/sosaspins.css">
+    <link rel="stylesheet" href="assets/css/dock.css">
     <!-- Box icons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 </head>
@@ -51,9 +52,6 @@
                 <a href="sosaspins.html" class="nav-custom-link" title="SosaSpins Archive">
                     <img src="assets/images/homepics/Folder203.ico" class="nav-custom-icon music-icon" alt="SosaSpins">
                 </a>
-                <a href="challenge.html" class="nav-custom-link" title="Listening Challenge">
-                    <img src="assets/images/spins/Disc010.ico" class="nav-custom-icon challenge-icon" alt="Listening Challenge">
-                </a>
                 <a href="about.html" class="nav-custom-link" title="About">
                     <img src="assets/images/homepics/msgsres_1.ico" class="nav-custom-icon msngr-icon" alt="About">
                 </a>
@@ -76,11 +74,21 @@
         <div class="window glass w7-window top100-window-frame" id="top100WindowFrame">
           <!-- Window Title Bar -->
           <div class="title-bar">
-            <div class="title-bar-text">
+            <div class="title-bar-text" id="top100WindowTitleText">
               <i class='bx bxs-trophy' style="color: #f59e0b; margin-right: 4px; vertical-align: middle;"></i>
-              Sosa's Top 100 Albums Showcase
+              <span id="top100WindowTitleSpan">Sosa's Top 100 Albums Showcase</span>
             </div>
             <div class="title-bar-controls"></div>
+          </div>
+
+          <!-- Windows 7 Aero Tab Bar -->
+          <div class="top100-tabs-bar" role="tablist">
+            <button type="button" class="w7-tab-btn active" id="tabTopAlbums" role="tab" aria-selected="true" onclick="switchTop100Tab('albums')">
+              <i class='bx bx-disc'></i> Top Albums
+            </button>
+            <button type="button" class="w7-tab-btn" id="tabTopArtists" role="tab" aria-selected="false" onclick="switchTop100Tab('artists')">
+              <i class='bx bx-user-voice'></i> Top Artists
+            </button>
           </div>
 
           <!-- Attached Windows 7 Command Bar -->
@@ -89,14 +97,41 @@
               <a href="sosaspins.html" class="aero-command-btn" title="Go to Spins Timeline">
                 <i class='bx bx-arrow-back'></i> SosaSpins
               </a>
-              <button type="button" id="top100ExportImageBtn" class="aero-command-btn export-emerald-btn" title="Export clean image of Top 100">
+              <button type="button" id="top100ExportImageBtn" class="aero-command-btn export-emerald-btn" title="Export clean image">
                 <i class='bx bx-image'></i> Export Image
+              </button>
+
+              <!-- Albums Count Dropdown -->
+              <div class="top100-count-wrap" id="topAlbumsCountWrap">
+                <label for="topAlbumsCountSelect" class="aero-ctrl-label"><i class='bx bx-list-ol'></i> Show:</label>
+                <select id="topAlbumsCountSelect" class="aero-select-styled" onchange="changeTopAlbumsCount(this.value)">
+                  <option value="20">Top 20</option>
+                  <option value="50">Top 50</option>
+                  <option value="100" selected>Top 100</option>
+                  <option value="all">All</option>
+                </select>
+              </div>
+
+              <!-- Artists Count Dropdown & Min Spins Toggle -->
+              <div class="top100-count-wrap" id="topArtistsCountWrap" style="display: none;">
+                <label for="topArtistsCountSelect" class="aero-ctrl-label"><i class='bx bx-list-ol'></i> Show:</label>
+                <select id="topArtistsCountSelect" class="aero-select-styled" onchange="changeTopArtistsCount(this.value)">
+                  <option value="10">Top 10</option>
+                  <option value="20" selected>Top 20</option>
+                  <option value="50">Top 50</option>
+                  <option value="all">All</option>
+                </select>
+              </div>
+
+              <!-- Open/Close Bank Toggle Button -->
+              <button type="button" id="top100ToggleBankBtn" class="aero-command-btn admin-only" style="display: none;" onclick="toggleBankDrawer()" title="Open or tuck away Bank Drawer">
+                <i class='bx bx-archive-in'></i> <span id="top100ToggleBankLabel">Bank</span>
               </button>
             </div>
             <div class="command-group-right">
               <!-- Admin Edit Actions -->
-              <button type="button" id="top100EditModeBtn" class="aero-command-btn admin-only" style="display: none;" title="Edit Top 100 Ranks">
-                <i class='bx bx-edit'></i> Edit Top 100
+              <button type="button" id="top100EditModeBtn" class="aero-command-btn admin-only" style="display: none;" title="Edit Ranks">
+                <i class='bx bx-edit'></i> <span id="top100EditBtnText">Edit Top 100</span>
               </button>
               <button type="button" id="top100SaveOrderBtn" class="aero-command-btn save-emerald-btn admin-only" style="display: none;" title="Save Top 100 Order">
                 <i class='bx bx-save'></i> Save Order
@@ -114,34 +149,67 @@
 
               <!-- Header Banner Inside Export Zone -->
               <div class="top100-showcase-header">
-                <div class="top100-header-title">Sosa's All-Time Top 100 Albums</div>
-                <div class="top100-header-subtitle">"When Sosa Speaks, we listen."</div>
+                <div class="top100-header-title" id="top100HeaderTitle">Sosa's All-Time Top 100 Albums</div>
+                <div class="top100-header-subtitle" id="top100HeaderSubtitle">"When Sosa Speaks, we listen."</div>
               </div>
 
-              <!-- 1. The Crown Showcase: The Top 3 Podium (Ranks 1–3) -->
-              <div class="top100-podium-section" id="top100Podium">
-                <!-- Injected dynamically: #2 Silver, #1 Gold, #3 Bronze -->
+              <!-- 1. ALBUMS SHOWCASE CONTAINER -->
+              <div id="topAlbumsShowcase" class="top-showcase-container">
+                <!-- 1. The Crown Showcase: The Top 3 Podium (Ranks 1–3) -->
+                <div class="top100-podium-section" id="top100Podium">
+                  <!-- Injected dynamically: #2 Silver, #1 Gold, #3 Bronze -->
+                </div>
+
+                <!-- 2. The Upper Tier: Ranks 4 to 10 (Sub-Grid) -->
+                <div class="top100-tier-section" id="top100TierSection">
+                  <div class="top100-tier-banner">
+                    <span class="tier-banner-pill">[ TOP 10 ]</span>
+                    <div class="tier-banner-line"></div>
+                  </div>
+                  <div class="top100-tier-grid" id="top100TierGrid">
+                    <!-- Injected dynamically: Ranks 4-10 -->
+                  </div>
+                </div>
+
+                <!-- 3. The Main Field: Ranks 11 to 100 (Topster Grid) -->
+                <div class="top100-main-section" id="top100MainSection">
+                  <div class="top100-tier-banner">
+                    <span class="tier-banner-pill" id="topAlbumsMainGridPill">[ RANKS 11 &ndash; 100 ]</span>
+                    <div class="tier-banner-line"></div>
+                  </div>
+                  <div class="top100-main-grid" id="top100MainGrid">
+                    <!-- Injected dynamically: Ranks 11-100 -->
+                  </div>
+                </div>
               </div>
 
-              <!-- 2. The Upper Tier: Ranks 4 to 10 (Sub-Grid) -->
-              <div class="top100-tier-section">
-                <div class="top100-tier-banner">
-                  <span class="tier-banner-pill">[ TOP 10 ]</span>
-                  <div class="tier-banner-line"></div>
+              <!-- 2. ARTISTS SHOWCASE CONTAINER -->
+              <div id="topArtistsShowcase" class="top-showcase-container" style="display: none;">
+                <!-- 1. The Crown Showcase: Artists Top 3 Podium (Ranks 1–3) -->
+                <div class="top100-podium-section top-artists-podium-section" id="topArtistsPodium">
+                  <!-- Injected dynamically: #2 Silver, #1 Gold, #3 Bronze -->
                 </div>
-                <div class="top100-tier-grid" id="top100TierGrid">
-                  <!-- Injected dynamically: Ranks 4-10 -->
-                </div>
-              </div>
 
-              <!-- 3. The Main Field: Ranks 11 to 100 (Topster Grid) -->
-              <div class="top100-main-section">
-                <div class="top100-tier-banner">
-                  <span class="tier-banner-pill">[ RANKS 11 &ndash; 100 ]</span>
-                  <div class="tier-banner-line"></div>
+                <!-- 2. The Upper Tier: Artists Ranks 4 to 10 -->
+                <div class="top100-tier-section" id="topArtistsTierSection">
+                  <div class="top100-tier-banner">
+                    <span class="tier-banner-pill">[ TOP 10 ARTISTS ]</span>
+                    <div class="tier-banner-line"></div>
+                  </div>
+                  <div class="top100-tier-grid top-artists-tier-grid" id="topArtistsTierGrid">
+                    <!-- Injected dynamically: Ranks 4-10 -->
+                  </div>
                 </div>
-                <div class="top100-main-grid" id="top100MainGrid">
-                  <!-- Injected dynamically: Ranks 11-100 -->
+
+                <!-- 3. The Main Field: Artists Ranks 11 to N -->
+                <div class="top100-main-section" id="topArtistsMainSection">
+                  <div class="top100-tier-banner">
+                    <span class="tier-banner-pill" id="topArtistsMainGridPill">[ RANKS 11 &ndash; 20 ]</span>
+                    <div class="tier-banner-line"></div>
+                  </div>
+                  <div class="top-artists-main-grid" id="topArtistsMainGrid">
+                    <!-- Injected dynamically: Ranks 11-20+ -->
+                  </div>
                 </div>
               </div>
 
@@ -162,14 +230,20 @@
       </section>
     </main>
 
+    <!-- Floating Bank Edge Tab Handle -->
+    <button type="button" id="bankEdgeTab" class="bank-edge-tab admin-only" style="display: none;" onclick="toggleBankDrawer()" title="Click to open or tuck away Bank">
+      <i class='bx bxs-chevron-left' id="bankEdgeArrow"></i>
+      <span id="bankEdgeText">Bank</span>
+    </button>
+
     <!-- Admin Album Bank Slide-Out Drawer -->
     <aside id="albumBankDrawer" class="album-bank-drawer admin-only" style="display: none;" aria-label="Album Bank Drawer">
       <div class="album-bank-header">
         <div class="album-bank-title">
-          <i class='bx bx-archive-in'></i> Album Bank
+          <i class='bx bx-archive-in'></i> <span id="albumBankTitleText">Album Bank</span>
           <span id="albumBankCountBadge" class="aero-count-badge">0</span>
         </div>
-        <button type="button" id="closeAlbumBankBtn" class="aero-icon-btn is-close" title="Close Album Bank" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: #64748b;">
+        <button type="button" id="closeAlbumBankBtn" class="aero-icon-btn is-close" onclick="toggleBankDrawer(false)" title="Tuck away Bank" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: #64748b;">
           <i class='bx bx-x'></i>
         </button>
       </div>
@@ -178,22 +252,22 @@
         <div class="bank-search-wrap">
           <i class='bx bx-search search-icon'></i>
           <input type="text" id="albumBankSearchInput" class="sosa-search-input bank-search-input" placeholder="Filter rated albums...">
-          <button type="button" id="albumBankClearSearchBtn" class="bank-clear-btn" style="display: none;">✕</button>
+          <button type="button" id="albumBankClearSearchBtn" class="bank-clear-btn" style="display: none;">&times;</button>
         </div>
         <div class="bank-sort-wrap">
           <label for="albumBankSortSelect" class="bank-sort-label">Sort:</label>
           <select id="albumBankSortSelect" class="sosa-search-input bank-sort-select">
             <option value="rating-desc">Rating: High to Low</option>
             <option value="rating-asc">Rating: Low to High</option>
-            <option value="artist-asc">Artist (A → Z)</option>
-            <option value="title-asc">Title (A → Z)</option>
+            <option value="artist-asc">Artist (A &rarr; Z)</option>
+            <option value="title-asc">Title (A &rarr; Z)</option>
             <option value="year-desc">Year: Newest</option>
             <option value="year-asc">Year: Oldest</option>
             <option value="recent">Recent: Last Logged</option>
           </select>
         </div>
         <div class="bank-hint-text">
-          <i class='bx bx-info-circle'></i> Drag an album onto any slot (1–100) to assign. Drag between slots to reorder.
+          <i class='bx bx-info-circle'></i> Drag an album onto any slot (1&ndash;100) to assign. Drag between slots to reorder.
         </div>
       </div>
 
@@ -214,6 +288,34 @@
           </div>
         </div>
         <div class="window-body" id="top100ModalBody"></div>
+      </div>
+    </div>
+
+    <!-- ARTIST CUSTOM IMAGE / GIF MODAL -->
+    <div id="artistCustomImageModal" class="sosa-modal-backdrop" style="display: none;">
+      <div class="window glass w7-modal-window top100-detail-window" style="max-width: 440px; width: 90%;">
+        <div class="title-bar">
+          <div class="title-bar-text">
+            <i class='bx bx-image-alt'></i> Custom Artist Image / GIF
+          </div>
+          <div class="title-bar-controls">
+            <button type="button" onclick="closeArtistCustomImageModal()" aria-label="Close" class="is-close"></button>
+          </div>
+        </div>
+        <div class="window-body" style="padding: 16px;">
+          <div style="font-size: 0.88rem; font-weight: 700; margin-bottom: 4px; color: var(--text-color);" id="customImgArtistName">Artist Name</div>
+          <div style="font-size: 0.74rem; color: #64748b; margin-bottom: 12px;">Paste an image or animated GIF URL, or pick from their logged album covers:</div>
+          
+          <input type="url" id="artistCustomImgInput" class="w7-input-field" placeholder="https://example.com/artist.gif" style="margin-bottom: 12px;">
+          
+          <div style="font-size: 0.72rem; font-weight: 700; color: #475569; margin-bottom: 6px;">Logged Project Covers:</div>
+          <div id="artistModalCoversPicker" class="artist-modal-covers-picker"></div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px;">
+            <button type="button" class="w7-auth-btn-secondary" onclick="closeArtistCustomImageModal()">Cancel</button>
+            <button type="button" class="w7-auth-btn-primary" onclick="saveArtistCustomImage()"><i class='bx bx-check'></i> Apply Image</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -313,10 +415,142 @@
         </p>
     </footer>
 
+    <!-- Aero Glass Mini-Player Dock -->
+    <div id="miniPlayerDock" class="aero-player-dock" style="display: none;">
+      <div id="miniPlayerBg" class="aero-player-bg"></div>
+      <div class="aero-player-titlebar">
+        <div class="aero-now-playing-indicator">
+          <span class="aero-equalizer-bars" id="wmpEqualizer">
+            <span></span><span></span><span></span><span></span>
+          </span>
+          <span class="aero-status-text" id="wmpStatusText">NOW PLAYING</span>
+        </div>
+        <button type="button" class="aero-player-close" onclick="closeMiniPlayer()" title="Close Player" aria-label="Close Player">
+          <img src="assets/icons/aero/close.ico" alt="Close" class="mini-close-icon">
+        </button>
+      </div>
+
+      <div class="aero-player-meta">
+        <div id="miniPlayerTrack" class="aero-meta-track">Track Title</div>
+        <div class="aero-meta-sub">
+          <span id="miniPlayerArtist" class="aero-meta-artist">Artist</span>
+          <span class="aero-meta-sep"> • </span>
+          <span id="miniPlayerAlbum" class="aero-meta-album">Album</span>
+        </div>
+      </div>
+
+      <div id="miniPlayerFrameWrap" class="aero-player-frame-wrap"></div>
+
+      <!-- Windows Media Player Aero Glass Control Bar -->
+      <div id="wmpControlsBar" class="wmp-controls-bar" style="display: none;">
+        <!-- Scrubber -->
+        <div class="wmp-scrubber-section">
+          <span class="wmp-time-text" id="wmpCurrentTime">0:00</span>
+          <div class="wmp-scrubber-track" id="wmpScrubberTrack" role="slider" aria-label="Timeline Scrubber" tabindex="0">
+            <div class="wmp-progress-fill" id="wmpProgressFill">
+              <span class="wmp-scrubber-knob"></span>
+            </div>
+          </div>
+          <span class="wmp-time-text" id="wmpDuration">0:00</span>
+        </div>
+
+        <!-- Symmetrical Playback Row: Rewind, Stop, Play/Pause Orb, FFwd, Loop -->
+        <div class="wmp-buttons-row">
+          <button type="button" class="wmp-ctrl-btn" id="wmpRwBtn" onclick="wmpSkip(-10)" title="Rewind 10s">
+            <i class='bx bx-rewind'></i>
+          </button>
+          <button type="button" class="wmp-ctrl-btn" id="wmpStopBtn" onclick="wmpStop()" title="Stop">
+            <i class='bx bx-stop'></i>
+          </button>
+
+          <!-- Centered Glass Orb -->
+          <div class="wmp-orb-stage">
+            <button type="button" class="wmp-orb-btn" id="wmpPlayPauseBtn" onclick="wmpTogglePlayPause()" title="Play / Pause">
+              <div class="wmp-orb-glass-reflection"></div>
+              <img src="assets/icons/aero/play.ico" alt="Play" class="wmp-orb-icon" id="wmpOrbPlayIcon">
+              <img src="assets/icons/aero/pause.ico" alt="Pause" class="wmp-orb-icon wmp-orb-pause-icon" id="wmpOrbPauseIcon" style="display: none;">
+            </button>
+          </div>
+
+          <button type="button" class="wmp-ctrl-btn" id="wmpFfBtn" onclick="wmpSkip(10)" title="Fast Forward 10s">
+            <i class='bx bx-fast-forward'></i>
+          </button>
+          <button type="button" class="wmp-ctrl-btn" id="wmpLoopBtn" onclick="wmpToggleLoop()" title="Loop Track">
+            <i class='bx bx-repeat'></i>
+          </button>
+        </div>
+
+        <!-- Sub-utility bar: Aero Glass Volume Slider (Left) and Fullscreen (Right) -->
+        <div class="wmp-sub-bar">
+          <div class="wmp-volume-wrap">
+            <button type="button" class="wmp-vol-btn" onclick="wmpToggleMute()" title="Mute / Unmute">
+              <i class='bx bx-volume-full' id="wmpVolIcon"></i>
+            </button>
+            <input type="range" id="wmpVolumeSlider" class="wmp-aero-slider" min="0" max="1" step="0.05" value="1" oninput="wmpSetVolume(this.value)" title="Volume">
+          </div>
+          <button type="button" class="wmp-sub-btn" id="wmpFullscreenBtn" onclick="wmpToggleFullscreen()" title="Fullscreen Video" style="display: none;">
+            <i class='bx bx-fullscreen'></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Windows 7 Aero Taskbar ("Superbar") -->
+    <nav class="aero-taskbar-container" id="aeroTaskbar" aria-label="SosaSpins Taskbar">
+      <div class="taskbar-inner">
+        <!-- Windows 7 Start Orb (Timeline Feed / Home) -->
+        <a href="sosaspins.html" class="taskbar-start-orb" id="taskbarStartOrb" aria-label="Timeline Feed">
+          <span class="taskbar-tooltip">Timeline Feed</span>
+          <div class="start-orb-glass">
+            <div class="start-orb-reflection"></div>
+            <img src="assets/images/homepics/Folder203.ico" alt="Timeline Feed" class="start-orb-icon">
+          </div>
+        </a>
+
+        <!-- Superbar App Buttons -->
+        <div class="taskbar-apps" role="toolbar" aria-label="Running Portals">
+          <a href="challenge.html" class="taskbar-app-btn" data-portal="challenge" aria-label="Challenge Grid">
+            <span class="taskbar-tooltip">Challenge Grid</span>
+            <div class="app-btn-plate">
+              <img src="assets/icons/aero/challenge.ico" alt="Challenge Grid" class="win7-app-icon challenge-icon">
+            </div>
+          </a>
+          <a href="top100.html" class="taskbar-app-btn" data-portal="top100" aria-label="Top 100 Showcase">
+            <span class="taskbar-tooltip">Top 100 Showcase</span>
+            <div class="app-btn-plate">
+              <img src="assets/icons/aero/top100.png" alt="Top 100 Showcase" class="win7-app-icon top100-icon">
+            </div>
+          </a>
+          <a href="stats.html" class="taskbar-app-btn" data-portal="stats" aria-label="Listening Stats">
+            <span class="taskbar-tooltip">Listening Stats</span>
+            <div class="app-btn-plate">
+              <img src="assets/icons/aero/stats.png" alt="Listening Stats" class="win7-app-icon stats-icon">
+            </div>
+          </a>
+        </div>
+
+        <div class="taskbar-spacer"></div>
+
+        <!-- System Tray (Notification Area & Clock) -->
+        <div class="taskbar-tray">
+          <div class="tray-clock" id="taskbarClock" title="SosaSpins Aero Clock">
+            <span class="tray-time" id="trayTime">12:00 PM</span>
+            <span class="tray-date" id="trayDate">11/3/2026</span>
+          </div>
+        </div>
+
+        <!-- Windows 7 "Show Desktop" / Aero Peek Strip -->
+        <button type="button" class="taskbar-show-desktop" id="taskbarShowDesktop" aria-label="Show Desktop / Auto-Hide Taskbar" title="Auto-Hide / Pin Taskbar">
+          <div class="show-desktop-bar"></div>
+        </button>
+      </div>
+    </nav>
+
     <!-- Scripts -->
     <script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
     <script src="assets/js/sosaspins.js"></script>
+    <script src="assets/js/dock.js"></script>
 </body>
 </html>

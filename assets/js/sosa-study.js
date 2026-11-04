@@ -250,7 +250,7 @@
 
       favSlot.innerHTML = `
         <div class="fav-tracks-row">
-          <span class="fav-label"><i class='bx bxs-playlist'></i> Fav Tracks:</span>
+          <span class="fav-label">Fav Tracks:</span>
           <div class="fav-tracks-chips">
             ${chipsHtml}
           </div>

@@ -683,6 +683,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     getPool: getLiveDescriptorPool
   });
 
+
   // Helper: Format Month Display Label ("October" for 2026, "January '27" for future months)
   function formatMonthDisplay(monthStr, yearVal) {
     if (!monthStr) return "";
@@ -1848,10 +1849,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             const link = parts[1] ? parts[1].trim() : (first.startsWith("http") ? first.trim() : null);
             if (link) {
               favTracksHtml = `
-                <div class="fav-tracks-row" style="margin-top: 0.5rem;">
-                  <span class="fav-label"><i class='bx bx-play-circle'></i> Audio:</span>
+                <div class="fav-tracks-row single-audio-row" style="margin-top: 0.5rem;">
+                  <span class="fav-label"><img src="assets/icons/aero/audio.png" alt="Audio" class="aero-audio-icon"> Audio:</span>
                   <div class="fav-tracks-chips">
-                    <a href="${link}" target="_blank" rel="noopener noreferrer" class="fav-track-chip single-play-chip"><i class='bx bx-play-circle'></i> Play Single (${title}) ↗</a>
+                    <a href="${link}" target="_blank" rel="noopener noreferrer" class="fav-track-chip single-play-chip song-embed-link"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${title} ↗</a>
                   </div>
                 </div>`;
             }
@@ -1861,13 +1862,13 @@ document.addEventListener("DOMContentLoaded", async () => {
               const title = parts[0].trim().replace(/^["“]|["”]$/g, "");
               const link = parts[1] ? parts[1].trim() : null;
               return link
-                ? `<a href="${link}" target="_blank" rel="noopener noreferrer" class="fav-track-chip"><i class='bx bx-music'></i> ${title} ↗</a>`
-                : `<span class="fav-track-chip"><i class='bx bx-music'></i> ${title}</span>`;
+                ? `<a href="${link}" target="_blank" rel="noopener noreferrer" class="fav-track-chip song-embed-link"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${title} ↗</a>`
+                : `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon"> ${title}</span>`;
             }).join("");
 
             favTracksHtml = `
               <div class="fav-tracks-row" style="margin-top: 0.5rem;">
-                <span class="fav-label"><i class='bx bxs-playlist'></i> Fav Tracks:</span>
+                <span class="fav-label">Fav Tracks:</span>
                 <div class="fav-tracks-chips">${cleanedTracks}</div>
               </div>`;
           }
@@ -3150,7 +3151,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       window.addGenresManager.setTags([]);
       window.addSecondaryGenresManager.setTags([]);
       window.addDescriptorsManager.setTags([]);
-
+  
       if (artCandidatesContainer) {
         artCandidatesContainer.style.display = "none";
         artCandidatesContainer.classList.add("is-hidden");
@@ -3378,12 +3379,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         addAlbumForm.reset();
         editEntryId.value = "";
         if (addRymRating) addRymRating.value = "";
-        if (addPrevRating) addPrevRating.value = "";
+          if (addPrevRating) addPrevRating.value = "";
         if (relistenFieldsContainer) relistenFieldsContainer.style.display = "none";
         window.addGenresManager.setTags([]);
         window.addSecondaryGenresManager.setTags([]);
         window.addDescriptorsManager.setTags([]);
-        if (addPreviewImg) addPreviewImg.src = FALLBACK_PLACEHOLDER;
+          if (addPreviewImg) addPreviewImg.src = FALLBACK_PLACEHOLDER;
 
         await loadData();
 
