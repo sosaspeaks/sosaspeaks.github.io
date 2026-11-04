@@ -193,7 +193,25 @@
   <div id="modalOverlay" class="sosa-modal-backdrop" style="display: none;">
     <div class="modal-dialog">
       <div class="modal-header">
-        <h3 class="modal-title" id="modalTitle">Log a Spin</h3>
+        <div class="modal-title-wrap">
+          <h3 class="modal-title" id="modalTitle">Log a Spin</h3>
+          <div class="modal-clipboard-actions admin-only">
+            <button type="button" class="action-icon-btn copy-spin-btn" id="modalCopySpinBtn" onclick="copyCurrentSpinModalInfo()" aria-label="Copy Spin Info">
+              <span class="action-tooltip" id="modalCopyTooltip">Copy Spin Info</span>
+              <div class="action-icon-stage copy-icon-stage">
+                <img src="assets/icons/aero/copy.png" alt="Copy" class="aero-action-icon copy-icon" id="modalCopySpinIcon">
+                <div class="action-icon-reflection copy-reflection" aria-hidden="true"></div>
+              </div>
+            </button>
+            <button type="button" class="action-icon-btn paste-spin-btn" id="modalPasteSpinBtn" onclick="pasteSpinModalInfo()" aria-label="Paste Spin Info">
+              <span class="action-tooltip" id="modalPasteTooltip">Paste Spin Info</span>
+              <div class="action-icon-stage paste-icon-stage">
+                <img src="assets/icons/aero/paste.png" alt="Paste" class="aero-action-icon paste-icon" id="modalPasteSpinIcon">
+                <div class="action-icon-reflection paste-reflection" aria-hidden="true"></div>
+              </div>
+            </button>
+          </div>
+        </div>
         <button type="button" id="closeModalBtn" class="modal-close-btn">&times;</button>
       </div>
 

@@ -442,7 +442,7 @@ function getDominantColorFromImg(imgUrl) {
     document.querySelectorAll(".admin-only").forEach(el => {
       if (el.id === "spinsAdminBarWrap") {
         el.style.display = isAdmin ? "block" : "none";
-      } else if (el.classList.contains("row-actions") || el.classList.contains("aero-queue-btn") || el.classList.contains("aero-command-btn")) {
+      } else if (el.classList.contains("row-actions") || el.classList.contains("aero-queue-btn") || el.classList.contains("aero-command-btn") || el.classList.contains("modal-clipboard-actions")) {
         el.style.display = isAdmin ? "inline-flex" : "none";
       } else {
         el.style.display = isAdmin ? "" : "none";
@@ -4971,6 +4971,227 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     });
     }
   };
+
+  function flashClipboardFeedback(btnId, tooltipId, iconIdOrMsg, msgOrSuccess = true, maybeSuccess = true) {
+    const btn = document.getElementById(btnId);
+    const tooltip = document.getElementById(tooltipId);
+    if (!tooltip) return;
+
+    let message = iconIdOrMsg;
+    let success = msgOrSuccess !== false;
+    if (typeof msgOrSuccess === "string") {
+      message = msgOrSuccess;
+      success = maybeSuccess !== false;
+    }
+
+    const originalText = tooltip.getAttribute("data-original-text") || tooltip.textContent;
+    tooltip.setAttribute("data-original-text", originalText);
+
+    tooltip.textContent = message;
+    tooltip.classList.add("force-show");
+    if (btn) {
+      btn.classList.remove("feedback-active", "feedback-error");
+      btn.classList.add(success ? "feedback-active" : "feedback-error");
+    }
+
+    clearTimeout(tooltip._feedbackTimer);
+    tooltip._feedbackTimer = setTimeout(() => {
+      tooltip.textContent = originalText;
+      tooltip.classList.remove("force-show");
+      if (btn) btn.classList.remove("feedback-active", "feedback-error");
+    }, 1600);
+  }
+
+  window.copyCurrentSpinModalInfo = function() {
+    const artist = logArtist ? logArtist.value.trim() : "";
+    const title = logTitle ? logTitle.value.trim() : "";
+    const type = document.getElementById("logType") ? document.getElementById("logType").value : "Album";
+    const year = document.getElementById("logYear") ? document.getElementById("logYear").value : "";
+    const rating = document.getElementById("logRating") ? document.getElementById("logRating").value : "";
+    const runtime = logRuntime ? logRuntime.value.trim() : "";
+    const coverUrl = logCoverUrl ? logCoverUrl.value.trim() : "";
+    const reviewUrl = logReviewUrl ? logReviewUrl.value.trim() : "";
+    const rymRating = logRymRating ? logRymRating.value : "";
+    const singleAudioUrl = logSingleAudioUrl ? logSingleAudioUrl.value.trim() : "";
+    const favTracks = logFavTracks ? logFavTracks.value.trim() : "";
+
+    let genres = [];
+    if (window.logGenresManager) {
+      genres = window.logGenresManager.getTags();
+    } else {
+      const rawG = document.getElementById("logGenres") ? document.getElementById("logGenres").value : "";
+      genres = rawG ? rawG.split(",").map(s => s.trim()).filter(Boolean) : [];
+    }
+
+    let secondaryGenres = [];
+    if (window.logSecondaryGenresManager) {
+      secondaryGenres = window.logSecondaryGenresManager.getTags();
+    } else {
+      const rawS = document.getElementById("logSecondaryGenres") ? document.getElementById("logSecondaryGenres").value : "";
+      secondaryGenres = rawS ? rawS.split(",").map(s => s.trim()).filter(Boolean) : [];
+    }
+
+    let descriptors = [];
+    if (window.logDescriptorsManager) {
+      descriptors = window.logDescriptorsManager.getTags();
+    } else {
+      const rawD = document.getElementById("logDescriptors") ? document.getElementById("logDescriptors").value : "";
+      descriptors = rawD ? rawD.split(",").map(s => s.trim()).filter(Boolean) : [];
+    }
+
+    const trackRatings = [];
+    if (trackRatingsList) {
+      trackRatingsList.querySelectorAll(".track-rating-input-row").forEach(row => {
+        const tInput = row.querySelector(".tr-title-input");
+        const uInput = row.querySelector(".tr-url-input");
+        const rSelect = row.querySelector(".tr-rating-select");
+        if (tInput && tInput.value.trim()) {
+          trackRatings.push({
+            title: tInput.value.trim(),
+            rating: rSelect ? parseFloat(rSelect.value) : 5.0,
+            url: uInput ? uInput.value.trim() : ""
+          });
+        }
+      });
+    }
+
+    if (!artist && !title) {
+      flashClipboardFeedback("modalCopySpinBtn", "modalCopyTooltip", "modalCopySpinIcon", "No spin info to copy!", false);
+      return;
+    }
+
+    const spinData = {
+      artist,
+      title,
+      type,
+      year,
+      rating,
+      runtime,
+      cover_url: coverUrl,
+      genres,
+      secondary_genres: secondaryGenres,
+      descriptors,
+      fav_tracks: favTracks,
+      single_audio_url: singleAudioUrl,
+      review_url: reviewUrl,
+      rym_rating: rymRating,
+      track_ratings: trackRatings
+    };
+
+    try {
+      localStorage.setItem("sosa_copied_spin", JSON.stringify(spinData));
+    } catch (e) {}
+    window.sosaCopiedSpin = spinData;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(JSON.stringify(spinData, null, 2)).catch(() => {});
+    }
+
+    flashClipboardFeedback("modalCopySpinBtn", "modalCopyTooltip", "modalCopySpinIcon", "Copied Spin Info!", true);
+  };
+
+  window.pasteSpinModalInfo = async function() {
+    let spinData = window.sosaCopiedSpin;
+    if (!spinData) {
+      try {
+        const stored = localStorage.getItem("sosa_copied_spin");
+        if (stored) spinData = JSON.parse(stored);
+      } catch (e) {}
+    }
+
+    if (!spinData && navigator.clipboard && navigator.clipboard.readText) {
+      try {
+        const text = await navigator.clipboard.readText();
+        const parsed = JSON.parse(text);
+        if (parsed && (parsed.artist || parsed.title)) {
+          spinData = parsed;
+        }
+      } catch (e) {}
+    }
+
+    if (!spinData || (!spinData.artist && !spinData.title)) {
+      flashClipboardFeedback("modalPasteSpinBtn", "modalPasteTooltip", "modalPasteSpinIcon", "No copied spin info!", false);
+      return;
+    }
+
+    if (logArtist) logArtist.value = spinData.artist || "";
+    if (logTitle) logTitle.value = spinData.title || "";
+    if (document.getElementById("logType")) {
+      document.getElementById("logType").value = spinData.type || "Album";
+      updateSingleModeFields();
+    }
+    if (document.getElementById("logYear")) document.getElementById("logYear").value = spinData.year || "";
+    if (logRuntime) logRuntime.value = spinData.runtime || "";
+
+    if (logCoverUrl) {
+      logCoverUrl.value = spinData.cover_url || "";
+      if (previewImg) {
+        previewImg.src = spinData.cover_url || "assets/images/spins/placeholder.png";
+      }
+    }
+
+    if (window.logGenresManager) {
+      window.logGenresManager.setTags(spinData.genres || []);
+    } else if (document.getElementById("logGenres")) {
+      document.getElementById("logGenres").value = (spinData.genres || []).join(", ");
+    }
+
+    if (window.logSecondaryGenresManager) {
+      window.logSecondaryGenresManager.setTags(spinData.secondary_genres || []);
+    } else if (logSecondaryGenres) {
+      logSecondaryGenres.value = (spinData.secondary_genres || []).join(", ");
+    }
+
+    if (window.logDescriptorsManager) {
+      window.logDescriptorsManager.setTags(spinData.descriptors || []);
+    } else if (document.getElementById("logDescriptors")) {
+      document.getElementById("logDescriptors").value = (spinData.descriptors || []).join(", ");
+    }
+
+    const isSingle = (spinData.type || "").trim().toLowerCase() === "single";
+    if (isSingle) {
+      if (logSingleAudioUrl) logSingleAudioUrl.value = spinData.single_audio_url || "";
+      if (logFavTracks) logFavTracks.value = "";
+    } else {
+      if (logFavTracks) logFavTracks.value = spinData.fav_tracks || "";
+      if (logSingleAudioUrl) logSingleAudioUrl.value = "";
+    }
+
+    if (logReviewUrl) logReviewUrl.value = spinData.review_url || "";
+    if (logRymRating) logRymRating.value = (spinData.rym_rating !== null && spinData.rym_rating !== undefined && spinData.rym_rating !== "") ? spinData.rym_rating : "";
+
+    if (Array.isArray(spinData.track_ratings) && trackRatingsList) {
+      trackRatingsList.innerHTML = "";
+      spinData.track_ratings.forEach(tr => {
+        trackRatingsList.appendChild(createTrackRatingRow(tr.title, tr.rating, tr.url || ""));
+      });
+    }
+
+    // Auto-setup for Relisten when logging a new spin
+    if (editingIndex === null) {
+      if (logRelisten) {
+        logRelisten.checked = true;
+        if (logPrevRating) {
+          logPrevRating.style.display = "inline-block";
+          logPrevRating.required = true;
+          if (spinData.rating) {
+            logPrevRating.value = spinData.rating;
+          }
+        }
+      }
+      if (document.getElementById("logRating")) {
+        document.getElementById("logRating").value = "";
+        document.getElementById("logRating").focus();
+      }
+    } else {
+      if (document.getElementById("logRating") && !document.getElementById("logRating").value && spinData.rating) {
+        document.getElementById("logRating").value = spinData.rating;
+      }
+    }
+
+    flashClipboardFeedback("modalPasteSpinBtn", "modalPasteTooltip", "modalPasteSpinIcon", "Pasted Spin Info!", true);
+  };
+
 
   window.deleteSpin = async function(idx) {
     if (!isAdmin) return;

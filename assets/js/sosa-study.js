@@ -241,11 +241,11 @@
           const cleanName = tName.replace(/^["“]|["”]$/g, "");
           const safeName = cleanName.replace(/'/g, "\\'");
           return `
-            <span class="fav-track-chip" onclick="playAudioTrack('${url}', '${safeName}', '${safeArt}', '${safeAlb}', '${safeCov}')">
-              <i class='bx bx-play-circle'></i> ${cleanName}
+            <span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${url}', '${safeName}', '${safeArt}', '${safeAlb}', '${safeCov}')">
+              <span class="aero-play-wrap"><img src="/assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${cleanName}
             </span>`;
         }
-        return `<span class="fav-track-chip"><i class='bx bx-music'></i> ${t}</span>`;
+        return `<span class="fav-track-chip"><img src="/assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon"> ${t}</span>`;
       }).join("");
 
       favSlot.innerHTML = `
@@ -264,78 +264,378 @@
 })();
 
 // ============================================================
-// GLOBAL MINI-PLAYER CONTROLLER (From SosaSpins)
+// WINDOWS MEDIA PLAYER AERO GLASS CONTROLLER (From SosaSpins)
 // ============================================================
-window.playAudioTrack = async function(url, track = "Track", artist = "", album = "", coverUrl = "") {
-  const dock = document.getElementById("miniPlayerDock");
-  const trackEl = document.getElementById("miniPlayerTrack");
-  const artistEl = document.getElementById("miniPlayerArtist");
-  const albumEl = document.getElementById("miniPlayerAlbum");
-  const sepEl = document.querySelector(".aero-meta-sep");
-  const wrap = document.getElementById("miniPlayerFrameWrap");
-  const bgEl = document.getElementById("miniPlayerBg");
-  const popoutBtn = document.getElementById("miniPlayerExternalLink");
-  if (!dock || !wrap) return;
-
-  const cleanTrack = track.replace(/^["“]|["”]$/g, "");
-
-  if (trackEl) trackEl.textContent = cleanTrack;
-  if (artistEl) artistEl.textContent = artist || "";
-  if (albumEl) albumEl.textContent = album || "";
-  if (sepEl) sepEl.style.display = (artist || album) ? "inline" : "none";
-  if (popoutBtn) popoutBtn.href = url;
-
-  if (bgEl) {
-    if (coverUrl) {
-      bgEl.style.backgroundImage = `url('${coverUrl}')`;
-      bgEl.style.opacity = "";
-    } else {
-      bgEl.style.backgroundImage = "none";
-      bgEl.style.opacity = "0";
+function getDominantColorFromImg(imgUrl) {
+  return new Promise((resolve) => {
+    if (!imgUrl || imgUrl === "placeholder.png") {
+      return resolve("10b981"); // Fallback to site emerald
     }
-  }
 
-  wrap.innerHTML = "";
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.src = imgUrl;
 
-  // 1. YouTube Match
-  const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/);
-  if (ytMatch) {
-    const videoId = ytMatch[1];
-    wrap.innerHTML = `
-      <iframe
-        src="https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1&rel=0"
-        allow="autoplay; encrypted-media; picture-in-picture"
-        allowfullscreen>
-      </iframe>`;
-  }
-  // 2. SoundCloud Match
-  else if (url.includes("soundcloud.com")) {
-    const encoded = encodeURIComponent(url);
-    wrap.innerHTML = `
-      <iframe
-        src="https://w.soundcloud.com/player/?url=${encoded}&color=%2310b981&auto_play=true&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false">
-      </iframe>`;
-  }
-  // 3. Bandcamp Match
-  else if (url.includes("bandcamp.com/EmbeddedPlayer")) {
-    wrap.innerHTML = `<iframe style="border: 0; width: 100%; height: 120px;" src="${url}" seamless></iframe>`;
-  }
-  // 4. HTML5 Video
-  else if (url.match(/\.(mp4|webm)(\?.*)?$/i)) {
-    wrap.innerHTML = `<video src="${url}" controls autoplay style="width:100%; height:100%; background:#000;"></video>`;
-  }
-  // 5. Fallback
-  else {
-    window.open(url, "_blank");
-    return;
-  }
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = 1;
+        canvas.height = 1;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, 1, 1);
+        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
 
-  dock.style.display = "block";
-};
+        // Convert RGB to 6-digit Hex (without the leading #)
+        const hex = ((1 << 24) + (r << 16) + (g << 8) + b)
+          .toString(16)
+          .slice(1);
+        resolve(hex);
+      } catch (err) {
+        // Fallback if canvas is tainted by external host CORS
+        resolve("10b981");
+      }
+    };
 
-window.closeMiniPlayer = function() {
-  const dock = document.getElementById("miniPlayerDock");
-  const wrap = document.getElementById("miniPlayerFrameWrap");
-  if (dock) dock.style.display = "none";
-  if (wrap) wrap.innerHTML = "";
-};
+    img.onerror = () => resolve("10b981");
+  });
+}
+
+let wmpIsSeeking = false;
+
+  window.formatWmpTime = function(seconds) {
+    if (isNaN(seconds) || seconds < 0) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  };
+
+  window.wmpUpdatePlayPauseUI = function(isPlaying) {
+    const playIcon = document.getElementById("wmpOrbPlayIcon");
+    const pauseIcon = document.getElementById("wmpOrbPauseIcon");
+    const orbBtn = document.getElementById("wmpPlayPauseBtn");
+    const eq = document.getElementById("wmpEqualizer");
+    if (playIcon) playIcon.style.display = isPlaying ? "none" : "block";
+    if (pauseIcon) pauseIcon.style.display = isPlaying ? "block" : "none";
+    if (orbBtn) {
+      if (isPlaying) orbBtn.classList.add("is-playing");
+      else orbBtn.classList.remove("is-playing");
+    }
+    if (eq) {
+      eq.style.animationPlayState = isPlaying ? "running" : "paused";
+      const spans = eq.querySelectorAll("span");
+      spans.forEach(s => s.style.animationPlayState = isPlaying ? "running" : "paused");
+    }
+  };
+
+  window.wmpTogglePlayPause = function() {
+    const media = document.getElementById("wmpActiveMedia");
+    if (!media) return;
+    if (media.paused) {
+      media.play().catch(() => {});
+    } else {
+      media.pause();
+    }
+  };
+
+  window.wmpStop = function() {
+    const media = document.getElementById("wmpActiveMedia");
+    if (!media) return;
+    media.pause();
+    media.currentTime = 0;
+    const progressFill = document.getElementById("wmpProgressFill");
+    const currentTimeEl = document.getElementById("wmpCurrentTime");
+    if (progressFill) progressFill.style.width = "0%";
+    if (currentTimeEl) currentTimeEl.textContent = "0:00";
+    wmpUpdatePlayPauseUI(false);
+  };
+
+  window.wmpSkip = function(delta) {
+    const media = document.getElementById("wmpActiveMedia");
+    if (!media) return;
+    media.currentTime = Math.max(0, Math.min(media.duration || 0, media.currentTime + delta));
+  };
+
+  window.wmpToggleLoop = function() {
+    const media = document.getElementById("wmpActiveMedia");
+    const loopBtn = document.getElementById("wmpLoopBtn");
+    if (!media || !loopBtn) return;
+    media.loop = !media.loop;
+    if (media.loop) loopBtn.classList.add("is-active");
+    else loopBtn.classList.remove("is-active");
+  };
+
+  window.wmpToggleMute = function() {
+    const media = document.getElementById("wmpActiveMedia");
+    const volIcon = document.getElementById("wmpVolIcon");
+    if (!media) return;
+    media.muted = !media.muted;
+    if (volIcon) {
+      if (media.muted || media.volume === 0) {
+        volIcon.className = "bx bx-volume-mute";
+      } else {
+        volIcon.className = "bx bx-volume-full";
+      }
+    }
+  };
+
+  window.wmpSetVolume = function(val) {
+    const media = document.getElementById("wmpActiveMedia");
+    const volIcon = document.getElementById("wmpVolIcon");
+    if (!media) return;
+    media.volume = parseFloat(val);
+    media.muted = false;
+    if (volIcon) {
+      if (media.volume === 0) volIcon.className = "bx bx-volume-mute";
+      else if (media.volume < 0.5) volIcon.className = "bx bx-volume-low";
+      else volIcon.className = "bx bx-volume-full";
+    }
+  };
+
+  window.wmpToggleFullscreen = function() {
+    const media = document.getElementById("wmpActiveMedia");
+    if (!media) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    } else if (media.requestFullscreen) {
+      media.requestFullscreen().catch(() => {});
+    } else if (media.webkitEnterFullscreen) {
+      media.webkitEnterFullscreen();
+    }
+  };
+
+  window.initWmpScrubber = function(media) {
+    const track = document.getElementById("wmpScrubberTrack");
+    const fill = document.getElementById("wmpProgressFill");
+    const curTime = document.getElementById("wmpCurrentTime");
+    const durEl = document.getElementById("wmpDuration");
+    if (!track || !media) return;
+
+    function seek(e) {
+      const rect = track.getBoundingClientRect();
+      const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      if (media.duration) {
+        media.currentTime = pos * media.duration;
+      }
+    }
+
+    track.onmousedown = function(e) {
+      wmpIsSeeking = true;
+      seek(e);
+      function onMove(ev) {
+        if (wmpIsSeeking) seek(ev);
+      }
+      function onUp() {
+        wmpIsSeeking = false;
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      }
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    };
+
+    track.onkeydown = function(e) {
+      if (!media.duration) return;
+      if (e.key === "ArrowLeft") {
+        media.currentTime = Math.max(0, media.currentTime - 5);
+      } else if (e.key === "ArrowRight") {
+        media.currentTime = Math.min(media.duration, media.currentTime + 5);
+      }
+    };
+
+    media.ontimeupdate = function() {
+      if (!wmpIsSeeking && media.duration) {
+        const pct = (media.currentTime / media.duration) * 100;
+        if (fill) fill.style.width = `${pct}%`;
+        if (curTime) curTime.textContent = formatWmpTime(media.currentTime);
+      }
+    };
+
+    media.onloadedmetadata = function() {
+      if (durEl) durEl.textContent = formatWmpTime(media.duration);
+    };
+
+    media.ondurationchange = function() {
+      if (durEl) durEl.textContent = formatWmpTime(media.duration);
+    };
+
+    media.onplay = function() {
+      wmpUpdatePlayPauseUI(true);
+    };
+
+    media.onpause = function() {
+      wmpUpdatePlayPauseUI(false);
+    };
+
+    media.onended = function() {
+      wmpUpdatePlayPauseUI(false);
+    };
+  };
+
+  window.playAudioTrack = async function(url, track = "Track", artist = "", album = "", coverUrl = "") {
+    const dock = document.getElementById("miniPlayerDock");
+    const trackEl = document.getElementById("miniPlayerTrack");
+    const artistEl = document.getElementById("miniPlayerArtist");
+    const albumEl = document.getElementById("miniPlayerAlbum");
+    const sepEl = document.querySelector(".aero-meta-sep");
+    const wrap = document.getElementById("miniPlayerFrameWrap");
+    const bgEl = document.getElementById("miniPlayerBg");
+    const controlsBar = document.getElementById("wmpControlsBar");
+    const fsBtn = document.getElementById("wmpFullscreenBtn");
+    const statusEl = document.getElementById("wmpStatusText");
+    if (!dock || !wrap) return;
+
+    const cleanTrack = track.replace(/^["“]|["”]$/g, "");
+
+    if (trackEl) trackEl.textContent = cleanTrack;
+    if (artistEl) artistEl.textContent = artist || "Unknown Artist";
+    if (albumEl) albumEl.textContent = album || "";
+    if (sepEl) sepEl.style.display = album ? "inline" : "none";
+
+    if (bgEl) {
+      if (coverUrl) {
+        bgEl.style.backgroundImage = `url('${coverUrl}')`;
+        bgEl.style.opacity = "";
+      } else {
+        bgEl.style.backgroundImage = "none";
+        bgEl.style.opacity = "0";
+      }
+    }
+
+    wrap.innerHTML = "";
+
+    // 1. Intercept Direct Video (.mp4 / .webm)
+    if (url.match(/\.(mp4|webm)(\?.*)?$/i)) {
+      dock.classList.add("is-video");
+      if (fsBtn) fsBtn.style.display = "inline-flex";
+      if (controlsBar) controlsBar.style.display = "flex";
+      if (statusEl) statusEl.textContent = "sosaspins video player";
+
+      wrap.innerHTML = `
+        <div class="wmp-video-stage">
+          <video id="wmpActiveMedia" src="${url}" preload="metadata" playsinline class="wmp-video-element"></video>
+          <div class="wmp-video-overlay" onclick="wmpTogglePlayPause()">
+            <div class="wmp-video-hud" id="wmpVideoHud"><i class='bx bx-play'></i></div>
+          </div>
+        </div>
+      `;
+
+      const video = document.getElementById("wmpActiveMedia");
+      if (video) {
+        initWmpScrubber(video);
+        video.play().catch(e => console.warn("Video playback was prevented:", e));
+      }
+    }
+    // 2. Intercept Direct HTML5 Audio (.mp3, .wav, .ogg, .m4a, .aac)
+    else if (url.match(/\.(mp3|wav|ogg|m4a|aac)(\?.*)?$/i)) {
+      dock.classList.remove("is-video");
+      if (fsBtn) fsBtn.style.display = "none";
+      if (controlsBar) controlsBar.style.display = "flex";
+      if (statusEl) statusEl.textContent = "WINDOWS MEDIA PLAYER";
+
+      wrap.innerHTML = `
+        <div class="wmp-audio-stage">
+          <div class="wmp-audio-art-wrap">
+            <img src="${coverUrl || '/assets/images/spins/placeholder.png'}" alt="Cover" class="wmp-audio-art">
+            <div class="wmp-audio-art-reflection" style="background-image: url('${coverUrl || '/assets/images/spins/placeholder.png'}');"></div>
+          </div>
+          <audio id="wmpActiveMedia" src="${url}" preload="metadata"></audio>
+        </div>
+      `;
+
+      const audio = document.getElementById("wmpActiveMedia");
+      if (audio) {
+        initWmpScrubber(audio);
+        audio.play().catch(e => console.warn("Audio playback was prevented:", e));
+      }
+    }
+    // 3. YouTube Match
+    else if (url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/)) {
+      dock.classList.remove("is-video");
+      if (fsBtn) fsBtn.style.display = "none";
+      if (controlsBar) controlsBar.style.display = "none";
+      if (statusEl) statusEl.textContent = "YOUTUBE PLAYER";
+
+      const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/);
+      const videoId = ytMatch[1];
+      wrap.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+      wmpUpdatePlayPauseUI(true);
+    }
+    // 4. SoundCloud Match with Dynamic Accent Color
+    else if (url.includes("soundcloud.com")) {
+      dock.classList.remove("is-video");
+      if (fsBtn) fsBtn.style.display = "none";
+      if (controlsBar) controlsBar.style.display = "none";
+      if (statusEl) statusEl.textContent = "SOUNDCLOUD PLAYER";
+
+      const dynamicHex = await getDominantColorFromImg(coverUrl);
+      const encoded = encodeURIComponent(url);
+      wrap.innerHTML = `<iframe style="border: 0; width: 100%; height: 120px; display: block;" src="https://w.soundcloud.com/player/?url=${encoded}&color=%23${dynamicHex}&auto_play=true&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false"></iframe>`;
+      wmpUpdatePlayPauseUI(true);
+    }
+    // 5. Bandcamp Match
+    else if (url.includes("bandcamp.com/EmbeddedPlayer") || url.includes("bandcamp.com")) {
+      dock.classList.remove("is-video");
+      if (fsBtn) fsBtn.style.display = "none";
+      if (controlsBar) controlsBar.style.display = "none";
+      if (statusEl) statusEl.textContent = "BANDCAMP PLAYER";
+
+      const dynamicHex = await getDominantColorFromImg(coverUrl);
+      if (url.includes("EmbeddedPlayer")) {
+        let playerSrc = url;
+        if (!playerSrc.includes("transparent=")) playerSrc += "/transparent=true";
+        if (playerSrc.includes("linkcol=")) {
+          playerSrc = playerSrc.replace(/linkcol=[^/&]+/, `linkcol=${dynamicHex}`);
+        } else {
+          playerSrc += `/linkcol=${dynamicHex}`;
+        }
+        wrap.innerHTML = `<iframe style="border: 0; width: 100%; height: 120px;" src="${playerSrc}" seamless></iframe>`;
+        wmpUpdatePlayPauseUI(true);
+      } else {
+        window.open(url, "_blank");
+        return;
+      }
+    }
+    // 6. Vimeo Match
+    else if (url.includes("vimeo.com")) {
+      dock.classList.remove("is-video");
+      if (fsBtn) fsBtn.style.display = "none";
+      if (controlsBar) controlsBar.style.display = "none";
+      if (statusEl) statusEl.textContent = "VIMEO PLAYER";
+
+      const vimeoMatch = url.match(/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+)/);
+      if (vimeoMatch && vimeoMatch[3]) {
+        const vimeoId = vimeoMatch[3];
+        const dynamicHex = await getDominantColorFromImg(coverUrl);
+        wrap.innerHTML = `<iframe src="https://player.vimeo.com/video/${vimeoId}?autoplay=1&color=${dynamicHex}&dnt=1" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
+        wmpUpdatePlayPauseUI(true);
+      } else {
+        window.open(url, "_blank");
+        return;
+      }
+    }
+    // 7. Fallback
+    else {
+      window.open(url, "_blank");
+      return;
+    }
+
+    dock.style.display = "block";
+  };
+
+  window.closeMiniPlayer = function() {
+    const dock = document.getElementById("miniPlayerDock");
+    const wrap = document.getElementById("miniPlayerFrameWrap");
+    const media = document.getElementById("wmpActiveMedia");
+    if (media) {
+      try {
+        media.pause();
+        media.src = "";
+      } catch(e) {}
+    }
+    if (dock) {
+      dock.style.display = "none";
+      dock.classList.remove("is-video");
+    }
+    if (wrap) wrap.innerHTML = "";
+    wmpUpdatePlayPauseUI(false);
+  };

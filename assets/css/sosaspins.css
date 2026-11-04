@@ -4077,6 +4077,97 @@ body.dark-mode .modal-close-btn:hover {
   background: rgba(255, 255, 255, 0.1);
 }
 
+/* ============================================================
+   Modal Clipboard Actions (Copy & Paste Spin Info)
+   ============================================================ */
+.modal-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.modal-clipboard-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+body:not(.is-admin) .modal-clipboard-actions {
+  display: none !important;
+}
+
+/* Floor Reflections for Copy & Paste Action Stages (Matching Edit & Delete) */
+.action-icon-reflection.copy-reflection {
+  background-image: url('../icons/aero/copy.png');
+}
+
+.action-icon-reflection.paste-reflection {
+  background-image: url('../icons/aero/paste.png');
+}
+
+.action-icon-btn.copy-spin-btn:hover .copy-reflection {
+  background-image: url('../icons/aero/copy.png');
+}
+
+.action-icon-btn.paste-spin-btn:hover .paste-reflection {
+  background-image: url('../icons/aero/paste.png');
+}
+
+/* Floor Contact Shadows */
+.action-icon-btn.paste-spin-btn .action-icon-stage::after {
+  background: radial-gradient(ellipse at center, rgba(14, 165, 233, 0.45) 0%, transparent 75%);
+}
+
+.action-icon-btn.copy-spin-btn:hover .aero-action-icon,
+.action-icon-btn.copy-spin-btn:hover .copy-icon {
+  filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.95)) drop-shadow(0 0 16px rgba(52, 211, 153, 0.7));
+}
+
+.action-icon-btn.paste-spin-btn:hover .aero-action-icon,
+.action-icon-btn.paste-spin-btn:hover .paste-icon {
+  filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.95)) drop-shadow(0 0 16px rgba(14, 165, 233, 0.7));
+}
+
+.action-icon-btn.feedback-active .aero-action-icon {
+  transform: scale(1.25) !important;
+  filter: drop-shadow(0 0 10px rgba(16, 185, 129, 1)) drop-shadow(0 0 20px rgba(52, 211, 153, 0.9)) !important;
+}
+
+.action-icon-btn.feedback-error .aero-action-icon {
+  transform: scale(1.15) !important;
+  filter: drop-shadow(0 0 10px rgba(239, 68, 68, 1)) drop-shadow(0 0 20px rgba(248, 113, 113, 0.9)) !important;
+}
+
+/* Tooltip positioned downward so it never clips top of modal dialog */
+.modal-clipboard-actions .action-tooltip {
+  top: calc(100% + 7px);
+  bottom: auto;
+  transform: translateX(-50%) translateY(-4px);
+}
+
+.modal-clipboard-actions .action-tooltip::after {
+  top: auto;
+  bottom: 100%;
+  border-width: 4px;
+  border-style: solid;
+  border-color: transparent transparent rgba(240, 245, 250, 0.94) transparent;
+}
+
+.modal-clipboard-actions .action-icon-btn:hover .action-tooltip,
+.modal-clipboard-actions .action-tooltip.force-show {
+  opacity: 1 !important;
+  transform: translateX(-50%) translateY(0) !important;
+  pointer-events: auto;
+}
+
+body.dark-mode .modal-clipboard-actions .action-tooltip::after,
+.dark-mode .modal-clipboard-actions .action-tooltip::after {
+  border-color: transparent transparent rgba(15, 23, 42, 0.96) transparent;
+}
+
 .modal-form {
   display: flex;
   flex-direction: column;

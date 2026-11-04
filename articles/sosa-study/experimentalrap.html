@@ -34,9 +34,6 @@
                 <a href="/sosaspins.html" class="nav-custom-link" title="SosaSpins">
                     <img src="/assets/images/homepics/Folder203.ico" class="nav-custom-icon music-icon" alt="SosaSpins">
                 </a>
-                <a href="/challenge.html" class="nav-custom-link" title="Listening Challenge">
-                    <img src="/assets/images/spins/Disc010.ico" class="nav-custom-icon challenge-icon" alt="Listening Challenge">
-                </a>
                 <a href="/about.html" class="nav-custom-link" title="About">
                     <img src="/assets/images/homepics/msgsres_1.ico" class="nav-custom-icon msngr-icon" alt="About">
                 </a>
@@ -166,27 +163,82 @@
     </footer>
 
         <div id="miniPlayerDock" class="aero-player-dock" style="display: none;">
-    <div id="miniPlayerBg" class="aero-player-bg"></div>
-    <div class="aero-player-titlebar">
+      <div id="miniPlayerBg" class="aero-player-bg"></div>
+      <div class="aero-player-titlebar">
         <div class="aero-now-playing-indicator">
-        <span class="aero-equalizer-bars">
-            <span></span><span></span><span></span>
-        </span>
-        <span class="aero-status-text">NOW PLAYING</span>
+          <span class="aero-equalizer-bars" id="wmpEqualizer">
+            <span></span><span></span><span></span><span></span>
+          </span>
+          <span class="aero-status-text" id="wmpStatusText">NOW PLAYING</span>
         </div>
-        <button type="button" class="aero-player-close" onclick="closeMiniPlayer()" title="Close Player">✕</button>
-    </div>
+        <button type="button" class="aero-player-close" onclick="closeMiniPlayer()" title="Close Player" aria-label="Close Player">
+          <img src="/assets/icons/aero/close.ico" alt="Close" class="mini-close-icon">
+        </button>
+      </div>
 
-    <div class="aero-player-meta">
+      <div class="aero-player-meta">
         <div id="miniPlayerTrack" class="aero-meta-track">Track Title</div>
         <div class="aero-meta-sub">
-        <span id="miniPlayerArtist" class="aero-meta-artist">Artist</span>
-        <span class="aero-meta-sep">•</span>
-        <span id="miniPlayerAlbum" class="aero-meta-album">Album</span>
+          <span id="miniPlayerArtist" class="aero-meta-artist">Artist</span>
+          <span class="aero-meta-sep"> • </span>
+          <span id="miniPlayerAlbum" class="aero-meta-album">Album</span>
         </div>
-    </div>
+      </div>
 
-    <div id="miniPlayerFrameWrap" class="aero-player-frame-wrap"></div>
+      <div id="miniPlayerFrameWrap" class="aero-player-frame-wrap"></div>
+
+      <!-- Windows Media Player Aero Glass Control Bar -->
+      <div id="wmpControlsBar" class="wmp-controls-bar" style="display: none;">
+        <!-- Scrubber -->
+        <div class="wmp-scrubber-section">
+          <span class="wmp-time-text" id="wmpCurrentTime">0:00</span>
+          <div class="wmp-scrubber-track" id="wmpScrubberTrack" role="slider" aria-label="Timeline Scrubber" tabindex="0">
+            <div class="wmp-progress-fill" id="wmpProgressFill">
+              <span class="wmp-scrubber-knob"></span>
+            </div>
+          </div>
+          <span class="wmp-time-text" id="wmpDuration">0:00</span>
+        </div>
+
+        <!-- Symmetrical Playback Row: Rewind, Stop, Play/Pause Orb, FFwd, Loop -->
+        <div class="wmp-buttons-row">
+          <button type="button" class="wmp-ctrl-btn" id="wmpRwBtn" onclick="wmpSkip(-10)" title="Rewind 10s">
+            <i class='bx bx-rewind'></i>
+          </button>
+          <button type="button" class="wmp-ctrl-btn" id="wmpStopBtn" onclick="wmpStop()" title="Stop">
+            <i class='bx bx-stop'></i>
+          </button>
+
+          <!-- Centered Glass Orb -->
+          <div class="wmp-orb-stage">
+            <button type="button" class="wmp-orb-btn" id="wmpPlayPauseBtn" onclick="wmpTogglePlayPause()" title="Play / Pause">
+              <div class="wmp-orb-glass-reflection"></div>
+              <img src="/assets/icons/aero/play.ico" alt="Play" class="wmp-orb-icon" id="wmpOrbPlayIcon">
+              <img src="/assets/icons/aero/pause.ico" alt="Pause" class="wmp-orb-icon wmp-orb-pause-icon" id="wmpOrbPauseIcon" style="display: none;">
+            </button>
+          </div>
+
+          <button type="button" class="wmp-ctrl-btn" id="wmpFfBtn" onclick="wmpSkip(10)" title="Fast Forward 10s">
+            <i class='bx bx-fast-forward'></i>
+          </button>
+          <button type="button" class="wmp-ctrl-btn" id="wmpLoopBtn" onclick="wmpToggleLoop()" title="Loop Track">
+            <i class='bx bx-repeat'></i>
+          </button>
+        </div>
+
+        <!-- Sub-utility bar: Aero Glass Volume Slider (Left) and Fullscreen (Right) -->
+        <div class="wmp-sub-bar">
+          <div class="wmp-volume-wrap">
+            <button type="button" class="wmp-vol-btn" onclick="wmpToggleMute()" title="Mute / Unmute">
+              <i class='bx bx-volume-full' id="wmpVolIcon"></i>
+            </button>
+            <input type="range" id="wmpVolumeSlider" class="wmp-aero-slider" min="0" max="1" step="0.05" value="1" oninput="wmpSetVolume(this.value)" title="Volume">
+          </div>
+          <button type="button" class="wmp-sub-btn" id="wmpFullscreenBtn" onclick="wmpToggleFullscreen()" title="Fullscreen Video" style="display: none;">
+            <i class='bx bx-fullscreen'></i>
+          </button>
+        </div>
+      </div>
     </div>
 
     <script
