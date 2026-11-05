@@ -2479,17 +2479,27 @@ body.dark-mode .rating-row-num{
 }
 
 
+.spin-top-section {
+  position: relative !important;
+  display: flex !important;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 1.25rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .spin-cover-wrap {
   position: relative !important;
   width: 95px;
   height: 95px;
   padding: 0 !important;
-  margin: 0 1.25rem 2.2rem 0 !important;
+  margin: 0 0 2.2rem 0 !important;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
-  float: left !important;
-  flex-shrink: 0;
+  float: none !important;
+  flex-shrink: 0 !important;
   overflow: visible !important;
 }
 .dark-mode .spin-cover-wrap {
@@ -2548,15 +2558,23 @@ body.dark-mode .rating-row-num{
 }
 
 
+.spin-meta-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .spin-body {
-  position: static !important;
-  display: block !important;
+  position: relative !important;
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  width: 100%;
   min-width: 0;
   padding-bottom: 0;
-  flex: 1;
+  clear: both !important;
+  box-sizing: border-box;
 }
 
 .spin-header {

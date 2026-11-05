@@ -4332,7 +4332,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
                           <span class="track-name">${tr.title}</span>
                         `}
                         <span class="track-stars">${getStarString(tr.rating)}</span>
-                        <small class="track-score">(${Number(tr.rating).toFixed(1)})</small>
+                        <small class="track-score">${Number(tr.rating).toFixed(1)}</small>
                       </div>
                     `;
                   }).join("")}
@@ -4470,8 +4470,9 @@ window.toggleTrackRatings = function(idx, btn) {
   if (!list) return;
   const isHidden = list.style.display === "none";
   list.style.display = isHidden ? "flex" : "none";
-  const arrow = btn.querySelector(".ratings-arrow");
+  const arrow = btn ? btn.querySelector(".ratings-arrow") : null;
   if (arrow) arrow.textContent = isHidden ? "▴" : "▾";
+  if (btn) btn.classList.toggle("is-open", isHidden);
 };
 
 const trackRatingsList = document.getElementById("trackRatingsList");
