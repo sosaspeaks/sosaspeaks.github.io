@@ -2110,9 +2110,23 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
           /\[(?:<span class="inline-quoted-track">)?["“]?([^"”]+?)["”]?(?:<\/span>)?\]\((https?:\/\/[^\s)]+)\)/g,
           `<a class="inline-quoted-track song-embed-link" onclick="playAudioTrack('$2', '$1', '${safeArtist}', '${safeAlbum}', '${safeCover}')">“$1”</a>`
         );
+        // Lift data-song / data-track from child div to parent bilingual or blockquote if not present on parent
+        cleanText = cleanText.replace(/<(bilingual|blockquote)([^>]*)>([\s\S]*?)<\/\1>/gi, (match, tag, attrs, inner) => {
+          if (!/data-(song|track|from)/i.test(attrs)) {
+            const childMatch = inner.match(/data-(song|track|from)=["']([^"']+)["']/i);
+            if (childMatch) {
+              return `<${tag}${attrs} data-song="${childMatch[2]}">${inner}</${tag}>`;
+            }
+          }
+          return match;
+        });
+
         let cfMemoHtml = cleanText.replace(/\r?\n/g, "<br>")
-          .replace(/<blockquote>\s*<br\s*\/?>/gi, "<blockquote>")
-          .replace(/<br\s*\/?>\s*<\/blockquote>/gi, "</blockquote>");
+          .replace(/<(blockquote|bilingual)([^>]*)>\s*<br\s*\/?>/gi, "<$1$2>")
+          .replace(/<br\s*\/?>\s*<\/(blockquote|bilingual)>/gi, "</$1>")
+          .replace(/<(div|p)([^>]*)>\s*<br\s*\/?>/gi, "<$1$2>")
+          .replace(/<br\s*\/?>\s*<\/(div|p)>/gi, "</$1>")
+          .replace(/<\/div>\s*<br\s*\/?>\s*<div/gi, "</div><div");
         spinsCfMemo.style.display = "block";
         spinsCfMemo.innerHTML = cfMemoHtml;
       } else {
@@ -4142,22 +4156,37 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
         `<a class="inline-quoted-track song-embed-link" onclick="playAudioTrack('$2', '$1', '${safeArtist}', '${safeAlbum}', '${safeCover}')">“$1”</a>`
         );
 
+        // Lift data-song / data-track from child div to parent bilingual or blockquote if not present on parent
+        cleanText = cleanText.replace(/<(bilingual|blockquote)([^>]*)>([\s\S]*?)<\/\1>/gi, (match, tag, attrs, inner) => {
+          if (!/data-(song|track|from)/i.test(attrs)) {
+            const childMatch = inner.match(/data-(song|track|from)=["']([^"']+)["']/i);
+            if (childMatch) {
+              return `<${tag}${attrs} data-song="${childMatch[2]}">${inner}</${tag}>`;
+            }
+          }
+          return match;
+        });
+
         // 3. Line breaks & clean redundant breaks touching blockquote boundaries
         formattedMemo = cleanText.replace(/\r?\n/g, "<br>")
-          .replace(/<blockquote>\s*<br\s*\/?>/gi, "<blockquote>")
-          .replace(/<br\s*\/?>\s*<\/blockquote>/gi, "</blockquote>");
+          .replace(/<(blockquote|bilingual)([^>]*)>\s*<br\s*\/?>/gi, "<$1$2>")
+          .replace(/<br\s*\/?>\s*<\/(blockquote|bilingual)>/gi, "</$1>")
+          .replace(/<(div|p)([^>]*)>\s*<br\s*\/?>/gi, "<$1$2>")
+          .replace(/<br\s*\/?>\s*<\/(div|p)>/gi, "</$1>")
+          .replace(/<\/div>\s*<br\s*\/?>\s*<div/gi, "</div><div");
       }
 
       const reflectCoverUrl = safeCover || 'assets/images/spins/placeholder.png';
 
       return `
         <article class="timeline-row" id="spin-row-${item.id}" data-type="${displayType}">
-          <div class="spin-cover-wrap">
-            <img class="spin-cover-img" src="${item.cover_url || 'assets/images/spins/placeholder.png'}" alt="${item.title} cover" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png'; if (this.nextElementSibling) this.nextElementSibling.style.backgroundImage='url(assets/images/spins/placeholder.png)';">
-            <div class="spin-cover-reflection" style="background-image: url('${reflectCoverUrl}');" aria-hidden="true"></div>
-          </div>
-          <div class="spin-body">
-            <!-- 1. Header Line: Title on left, Date on right -->
+          <div class="spin-top-section">
+            <div class="spin-cover-wrap">
+              <img class="spin-cover-img" src="${item.cover_url || 'assets/images/spins/placeholder.png'}" alt="${item.title} cover" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png'; if (this.nextElementSibling) this.nextElementSibling.style.backgroundImage='url(assets/images/spins/placeholder.png)';">
+              <div class="spin-cover-reflection" style="background-image: url('${reflectCoverUrl}');" aria-hidden="true"></div>
+            </div>
+            <div class="spin-meta-column">
+              <!-- 1. Header Line: Title on left, Date on right -->
             <div class="spin-header">
               <div class="title-meta-group">
                 <span class="spin-title">${item.artist} — ${item.title}</span>
@@ -4233,6 +4262,10 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
               </div>
             ` : ""}
 
+            </div>
+          </div>
+
+          <div class="spin-body">
             <!-- Journal Entry Prose Memo -->
             ${formattedMemo ? `
               <div class="spin-memo-entry">
@@ -4791,6 +4824,9 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       updateCloudActiveStates();
       applyFilters(true);
       scrollFeedToTopIfNeeded();
+      if (typeof window.closeMobileWidgetsDrawer === "function") {
+        window.closeMobileWidgetsDrawer();
+      }
     }
   };
 
@@ -4801,6 +4837,9 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     updateCloudActiveStates();
     applyFilters(true);
     scrollFeedToTopIfNeeded();
+    if (typeof window.closeMobileWidgetsDrawer === "function") {
+      window.closeMobileWidgetsDrawer();
+    }
   }
 
   if (clearFilterBtn) clearFilterBtn.addEventListener("click", clearActiveFilter);
@@ -5819,4 +5858,45 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       dlAnchor.click();
     });
   }
+
+  // ============================================================
+  // MOBILE / TABLET WIDGETS SIDE MODAL DRAWER
+  // ============================================================
+  function initMobileWidgetsDrawer() {
+    const sidebar = document.getElementById("spinsSidebarColumn");
+    const backdrop = document.getElementById("widgetsDrawerBackdrop");
+    const toggleBtn = document.getElementById("mobileWidgetsToggleBtn");
+    const floatBtn = document.getElementById("floatingWidgetsBtn");
+    const closeBtn = document.getElementById("closeSidebarDrawerBtn");
+
+    function openDrawer() {
+      if (!sidebar) return;
+      sidebar.classList.add("is-open");
+      if (backdrop) backdrop.classList.add("is-open");
+      document.body.classList.add("widgets-drawer-open");
+    }
+
+    function closeDrawer() {
+      if (!sidebar) return;
+      sidebar.classList.remove("is-open");
+      if (backdrop) backdrop.classList.remove("is-open");
+      document.body.classList.remove("widgets-drawer-open");
+    }
+
+    if (toggleBtn) toggleBtn.addEventListener("click", openDrawer);
+    if (floatBtn) floatBtn.addEventListener("click", openDrawer);
+    if (closeBtn) closeBtn.addEventListener("click", closeDrawer);
+    if (backdrop) backdrop.addEventListener("click", closeDrawer);
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && sidebar && sidebar.classList.contains("is-open")) {
+        closeDrawer();
+      }
+    });
+
+    window.openMobileWidgetsDrawer = openDrawer;
+    window.closeMobileWidgetsDrawer = closeDrawer;
+  }
+
+  initMobileWidgetsDrawer();
 });

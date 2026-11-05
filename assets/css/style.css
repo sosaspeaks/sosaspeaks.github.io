@@ -2607,6 +2607,22 @@ body.dark-mode .rating-row-num{
   margin-top: 2px;
   font-size: 1.18rem;
   color: var(--glass-hover-text-color);
+  white-space: nowrap;
+  flex-wrap: nowrap;
+}
+
+.old-rating,
+.new-rating {
+  display: inline-flex !important;
+  align-items: center !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+}
+
+.old-rating i.bx,
+.new-rating i.bx {
+  display: inline-block !important;
+  flex-shrink: 0 !important;
 }
 
 

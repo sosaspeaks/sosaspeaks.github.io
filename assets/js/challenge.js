@@ -252,8 +252,37 @@ document.addEventListener("DOMContentLoaded", async () => {
     return list;
   }
 
-  let activeMonth = "october";
-  let lastActiveChallengeMonth = "october";
+  const MONTH_NAMES = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  function getInitialChallengeMonth() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlTab = (urlParams.get("tab") || urlParams.get("month") || "").toLowerCase().trim();
+    const hash = (window.location.hash || "").replace("#", "").toLowerCase().trim();
+
+    if (hash === "recalibrate" || hash === "relisten" || urlTab === "recalibrate" || urlTab === "relisten") {
+      return "recalibrate";
+    }
+    if (urlTab) return urlTab;
+    if (hash && MONTH_NAMES.some(m => m.toLowerCase() === hash)) return hash;
+
+    const curMonth = MONTH_NAMES[new Date().getMonth()].toLowerCase();
+    const existingTab = document.querySelector(`menu.w7-month-tabs button[data-month="${curMonth}"]`);
+    if (existingTab) return curMonth;
+
+    const firstTab = document.querySelector('menu.w7-month-tabs button[role="tab"]:not([data-month="recalibrate"])');
+    if (firstTab) return (firstTab.getAttribute("data-month") || "october").toLowerCase();
+
+    return curMonth;
+  }
+
+  const initialChallengeMonth = getInitialChallengeMonth();
+  let activeMonth = initialChallengeMonth;
+  let lastActiveChallengeMonth = (initialChallengeMonth === "recalibrate" || initialChallengeMonth === "relisten")
+    ? MONTH_NAMES[new Date().getMonth()].toLowerCase()
+    : initialChallengeMonth;
   let backlogEntries = [];
   let loggedSpins = [];
   const addNewMonthBtn = document.getElementById("addNewMonthBtn");
@@ -338,11 +367,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  const MONTH_NAMES = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
-
   // Header Shadow & Dark Mode Toggle
   const header = document.querySelector("header") || document.getElementById("siteHeader");
   if (header) {
@@ -351,8 +375,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     window.addEventListener("hashchange", () => {
-      if (window.location.hash === "#recalibrate") {
+      const hash = (window.location.hash || "").replace("#", "").toLowerCase().trim();
+      if (hash === "recalibrate" || hash === "relisten") {
         setActiveMonthTab("recalibrate");
+        renderGrid();
+      } else if (hash && MONTH_NAMES.some(m => m.toLowerCase() === hash)) {
+        setActiveMonthTab(hash);
+        renderGrid();
       }
     });
   }
@@ -763,6 +792,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       t.setAttribute("aria-selected", match ? "true" : "false");
     });
     updateRecalibrateTabVisibility();
+  }
+
+  setActiveMonthTab(activeMonth);
+  if (progressSubtitle && activeMonth !== "recalibrate") {
+    const displayMonth = activeMonth.charAt(0).toUpperCase() + activeMonth.slice(1);
+    progressSubtitle.textContent = `${displayMonth} Listening Challenge`;
   }
 
   // Setup click listeners on Recalibrate reason filter chips
@@ -2374,13 +2409,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       loggedSpins = spinsRes.data || [];
 
       syncMonthTabs();
+
+      const targetMonth = getInitialChallengeMonth();
+      setActiveMonthTab(targetMonth);
+
       updateMonthPillCounts();
       renderGrid();
       updateAdminVisibility();
-
-      if (window.location.hash === "#recalibrate" || new URLSearchParams(window.location.search).get("tab") === "recalibrate") {
-        setActiveMonthTab("recalibrate");
-      }
 
       if (isAdmin) {
         migrateLegacyReasonsInDatabase();
