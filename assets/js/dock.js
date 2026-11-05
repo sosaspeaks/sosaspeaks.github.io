@@ -73,8 +73,15 @@
     // 3. "Show Desktop" / Auto-Hide Taskbar Controller
     const showDesktopBtn = document.getElementById("taskbarShowDesktop");
     const STORAGE_KEY = "sosaspins_taskbar_autohide";
+    const isMobileDevice = () => window.innerWidth <= 768;
 
     function setAutoHideState(isAutoHide, immediate = false) {
+      if (isMobileDevice()) {
+        // Taskbar is always visible on mobile devices
+        taskbar.classList.remove("is-tucked", "just-tucked");
+        return;
+      }
+
       if (isAutoHide) {
         taskbar.classList.add("is-tucked");
         if (immediate) {
@@ -93,7 +100,7 @@
       localStorage.setItem(STORAGE_KEY, isAutoHide ? "true" : "false");
     }
 
-    const savedAutoHide = localStorage.getItem(STORAGE_KEY) === "true";
+    const savedAutoHide = !isMobileDevice() && localStorage.getItem(STORAGE_KEY) === "true";
     if (savedAutoHide) {
       setAutoHideState(true, false);
     }
@@ -102,6 +109,11 @@
       showDesktopBtn.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
+        if (isMobileDevice()) {
+          // On mobile, keep taskbar always visible; smooth scroll to top instead
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          return;
+        }
         const currentlyAutoHide = taskbar.classList.contains("is-tucked");
         setAutoHideState(!currentlyAutoHide, true);
       });

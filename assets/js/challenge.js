@@ -17,6 +17,26 @@ document.addEventListener("DOMContentLoaded", async () => {
   const progressFill = document.getElementById("progressFill");
   const progressSubtitle = document.getElementById("progressSubtitle");
   const adminTriggerBtn = document.getElementById("adminTriggerBtn");
+  const adminLockIcon = document.getElementById("adminLockIcon");
+  const ICON_LOCKED = "assets/icons/aero/lock_closed.png";
+  const ICON_UNLOCKED = "assets/icons/aero/lock_open.png";
+
+  // Native Supabase Authentication State
+  let isAdmin = false;
+  if (sb && sb.auth) {
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      isAdmin = !!session;
+    } catch (e) {
+      console.warn("Auth getSession error:", e);
+    }
+
+    sb.auth.onAuthStateChange((_event, newSession) => {
+      isAdmin = !!newSession;
+      updateAdminVisibility();
+      if (typeof renderGrid === "function") renderGrid();
+    });
+  }
   const gridSizeBtn = document.getElementById("gridSizeBtn");
   const exportImageBtn = document.getElementById("exportImageBtn");
   const exportWrapper = document.getElementById("exportWrapper");
@@ -1244,24 +1264,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   // Admin Auth (Windows 7 Aero Security Dialog)
-  const adminLockIcon = document.getElementById("adminLockIcon");
-  const ICON_LOCKED = "assets/icons/aero/lock_closed.png";
-  const ICON_UNLOCKED = "assets/icons/aero/lock_open.png";
-
-  // Native Supabase Authentication State
-  let isAdmin = false;
-  if (sb && sb.auth) {
-    const { data: { session } } = await sb.auth.getSession();
-    isAdmin = !!session;
-
-    sb.auth.onAuthStateChange((_event, newSession) => {
-      isAdmin = !!newSession;
-      updateAdminVisibility();
-      if (typeof renderFeed === "function") renderFeed(allEntries);
-      if (typeof renderGrid === "function") renderGrid();
-    });
-  }
-
   const adminAuthModal = document.getElementById("adminAuthModal");
   const adminAuthForm = document.getElementById("adminAuthForm");
   const authEmailInput = document.getElementById("authEmailInput");

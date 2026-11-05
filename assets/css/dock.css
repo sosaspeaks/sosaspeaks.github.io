@@ -623,33 +623,157 @@ body.dark-mode .taskbar-show-desktop:hover {
   display: none !important;
 }
 
-/* Mobile Responsive Optimization */
-@media (max-width: 640px) {
+/* ============================================================
+   Mobile Responsive Taskbar (Always Visible, Correct Clock & Larger Icons)
+   ============================================================ */
+@media (max-width: 768px) {
   :root {
-    --taskbar-height: 40px;
-    --taskbar-orb-size: 40px;
+    --taskbar-height: 48px;
+    --taskbar-orb-size: 50px;
   }
+
+  /* 1. Always Visible on Mobile (Do not tuck / auto-hide) */
+  .aero-taskbar-container,
+  .aero-taskbar-container.is-tucked {
+    transform: translateY(0) !important;
+  }
+
+  .taskbar-inner {
+    padding: 0 0 0 4px !important;
+  }
+
+  /* 2. Larger Start Orb & App Icons */
   .taskbar-start-orb {
-    margin-top: -4px;
-    margin-right: 4px;
+    width: var(--taskbar-orb-size) !important;
+    height: var(--taskbar-orb-size) !important;
+    margin-top: -6px !important;
+    margin-right: 6px !important;
+    margin-left: 2px !important;
   }
+
+  .start-orb-icon {
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  .taskbar-apps {
+    gap: 4px !important;
+  }
+
   .taskbar-app-btn {
-    width: 44px;
-    height: 32px;
+    width: 54px !important;
+    height: 40px !important;
   }
+
+  .win7-app-icon {
+    width: 28px !important;
+    height: 28px !important;
+  }
+
   .app-btn-icon {
-    font-size: 1.25rem;
+    font-size: 1.55rem !important;
   }
+
+  /* Suppress hover tooltips on touch devices */
+  .taskbar-tooltip {
+    display: none !important;
+  }
+
+  /* 3. System Tray Clock & Date Perfectly Positioned */
+  .taskbar-tray {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 8px !important;
+    height: 100% !important;
+    flex-shrink: 0 !important;
+  }
+
+  .tray-clock {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    padding: 2px 6px !important;
+    line-height: 1.15 !important;
+  }
+
+  .tray-time {
+    display: block !important;
+    font-size: 0.72rem !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+    line-height: 1.2 !important;
+  }
+
   .tray-date {
-    display: none;
+    display: block !important;
+    font-size: 0.62rem !important;
+    font-weight: 600 !important;
+    white-space: nowrap !important;
+    line-height: 1.2 !important;
+    margin-top: 1px !important;
+  }
+
+  .taskbar-show-desktop {
+    width: 10px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --taskbar-height: 48px;
+    --taskbar-orb-size: 48px;
+  }
+
+  .taskbar-start-orb {
+    margin-top: -5px !important;
+    margin-right: 4px !important;
+    margin-left: 1px !important;
+  }
+
+  .start-orb-icon {
+    width: 27px !important;
+    height: 27px !important;
+  }
+
+  .taskbar-apps {
+    gap: 3px !important;
+  }
+
+  .taskbar-app-btn {
+    width: 48px !important;
+    height: 38px !important;
+  }
+
+  .win7-app-icon {
+    width: 27px !important;
+    height: 27px !important;
+  }
+
+  .taskbar-tray {
+    padding: 0 6px !important;
+  }
+
+  .tray-time {
+    font-size: 0.70rem !important;
+  }
+
+  .tray-date {
+    font-size: 0.60rem !important;
+  }
+
+  .taskbar-show-desktop {
+    width: 8px !important;
   }
 }
 
 /* Ensure clearance for body content and scroll-to-top button */
 body {
-  padding-bottom: calc(var(--taskbar-height) + 16px);
+  padding-bottom: calc(var(--taskbar-height) + 20px) !important;
 }
 
 .to-top.active {
-  bottom: calc(var(--taskbar-height) + 0.75rem) !important;
+  bottom: calc(var(--taskbar-height) + 0.85rem) !important;
 }

@@ -150,7 +150,18 @@
       </section>
     </div>
 
-    <aside class="spins-sidebar-column">
+    <aside class="spins-sidebar-column" id="spinsSidebarColumn" aria-label="Spins Filter Sidebar">
+      <!-- Mobile Drawer Title Bar & Close Button -->
+      <div class="sidebar-drawer-header">
+        <div class="sidebar-drawer-title">
+          <i class='bx bx-slider-alt'></i>
+          <span>Widgets & Filters</span>
+        </div>
+        <button type="button" class="sidebar-drawer-close-btn" id="closeSidebarDrawerBtn" title="Close Widgets Drawer" aria-label="Close Widgets Drawer">
+          <i class='bx bx-chevron-right'></i>
+        </button>
+      </div>
+
       <div class="sidebar-card">
         <h3 class="sidebar-heading">Search</h3>
         <input type="text" id="searchInput" placeholder="Search spins..." class="sosa-search-input">
@@ -187,7 +198,16 @@
         <div class="category-group" id="yearCloud"></div>
       </div>
     </aside>
-  </main>
+  </section>
+
+  <!-- Mobile Widgets Sliding Drawer Edge Tab Handle -->
+  <button type="button" id="mobileWidgetsToggleBtn" class="widgets-edge-tab" title="Toggle Widgets & Filters" aria-label="Toggle Widgets & Filters">
+    <i class='bx bx-chevron-left' id="widgetsEdgeTabArrow"></i>
+    <span class="widgets-edge-tab-label">Widgets</span>
+  </button>
+
+  <!-- Mobile Widgets Backdrop Overlay -->
+  <div id="widgetsDrawerBackdrop" class="widgets-drawer-backdrop" aria-hidden="true"></div>
 
 <!-- Add / Edit Spin -->
   <div id="modalOverlay" class="sosa-modal-backdrop" style="display: none;">

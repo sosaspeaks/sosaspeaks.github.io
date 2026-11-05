@@ -3257,7 +3257,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
           const a = topAlbumsState[r];
           return a && (
             (spin.id && a.spin_id && String(a.spin_id) === String(spin.id)) ||
-            (a.artist && a.title && a.artist.toLowerCase() === spin.artist.toLowerCase() && a.title.toLowerCase() === spin.title.toLowerCase())
+            (a.artist && a.title && a.artist.trim().toLowerCase() === spin.artist.trim().toLowerCase() && a.title.trim().toLowerCase() === spin.title.trim().toLowerCase())
           );
         });
 
@@ -3408,7 +3408,26 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       if (top100ToggleBankLabel) top100ToggleBankLabel.textContent = "Album Bank";
       if (bankEdgeText) bankEdgeText.textContent = "Album Bank";
 
-      albumBankSpins = (allEntries || []).filter(s => s.rating !== null && s.rating !== undefined && s.rating !== "");
+      // Deduplicate albums: for albums with relistens / multiple spins, keep only the most recent spin
+      const albumLatestMap = new Map();
+      (allEntries || []).forEach(s => {
+        if (s.rating === null || s.rating === undefined || s.rating === "") return;
+        const key = `${(s.artist || "").trim().toLowerCase()}::${(s.title || "").trim().toLowerCase()}`;
+        if (!albumLatestMap.has(key)) {
+          albumLatestMap.set(key, s);
+        } else {
+          const currentBest = albumLatestMap.get(key);
+          const timeCurrent = typeof parseLogDate === "function" ? parseLogDate(currentBest.log_date) : 0;
+          const timeNew = typeof parseLogDate === "function" ? parseLogDate(s.log_date) : 0;
+          const isNewer = (timeNew !== timeCurrent)
+            ? (timeNew > timeCurrent)
+            : ((Number(s.id) || 0) > (Number(currentBest.id) || 0));
+          if (isNewer) {
+            albumLatestMap.set(key, s);
+          }
+        }
+      });
+      albumBankSpins = Array.from(albumLatestMap.values());
 
       let filtered = [...albumBankSpins];
       if (albumBankSearchTerm) {
@@ -3434,7 +3453,11 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
         if (albumBankSortMode === "title-asc") return (a.title || "").localeCompare(b.title || "");
         if (albumBankSortMode === "year-desc") return (parseInt(b.year, 10) || 0) - (parseInt(a.year, 10) || 0);
         if (albumBankSortMode === "year-asc") return (parseInt(a.year, 10) || 0) - (parseInt(b.year, 10) || 0);
-        if (albumBankSortMode === "recent") return (b.id || 0) - (a.id || 0);
+        if (albumBankSortMode === "recent") {
+          const tA = typeof parseLogDate === "function" ? parseLogDate(a.log_date) : 0;
+          const tB = typeof parseLogDate === "function" ? parseLogDate(b.log_date) : 0;
+          return tB !== tA ? tB - tA : (Number(b.id) || 0) - (Number(a.id) || 0);
+        }
         return 0;
       });
 
@@ -3454,7 +3477,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
           const a = topAlbumsState[r];
           return a && (
             (spin.id && a.spin_id && String(a.spin_id) === String(spin.id)) ||
-            (a.artist && a.title && a.artist.toLowerCase() === spin.artist.toLowerCase() && a.title.toLowerCase() === spin.title.toLowerCase())
+            (a.artist && a.title && a.artist.trim().toLowerCase() === spin.artist.trim().toLowerCase() && a.title.trim().toLowerCase() === spin.title.trim().toLowerCase())
           );
         });
 
@@ -5869,12 +5892,16 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     const toggleBtn = document.getElementById("mobileWidgetsToggleBtn");
     const floatBtn = document.getElementById("floatingWidgetsBtn");
     const closeBtn = document.getElementById("closeSidebarDrawerBtn");
+    const edgeArrow = document.getElementById("widgetsEdgeTabArrow");
 
     function openDrawer() {
       if (!sidebar) return;
       sidebar.classList.add("is-open");
       if (backdrop) backdrop.classList.add("is-open");
       document.body.classList.add("widgets-drawer-open");
+      if (edgeArrow) {
+        edgeArrow.className = "bx bx-chevron-right";
+      }
     }
 
     function closeDrawer() {
@@ -5882,10 +5909,21 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       sidebar.classList.remove("is-open");
       if (backdrop) backdrop.classList.remove("is-open");
       document.body.classList.remove("widgets-drawer-open");
+      if (edgeArrow) {
+        edgeArrow.className = "bx bx-chevron-left";
+      }
     }
 
-    if (toggleBtn) toggleBtn.addEventListener("click", openDrawer);
-    if (floatBtn) floatBtn.addEventListener("click", openDrawer);
+    function toggleDrawer() {
+      if (sidebar && sidebar.classList.contains("is-open")) {
+        closeDrawer();
+      } else {
+        openDrawer();
+      }
+    }
+
+    if (toggleBtn) toggleBtn.addEventListener("click", toggleDrawer);
+    if (floatBtn) floatBtn.addEventListener("click", toggleDrawer);
     if (closeBtn) closeBtn.addEventListener("click", closeDrawer);
     if (backdrop) backdrop.addEventListener("click", closeDrawer);
 
@@ -5897,6 +5935,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
 
     window.openMobileWidgetsDrawer = openDrawer;
     window.closeMobileWidgetsDrawer = closeDrawer;
+    window.toggleMobileWidgetsDrawer = toggleDrawer;
   }
 
   initMobileWidgetsDrawer();
