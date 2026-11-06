@@ -111,5 +111,28 @@ window.addEventListener("scroll", () => {
 
 toTop.addEventListener('click', () => {
   document.documentElement.scrollTop = 0;
+});
+
+// Admin Lock Button Handler
+const adminTriggerBtn = document.getElementById("adminTriggerBtn");
+const adminLockIcon = document.getElementById("adminLockIcon");
+
+if (adminTriggerBtn) {
+  // Check if active Supabase auth session exists in localStorage
+  const hasAuth = Object.keys(localStorage).some(key => key.includes('sb-') && key.includes('-auth-token'));
+  if (hasAuth && adminLockIcon) {
+    adminLockIcon.src = "assets/icons/aero/lock_open.png";
+    adminTriggerBtn.title = "Admin Mode (Active)";
+  }
+
+  adminTriggerBtn.addEventListener("click", () => {
+    window.location.href = "sosaspins.html";
+  });
 }
-)
+
+window.addEventListener("keydown", (e) => {
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "a") {
+    e.preventDefault();
+    window.location.href = "sosaspins.html";
+  }
+});

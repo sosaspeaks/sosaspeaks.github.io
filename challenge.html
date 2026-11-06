@@ -54,7 +54,7 @@
   </header>
 
   <!-- Banner -->
-  <section class="main-home spins-hero" id="main-home">
+  <section class="main-home" id="main-home">
     <div class="home-text container">
       <h1 class="home-title">Sosa's Backlog</h1>
       <span class="home-subtitle" id="progressSubtitle">November Listening Challenge</span>
@@ -114,16 +114,16 @@
       <div class="window-command-bar">
         <div class="command-group-left">
           <button type="button" id="viewModeToggleBtn" class="aero-command-btn view-toggle-btn" title="Switch between 7×7 Grid and iPod Cover Flow" aria-pressed="false">
-            <i class='bx bx-carousel'></i> Cover Flow
+            <i class='bx bx-carousel'></i> <span class="cmd-text-full">Cover Flow</span><span class="cmd-text-short">Flow</span>
           </button>
           <button type="button" id="gridSizeBtn" class="aero-command-btn" title="Cycle grid layout size">
-            <i class='bx bx-grid-alt'></i> Size: Standard
+            <i class='bx bx-grid-alt'></i> <span class="cmd-prefix">Size: </span><span id="gridSizeBtnLabel">Standard</span>
           </button>
 
           <!-- Aero Sort Dropdown -->
           <div class="aero-sort-dropdown-wrap" style="position: relative; display: inline-block;">
             <button type="button" id="gridSortBtn" class="aero-command-btn" title="Sort challenge albums" aria-haspopup="true" aria-expanded="false">
-              <i class='bx bx-sort-alt-2'></i> <span id="gridSortBtnLabel">Sort: Default</span> <i class='bx bx-chevron-down' style="font-size: 0.85rem; margin-left: 1px;"></i>
+              <i class='bx bx-sort-alt-2'></i> <span class="cmd-text-full" id="gridSortBtnLabel">Sort: Default</span><span class="cmd-text-short">Sort</span> <i class='bx bx-chevron-down' style="font-size: 0.85rem; margin-left: 1px;"></i>
             </button>
             <div class="aero-menu-dropdown" id="gridSortMenu" style="display: none;">
               <button type="button" class="aero-menu-item active" data-sort="default">
@@ -167,16 +167,16 @@
             </div>
           </div>
           <button type="button" id="exportImageBtn" class="aero-command-btn export-emerald-btn" title="Download Topster image">
-            <i class='bx bx-camera'></i> Export Image
+            <i class='bx bx-camera'></i> <span class="cmd-text-full">Export Image</span><span class="cmd-text-short">Export</span>
           </button>
           <!-- Upload Unfinished Backlog Covers to Supabase Storage -->
           <button type="button" id="syncBacklogCoversBtn" class="aero-command-btn sync-cloud-btn admin-only" style="display: none;" title="Upload all external backlog artwork directly to Supabase storage">
-            <i class='bx bx-cloud-upload'></i> Sync Art to Cloud
+            <i class='bx bx-cloud-upload'></i> <span class="cmd-text-full">Sync Art to Cloud</span><span class="cmd-text-short">Sync</span>
           </button>
         </div>
         <div class="command-group-right">
           <button type="button" id="openAddModalBtn" class="aero-command-btn add-emerald-btn admin-only" style="display: none;">
-            <i class='bx bx-plus'></i> Add Album
+            <i class='bx bx-plus'></i> <span class="cmd-text-full">Add Album</span><span class="cmd-text-short">Add</span>
           </button>
         </div>
       </div>

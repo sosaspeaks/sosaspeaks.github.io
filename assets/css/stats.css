@@ -1015,3 +1015,69 @@ body.dark-mode .stats-marquee-track {
 body.dark-mode .stats-loading-text {
   color: #a7f3d0;
 }
+
+/* ============================================================
+   Mobile Responsive Statistics Dashboard
+   ============================================================ */
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+    width: 100% !important;
+  }
+
+  .stats-container {
+    padding: 0 0.75rem !important;
+    margin: 1.5rem auto 4rem !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .stats-window-frame {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .stats-window-body {
+    padding: 1rem 0.65rem !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .stats-kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .stats-panels-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .stats-panels-grid > *,
+  .aero-panel,
+  .chart-wrapper {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  canvas {
+    max-width: 100% !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-container {
+    padding: 0 0.5rem !important;
+  }
+
+  .stats-window-body {
+    padding: 0.85rem 0.5rem !important;
+  }
+
+  .stats-kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 6px !important;
+  }
+}

@@ -15,16 +15,16 @@
     const currentPath = window.location.pathname.toLowerCase();
     let activePortal = "feed";
 
-    if (currentPath.includes("stats.html")) {
+    if (currentPath.includes("stats")) {
       activePortal = "stats";
-    } else if (currentPath.includes("top100.html")) {
+    } else if (currentPath.includes("top100")) {
       activePortal = "top100";
-    } else if (currentPath.includes("challenge.html")) {
+    } else if (currentPath.includes("challenge")) {
       activePortal = "challenge";
     } else if (
-      currentPath.includes("sosaspins.html") ||
+      currentPath.includes("sosaspins") ||
       currentPath.endsWith("/") ||
-      currentPath.includes("index.html")
+      currentPath.includes("index")
     ) {
       activePortal = "feed";
     }

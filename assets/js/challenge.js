@@ -27,6 +27,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
       const { data: { session } } = await sb.auth.getSession();
       isAdmin = !!session;
+      updateAdminVisibility();
     } catch (e) {
       console.warn("Auth getSession error:", e);
     }
@@ -1403,9 +1404,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const isRel = (activeMonth === "recalibrate" || activeMonth === "relisten");
     document.querySelectorAll(".admin-only").forEach(el => {
       if (el.id === "addNewMonthBtn" && isRel) {
-        el.style.display = "none";
+        el.style.setProperty("display", "none", "important");
+      } else if (isAdmin) {
+        el.style.removeProperty("display");
       } else {
-        el.style.display = isAdmin ? "" : "none";
+        el.style.setProperty("display", "none", "important");
       }
     });
     if (adminTriggerBtn) {
@@ -1413,7 +1416,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       adminTriggerBtn.style.color = isAdmin ? "#10b981" : "";
     }
     if (!isAdmin && addModal) {
-      addModal.style.display = "none";
+      addModal.style.setProperty("display", "none", "important");
     }
     if (isAdmin) {
       migrateLegacyReasonsInDatabase();
@@ -1856,10 +1859,21 @@ document.addEventListener("DOMContentLoaded", async () => {
         const descriptors = safeToArray(match.descriptors);
         let descriptorsHtml = "";
         if (descriptors.length) {
+          const hasManyDesc = descriptors.length > 3;
+          const initialDesc = hasManyDesc ? descriptors.slice(0, 3) : descriptors;
+          const remainingDesc = hasManyDesc ? descriptors.slice(3) : [];
           descriptorsHtml = `
             <div class="descriptors-wrapper" style="margin-top: 0.35rem;">
               <span class="desc-label">descriptors:</span>
-              ${descriptors.map(d => `<span class="descriptor-pill">${d}</span>`).join("")}
+              ${initialDesc.map(d => `<span class="descriptor-pill">${d}</span>`).join("")}
+              ${hasManyDesc ? `
+                <span class="remaining-descriptors is-hidden">
+                  ${remainingDesc.map(d => `<span class="descriptor-pill">${d}</span>`).join("")}
+                </span>
+                <button type="button" class="desc-expand-btn desc-collapse-toggle" data-count="${remainingDesc.length}" aria-expanded="false" title="Show ${remainingDesc.length} more descriptors" onclick="toggleModalDescriptors(this)">
+                  <i class='bx bx-chevron-down' style="font-size: 0.85rem; vertical-align: middle;"></i> +${remainingDesc.length}
+                </button>
+              ` : ""}
             </div>
           `;
         }
@@ -1992,10 +2006,21 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         if (descriptors.length) {
+          const hasManyDesc = descriptors.length > 3;
+          const initialDesc = hasManyDesc ? descriptors.slice(0, 3) : descriptors;
+          const remainingDesc = hasManyDesc ? descriptors.slice(3) : [];
           tagsHtml += `
             <div class="descriptors-wrapper unlistened-desc-box" style="margin: 0.65rem 0; justify-content: center; gap: 6px; width: 100%;">
               <span class="desc-label" style="font-size: 0.75rem;">descriptors:</span>
-              ${descriptors.map(d => `<span class="descriptor-pill" style="padding: 3px 9px; font-size: 0.75rem;">${d}</span>`).join("")}
+              ${initialDesc.map(d => `<span class="descriptor-pill" style="padding: 3px 9px; font-size: 0.75rem;">${d}</span>`).join("")}
+              ${hasManyDesc ? `
+                <span class="remaining-descriptors is-hidden">
+                  ${remainingDesc.map(d => `<span class="descriptor-pill" style="padding: 3px 9px; font-size: 0.75rem;">${d}</span>`).join("")}
+                </span>
+                <button type="button" class="desc-expand-btn desc-collapse-toggle" data-count="${remainingDesc.length}" aria-expanded="false" title="Show ${remainingDesc.length} more descriptors" onclick="toggleModalDescriptors(this)">
+                  <i class='bx bx-chevron-down' style="font-size: 0.85rem; vertical-align: middle;"></i> +${remainingDesc.length}
+                </button>
+              ` : ""}
             </div>
           `;
         }
@@ -2046,6 +2071,31 @@ document.addEventListener("DOMContentLoaded", async () => {
       detailModal.style.display = "none";
     });
   }
+
+  // Toggle & Collapse Descriptors in Modal
+  window.toggleModalDescriptors = function(btn) {
+    if (!btn) return;
+    const box = btn.closest(".descriptors-wrapper");
+    if (!box) return;
+    const extra = box.querySelector(".remaining-descriptors");
+    if (!extra) return;
+    const isHidden = extra.classList.contains("is-hidden");
+    const count = btn.getAttribute("data-count") || "";
+    if (isHidden) {
+      extra.classList.remove("is-hidden");
+      btn.innerHTML = `<i class='bx bx-chevron-up' style="font-size: 0.85rem; vertical-align: middle;"></i> Collapse`;
+      btn.classList.add("is-expanded");
+      btn.setAttribute("aria-expanded", "true");
+      btn.setAttribute("title", "Collapse descriptors");
+    } else {
+      extra.classList.add("is-hidden");
+      btn.innerHTML = `<i class='bx bx-chevron-down' style="font-size: 0.85rem; vertical-align: middle;"></i> +${count}`;
+      btn.classList.remove("is-expanded");
+      btn.setAttribute("aria-expanded", "false");
+      btn.setAttribute("title", `Show ${count} more descriptors`);
+    }
+  };
+  window.toggleDescriptors = window.toggleModalDescriptors;
 
   // Grid Tile Actions & Status Bar
   if (topsterGrid) {
@@ -2127,14 +2177,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       viewModeToggleBtn.setAttribute("aria-pressed", isCoverFlowView ? "true" : "false");
 
       if (isCoverFlowView) {
-        viewModeToggleBtn.innerHTML = `<i class='bx bx-grid-alt'></i> Grid View`;
+        viewModeToggleBtn.innerHTML = `<i class='bx bx-grid-alt'></i> <span class="cmd-text-full">Grid View</span><span class="cmd-text-short">Grid</span>`;
         if (exportWrapper) exportWrapper.style.setProperty("display", "none", "important");
         if (gridSizeBtn) gridSizeBtn.style.display = "none";
         if (coverFlowWrapper) coverFlowWrapper.style.display = "flex";
         updateCoverFlowPositions();
         if (coverFlowStage) coverFlowStage.focus({ preventScroll: true });
       } else {
-        viewModeToggleBtn.innerHTML = `<i class='bx bx-carousel'></i> Cover Flow`;
+        viewModeToggleBtn.innerHTML = `<i class='bx bx-carousel'></i> <span class="cmd-text-full">Cover Flow</span><span class="cmd-text-short">Flow</span>`;
         if (coverFlowWrapper) coverFlowWrapper.style.display = "none";
         if (exportWrapper) exportWrapper.style.removeProperty("display");
         if (gridSizeBtn) gridSizeBtn.style.display = "";
@@ -2258,7 +2308,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       topsterGrid.classList.remove("size-standard", "size-compact", "size-fitsheet");
       topsterGrid.classList.add(current.className);
-      gridSizeBtn.innerHTML = `<i class='bx bx-grid-alt'></i> Size: ${current.name}`;
+      gridSizeBtn.innerHTML = `<i class='bx bx-grid-alt'></i> <span class="cmd-prefix">Size: </span><span id="gridSizeBtnLabel">${current.name}</span>`;
     });
   }
 
@@ -2315,7 +2365,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
 
-      exportImageBtn.innerHTML = `<i class='bx bx-loader-alt bx-spin'></i> Rendering...`;
+      exportImageBtn.innerHTML = `<i class='bx bx-loader-alt bx-spin'></i> <span class="cmd-text-full">Rendering...</span><span class="cmd-text-short">Rendering...</span>`;
       exportImageBtn.disabled = true;
 
       const wasHidden = exportWrapper && exportWrapper.style.display === "none";
@@ -2351,7 +2401,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           exportWrapper.style.setProperty("display", "none", "important");
         }
         if (isAdmin) document.body.classList.add("is-admin");
-        exportImageBtn.innerHTML = `<i class='bx bx-camera'></i> Export Image`;
+        exportImageBtn.innerHTML = `<i class='bx bx-camera'></i> <span class="cmd-text-full">Export Image</span><span class="cmd-text-short">Export</span>`;
         exportImageBtn.disabled = false;
       }
     });
