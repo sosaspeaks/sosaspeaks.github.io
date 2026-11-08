@@ -1303,6 +1303,8 @@ function getDominantColorFromImg(imgUrl) {
       if (!document.getElementById("top100DedicatedPage")) {
         applyFilters(false);
         if (window.location.hash && window.location.hash.startsWith("#spin-row-")) {
+          const targetId = window.location.hash.replace("#spin-row-", "");
+          if (typeof ensureSpinRendered === "function") ensureSpinRendered(targetId);
           setTimeout(() => {
             const targetEl = document.querySelector(window.location.hash);
             if (targetEl) {
@@ -1783,6 +1785,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       return;
     }
     setSpinsCoverFlowMode(false);
+    if (typeof ensureSpinRendered === "function") ensureSpinRendered(spinId);
     setTimeout(() => {
       const row = document.getElementById(`spin-row-${spinId}`);
       if (row) {
@@ -4099,6 +4102,17 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
         if (!isTop100View) setTop100View(true);
       } else if (isTop100View && !document.getElementById("top100DedicatedPage")) {
         setTop100View(false);
+      } else if (window.location.hash && window.location.hash.startsWith("#spin-row-")) {
+        const targetId = window.location.hash.replace("#spin-row-", "");
+        if (typeof ensureSpinRendered === "function") ensureSpinRendered(targetId);
+        setTimeout(() => {
+          const targetEl = document.querySelector(window.location.hash);
+          if (targetEl) {
+            targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+            targetEl.classList.add("cf-jump-highlight");
+            setTimeout(() => targetEl.classList.remove("cf-jump-highlight"), 1800);
+          }
+        }, 100);
       }
     });
 
@@ -4108,11 +4122,312 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     }
   }
 
+  // ============================================================
+  // INCREMENTAL LAZY FEED RENDERING (15 PER BATCH)
+  // ============================================================
+  const FEED_PAGE_SIZE = 15;
+  let currentFeedEntries = [];
+  let renderedFeedCount = 0;
+  let feedScrollObserver = null;
+  let isAppendingFeedBatch = false;
   let feedFadeTimer = null;
   let feedMinHeightTimer = null;
 
+  window.appendNextFeedBatch = appendNextFeedBatch;
+  window.ensureSpinRendered = ensureSpinRendered;
+
   await loadSpins();
   initTop100Controller();
+
+  function renderSpinRowHtml(item) {
+    const originalIdx = allEntries.indexOf(item);
+
+    const hasPrimary = item.genres && item.genres.length > 0;
+    const hasSecondary = item.secondary_genres && item.secondary_genres.length > 0;
+    const descriptors = item.descriptors || [];
+    const hasManyDesc = descriptors.length > 3;
+    const initialDesc = descriptors.slice(0, 3);
+    const remainingDesc = descriptors.slice(3);
+
+    // Fix "Ep" / "ep" formatting to always be strictly "EP"
+    let displayType = item.type || "Album";
+    if (displayType.toLowerCase() === "ep") {
+      displayType = "EP";
+    }
+
+    // Format memo: cleans leftover scraping artifacts & highlights inline quoted songs/lyrics
+    // Format memo: cleans leftover scraping artifacts & highlights inline quoted tracks
+    // Format memo: cleans artifacts, styles quotes, and auto-converts line breaks
+    // Prepare escaped values for use in HTML onclick strings
+    const safeArtist = (item.artist || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const safeAlbum = (item.title || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const safeCover = (item.cover_url || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+
+    // Memo formatting with track/artist/album pass-through
+    let formattedMemo = "";
+    if (item.memo) {
+      let cleanText = item.memo
+        .replace(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}(?:\s*relistened)?(?:\s*<br\s*\/?>)*/i, "")
+        .trim();
+
+      // 1. First wrap quoted titles into the pill badge
+      cleanText = cleanText.replace(
+        /(?<=^|[\s>(])["“]([^"”\n\r<]+)["”](?=[\s.,!?;:)<]|$)/g,
+        `<span class="inline-quoted-track">“$1”</span>`
+      );
+
+      // 2. Turn hyperlinked tracks [<span class="...">“Track”</span>](url) or ["Track"](url) into clickable player links
+      cleanText = cleanText.replace(
+      /\[(?:<span class="inline-quoted-track">)?["“]?([^"”]+?)["”]?(?:<\/span>)?\]\((https?:\/\/[^\s)]+)\)/g,
+      `<a class="inline-quoted-track song-embed-link" onclick="playAudioTrack('$2', '$1', '${safeArtist}', '${safeAlbum}', '${safeCover}')">“$1”</a>`
+      );
+
+      // Lift data-song / data-track from child div to parent bilingual or blockquote if not present on parent
+      cleanText = cleanText.replace(/<(bilingual|blockquote)([^>]*)>([\s\S]*?)<\/\1>/gi, (match, tag, attrs, inner) => {
+        if (!/data-(song|track|from)/i.test(attrs)) {
+          const childMatch = inner.match(/data-(song|track|from)=["']([^"']+)["']/i);
+          if (childMatch) {
+            return `<${tag}${attrs} data-song="${childMatch[2]}">${inner}</${tag}>`;
+          }
+        }
+        return match;
+      });
+
+      // 3. Line breaks & clean redundant breaks touching blockquote boundaries
+      formattedMemo = cleanText.replace(/\r?\n/g, "<br>")
+        .replace(/<(blockquote|bilingual)([^>]*)>\s*<br\s*\/?>/gi, "<$1$2>")
+        .replace(/<br\s*\/?>\s*<\/(blockquote|bilingual)>/gi, "</$1>")
+        .replace(/<(div|p)([^>]*)>\s*<br\s*\/?>/gi, "<$1$2>")
+        .replace(/<br\s*\/?>\s*<\/(div|p)>/gi, "</$1>")
+        .replace(/<\/div>\s*<br\s*\/?>\s*<div/gi, "</div><div");
+    }
+
+    const reflectCoverUrl = safeCover || 'assets/images/spins/placeholder.png';
+
+    return `
+      <article class="timeline-row" id="spin-row-${item.id}" data-type="${displayType}">
+        <div class="spin-top-section">
+          <div class="spin-cover-wrap">
+            <img class="spin-cover-img" src="${item.cover_url || 'assets/images/spins/placeholder.png'}" alt="${item.title} cover" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png'; if (this.nextElementSibling) this.nextElementSibling.style.backgroundImage='url(assets/images/spins/placeholder.png)';">
+            <div class="spin-cover-reflection" style="background-image: url('${reflectCoverUrl}');" aria-hidden="true"></div>
+          </div>
+          <div class="spin-meta-column">
+            <!-- 1. Header Line: Title on left, Date on right -->
+          <div class="spin-header">
+            <div class="title-meta-group">
+              <span class="spin-title">${item.artist} — ${item.title}</span>
+              <span class="spin-year">${item.year ? `(${item.year})` : ''}</span>
+              <span class="category spin-format-tag">${displayType}</span>${item.runtime ? `<span class="spin-runtime-text" title="Runtime: ${escapeHtml(item.runtime)}"><span class="runtime-bullet">•</span> ${escapeHtml(item.runtime)}</span>` : ""}
+              ${(() => {
+                const recalMeta = getActiveRecalibrateMeta(item);
+                if (!recalMeta) return "";
+                const reasonLabel = recalMeta.relisten_reason ? ` (${escapeHtml(recalMeta.relisten_reason)})` : "";
+                return `<a href="challenge.html#recalibrate" class="category recalibrate-queue-tag" title="Active in Recalibrate Queue${reasonLabel} &bull; Click to view in Challenge"><i class='bx bx-revision'></i> RECALIBRATE QUEUE</a>`;
+              })()}
+            </div>
+            <span class="post-date">${item.log_date || ""}</span>
+          </div>
+
+          <!-- Dedicated Spin Star Rating -->
+          ${(item.rating !== null && item.rating !== undefined) ? `
+            <div class="spin-star-rating" ${(item.rym_rating !== null && item.rym_rating !== undefined && item.rym_rating !== "") ? `title="RYM Avg: ${parseFloat(item.rym_rating).toFixed(2)}"` : ""}>
+              ${(item.rym_rating !== null && item.rym_rating !== undefined && item.rym_rating !== "") ? `<span class="rym-rating-tooltip"><i class=\'bx bxs-star\'></i> RYM Avg: ${parseFloat(item.rym_rating).toFixed(2)}</span>` : ""}
+              ${item.rating_shift ? `
+                <div class="rating-shift-box">
+                  <span class="old-rating">${getStarString(item.rating_shift.from)}</span>
+                  <small class="spin-rating-num">(${Number(item.rating_shift.from).toFixed(1)})</small>
+                  <span class="shift-arrow">➔</span>
+                  <span class="new-rating">${getStarString(item.rating_shift.to || item.rating)}</span>
+                  <small class="spin-rating-num">(${Number(item.rating_shift.to || item.rating).toFixed(1)})</small>
+                </div>
+              ` : `
+                <span class="active-spin-stars">${getStarString(item.rating)}</span>
+                <small class="spin-rating-num">(${Number(item.rating).toFixed(1)})</small>
+              `}
+              ${item.relisten ? `<span class="relisten-icon" title="Relisten: This symbol signifies that this spin is a relisten" aria-label="Relisten: This symbol signifies that this spin is a relisten"><i class='bx bx-rotate-left'></i></span>` : ""}
+            </div>
+          ` : (item.relisten ? `
+            <div class="spin-star-rating">
+              <span class="relisten-icon" title="Relisten: This symbol signifies that this spin is a relisten" aria-label="Relisten: This symbol signifies that this spin is a relisten"><i class='bx bx-rotate-left'></i></span>
+            </div>
+          ` : "")}
+
+          <!-- Primary and Secondary Genres -->
+          ${(hasPrimary || hasSecondary) ? `
+            <div class="genre-container">
+              ${hasPrimary ? `
+                <div class="primary-genres-wrap">
+                  ${item.genres.map(g => `<span class="genre-pill genre-primary" onclick="setSidebarFilter('genre', '${g}')">${g}</span>`).join("")}
+                </div>
+              ` : ""}
+              ${hasSecondary ? `
+                <div class="secondary-genres-wrap">
+                  ${item.secondary_genres.map(g => `<span class="genre-pill genre-secondary" onclick="setSidebarFilter('genre', '${g}')">${g}</span>`).join("")}
+                </div>
+              ` : ""}
+            </div>
+          ` : ""}
+
+          <!-- Descriptors Row -->
+          ${descriptors.length ? `
+            <div class="descriptors-wrapper" id="desc-box-${originalIdx}">
+              <span class="desc-label">descriptors:</span>
+              ${initialDesc.map(d => {
+                const escapedD = d.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+                return `<span class="descriptor-pill" onclick="setSidebarFilter('descriptor', '${escapedD}')">${d}</span>`;
+              }).join("")}
+              ${hasManyDesc ? `
+                <span class="remaining-descriptors is-hidden">
+                  ${remainingDesc.map(d => {
+                    const escapedD = d.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+                    return `<span class="descriptor-pill" onclick="setSidebarFilter('descriptor', '${escapedD}')">${d}</span>`;
+                  }).join("")}
+                </span>
+                <button type="button" class="desc-expand-btn" data-count="${remainingDesc.length}" aria-expanded="false" onclick="toggleDescriptors(${originalIdx}, this)">▾ +${remainingDesc.length}</button>
+              ` : ""}
+            </div>
+          ` : ""}
+
+          </div>
+        </div>
+
+        <div class="spin-body">
+          <!-- Journal Entry Prose Memo -->
+          ${formattedMemo ? `
+            <div class="spin-memo-entry">
+              ${formattedMemo}
+            </div>
+          ` : ""}
+
+          <!-- 1. Favorite Tracks Row (or Single Audio Stream Row) -->
+          ${(() => {
+            const favList = parseFavTracks(item.fav_tracks);
+            if (!favList.length) return "";
+            const isSingle = (item.type || "").trim().toLowerCase() === "single";
+            if (isSingle) {
+              const first = favList[0];
+              const url = first && first.includes("|") ? first.split("|")[1].trim() : (first && first.startsWith("http") ? first.trim() : null);
+              if (!url) return "";
+              const safeTrack = (item.title || "Track").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+              return `
+                <div class="fav-tracks-row single-audio-row">
+                  <span class="fav-label"><img src="assets/icons/aero/audio.png" alt="Audio" class="aero-audio-icon"> Audio:</span>
+                  <div class="fav-tracks-chips">
+                    <span class="fav-track-chip song-embed-link single-play-chip" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')">
+                      <span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(item.title)}
+                    </span>
+                  </div>
+                </div>
+              `;
+            }
+            return `
+              <div class="fav-tracks-row">
+                <span class="fav-label">Fav Tracks:</span>
+                <div class="fav-tracks-chips">
+                  ${favList.map(t => {
+                    if (t.includes("|")) {
+                      const [name, url] = t.split("|").map(s => s.trim());
+                      const safeTrack = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+                      return `<span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${name}</span>`;
+                    }
+                    return `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon">${t}</span>`;
+                  }).join("")}
+                </div>
+              </div>
+            `;
+          })()}
+
+          <!-- 2. Track Ratings (Safe string escaping + Clean nesting) -->
+          ${item.track_ratings && item.track_ratings.length ? `
+            <div class="track-ratings-wrapper">
+              <button type="button" class="track-ratings-toggle-btn" onclick="toggleTrackRatings(${originalIdx}, this)">
+                <span class="track-ratings-label"><i class='bx bx-list-ol'></i> Track Ratings (${item.track_ratings.length})</span>
+                <span class="ratings-arrow">▾</span>
+              </button>
+              <div class="track-ratings-list" id="track-ratings-${originalIdx}" style="display: none;">
+                ${item.track_ratings.map((tr, tIdx) => {
+                  const hasUrl = tr.url && tr.url.trim().length > 0;
+                  const safeTrTitle = (tr.title || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+                  return `
+                    <div class="track-rating-row">
+                      <span class="track-num">${tIdx + 1}.</span>
+                      ${hasUrl ? `
+                        <span class="track-name song-embed-link" onclick="playAudioTrack('${tr.url.trim()}', '${safeTrTitle}', '${safeArtist}', '${safeAlbum}', '${safeCover}')">
+                        ${tr.title}<span class="aero-play-wrap" style="margin-left: 6px; margin-right: 0;"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon track-play-icon"><span class="play-sheen-shine"></span></span></span>
+                      ` : `
+                        <span class="track-name">${tr.title}</span>
+                      `}
+                      <span class="track-stars">${getStarString(tr.rating)}</span>
+                      <small class="track-score">${Number(tr.rating).toFixed(1)}</small>
+                    </div>
+                  `;
+                }).join("")}
+              </div>
+            </div>
+          ` : ""}
+
+          <!-- Full Review Link Button -->
+          ${item.review_url ? `
+            <div class="review-link-wrap">
+              <a href="${item.review_url}" class="review-action-btn">
+                Read Full Review <i class='bx bx-right-arrow-alt'></i>
+              </a>
+            </div>
+          ` : ""}
+
+          <!-- Per-Spin Expandable Discussion Drawer -->
+          ${(() => {
+            const spinId = item.id;
+            const approvedCount = getApprovedCommentsForSpin(spinId).length;
+            const isOpen = openDiscussSpinIds.has(Number(spinId));
+            const safePlaceholderTitle = escapeHtml(item.title || "this spin");
+            return `
+              <div class="spin-discuss-drawer" id="spin-discuss-${spinId}" style="display: ${isOpen ? 'flex' : 'none'};">
+                <div class="spin-comments-list" id="spin-comments-list-${spinId}">
+                  ${renderApprovedCommentsHtml(spinId)}
+                </div>
+                <form class="spin-comment-form" onsubmit="submitSpinComment(event, ${spinId})">
+                  <div class="spin-comment-form-row">
+                    <input type="text" class="sosa-search-input comment-name-input" placeholder="Display Name (or Anonymous)" maxlength="40">
+                    <button type="submit" class="review-action-btn primary comment-submit-btn">
+                      <i class="bx bx-send"></i> Post
+                    </button>
+                  </div>
+                  <textarea class="sosa-search-input comment-body-input" placeholder="Leave a comment on ${safePlaceholderTitle}..." rows="2" maxlength="600" required></textarea>
+                  <div class="spin-comment-feedback" id="spin-comment-feedback-${spinId}" style="display: none;"></div>
+                </form>
+              </div>
+
+              <div class="row-actions">
+                <button type="button" class="action-icon-btn edit-btn admin-only" onclick="editSpin(${originalIdx})" aria-label="Edit Spin">
+                  <span class="action-tooltip">Edit Spin</span>
+                  <div class="action-icon-stage edit-icon-stage">
+                    <img src="assets/icons/aero/edit.ico" alt="Edit" class="aero-action-icon edit-icon">
+                    <div class="action-icon-reflection edit-reflection" aria-hidden="true"></div>
+                  </div>
+                </button>
+                <button type="button" class="action-icon-btn delete-btn admin-only" onclick="deleteSpin(${originalIdx})" aria-label="Delete Spin" onmouseenter="const img=this.querySelector('.delete-icon'); if(img) img.src='assets/icons/aero/delete-full.ico';" onmouseleave="const img=this.querySelector('.delete-icon'); if(img) img.src='assets/icons/aero/delete-empty.ico';">
+                  <span class="action-tooltip">Delete Spin</span>
+                  <div class="action-icon-stage delete-icon-stage">
+                    <img src="assets/icons/aero/delete-empty.ico" alt="Delete" class="aero-action-icon delete-icon">
+                    <div class="action-icon-reflection delete-reflection" aria-hidden="true"></div>
+                  </div>
+                </button>
+                <button type="button" class="spin-discuss-btn ${approvedCount > 0 ? 'has-comments' : ''} ${isOpen ? 'is-open' : ''}" id="spin-discuss-btn-${spinId}" onclick="toggleSpinDiscuss(${spinId}, this)" aria-label="${approvedCount > 0 ? `Leave a comment (${approvedCount} comment${approvedCount === 1 ? '' : 's'})` : 'Leave a comment'}">
+                  <span class="discuss-tooltip" id="spin-discuss-tooltip-${spinId}">${approvedCount > 0 ? `Leave a comment (${approvedCount} comment${approvedCount === 1 ? '' : 's'})` : 'Leave a comment'}</span>
+                  <div class="discuss-icon-stage">
+                    <img src="assets/icons/aero/discuss.png" alt="Discuss" class="discuss-icon">
+                    <div class="discuss-icon-reflection" aria-hidden="true"></div>
+                  </div>
+                  <span class="discuss-count-badge" id="spin-discuss-count-${spinId}" style="${approvedCount > 0 ? '' : 'display: none;'}">${approvedCount > 0 ? approvedCount : ''}</span>
+                </button>
+              </div>
+            `;
+          })()}
+        </div>
+      </article>
+    `;
+  }
 
   // ============================================================
   // RENDER FEED
@@ -4133,298 +4448,17 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       spinsCfIndex = 0;
       renderSpinsCoverFlow(entries);
 
-      if (entries.length === 0) {
+      currentFeedEntries = entries || [];
+      renderedFeedCount = 0;
+
+      if (currentFeedEntries.length === 0) {
         feed.innerHTML = `<div style="padding: 2rem; text-align: center; color: var(--text-color); opacity: 0.7;">No spins match your filter.</div>`;
+        teardownFeedSentinel();
       } else {
-        feed.innerHTML = entries.map((item) => {
-      const originalIdx = allEntries.indexOf(item);
-
-      const hasPrimary = item.genres && item.genres.length > 0;
-      const hasSecondary = item.secondary_genres && item.secondary_genres.length > 0;
-      const descriptors = item.descriptors || [];
-      const hasManyDesc = descriptors.length > 3;
-      const initialDesc = descriptors.slice(0, 3);
-      const remainingDesc = descriptors.slice(3);
-
-      // Fix "Ep" / "ep" formatting to always be strictly "EP"
-      let displayType = item.type || "Album";
-      if (displayType.toLowerCase() === "ep") {
-        displayType = "EP";
-      }
-
-      // Format memo: cleans leftover scraping artifacts & highlights inline quoted songs/lyrics
-      // Format memo: cleans leftover scraping artifacts & highlights inline quoted tracks
-      // Format memo: cleans artifacts, styles quotes, and auto-converts line breaks
-      // Prepare escaped values for use in HTML onclick strings
-      const safeArtist = (item.artist || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-      const safeAlbum = (item.title || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-      const safeCover = (item.cover_url || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-
-      // Memo formatting with track/artist/album pass-through
-      let formattedMemo = "";
-      if (item.memo) {
-        let cleanText = item.memo
-          .replace(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}(?:\s*relistened)?(?:\s*<br\s*\/?>)*/i, "")
-          .trim();
-
-        // 1. First wrap quoted titles into the pill badge
-        cleanText = cleanText.replace(
-          /(?<=^|[\s>(])["“]([^"”\n\r<]+)["”](?=[\s.,!?;:)<]|$)/g,
-          `<span class="inline-quoted-track">“$1”</span>`
-        );
-
-        // 2. Turn hyperlinked tracks [<span class="...">“Track”</span>](url) or ["Track"](url) into clickable player links
-        cleanText = cleanText.replace(
-        /\[(?:<span class="inline-quoted-track">)?["“]?([^"”]+?)["”]?(?:<\/span>)?\]\((https?:\/\/[^\s)]+)\)/g,
-        `<a class="inline-quoted-track song-embed-link" onclick="playAudioTrack('$2', '$1', '${safeArtist}', '${safeAlbum}', '${safeCover}')">“$1”</a>`
-        );
-
-        // Lift data-song / data-track from child div to parent bilingual or blockquote if not present on parent
-        cleanText = cleanText.replace(/<(bilingual|blockquote)([^>]*)>([\s\S]*?)<\/\1>/gi, (match, tag, attrs, inner) => {
-          if (!/data-(song|track|from)/i.test(attrs)) {
-            const childMatch = inner.match(/data-(song|track|from)=["']([^"']+)["']/i);
-            if (childMatch) {
-              return `<${tag}${attrs} data-song="${childMatch[2]}">${inner}</${tag}>`;
-            }
-          }
-          return match;
-        });
-
-        // 3. Line breaks & clean redundant breaks touching blockquote boundaries
-        formattedMemo = cleanText.replace(/\r?\n/g, "<br>")
-          .replace(/<(blockquote|bilingual)([^>]*)>\s*<br\s*\/?>/gi, "<$1$2>")
-          .replace(/<br\s*\/?>\s*<\/(blockquote|bilingual)>/gi, "</$1>")
-          .replace(/<(div|p)([^>]*)>\s*<br\s*\/?>/gi, "<$1$2>")
-          .replace(/<br\s*\/?>\s*<\/(div|p)>/gi, "</$1>")
-          .replace(/<\/div>\s*<br\s*\/?>\s*<div/gi, "</div><div");
-      }
-
-      const reflectCoverUrl = safeCover || 'assets/images/spins/placeholder.png';
-
-      return `
-        <article class="timeline-row" id="spin-row-${item.id}" data-type="${displayType}">
-          <div class="spin-top-section">
-            <div class="spin-cover-wrap">
-              <img class="spin-cover-img" src="${item.cover_url || 'assets/images/spins/placeholder.png'}" alt="${item.title} cover" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png'; if (this.nextElementSibling) this.nextElementSibling.style.backgroundImage='url(assets/images/spins/placeholder.png)';">
-              <div class="spin-cover-reflection" style="background-image: url('${reflectCoverUrl}');" aria-hidden="true"></div>
-            </div>
-            <div class="spin-meta-column">
-              <!-- 1. Header Line: Title on left, Date on right -->
-            <div class="spin-header">
-              <div class="title-meta-group">
-                <span class="spin-title">${item.artist} — ${item.title}</span>
-                <span class="spin-year">${item.year ? `(${item.year})` : ''}</span>
-                <span class="category spin-format-tag">${displayType}</span>${item.runtime ? `<span class="spin-runtime-text" title="Runtime: ${escapeHtml(item.runtime)}"><span class="runtime-bullet">•</span> ${escapeHtml(item.runtime)}</span>` : ""}
-                ${(() => {
-                  const recalMeta = getActiveRecalibrateMeta(item);
-                  if (!recalMeta) return "";
-                  const reasonLabel = recalMeta.relisten_reason ? ` (${escapeHtml(recalMeta.relisten_reason)})` : "";
-                  return `<a href="challenge.html#recalibrate" class="category recalibrate-queue-tag" title="Active in Recalibrate Queue${reasonLabel} &bull; Click to view in Challenge"><i class='bx bx-revision'></i> RECALIBRATE QUEUE</a>`;
-                })()}
-              </div>
-              <span class="post-date">${item.log_date || ""}</span>
-            </div>
-
-            <!-- Dedicated Spin Star Rating -->
-            ${(item.rating !== null && item.rating !== undefined) ? `
-              <div class="spin-star-rating" ${(item.rym_rating !== null && item.rym_rating !== undefined && item.rym_rating !== "") ? `title="RYM Avg: ${parseFloat(item.rym_rating).toFixed(2)}"` : ""}>
-                ${(item.rym_rating !== null && item.rym_rating !== undefined && item.rym_rating !== "") ? `<span class="rym-rating-tooltip"><i class=\'bx bxs-star\'></i> RYM Avg: ${parseFloat(item.rym_rating).toFixed(2)}</span>` : ""}
-                ${item.rating_shift ? `
-                  <div class="rating-shift-box">
-                    <span class="old-rating">${getStarString(item.rating_shift.from)}</span>
-                    <small class="spin-rating-num">(${Number(item.rating_shift.from).toFixed(1)})</small>
-                    <span class="shift-arrow">➔</span>
-                    <span class="new-rating">${getStarString(item.rating_shift.to || item.rating)}</span>
-                    <small class="spin-rating-num">(${Number(item.rating_shift.to || item.rating).toFixed(1)})</small>
-                  </div>
-                ` : `
-                  <span class="active-spin-stars">${getStarString(item.rating)}</span>
-                  <small class="spin-rating-num">(${Number(item.rating).toFixed(1)})</small>
-                `}
-                ${item.relisten ? `<span class="relisten-icon" title="Relisten: This symbol signifies that this spin is a relisten" aria-label="Relisten: This symbol signifies that this spin is a relisten"><i class='bx bx-rotate-left'></i></span>` : ""}
-              </div>
-            ` : (item.relisten ? `
-              <div class="spin-star-rating">
-                <span class="relisten-icon" title="Relisten: This symbol signifies that this spin is a relisten" aria-label="Relisten: This symbol signifies that this spin is a relisten"><i class='bx bx-rotate-left'></i></span>
-              </div>
-            ` : "")}
-
-            <!-- Primary and Secondary Genres -->
-            ${(hasPrimary || hasSecondary) ? `
-              <div class="genre-container">
-                ${hasPrimary ? `
-                  <div class="primary-genres-wrap">
-                    ${item.genres.map(g => `<span class="genre-pill genre-primary" onclick="setSidebarFilter('genre', '${g}')">${g}</span>`).join("")}
-                  </div>
-                ` : ""}
-                ${hasSecondary ? `
-                  <div class="secondary-genres-wrap">
-                    ${item.secondary_genres.map(g => `<span class="genre-pill genre-secondary" onclick="setSidebarFilter('genre', '${g}')">${g}</span>`).join("")}
-                  </div>
-                ` : ""}
-              </div>
-            ` : ""}
-
-            <!-- Descriptors Row -->
-            ${descriptors.length ? `
-              <div class="descriptors-wrapper" id="desc-box-${originalIdx}">
-                <span class="desc-label">descriptors:</span>
-                ${initialDesc.map(d => {
-                  const escapedD = d.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-                  return `<span class="descriptor-pill" onclick="setSidebarFilter('descriptor', '${escapedD}')">${d}</span>`;
-                }).join("")}
-                ${hasManyDesc ? `
-                  <span class="remaining-descriptors is-hidden">
-                    ${remainingDesc.map(d => {
-                      const escapedD = d.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-                      return `<span class="descriptor-pill" onclick="setSidebarFilter('descriptor', '${escapedD}')">${d}</span>`;
-                    }).join("")}
-                  </span>
-                  <button type="button" class="desc-expand-btn" data-count="${remainingDesc.length}" aria-expanded="false" onclick="toggleDescriptors(${originalIdx}, this)">▾ +${remainingDesc.length}</button>
-                ` : ""}
-              </div>
-            ` : ""}
-
-            </div>
-          </div>
-
-          <div class="spin-body">
-            <!-- Journal Entry Prose Memo -->
-            ${formattedMemo ? `
-              <div class="spin-memo-entry">
-                ${formattedMemo}
-              </div>
-            ` : ""}
-
-            <!-- 1. Favorite Tracks Row (or Single Audio Stream Row) -->
-            ${(() => {
-              const favList = parseFavTracks(item.fav_tracks);
-              if (!favList.length) return "";
-              const isSingle = (item.type || "").trim().toLowerCase() === "single";
-              if (isSingle) {
-                const first = favList[0];
-                const url = first && first.includes("|") ? first.split("|")[1].trim() : (first && first.startsWith("http") ? first.trim() : null);
-                if (!url) return "";
-                const safeTrack = (item.title || "Track").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-                return `
-                  <div class="fav-tracks-row single-audio-row">
-                    <span class="fav-label"><img src="assets/icons/aero/audio.png" alt="Audio" class="aero-audio-icon"> Audio:</span>
-                    <div class="fav-tracks-chips">
-                      <span class="fav-track-chip song-embed-link single-play-chip" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')">
-                        <span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(item.title)}
-                      </span>
-                    </div>
-                  </div>
-                `;
-              }
-              return `
-                <div class="fav-tracks-row">
-                  <span class="fav-label">Fav Tracks:</span>
-                  <div class="fav-tracks-chips">
-                    ${favList.map(t => {
-                      if (t.includes("|")) {
-                        const [name, url] = t.split("|").map(s => s.trim());
-                        const safeTrack = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-                        return `<span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${name}</span>`;
-                      }
-                      return `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon">${t}</span>`;
-                    }).join("")}
-                  </div>
-                </div>
-              `;
-            })()}
-
-            <!-- 2. Track Ratings (Safe string escaping + Clean nesting) -->
-            ${item.track_ratings && item.track_ratings.length ? `
-              <div class="track-ratings-wrapper">
-                <button type="button" class="track-ratings-toggle-btn" onclick="toggleTrackRatings(${originalIdx}, this)">
-                  <span class="track-ratings-label"><i class='bx bx-list-ol'></i> Track Ratings (${item.track_ratings.length})</span>
-                  <span class="ratings-arrow">▾</span>
-                </button>
-                <div class="track-ratings-list" id="track-ratings-${originalIdx}" style="display: none;">
-                  ${item.track_ratings.map((tr, tIdx) => {
-                    const hasUrl = tr.url && tr.url.trim().length > 0;
-                    const safeTrTitle = (tr.title || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-                    return `
-                      <div class="track-rating-row">
-                        <span class="track-num">${tIdx + 1}.</span>
-                        ${hasUrl ? `
-                          <span class="track-name song-embed-link" onclick="playAudioTrack('${tr.url.trim()}', '${safeTrTitle}', '${safeArtist}', '${safeAlbum}', '${safeCover}')">
-                          ${tr.title}<span class="aero-play-wrap" style="margin-left: 6px; margin-right: 0;"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon track-play-icon"><span class="play-sheen-shine"></span></span></span>
-                        ` : `
-                          <span class="track-name">${tr.title}</span>
-                        `}
-                        <span class="track-stars">${getStarString(tr.rating)}</span>
-                        <small class="track-score">${Number(tr.rating).toFixed(1)}</small>
-                      </div>
-                    `;
-                  }).join("")}
-                </div>
-              </div>
-            ` : ""}
-
-            <!-- Full Review Link Button -->
-            ${item.review_url ? `
-              <div class="review-link-wrap">
-                <a href="${item.review_url}" class="review-action-btn">
-                  Read Full Review <i class='bx bx-right-arrow-alt'></i>
-                </a>
-              </div>
-            ` : ""}
-
-            <!-- Per-Spin Expandable Discussion Drawer -->
-            ${(() => {
-              const spinId = item.id;
-              const approvedCount = getApprovedCommentsForSpin(spinId).length;
-              const isOpen = openDiscussSpinIds.has(Number(spinId));
-              const safePlaceholderTitle = escapeHtml(item.title || "this spin");
-              return `
-                <div class="spin-discuss-drawer" id="spin-discuss-${spinId}" style="display: ${isOpen ? 'flex' : 'none'};">
-                  <div class="spin-comments-list" id="spin-comments-list-${spinId}">
-                    ${renderApprovedCommentsHtml(spinId)}
-                  </div>
-                  <form class="spin-comment-form" onsubmit="submitSpinComment(event, ${spinId})">
-                    <div class="spin-comment-form-row">
-                      <input type="text" class="sosa-search-input comment-name-input" placeholder="Display Name (or Anonymous)" maxlength="40">
-                      <button type="submit" class="review-action-btn primary comment-submit-btn">
-                        <i class="bx bx-send"></i> Post
-                      </button>
-                    </div>
-                    <textarea class="sosa-search-input comment-body-input" placeholder="Leave a comment on ${safePlaceholderTitle}..." rows="2" maxlength="600" required></textarea>
-                    <div class="spin-comment-feedback" id="spin-comment-feedback-${spinId}" style="display: none;"></div>
-                  </form>
-                </div>
-
-                <div class="row-actions">
-                  <button type="button" class="action-icon-btn edit-btn admin-only" onclick="editSpin(${originalIdx})" aria-label="Edit Spin">
-                    <span class="action-tooltip">Edit Spin</span>
-                    <div class="action-icon-stage edit-icon-stage">
-                      <img src="assets/icons/aero/edit.ico" alt="Edit" class="aero-action-icon edit-icon">
-                      <div class="action-icon-reflection edit-reflection" aria-hidden="true"></div>
-                    </div>
-                  </button>
-                  <button type="button" class="action-icon-btn delete-btn admin-only" onclick="deleteSpin(${originalIdx})" aria-label="Delete Spin" onmouseenter="const img=this.querySelector('.delete-icon'); if(img) img.src='assets/icons/aero/delete-full.ico';" onmouseleave="const img=this.querySelector('.delete-icon'); if(img) img.src='assets/icons/aero/delete-empty.ico';">
-                    <span class="action-tooltip">Delete Spin</span>
-                    <div class="action-icon-stage delete-icon-stage">
-                      <img src="assets/icons/aero/delete-empty.ico" alt="Delete" class="aero-action-icon delete-icon">
-                      <div class="action-icon-reflection delete-reflection" aria-hidden="true"></div>
-                    </div>
-                  </button>
-                  <button type="button" class="spin-discuss-btn ${approvedCount > 0 ? 'has-comments' : ''} ${isOpen ? 'is-open' : ''}" id="spin-discuss-btn-${spinId}" onclick="toggleSpinDiscuss(${spinId}, this)" aria-label="${approvedCount > 0 ? `Leave a comment (${approvedCount} comment${approvedCount === 1 ? '' : 's'})` : 'Leave a comment'}">
-                    <span class="discuss-tooltip" id="spin-discuss-tooltip-${spinId}">${approvedCount > 0 ? `Leave a comment (${approvedCount} comment${approvedCount === 1 ? '' : 's'})` : 'Leave a comment'}</span>
-                    <div class="discuss-icon-stage">
-                      <img src="assets/icons/aero/discuss.png" alt="Discuss" class="discuss-icon">
-                      <div class="discuss-icon-reflection" aria-hidden="true"></div>
-                    </div>
-                    <span class="discuss-count-badge" id="spin-discuss-count-${spinId}" style="${approvedCount > 0 ? '' : 'display: none;'}">${approvedCount > 0 ? approvedCount : ''}</span>
-                  </button>
-                </div>
-              `;
-            })()}
-          </div>
-        </article>
-      `;
-    }).join("");
+        const initialCount = Math.min(FEED_PAGE_SIZE, currentFeedEntries.length);
+        renderedFeedCount = initialCount;
+        feed.innerHTML = currentFeedEntries.slice(0, initialCount).map(renderSpinRowHtml).join("");
+        setupFeedSentinel();
       }
 
       updateAdminVisibility();
@@ -4461,6 +4495,147 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       performUpdate();
     }
   }
+
+  function appendNextFeedBatch() {
+    if (isAppendingFeedBatch) return;
+    if (!feed || renderedFeedCount >= currentFeedEntries.length) {
+      teardownFeedSentinel();
+      return;
+    }
+
+    isAppendingFeedBatch = true;
+    const nextCount = Math.min(renderedFeedCount + FEED_PAGE_SIZE, currentFeedEntries.length);
+    const nextSlice = currentFeedEntries.slice(renderedFeedCount, nextCount);
+    renderedFeedCount = nextCount;
+
+    if (nextSlice.length > 0) {
+      const sentinel = document.getElementById("feedScrollSentinel");
+      const tempDiv = document.createElement("div");
+      tempDiv.innerHTML = nextSlice.map(renderSpinRowHtml).join("");
+
+      const fragment = document.createDocumentFragment();
+      while (tempDiv.firstChild) {
+        fragment.appendChild(tempDiv.firstChild);
+      }
+
+      if (sentinel && sentinel.parentNode === feed) {
+        feed.insertBefore(fragment, sentinel);
+      } else {
+        feed.appendChild(fragment);
+      }
+
+      updateAdminVisibility();
+    }
+
+    if (renderedFeedCount >= currentFeedEntries.length) {
+      teardownFeedSentinel();
+    } else {
+      updateSentinelStatus();
+    }
+
+    isAppendingFeedBatch = false;
+  }
+  window.appendNextFeedBatch = appendNextFeedBatch;
+
+  function setupFeedSentinel() {
+    teardownFeedSentinel();
+    if (renderedFeedCount >= currentFeedEntries.length) return;
+
+    const sentinel = document.createElement("div");
+    sentinel.id = "feedScrollSentinel";
+    sentinel.className = "feed-scroll-sentinel";
+    sentinel.innerHTML = `
+      <div class="feed-sentinel-content">
+        <span class="feed-sentinel-spinner"><i class='bx bx-loader-alt bx-spin'></i></span>
+        <span class="feed-sentinel-text">Showing ${renderedFeedCount} of ${currentFeedEntries.length} spins</span>
+        <button type="button" class="aero-btn feed-load-more-btn" onclick="appendNextFeedBatch()">Load more</button>
+      </div>
+    `;
+    feed.appendChild(sentinel);
+
+    if ("IntersectionObserver" in window) {
+      feedScrollObserver = new IntersectionObserver((observerEntries) => {
+        if (observerEntries[0] && observerEntries[0].isIntersecting) {
+          appendNextFeedBatch();
+        }
+      }, {
+        root: null,
+        rootMargin: "600px 0px",
+        threshold: 0
+      });
+      feedScrollObserver.observe(sentinel);
+    }
+  }
+
+  function updateSentinelStatus() {
+    const sentinel = document.getElementById("feedScrollSentinel");
+    if (!sentinel) return;
+    const text = sentinel.querySelector(".feed-sentinel-text");
+    if (text) {
+      text.textContent = `Showing ${renderedFeedCount} of ${currentFeedEntries.length} spins`;
+    }
+  }
+
+  function teardownFeedSentinel() {
+    if (feedScrollObserver) {
+      feedScrollObserver.disconnect();
+      feedScrollObserver = null;
+    }
+    const sentinel = document.getElementById("feedScrollSentinel");
+    if (sentinel) {
+      sentinel.remove();
+    }
+  }
+
+  function ensureSpinRendered(spinId) {
+    if (!spinId) return false;
+    const existing = document.getElementById(`spin-row-${spinId}`);
+    if (existing) return true;
+
+    const targetIdx = currentFeedEntries.findIndex(item => String(item.id) === String(spinId));
+    if (targetIdx === -1) return false;
+
+    const neededCount = Math.min(currentFeedEntries.length, Math.ceil((targetIdx + 1) / FEED_PAGE_SIZE) * FEED_PAGE_SIZE);
+    if (neededCount > renderedFeedCount) {
+      const nextSlice = currentFeedEntries.slice(renderedFeedCount, neededCount);
+      renderedFeedCount = neededCount;
+
+      const sentinel = document.getElementById("feedScrollSentinel");
+      const tempDiv = document.createElement("div");
+      tempDiv.innerHTML = nextSlice.map(renderSpinRowHtml).join("");
+
+      const fragment = document.createDocumentFragment();
+      while (tempDiv.firstChild) {
+        fragment.appendChild(tempDiv.firstChild);
+      }
+
+      if (sentinel && sentinel.parentNode === feed) {
+        feed.insertBefore(fragment, sentinel);
+      } else {
+        feed.appendChild(fragment);
+      }
+
+      updateAdminVisibility();
+
+      if (renderedFeedCount >= currentFeedEntries.length) {
+        teardownFeedSentinel();
+      } else {
+        updateSentinelStatus();
+      }
+    }
+    return !!document.getElementById(`spin-row-${spinId}`);
+  }
+  window.ensureSpinRendered = ensureSpinRendered;
+
+  window.addEventListener("scroll", () => {
+    if (!feed || renderedFeedCount >= currentFeedEntries.length || isAppendingFeedBatch) return;
+    const sentinel = document.getElementById("feedScrollSentinel");
+    if (!sentinel) return;
+    const rect = sentinel.getBoundingClientRect();
+    if (rect.top <= window.innerHeight + 600) {
+      appendNextFeedBatch();
+    }
+  }, { passive: true });
 
 window.toggleDescriptors = function(idx, btn) {
     const box = document.getElementById(`desc-box-${idx}`);
@@ -4702,9 +4877,9 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         const secondary = parts[1] ? parts[1].trim() : "";
 
         return `
-          <div class="rating-dist-row cloud-tag ${isZero ? 'zero-count' : ''}" 
-               data-type="rating" 
-               data-val="${item.score}" 
+          <div class="rating-dist-row cloud-tag ${isZero ? 'zero-count' : ''}"
+               data-type="rating"
+               data-val="${item.score}"
                ${!isZero ? `onclick="setSidebarFilter('rating', '${item.score}')"` : ''}
                title="${item.label}">
             <div class="rating-bg-bar" style="width: ${percent}%;"></div>

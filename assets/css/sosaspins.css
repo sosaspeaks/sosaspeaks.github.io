@@ -1286,6 +1286,72 @@ body:not(.dark-mode) .cf-genre-chip.cf-genre-secondary:hover {
   border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
 }
 
+/* Incremental Lazy Feed Sentinel */
+.feed-scroll-sentinel {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1.75rem 1rem 2.25rem 1rem !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.feed-sentinel-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 18px;
+  background: var(--glass-bg, rgba(255, 255, 255, 0.5));
+  border: var(--glass-border, 1px solid rgba(255, 255, 255, 0.4));
+  border-radius: 20px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(10, 35, 20, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  font-family: var(--font-body, "Plus Jakarta Sans"), sans-serif;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-color);
+  user-select: none;
+}
+
+.feed-sentinel-spinner {
+  font-size: 1.15rem;
+  color: var(--second-color, #10b981);
+  display: inline-flex;
+  align-items: center;
+}
+
+.feed-load-more-btn {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.78rem;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: var(--glass-active-bg, rgba(0, 230, 118, 0.15));
+  border: 1px solid var(--glass-hover-border, rgba(120, 255, 190, 0.7));
+  color: var(--text-color);
+  cursor: pointer;
+  margin-left: 4px;
+  transition: all 0.2s ease;
+}
+
+.feed-load-more-btn:hover {
+  background: var(--glass-hover-border);
+  color: #145c34;
+}
+
+.dark-mode .feed-sentinel-content {
+  background: rgba(20, 25, 22, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+  color: var(--dark-text-color) !important;
+}
+
+.dark-mode .feed-load-more-btn {
+  color: var(--dark-text-color) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
 .spin-top-section {
   position: relative !important;
   display: flex !important;
