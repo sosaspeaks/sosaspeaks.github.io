@@ -167,7 +167,13 @@
         <input type="text" id="searchInput" placeholder="Search spins..." class="sosa-search-input">
       </div>
       <div class="sidebar-card aero-card">
-        <h3 class="sidebar-heading">Top Artists</h3>
+        <div class="top-artists-header">
+          <h3 class="sidebar-heading">Top Artists</h3>
+          <div class="top-artists-tabs" role="tablist" aria-label="Top Artists Ranking Mode">
+            <button type="button" class="top-artists-tab-btn active" id="btnTopArtistsStandard" data-mode="standard" role="tab" aria-selected="true" title="Normal: Unweighted project average">Normal</button>
+            <button type="button" class="top-artists-tab-btn" id="btnTopArtistsWeighted" data-mode="weighted" role="tab" aria-selected="false" title="Weighted: Albums/Mixtapes 100%, EPs 60%, Singles 30%">Weighted</button>
+          </div>
+        </div>
         <div id="topArtistsList" class="top-artists-container">
         </div>
       </div>

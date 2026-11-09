@@ -807,6 +807,7 @@ body.coverflow-active .spins-sidebar-column {
   font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 1.15rem;
   font-weight: 800;
+  font-style: italic;
   color: #f8fafc;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
   line-height: 1.25;
@@ -815,6 +816,7 @@ body.coverflow-active .spins-sidebar-column {
 .cf-album-title .cf-year {
   font-weight: 500;
   font-size: 0.92rem;
+  font-style: normal;
   color: #94a3b8;
 }
 
@@ -825,6 +827,21 @@ body.coverflow-active .spins-sidebar-column {
   color: #6ee7b7;
   margin-top: 2px;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
+}
+
+.cf-album-artist .spin-artist {
+  color: #6ee7b7;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s ease, text-shadow 0.15s ease;
+}
+
+.cf-album-artist .spin-artist:hover {
+  color: #a7f3d0;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  text-shadow: 0 0 8px rgba(110, 231, 183, 0.7);
 }
 
 .cf-album-meta {
@@ -1476,6 +1493,42 @@ body:not(.dark-mode) .cf-genre-chip.cf-genre-secondary:hover {
 
 .dark-mode .spin-title {
   color: var(--dark-text-color);
+}
+
+.spin-artist {
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s ease, text-decoration 0.15s ease;
+}
+
+.spin-artist:hover {
+  color: var(--primary-accent, #059669);
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
+.dark-mode .spin-artist:hover {
+  color: #34d399;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
+.spin-album-title {
+  font-style: italic;
+}
+
+.spin-title-dash {
+  opacity: 0.65;
+  margin: 0 0.2rem;
+  font-style: normal;
+}
+
+.spin-artist-delimiter {
+  text-decoration: none !important;
+  cursor: default !important;
+  font-style: normal;
 }
 
 .spin-year {
@@ -4098,6 +4151,81 @@ body.dark-mode .sosa-search-input:focus {
   box-shadow: 0 0 8px rgba(52, 211, 153, 0.3) !important;
 }
 
+/* Top Artists Header & Mode Switcher Tabs */
+.top-artists-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 0.35rem;
+}
+
+.top-artists-header .sidebar-heading {
+  margin: 0 !important;
+}
+
+.top-artists-tabs {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 14px;
+  padding: 2px;
+  gap: 2px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.top-artists-tab-btn {
+  background: transparent;
+  border: none;
+  border-radius: 11px;
+  padding: 3px 10px;
+  font-family: var(--font-body, "Plus Jakarta Sans"), sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-color, #111);
+  opacity: 0.68;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  line-height: 1.25;
+  user-select: none;
+}
+
+.top-artists-tab-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.top-artists-tab-btn.active {
+  opacity: 1;
+  color: #047857;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(10, 35, 20, 0.14), inset 0 1px 0 #ffffff;
+}
+
+body.dark-mode .top-artists-tabs {
+  background: rgba(0, 0, 0, 0.35);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-mode .top-artists-tab-btn {
+  color: var(--dark-text-color, #e2e8f0);
+  opacity: 0.65;
+}
+
+body.dark-mode .top-artists-tab-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .top-artists-tab-btn.active {
+  color: #34d399;
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
 /* Top Artists Widget */
 .top-artists-container {
   display: flex;
@@ -6300,6 +6428,20 @@ body.dark-mode .aero-meta-artist {
     0 0 10px rgba(52, 211, 153, 0.45);
 }
 
+.aero-meta-artist .spin-artist {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.aero-meta-artist .spin-artist:hover {
+  color: #10b981 !important;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
 .aero-meta-sep {
   font-size: 0.7rem;
   opacity: 0.4;
@@ -7993,16 +8135,28 @@ body.dark-mode .top100-header-subtitle {
 .podium-slot.rank-1 .podium-cover-wrap {
   width: 220px;
   height: 220px;
-  border: 3px solid #fbbf24;
+  border: 3px solid #fde047;
   box-shadow:
-    0 0 35px rgba(245, 158, 11, 0.45),
-    0 16px 36px rgba(0, 0, 0, 0.4),
-    inset 0 1px 1px rgba(255, 255, 255, 0.9);
+    0 0 25px rgba(253, 224, 71, 0.85),
+    0 0 55px rgba(245, 158, 11, 0.65),
+    0 0 95px rgba(217, 119, 6, 0.35),
+    inset 0 0 16px rgba(254, 240, 138, 0.5),
+    inset 0 1px 2px rgba(255, 255, 255, 0.95);
   position: relative;
   margin-bottom: 12px;
   cursor: pointer;
   background: #000;
   overflow: visible;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.podium-slot.rank-1:hover .podium-cover-wrap {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow:
+    0 0 35px rgba(253, 224, 71, 0.95),
+    0 0 75px rgba(245, 158, 11, 0.8),
+    0 0 120px rgba(217, 119, 6, 0.45),
+    inset 0 0 20px rgba(254, 240, 138, 0.65);
 }
 
 .podium-badge {
@@ -8021,7 +8175,10 @@ body.dark-mode .top100-header-subtitle {
   border-radius: 50%;
   background: linear-gradient(135deg, #fffbeb 0%, #fde047 35%, #f59e0b 70%, #b45309 100%);
   border: 2.5px solid #ffffff;
-  box-shadow: 0 0 20px rgba(245, 158, 11, 0.8), 0 4px 10px rgba(0, 0, 0, 0.35), inset 0 1px 2px #fff;
+  box-shadow:
+    0 0 18px rgba(253, 224, 71, 0.95),
+    0 0 36px rgba(245, 158, 11, 0.75),
+    inset 0 1px 2px #fff;
   color: #78350f;
   font-size: 1.35rem;
   font-weight: 800;
@@ -8035,12 +8192,15 @@ body.dark-mode .top100-header-subtitle {
 .podium-slot.rank-1 .podium-pedestal {
   width: 240px;
   height: 90px;
-  background: linear-gradient(180deg, rgba(254, 240, 138, 0.5) 0%, rgba(245, 158, 11, 0.35) 20%, rgba(180, 83, 9, 0.45) 100%);
-  border: 1px solid rgba(245, 158, 11, 0.7);
-  border-radius: 6px 6px 0 0;
+  background: linear-gradient(180deg, rgba(254, 240, 138, 0.55) 0%, rgba(245, 158, 11, 0.4) 20%, rgba(180, 83, 9, 0.45) 100%);
+  border: 1.5px solid rgba(253, 224, 71, 0.85);
+  border-radius: 0px;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.9), 0 10px 25px rgba(0, 0, 0, 0.25);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.95),
+    0 0 30px rgba(245, 158, 11, 0.55),
+    0 0 65px rgba(217, 119, 6, 0.25);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -8059,16 +8219,28 @@ body.dark-mode .top100-header-subtitle {
 .podium-slot.rank-2 .podium-cover-wrap {
   width: 180px;
   height: 180px;
-  border: 2.5px solid #cbd5e1;
+  border: 2.5px solid #f1f5f9;
   box-shadow:
-    0 0 25px rgba(186, 230, 253, 0.4),
-    0 12px 28px rgba(0, 0, 0, 0.35),
-    inset 0 1px 1px rgba(255, 255, 255, 0.9);
+    0 0 22px rgba(241, 245, 249, 0.9),
+    0 0 48px rgba(186, 230, 253, 0.65),
+    0 0 80px rgba(148, 163, 184, 0.35),
+    inset 0 0 14px rgba(241, 245, 249, 0.5),
+    inset 0 1px 2px rgba(255, 255, 255, 0.95);
   position: relative;
   margin-bottom: 12px;
   cursor: pointer;
   background: #000;
   overflow: visible;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.podium-slot.rank-2:hover .podium-cover-wrap {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow:
+    0 0 30px rgba(255, 255, 255, 0.95),
+    0 0 60px rgba(186, 230, 253, 0.8),
+    0 0 95px rgba(148, 163, 184, 0.45),
+    inset 0 0 18px rgba(241, 245, 249, 0.65);
 }
 
 .podium-slot.rank-2 .podium-badge {
@@ -8077,7 +8249,10 @@ body.dark-mode .top100-header-subtitle {
   border-radius: 50%;
   background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 40%, #94a3b8 75%, #475569 100%);
   border: 2px solid #ffffff;
-  box-shadow: 0 0 16px rgba(148, 163, 184, 0.75), 0 3px 8px rgba(0, 0, 0, 0.3), inset 0 1px 2px #fff;
+  box-shadow:
+    0 0 16px rgba(255, 255, 255, 0.95),
+    0 0 28px rgba(186, 230, 253, 0.8),
+    inset 0 1px 2px #fff;
   color: #1e293b;
   font-size: 1.15rem;
   font-weight: 800;
@@ -8091,12 +8266,15 @@ body.dark-mode .top100-header-subtitle {
 .podium-slot.rank-2 .podium-pedestal {
   width: 190px;
   height: 60px;
-  background: linear-gradient(180deg, rgba(241, 245, 249, 0.55) 0%, rgba(203, 213, 225, 0.35) 20%, rgba(100, 116, 139, 0.4) 100%);
-  border: 1px solid rgba(203, 213, 225, 0.75);
-  border-radius: 6px 6px 0 0;
+  background: linear-gradient(180deg, rgba(241, 245, 249, 0.6) 0%, rgba(203, 213, 225, 0.4) 20%, rgba(100, 116, 139, 0.4) 100%);
+  border: 1.5px solid rgba(226, 232, 240, 0.85);
+  border-radius: 0px;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.9), 0 8px 20px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.95),
+    0 0 26px rgba(186, 230, 253, 0.5),
+    0 0 55px rgba(148, 163, 184, 0.2);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -8115,16 +8293,28 @@ body.dark-mode .top100-header-subtitle {
 .podium-slot.rank-3 .podium-cover-wrap {
   width: 180px;
   height: 180px;
-  border: 2.5px solid #d97706;
+  border: 2.5px solid #fb923c;
   box-shadow:
-    0 0 25px rgba(245, 158, 11, 0.35),
-    0 12px 28px rgba(0, 0, 0, 0.35),
-    inset 0 1px 1px rgba(255, 255, 255, 0.9);
+    0 0 22px rgba(251, 146, 60, 0.85),
+    0 0 48px rgba(217, 119, 6, 0.6),
+    0 0 80px rgba(180, 83, 9, 0.35),
+    inset 0 0 14px rgba(254, 215, 170, 0.5),
+    inset 0 1px 2px rgba(255, 255, 255, 0.95);
   position: relative;
   margin-bottom: 12px;
   cursor: pointer;
   background: #000;
   overflow: visible;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.podium-slot.rank-3:hover .podium-cover-wrap {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow:
+    0 0 30px rgba(251, 146, 60, 0.95),
+    0 0 60px rgba(217, 119, 6, 0.75),
+    0 0 95px rgba(180, 83, 9, 0.45),
+    inset 0 0 18px rgba(254, 215, 170, 0.65);
 }
 
 .podium-slot.rank-3 .podium-badge {
@@ -8133,7 +8323,10 @@ body.dark-mode .top100-header-subtitle {
   border-radius: 50%;
   background: linear-gradient(135deg, #ffedd5 0%, #fb923c 40%, #d97706 75%, #7c2d12 100%);
   border: 2px solid #ffffff;
-  box-shadow: 0 0 16px rgba(217, 119, 6, 0.65), 0 3px 8px rgba(0, 0, 0, 0.3), inset 0 1px 2px #fff;
+  box-shadow:
+    0 0 16px rgba(251, 146, 60, 0.9),
+    0 0 28px rgba(217, 119, 6, 0.7),
+    inset 0 1px 2px #fff;
   color: #431407;
   font-size: 1.15rem;
   font-weight: 800;
@@ -8147,12 +8340,15 @@ body.dark-mode .top100-header-subtitle {
 .podium-slot.rank-3 .podium-pedestal {
   width: 190px;
   height: 45px;
-  background: linear-gradient(180deg, rgba(254, 215, 170, 0.5) 0%, rgba(217, 119, 6, 0.3) 20%, rgba(124, 45, 18, 0.4) 100%);
-  border: 1px solid rgba(217, 119, 6, 0.7);
-  border-radius: 6px 6px 0 0;
+  background: linear-gradient(180deg, rgba(254, 215, 170, 0.55) 0%, rgba(217, 119, 6, 0.35) 20%, rgba(124, 45, 18, 0.4) 100%);
+  border: 1.5px solid rgba(251, 146, 60, 0.85);
+  border-radius: 0px;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.9), 0 8px 20px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.95),
+    0 0 26px rgba(217, 119, 6, 0.5),
+    0 0 55px rgba(180, 83, 9, 0.2);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -8218,40 +8414,46 @@ body.dark-mode .podium-title {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  margin-top: 4px;
+  gap: 6px;
+  margin-top: 6px;
 }
 
 .podium-stars {
   display: inline-flex;
   align-items: center;
-  gap: 1px;
+  gap: 2px;
   color: #fbbf24;
-  font-size: 0.92rem;
-  filter: drop-shadow(0 1px 1px rgba(245, 158, 11, 0.25));
+  font-size: 1.25rem;
+  filter: drop-shadow(0 1px 2px rgba(245, 158, 11, 0.35));
+}
+
+.podium-slot.rank-1 .podium-stars {
+  font-size: 1.38rem;
+  gap: 2.5px;
+  filter: drop-shadow(0 1px 2px rgba(245, 158, 11, 0.45));
 }
 
 .podium-stars i.bx-star {
-  color: rgba(0, 0, 0, 0.18);
+  color: rgba(0, 0, 0, 0.2);
   filter: none;
 }
 
 body.dark-mode .podium-stars i.bx-star {
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.22);
   filter: none;
 }
 
 .podium-score {
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: #fbbf24;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #d97706;
 }
 
 body.dark-mode .podium-score {
   color: #fbbf24;
 }
 
-/* Corner Rating Chip for Podium & Cards */
+/* Corner Rating Chip for Podium & Cards (Legacy reference) */
 .top100-rating-chip {
   position: absolute;
   top: 6px;
@@ -8288,65 +8490,86 @@ body.dark-mode .podium-score {
 }
 
 /* ============================================================
-   2. UPPER TIER: RANKS 4 TO 10 (SUB-GRID)
+   2. UPPER TIER: RANKS 4 TO 10 (THE TOP 10 SHOWCASE)
    ============================================================ */
 .top100-tier-section {
-  margin-bottom: 2.5rem;
+  margin-bottom: 2.8rem;
+  padding: 1.35rem 1.4rem 1.6rem;
+  border-radius: 0px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.72) 0%, rgba(240, 253, 250, 0.5) 45%, rgba(224, 242, 254, 0.45) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  box-shadow:
+    0 0 20px rgba(56, 189, 248, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  position: relative;
+}
+
+body.dark-mode .top100-tier-section {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(13, 37, 45, 0.7) 45%, rgba(17, 24, 39, 0.85) 100%);
+  border-color: rgba(56, 189, 248, 0.35);
+  box-shadow:
+    0 0 25px rgba(56, 189, 248, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .top100-tier-banner {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 1rem;
+  margin-bottom: 1.15rem;
 }
 
 .tier-banner-pill {
   font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 0.8rem;
+  font-size: 0.84rem;
   font-weight: 800;
   letter-spacing: 0.08em;
-  padding: 3px 12px;
-  border-radius: 4px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(224, 242, 254, 0.8) 100%);
-  border: 1px solid rgba(56, 189, 248, 0.6);
+  padding: 4px 14px;
+  border-radius: 0px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(224, 242, 254, 0.9) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.7);
   color: #0369a1;
-  box-shadow: 0 1px 4px rgba(56, 189, 248, 0.2), inset 0 1px 0 #ffffff;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.3), inset 0 1px 0 #ffffff;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 body.dark-mode .tier-banner-pill {
-  background: linear-gradient(180deg, rgba(30, 58, 138, 0.4) 0%, rgba(15, 23, 42, 0.8) 100%);
-  border-color: rgba(56, 189, 248, 0.4);
+  background: linear-gradient(180deg, rgba(30, 58, 138, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%);
+  border-color: rgba(56, 189, 248, 0.6);
   color: #38bdf8;
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .tier-banner-line {
   flex: 1;
-  height: 1px;
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0.5) 0%, rgba(148, 163, 184, 0.1) 100%);
+  height: 2px;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.7) 0%, rgba(56, 189, 248, 0.2) 60%, transparent 100%);
 }
 
 .top100-tier-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 12px;
+  gap: 14px;
 }
 
 .top100-card {
   position: relative;
   aspect-ratio: 1 / 1;
-  border-radius: 4px;
+  border-radius: 0px;
   cursor: pointer;
   background: #000;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
   user-select: none;
   will-change: transform;
 }
 
 .top100-card:hover {
-  transform: scale(1.06);
+  transform: translateY(-4px) scale(1.05);
   z-index: 10;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
@@ -8356,9 +8579,197 @@ body.dark-mode .tier-banner-pill {
   height: 100%;
   object-fit: cover;
   display: block;
+  border-radius: 0px;
 }
 
-/* Rank Chip (Top-Left) */
+/* 0px Border Radius on all Top 10 elements (Podium & Upper Tier Ranks 4-10) */
+.podium-cover-wrap,
+.podium-cover-img,
+.artist-podium-slot .podium-cover-wrap,
+.artist-podium-slot .podium-cover-img,
+.tier-card-cover-wrap,
+.tier-card-cover,
+.top10-tier-card,
+.top10-tier-card .top100-card-img,
+.top10-tier-card .artist-tier-cover,
+.top10-tier-empty,
+.artist-tier-card {
+  border-radius: 0px !important;
+}
+
+/* ============================================================
+   UPPER TIER: THE TOP 10 CARDS (RANKS 4 TO 10)
+   ============================================================ */
+.top10-tier-card {
+  position: relative;
+  display: flex !important;
+  flex-direction: column !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(240, 253, 250, 0.85) 100%) !important;
+  border: 1.5px solid rgba(56, 189, 248, 0.45) !important;
+  border-radius: 0px !important;
+  overflow: hidden !important;
+  box-shadow:
+    0 0 16px rgba(56, 189, 248, 0.18),
+    0 4px 14px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 #ffffff !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease !important;
+  cursor: pointer;
+  user-select: none;
+  aspect-ratio: auto !important;
+}
+
+body.dark-mode .top10-tier-card {
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.82) 0%, rgba(15, 23, 42, 0.92) 100%) !important;
+  border-color: rgba(56, 189, 248, 0.35) !important;
+  box-shadow:
+    0 0 20px rgba(56, 189, 248, 0.22),
+    0 6px 18px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+.top10-tier-card:hover {
+  transform: translateY(-4px) scale(1.02) !important;
+  border-color: #38bdf8 !important;
+  box-shadow:
+    0 0 26px rgba(56, 189, 248, 0.55),
+    0 10px 24px rgba(0, 0, 0, 0.25) !important;
+  z-index: 12 !important;
+}
+
+.tier-card-cover-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: #000;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 0px !important;
+}
+
+.tier-card-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 0px !important;
+  transition: transform 0.25s ease;
+}
+
+.top10-tier-card:hover .tier-card-cover {
+  transform: scale(1.04);
+}
+
+/* Details container below cover */
+.tier-card-details {
+  padding: 8px 9px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  text-align: left;
+}
+
+/* Position below cover */
+.tier-card-rank {
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 900;
+  line-height: 1.1;
+  color: #0284c7;
+  margin-bottom: 2px;
+  letter-spacing: -0.02em;
+}
+
+body.dark-mode .tier-card-rank {
+  color: #38bdf8;
+}
+
+/* Artist name */
+.tier-card-artist {
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+
+body.dark-mode .tier-card-artist {
+  color: #f1f5f9;
+}
+
+/* Album name / title */
+.tier-card-title {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+
+body.dark-mode .tier-card-title {
+  color: #94a3b8;
+}
+
+.tier-card-year {
+  font-size: 0.68rem;
+  opacity: 0.75;
+  margin-left: 2px;
+}
+
+/* Star rating below title */
+.tier-card-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.tier-card-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.5px;
+  color: #fbbf24;
+  font-size: 0.82rem;
+  filter: drop-shadow(0 1px 1px rgba(245, 158, 11, 0.25));
+}
+
+.tier-card-stars i.bx-star {
+  color: rgba(0, 0, 0, 0.18);
+  filter: none;
+}
+
+body.dark-mode .tier-card-stars i.bx-star {
+  color: rgba(255, 255, 255, 0.2);
+  filter: none;
+}
+
+.tier-card-score {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #fbbf24;
+}
+
+/* Empty slot in tier */
+.top10-tier-empty {
+  border: 1.5px dashed rgba(56, 189, 248, 0.45) !important;
+  background: rgba(56, 189, 248, 0.04) !important;
+  border-radius: 0px !important;
+}
+
+.tier-card-empty-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(56, 189, 248, 0.08);
+  border-radius: 0px !important;
+}
+
+/* Rank Chip (Top-Left for Ranks 11+) */
 .top100-rank-chip {
   position: absolute;
   top: 5px;
@@ -9258,12 +9669,17 @@ body.dark-mode .top100-memo-box {
 }
 
 @media (max-width: 480px) {
+  .top100-tier-section {
+    padding: 0.9rem 0.75rem 1.1rem !important;
+    border-radius: 0px !important;
+  }
   .top100-main-grid {
     grid-template-columns: repeat(4, 1fr) !important;
     gap: 4px !important;
   }
   .top100-tier-grid {
     grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
   }
 }
 
@@ -9615,7 +10031,7 @@ body.dark-mode .aero-select-styled {
    ============================================================ */
 .artist-podium-slot .podium-cover-wrap {
   position: relative;
-  border-radius: 8px;
+  border-radius: 0px !important;
   overflow: visible;
 }
 
@@ -9673,7 +10089,7 @@ body.dark-mode .artist-podium-spins-chip {
   flex-direction: column;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(241, 245, 249, 0.8) 100%);
   border: 1px solid rgba(255, 255, 255, 0.9);
-  border-radius: 8px;
+  border-radius: 0px !important;
   overflow: hidden;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08), inset 0 1px 0 #ffffff;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;

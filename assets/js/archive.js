@@ -50,6 +50,88 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
   const ratingCloud = document.getElementById("ratingCloud");
   const ratingDistWidget = document.getElementById("ratingDistributionWidget");
   const artistCloud = document.getElementById("artistCloud");
+  const btnTopArtistsStandard = document.getElementById("btnTopArtistsStandard");
+  const btnTopArtistsWeighted = document.getElementById("btnTopArtistsWeighted");
+
+  let currentTopArtistsMode = "standard";
+  try {
+    currentTopArtistsMode = localStorage.getItem("sosa_top_artists_mode") || "standard";
+  } catch (_) {}
+  let cachedStandardTopArtists = [];
+  let cachedWeightedTopArtists = [];
+
+  function getProjectWeight(type) {
+    const t = String(type || "Album").trim().toLowerCase();
+    if (t === "single" || t === "music video") return 0.3; // least weight
+    if (t === "ep") return 0.6; // middle weight
+    return 1.0; // albums, mixtapes, full-length projects: most weight
+  }
+
+  function updateTopArtistsTabUI() {
+    const isStd = currentTopArtistsMode === "standard";
+    if (btnTopArtistsStandard) {
+      btnTopArtistsStandard.classList.toggle("active", isStd);
+      btnTopArtistsStandard.setAttribute("aria-selected", isStd ? "true" : "false");
+    }
+    if (btnTopArtistsWeighted) {
+      btnTopArtistsWeighted.classList.toggle("active", !isStd);
+      btnTopArtistsWeighted.setAttribute("aria-selected", !isStd ? "true" : "false");
+    }
+  }
+
+  function renderTopArtistsList() {
+    const topArtistsListEl = document.getElementById("topArtistsList");
+    if (!topArtistsListEl) return;
+    const isWeighted = currentTopArtistsMode === "weighted";
+    const list = isWeighted ? cachedWeightedTopArtists : cachedStandardTopArtists;
+
+    if (!list || list.length === 0) {
+      topArtistsListEl.innerHTML = `<span style="font-size: 0.75rem; opacity: 0.6; padding: 4px;">No rated artists yet.</span>`;
+      return;
+    }
+
+    topArtistsListEl.innerHTML = list.map((a, idx) => {
+      const score = isWeighted ? a.weightedAvg : a.unweightedAvg;
+      const tooltip = isWeighted
+        ? `Weighted Avg: ${score.toFixed(2)} (${a.uniqueProjectsCount} unique project${a.uniqueProjectsCount !== 1 ? 's' : ''}, ${a.count} spin${a.count !== 1 ? 's' : ''})`
+        : `Normal Avg: ${score.toFixed(2)} (${a.uniqueProjectsCount} unique project${a.uniqueProjectsCount !== 1 ? 's' : ''}, ${a.count} spin${a.count !== 1 ? 's' : ''})`;
+
+      return `
+        <div class="top-artist-row cloud-tag" data-type="artist" data-val="${a.name}" onclick="setSidebarFilter('artist', '${a.name.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')" title="${tooltip}">
+          <div class="top-artist-left">
+            <span class="top-artist-rank">${idx + 1}.</span>
+            <span class="top-artist-name">${a.name}</span>
+            <span class="top-artist-spins">(${a.count})</span>
+          </div>
+          <div class="top-artist-right">
+            <span class="top-artist-stars">${getStarString(score)}</span>
+            <span class="top-artist-score">${score.toFixed(1)}</span>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    if (typeof updateCloudActiveStates === "function") {
+      updateCloudActiveStates();
+    }
+  }
+
+  window.setTopArtistsMode = function(mode) {
+    if (mode !== "standard" && mode !== "weighted") return;
+    currentTopArtistsMode = mode;
+    try {
+      localStorage.setItem("sosa_top_artists_mode", mode);
+    } catch (_) {}
+    updateTopArtistsTabUI();
+    renderTopArtistsList();
+  };
+
+  if (btnTopArtistsStandard) {
+    btnTopArtistsStandard.addEventListener("click", () => window.setTopArtistsMode("standard"));
+  }
+  if (btnTopArtistsWeighted) {
+    btnTopArtistsWeighted.addEventListener("click", () => window.setTopArtistsMode("weighted"));
+  }
 
   // Modal & composer controls
   const modalOverlay = document.getElementById("modalOverlay");
@@ -1270,6 +1352,16 @@ function getDominantColorFromImg(imgUrl) {
     return new Date(year, month, day).getTime();
   }
 
+  function isSpinMoreRecent(candidate, existing) {
+    if (!existing) return true;
+    const timeCandidate = parseLogDate(candidate.log_date);
+    const timeExisting = parseLogDate(existing.log_date);
+    if (timeCandidate !== timeExisting) {
+      return timeCandidate > timeExisting;
+    }
+    return (Number(candidate.id) || 0) > (Number(existing.id) || 0);
+  }
+
   async function loadSpins() {
     try {
       const [{ data, error }, backlogRes] = await Promise.all([
@@ -1567,7 +1659,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     const cleanTrack = track.replace(/^["“]|["”]$/g, "");
 
     if (trackEl) trackEl.textContent = cleanTrack;
-    if (artistEl) artistEl.textContent = artist || "Unknown Artist";
+    if (artistEl) artistEl.innerHTML = renderClickableArtists(artist || "Unknown Artist");
     if (albumEl) albumEl.textContent = album || "";
     if (sepEl) sepEl.style.display = album ? "inline" : "none";
 
@@ -1872,6 +1964,29 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     if (isSpinsCoverFlow) updateSpinsCoverFlowPositions();
   });
 
+  function renderClickableArtists(artistStr) {
+    if (!artistStr) return "";
+    const raw = String(artistStr).trim();
+    if (!raw) return "";
+
+    if (/^Tyler,\s*The Creator$/i.test(raw)) {
+      const safe = raw.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+      return `<span class="spin-artist" onclick="event.stopPropagation(); setSidebarFilter('artist', '${safe}')" title="Filter spins by ${escapeHtml(raw)}">${escapeHtml(raw)}</span>`;
+    }
+
+    const tokens = raw.split(/(\s*,\s*|\s+(?:&|feat\.?|ft\.?|with)\s+)/i);
+    return tokens.map((tok, idx) => {
+      if (idx % 2 === 0) {
+        const name = tok.trim();
+        if (!name) return "";
+        const safe = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        return `<span class="spin-artist" onclick="event.stopPropagation(); setSidebarFilter('artist', '${safe}')" title="Filter spins by ${escapeHtml(name)}">${escapeHtml(name)}</span>`;
+      } else {
+        return `<span class="spin-artist-delimiter">${escapeHtml(tok)}</span>`;
+      }
+    }).join("");
+  }
+
   function renderSpinsCoverFlow(entries) {
     if (!spinsCoverFlowTrack) return;
     currentCfSpins = entries || [];
@@ -1987,10 +2102,10 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
 
     const yearSuffix = item.year ? ` <span class="cf-year">(${item.year})</span>` : "";
     if (spinsCfTitle) {
-      spinsCfTitle.innerHTML = `${escapeHtml(item.title || "")}${yearSuffix}`;
+      spinsCfTitle.innerHTML = `<span class="cf-album-title-text">${escapeHtml(item.title || "")}</span>${yearSuffix}`;
     }
     if (spinsCfArtist) {
-      spinsCfArtist.textContent = item.artist || "";
+      spinsCfArtist.innerHTML = renderClickableArtists(item.artist || "");
     }
 
     if (spinsCfMeta) {
@@ -2402,11 +2517,9 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     if (!artistName) return { artist: "", count: 0, avg: "0.00", topRating: "", topProject: null, cover: "assets/images/spins/placeholder.png", covers: [], commonGenres: [] };
 
     let count = 0;
-    const ratings = [];
     const covers = [];
-    let topProject = null;
-    let topRating = -1;
     const genresMap = {};
+    const projectsMap = {}; // projectKey -> latest rated spin
 
     (allEntries || []).forEach(s => {
       if (!s.artist) return;
@@ -2422,13 +2535,17 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       if (matches) {
         count++;
         const r = parseFloat(s.rating);
-        if (!isNaN(r)) {
-          ratings.push(r);
-          if (r > topRating) {
-            topRating = r;
-            topProject = s;
+        const titleNorm = String(s.title || "").trim().toLowerCase();
+        const yearNorm = s.year ? String(s.year).trim() : "";
+        const projectKey = titleNorm + (yearNorm ? `::${yearNorm}` : "");
+
+        if (!isNaN(r) && projectKey) {
+          const existing = projectsMap[projectKey];
+          if (!existing || isSpinMoreRecent(s, existing)) {
+            projectsMap[projectKey] = s;
           }
         }
+
         if (s.cover_url) covers.push(s.cover_url);
         const gList = Array.isArray(s.genres) ? s.genres : (typeof s.genres === "string" ? s.genres.split(",") : []);
         gList.map(g => String(g).trim()).filter(Boolean).forEach(g => {
@@ -2437,12 +2554,36 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       }
     });
 
+    // Derive ratings and top project exclusively from unique projects (most recent spin of each)
+    let topProject = null;
+    let topRating = -1;
+    const uniqueProjects = Object.values(projectsMap);
+    const ratings = [];
+    let weightedSum = 0;
+    let weightTotal = 0;
+
+    uniqueProjects.forEach(p => {
+      const r = parseFloat(p.rating);
+      if (!isNaN(r)) {
+        ratings.push(r);
+        const w = getProjectWeight(p.type);
+        weightedSum += w * r;
+        weightTotal += w;
+        if (r > topRating) {
+          topRating = r;
+          topProject = p;
+        }
+      }
+    });
+
     const avg = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(2) : "0.00";
+    const weightedAvg = weightTotal > 0 ? (weightedSum / weightTotal).toFixed(2) : avg;
     return {
       artist: artistName,
       count,
       ratingsCount: ratings.length,
       avg,
+      weightedAvg,
       topRating: topRating >= 0 ? topRating.toFixed(1) : "",
       topProject,
       cover: (topProject && topProject.cover_url) || covers[0] || "assets/images/spins/placeholder.png",
@@ -2469,39 +2610,57 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       }
 
       const r = parseFloat(s.rating);
+      const titleNorm = String(s.title || "").trim().toLowerCase();
+      const yearNorm = s.year ? String(s.year).trim() : "";
+      const projectKey = titleNorm + (yearNorm ? `::${yearNorm}` : "");
 
       individualArtists.forEach(a => {
         if (!artistMap[a]) {
           artistMap[a] = {
             artist: a,
             count: 0,
-            ratings: [],
-            covers: [],
-            topProject: null,
-            topRating: -1
+            projects: {},
+            covers: []
           };
         }
         artistMap[a].count++;
-        if (!isNaN(r)) {
-          artistMap[a].ratings.push(r);
-          if (r > artistMap[a].topRating) {
-            artistMap[a].topRating = r;
-            artistMap[a].topProject = s;
+        if (!isNaN(r) && projectKey) {
+          const existing = artistMap[a].projects[projectKey];
+          if (!existing || isSpinMoreRecent(s, existing)) {
+            artistMap[a].projects[projectKey] = s;
           }
         }
         if (s.cover_url) artistMap[a].covers.push(s.cover_url);
       });
     });
 
-    const list = Object.values(artistMap).map(d => ({
-      artist: d.artist,
-      count: d.count,
-      ratingsCount: d.ratings.length,
-      avg: d.ratings.length ? (d.ratings.reduce((a, b) => a + b, 0) / d.ratings.length).toFixed(2) : "0.00",
-      topProject: d.topProject,
-      topRating: d.topRating >= 0 ? d.topRating.toFixed(1) : "",
-      cover: (d.topProject && d.topProject.cover_url) || d.covers[0] || "assets/images/spins/placeholder.png"
-    }));
+    const list = Object.values(artistMap).map(d => {
+      const uniqueProjects = Object.values(d.projects);
+      let topRating = -1;
+      let topProject = null;
+      const ratings = [];
+
+      uniqueProjects.forEach(p => {
+        const r = parseFloat(p.rating);
+        if (!isNaN(r)) {
+          ratings.push(r);
+          if (r > topRating) {
+            topRating = r;
+            topProject = p;
+          }
+        }
+      });
+
+      return {
+        artist: d.artist,
+        count: d.count,
+        ratingsCount: ratings.length,
+        avg: ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(2) : "0.00",
+        topProject,
+        topRating: topRating >= 0 ? topRating.toFixed(1) : "",
+        cover: (topProject && topProject.cover_url) || d.covers[0] || "assets/images/spins/placeholder.png"
+      };
+    });
 
     const eligible = list.filter(a => a.count >= minSpins);
     eligible.sort((a, b) => parseFloat(b.avg) - parseFloat(a.avg) || b.count - a.count || a.artist.localeCompare(b.artist));
@@ -2903,16 +3062,26 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       if (isPopulated) {
         const coverSrc = album.cover_url || "assets/images/spins/placeholder.png";
         const ratingVal = (album.rating !== null && album.rating !== undefined && album.rating !== "") ? parseFloat(album.rating).toFixed(1) : "";
-        const ratingBadge = ratingVal ? `<div class="top100-rating-chip"><i class='bx bxs-star'></i> ${ratingVal}</div>` : "";
         const yearVal = album.release_year ? `(${album.release_year})` : "";
         const genreVal = Array.isArray(album.genres) && album.genres.length ? album.genres[0] : "";
 
         tierHtml += `
-          <div class="top100-card" data-rank="${r}" draggable="${isTop100Editing}">
-            <div class="top100-rank-chip">#${r}</div>
-            ${ratingBadge}
-            <img src="${coverSrc}" alt="${escapeHtml(album.title)}" class="top100-card-img" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
-            ${isTop100Editing ? `<button type="button" class="slot-clear-btn" data-rank="${r}" title="Clear slot #${r}">✕</button>` : ""}
+          <div class="top100-card top10-tier-card" data-rank="${r}" draggable="${isTop100Editing}">
+            <div class="tier-card-cover-wrap">
+              <img src="${coverSrc}" alt="${escapeHtml(album.title)}" class="tier-card-cover" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+              ${isTop100Editing ? `<button type="button" class="slot-clear-btn" data-rank="${r}" title="Clear slot #${r}">✕</button>` : ""}
+            </div>
+            <div class="tier-card-details">
+              <div class="tier-card-rank">#${r}</div>
+              <div class="tier-card-artist" title="${escapeHtml(album.artist)}">${escapeHtml(album.artist)}</div>
+              <div class="tier-card-title" title="${escapeHtml(album.title)} ${yearVal}">${escapeHtml(album.title)} ${yearVal ? `<span class="tier-card-year">${yearVal}</span>` : ""}</div>
+              ${ratingVal ? `
+                <div class="tier-card-rating">
+                  <span class="tier-card-stars">${getStarString(album.rating)}</span>
+                  <span class="tier-card-score">${ratingVal}</span>
+                </div>
+              ` : ""}
+            </div>
             <div class="top100-tooltip">
               <div class="tooltip-artist">${escapeHtml(album.artist)}</div>
               <div class="tooltip-title">${escapeHtml(album.title)} ${yearVal ? `<span class="tooltip-year">${yearVal}</span>` : ""}</div>
@@ -2922,9 +3091,14 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
         `;
       } else {
         tierHtml += `
-          <div class="top100-slot-empty" data-rank="${r}">
-            <span class="slot-empty-rank">#${r}</span>
-            <span class="slot-empty-label">Empty</span>
+          <div class="top100-card top10-tier-card top100-slot-empty top10-tier-empty" data-rank="${r}">
+            <div class="tier-card-cover-wrap tier-card-empty-wrap">
+              <span class="slot-empty-label">Empty</span>
+            </div>
+            <div class="tier-card-details">
+              <div class="tier-card-rank">#${r}</div>
+              <div class="tier-card-artist" style="opacity: 0.4;">— Empty —</div>
+            </div>
           </div>
         `;
       }
@@ -2946,15 +3120,12 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
 
       if (isPopulated) {
         const coverSrc = album.cover_url || "assets/images/spins/placeholder.png";
-        const ratingVal = (album.rating !== null && album.rating !== undefined && album.rating !== "") ? parseFloat(album.rating).toFixed(1) : "";
-        const ratingBadge = ratingVal ? `<div class="top100-rating-chip">${ratingVal}</div>` : "";
         const yearVal = album.release_year ? `(${album.release_year})` : "";
         const genreVal = Array.isArray(album.genres) && album.genres.length ? album.genres[0] : "";
 
         mainHtml += `
           <div class="top100-tile" data-rank="${r}" draggable="${isTop100Editing}">
             <div class="top100-rank-chip">#${r}</div>
-            ${ratingBadge}
             <img src="${coverSrc}" alt="${escapeHtml(album.title)}" class="top100-tile-img" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
             ${isTop100Editing ? `<button type="button" class="slot-clear-btn" data-rank="${r}" title="Clear slot #${r}">✕</button>` : ""}
             <div class="top100-tooltip">
@@ -3075,30 +3246,37 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
             const spinsStr = item.spins_count || stats.count;
 
             tierHtml += `
-              <div class="artist-tier-card" data-rank="${r}" data-artist="${escapeHtml(item.artist)}" draggable="${isTop100Editing}" title="${escapeHtml(item.artist)}">
-                <div class="artist-tier-cover-wrap">
-                  <img src="${displayImg}" alt="${escapeHtml(item.artist)}" class="artist-tier-cover" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
-                  <div class="artist-rank-badge">#${r}</div>
+              <div class="artist-tier-card top10-tier-card" data-rank="${r}" data-artist="${escapeHtml(item.artist)}" draggable="${isTop100Editing}" title="${escapeHtml(item.artist)}">
+                <div class="artist-tier-cover-wrap tier-card-cover-wrap">
+                  <img src="${displayImg}" alt="${escapeHtml(item.artist)}" class="artist-tier-cover tier-card-cover" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
                   ${isTop100Editing ? `
                     <button type="button" class="slot-clear-btn" data-rank="${r}" title="Clear slot #${r}">✕</button>
                     <button type="button" class="slot-custom-img-btn" data-rank="${r}" title="Change Custom Image / GIF"><i class='bx bx-image-alt'></i></button>
                   ` : ""}
                 </div>
-                <div class="artist-tier-info">
-                  <div class="artist-tier-name" title="${escapeHtml(item.artist)}">${escapeHtml(item.artist)}</div>
-                  ${topTitle ? `<div class="artist-tier-top-album" title="Top: ${escapeHtml(topTitle)}">Top: ${escapeHtml(topTitle)}</div>` : ""}
-                  <div class="artist-tier-meta">
-                    <span class="artist-tier-score"><i class='bx bxs-star'></i> ${ratingStr}</span>
-                    <span class="artist-tier-spins">${spinsStr} spin${spinsStr > 1 ? 's' : ''}</span>
-                  </div>
+                <div class="tier-card-details artist-tier-info">
+                  <div class="tier-card-rank">#${r}</div>
+                  <div class="tier-card-artist artist-tier-name" title="${escapeHtml(item.artist)}">${escapeHtml(item.artist)}</div>
+                  ${topTitle ? `<div class="tier-card-title artist-tier-top-album" title="Top: ${escapeHtml(topTitle)}">Top: ${escapeHtml(topTitle)}</div>` : ""}
+                  ${ratingStr ? `
+                    <div class="tier-card-rating">
+                      <span class="tier-card-stars">${getStarString(ratingStr)}</span>
+                      <span class="tier-card-score">${ratingStr}</span>
+                    </div>
+                  ` : ""}
                 </div>
               </div>
             `;
           } else {
             tierHtml += `
-              <div class="top100-slot-empty" data-rank="${r}">
-                <span class="slot-empty-rank">#${r}</span>
-                <span class="slot-empty-label">Empty</span>
+              <div class="artist-tier-card top10-tier-card top100-slot-empty top10-tier-empty" data-rank="${r}">
+                <div class="artist-tier-cover-wrap tier-card-cover-wrap tier-card-empty-wrap">
+                  <span class="slot-empty-label">Empty</span>
+                </div>
+                <div class="tier-card-details">
+                  <div class="tier-card-rank">#${r}</div>
+                  <div class="tier-card-artist" style="opacity: 0.4;">— Empty —</div>
+                </div>
               </div>
             `;
           }
@@ -3124,7 +3302,6 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
           if (isPopulated) {
             const stats = getArtistStats(item.artist);
             const displayImg = item.custom_image || item.top_album_cover || stats.cover;
-            const ratingStr = item.avg_rating || stats.avg;
             const spinsStr = item.spins_count || stats.count;
 
             mainHtml += `
@@ -3134,7 +3311,6 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
                 <div class="artist-grid-body">
                   <div class="artist-grid-name" title="${escapeHtml(item.artist)}">${escapeHtml(item.artist)}</div>
                   <div class="artist-grid-meta">
-                    <span class="artist-grid-score"><i class='bx bxs-star'></i> ${ratingStr}</span>
                     <span class="artist-grid-count">${spinsStr} spin${spinsStr > 1 ? 's' : ''}</span>
                   </div>
                 </div>
@@ -4215,7 +4391,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
             <!-- 1. Header Line: Title on left, Date on right -->
           <div class="spin-header">
             <div class="title-meta-group">
-              <span class="spin-title">${item.artist} — ${item.title}</span>
+              <span class="spin-title">${renderClickableArtists(item.artist)} <span class="spin-title-dash">—</span> <span class="spin-album-title">${escapeHtml(item.title)}</span></span>
               <span class="spin-year">${item.year ? `(${item.year})` : ''}</span>
               <span class="category spin-format-tag">${displayType}</span>${item.runtime ? `<span class="spin-runtime-text" title="Runtime: ${escapeHtml(item.runtime)}"><span class="runtime-bullet">•</span> ${escapeHtml(item.runtime)}</span>` : ""}
               ${(() => {
@@ -4901,60 +5077,89 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     // --- Aggregate Top Artists by Average Score ---
     const topArtistsEl = document.getElementById("topArtistsList");
     if (topArtistsEl) {
-      const artistStats = {};
+      const artistData = {};
 
       entries.forEach(e => {
-        if (!e.artist || e.rating === null || e.rating === undefined || e.rating === "") return;
+        if (!e.artist) return;
+        const rawArtist = String(e.artist).trim();
+        if (!rawArtist) return;
 
-        // Splits "Bladee & Ecco2k", "Frank Ocean feat. Beyoncé", or "Artist A, Artist B"
-        const individualArtists = e.artist
-          .split(/(?:,|\s+(?:&|feat\.?|ft\.?|with)\s+)/i)
-          .map(a => a.trim())
-          .filter(Boolean);
+        let individualArtists;
+        if (/^Tyler,\s*The Creator$/i.test(rawArtist)) {
+          individualArtists = ["Tyler, The Creator"];
+        } else {
+          individualArtists = rawArtist
+            .split(/(?:,|\s+(?:&|feat\.?|ft\.?|with)\s+)/i)
+            .map(a => a.trim())
+            .filter(Boolean);
+        }
+
+        const titleNorm = String(e.title || "").trim().toLowerCase();
+        const yearNorm = e.year ? String(e.year).trim() : "";
+        const projectKey = titleNorm + (yearNorm ? `::${yearNorm}` : "");
+        const hasValidRating = e.rating !== null && e.rating !== undefined && e.rating !== "" && !isNaN(parseFloat(e.rating));
 
         individualArtists.forEach(name => {
-          if (!artistStats[name]) {
-            artistStats[name] = { totalRating: 0, count: 0 };
+          if (!artistData[name]) {
+            artistData[name] = { spinsCount: 0, projects: {} };
           }
-          artistStats[name].totalRating += parseFloat(e.rating);
-          artistStats[name].count += 1;
+          artistData[name].spinsCount += 1;
+
+          if (hasValidRating && projectKey) {
+            const existing = artistData[name].projects[projectKey];
+            if (!existing || isSpinMoreRecent(e, existing)) {
+              artistData[name].projects[projectKey] = e;
+            }
+          }
         });
       });
 
-      // Filter: Prefer artists with >= 2 spins, fallback to >= 1 spin if your catalog is small
-      let qualified = Object.entries(artistStats)
-        .filter(([_, stats]) => stats.count >= 3);
+      // Filter: Prefer artists with >= 3 spins (or >= 1 spin if catalog is small)
+      let qualified = Object.entries(artistData).filter(([_, data]) => {
+        const ratedProjects = Object.values(data.projects);
+        return data.spinsCount >= 3 && ratedProjects.length > 0;
+      });
 
       if (qualified.length === 0) {
-        qualified = Object.entries(artistStats).filter(([_, stats]) => stats.count >= 1);
+        qualified = Object.entries(artistData).filter(([_, data]) => {
+          const ratedProjects = Object.values(data.projects);
+          return data.spinsCount >= 1 && ratedProjects.length > 0;
+        });
       }
 
-      const topArtists = qualified
-        .map(([name, stats]) => ({
+      const processedArtists = qualified.map(([name, data]) => {
+        const ratedProjects = Object.values(data.projects);
+        const unweightedTotal = ratedProjects.reduce((sum, p) => sum + parseFloat(p.rating), 0);
+        const unweightedAvg = ratedProjects.length ? (unweightedTotal / ratedProjects.length) : 0;
+
+        let weightedSum = 0;
+        let weightTotal = 0;
+        ratedProjects.forEach(p => {
+          const w = getProjectWeight(p.type);
+          weightedSum += w * parseFloat(p.rating);
+          weightTotal += w;
+        });
+        const weightedAvg = weightTotal > 0 ? (weightedSum / weightTotal) : 0;
+
+        return {
           name,
-          avg: stats.totalRating / stats.count,
-          count: stats.count
-        }))
-        .sort((a, b) => b.avg - a.avg || b.count - a.count)
+          unweightedAvg,
+          weightedAvg,
+          count: data.spinsCount,
+          uniqueProjectsCount: ratedProjects.length
+        };
+      });
+
+      cachedStandardTopArtists = [...processedArtists]
+        .sort((a, b) => b.unweightedAvg - a.unweightedAvg || b.count - a.count || a.name.localeCompare(b.name))
         .slice(0, 10);
 
-      if (topArtists.length === 0) {
-        topArtistsEl.innerHTML = `<span style="font-size: 0.75rem; opacity: 0.6; padding: 4px;">No rated artists yet.</span>`;
-      } else {
-        topArtistsEl.innerHTML = topArtists.map((a, idx) => `
-          <div class="top-artist-row cloud-tag" data-type="artist" data-val="${a.name}" onclick="setSidebarFilter('artist', '${a.name.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')">
-            <div class="top-artist-left">
-              <span class="top-artist-rank">${idx + 1}.</span>
-              <span class="top-artist-name">${a.name}</span>
-              <span class="top-artist-spins">(${a.count})</span>
-            </div>
-            <div class="top-artist-right">
-              <span class="top-artist-stars">${getStarString(a.avg)}</span>
-              <span class="top-artist-score">${a.avg.toFixed(1)}</span>
-            </div>
-          </div>
-        `).join("");
-      }
+      cachedWeightedTopArtists = [...processedArtists]
+        .sort((a, b) => b.weightedAvg - a.weightedAvg || b.count - a.count || a.name.localeCompare(b.name))
+        .slice(0, 10);
+
+      updateTopArtistsTabUI();
+      renderTopArtistsList();
     }
 
     // --- Artist Cloud (Sorted by Total Review / Spin Count) ---
@@ -4963,12 +5168,19 @@ if (addTrackRatingRowBtn && trackRatingsList) {
 
       entries.forEach(e => {
         if (!e.artist) return;
+        const rawArtist = String(e.artist).trim();
+        if (!rawArtist) return;
 
         // Split collaborations so each individual artist gets review count credit
-        const individualArtists = String(e.artist)
-          .split(/(?:,|\s+(?:&|feat\.?|ft\.?|with)\s+)/i)
-          .map(a => a.trim())
-          .filter(Boolean);
+        let individualArtists;
+        if (/^Tyler,\s*The Creator$/i.test(rawArtist)) {
+          individualArtists = ["Tyler, The Creator"];
+        } else {
+          individualArtists = rawArtist
+            .split(/(?:,|\s+(?:&|feat\.?|ft\.?|with)\s+)/i)
+            .map(a => a.trim())
+            .filter(Boolean);
+        }
 
         individualArtists.forEach(name => {
           artistCounts[name] = (artistCounts[name] || 0) + 1;
@@ -5100,14 +5312,19 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         if (!i.artist) {
           matchesTag = false;
         } else {
-          // Split the entry's artist using the exact same logic as the sidebar
-          const entryArtists = i.artist
-            .split(/(?:,|\s+(?:&|feat\.?|ft\.?|with)\s+)/i)
-            .map(a => a.trim().toLowerCase())
-            .filter(Boolean);
+          let entryArtists;
+          const rawArtist = String(i.artist).trim();
+          if (/^Tyler,\s*The Creator$/i.test(rawArtist)) {
+            entryArtists = ["tyler, the creator"];
+          } else {
+            entryArtists = rawArtist
+              .split(/(?:,|\s+(?:&|feat\.?|ft\.?|with)\s+)/i)
+              .map(a => a.trim().toLowerCase())
+              .filter(Boolean);
+          }
 
-          // Check if the clicked artist name exists in this release
-          matchesTag = entryArtists.includes(activeFilter.value.toLowerCase());
+          const filterLower = String(activeFilter.value || "").trim().toLowerCase();
+          matchesTag = entryArtists.includes(filterLower) || rawArtist.toLowerCase() === filterLower;
         }
       }
       else if (activeFilter.type === "rating") {
