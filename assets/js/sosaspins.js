@@ -60,6 +60,79 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
   let cachedStandardTopArtists = [];
   let cachedWeightedTopArtists = [];
 
+  const DEFAULT_ARTIST_ALIASES = [
+    {
+      primary: "JPEGMAFIA",
+      aliases: ["Devon Hendryx"]
+    },
+    {
+      primary: "Jane Remover",
+      aliases: ["leroy"]
+    },
+    {
+      primary: "LOONA",
+      aliases: ["LOONA 1/3", "ODD EYE CIRCLE", "LOONA yyxy", "LOONA / yyxy", "LOONA / ODD EYE CIRCLE"]
+    }
+  ];
+  let activeArtistAliases = JSON.parse(JSON.stringify(DEFAULT_ARTIST_ALIASES));
+
+  async function loadArtistAliases() {
+    try {
+      if (typeof supabaseClient !== "undefined" && supabaseClient) {
+        const { data, error } = await supabaseClient.from("artist_aliases").select("*");
+        if (!error && data && data.length) {
+          const loaded = data.map(row => ({
+            primary: row.primary_artist,
+            aliases: Array.isArray(row.aliases) ? row.aliases : (row.aliases ? String(row.aliases).split(",").map(s => s.trim()) : [])
+          }));
+          activeArtistAliases = JSON.parse(JSON.stringify(DEFAULT_ARTIST_ALIASES));
+          loaded.forEach(item => {
+            const idx = activeArtistAliases.findIndex(g => g.primary.toLowerCase() === item.primary.toLowerCase());
+            if (idx >= 0) activeArtistAliases[idx] = item;
+            else activeArtistAliases.push(item);
+          });
+          return;
+        }
+      }
+    } catch (_) {}
+    try {
+      const local = localStorage.getItem("sosa_artist_aliases");
+      if (local) activeArtistAliases = JSON.parse(local);
+    } catch (_) {}
+  }
+
+  function getCanonicalArtist(rawArtist) {
+    if (!rawArtist) return "";
+    const trimmed = String(rawArtist).trim();
+    const match = activeArtistAliases.find(group => 
+      group.primary.toLowerCase() === trimmed.toLowerCase() ||
+      group.aliases.some(a => a.toLowerCase() === trimmed.toLowerCase())
+    );
+    return match ? match.primary : trimmed;
+  }
+
+  function getArtistAliases(artistName) {
+    if (!artistName) return [];
+    const canonical = getCanonicalArtist(artistName);
+    const match = activeArtistAliases.find(g => g.primary.toLowerCase() === canonical.toLowerCase());
+    return match ? match.aliases : [];
+  }
+
+  function getAllArtistGroupNames(artistName) {
+    if (!artistName) return [];
+    const canonical = getCanonicalArtist(artistName);
+    const aliases = getArtistAliases(canonical);
+    return [canonical, ...aliases];
+  }
+
+  function isArtistInGroup(checkArtist, targetCanonicalOrAlias) {
+    if (!checkArtist || !targetCanonicalOrAlias) return false;
+    return getCanonicalArtist(checkArtist).toLowerCase() === getCanonicalArtist(targetCanonicalOrAlias).toLowerCase();
+  }
+
+  window.getCanonicalArtist = getCanonicalArtist;
+  window.getArtistAliases = getArtistAliases;
+
   function getProjectWeight(type) {
     const t = String(type || "Album").trim().toLowerCase();
     if (t === "single" || t === "music video") return 0.3; // least weight
@@ -92,15 +165,21 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
 
     topArtistsListEl.innerHTML = list.map((a, idx) => {
       const score = isWeighted ? a.weightedAvg : a.unweightedAvg;
-      const tooltip = isWeighted
+      const aliases = getArtistAliases(a.name);
+      const aliasBadge = aliases.length
+        ? `<i class="bx bx-link-alt top-artist-alias-icon" title="Includes: ${escapeHtml(aliases.join(", "))}"></i>`
+        : "";
+      const tooltip = (isWeighted
         ? `Weighted Avg: ${score.toFixed(2)} (${a.uniqueProjectsCount} unique project${a.uniqueProjectsCount !== 1 ? 's' : ''}, ${a.count} spin${a.count !== 1 ? 's' : ''})`
-        : `Normal Avg: ${score.toFixed(2)} (${a.uniqueProjectsCount} unique project${a.uniqueProjectsCount !== 1 ? 's' : ''}, ${a.count} spin${a.count !== 1 ? 's' : ''})`;
+        : `Normal Avg: ${score.toFixed(2)} (${a.uniqueProjectsCount} unique project${a.uniqueProjectsCount !== 1 ? 's' : ''}, ${a.count} spin${a.count !== 1 ? 's' : ''})`) +
+        (aliases.length ? `\nAKA: ${aliases.join(", ")}` : "");
 
       return `
-        <div class="top-artist-row cloud-tag" data-type="artist" data-val="${a.name}" onclick="setSidebarFilter('artist', '${a.name.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')" title="${tooltip}">
+        <div class="top-artist-row cloud-tag" data-type="artist" data-val="${escapeHtml(a.name)}" onclick="openArtistQuickModal('${a.name.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')" title="${escapeHtml(tooltip)}">
           <div class="top-artist-left">
             <span class="top-artist-rank">${idx + 1}.</span>
-            <span class="top-artist-name">${a.name}</span>
+            <span class="top-artist-name">${escapeHtml(a.name)}</span>
+            ${aliasBadge}
             <span class="top-artist-spins">(${a.count})</span>
           </div>
           <div class="top-artist-right">
@@ -1364,15 +1443,17 @@ function getDominantColorFromImg(imgUrl) {
 
   async function loadSpins() {
     try {
+      await loadArtistAliases();
       const [{ data, error }, backlogRes] = await Promise.all([
         supabaseClient.from("spins").select("*"),
-        supabaseClient.from("challenge_backlog").select("artist, title, month, relisten_reason, prev_rating, genres, secondary_genres, descriptors"),
+        supabaseClient.from("challenge_backlog").select("id, artist, title, month, year, release_year, cover_url, position, relisten_reason, prev_rating, genres, secondary_genres, descriptors"),
         loadComments()
       ]);
 
       if (error) throw error;
       if (backlogRes && backlogRes.data) {
         backlogTagEntries = backlogRes.data;
+        window.backlogTagEntries = backlogTagEntries;
       }
 
       // Sort chronologically by log_date descending (newest dates first)
@@ -1393,7 +1474,13 @@ function getDominantColorFromImg(imgUrl) {
       buildSidebarWidgets(allEntries);
       populatePathSuggestions();
       if (!document.getElementById("top100DedicatedPage")) {
-        applyFilters(false);
+        const urlParams = new URLSearchParams(window.location.search);
+        const artistParam = urlParams.get("artist");
+        if (artistParam) {
+          setSidebarFilter("artist", artistParam);
+        } else {
+          applyFilters(false);
+        }
         if (window.location.hash && window.location.hash.startsWith("#spin-row-")) {
           const targetId = window.location.hash.replace("#spin-row-", "");
           if (typeof ensureSpinRendered === "function") ensureSpinRendered(targetId);
@@ -1971,7 +2058,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
 
     if (/^Tyler,\s*The Creator$/i.test(raw)) {
       const safe = raw.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-      return `<span class="spin-artist" onclick="event.stopPropagation(); setSidebarFilter('artist', '${safe}')" title="Filter spins by ${escapeHtml(raw)}">${escapeHtml(raw)}</span>`;
+      return `<span class="spin-artist" onclick="event.stopPropagation(); window.openArtistQuickModal('${safe}')" title="View ${escapeHtml(raw)} details">${escapeHtml(raw)}</span>`;
     }
 
     const tokens = raw.split(/(\s*,\s*|\s+(?:&|feat\.?|ft\.?|with)\s+)/i);
@@ -1980,7 +2067,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
         const name = tok.trim();
         if (!name) return "";
         const safe = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-        return `<span class="spin-artist" onclick="event.stopPropagation(); setSidebarFilter('artist', '${safe}')" title="Filter spins by ${escapeHtml(name)}">${escapeHtml(name)}</span>`;
+        return `<span class="spin-artist" onclick="event.stopPropagation(); window.openArtistQuickModal('${safe}')" title="View ${escapeHtml(name)} details">${escapeHtml(name)}</span>`;
       } else {
         return `<span class="spin-artist-delimiter">${escapeHtml(tok)}</span>`;
       }
@@ -2514,11 +2601,15 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
   }
 
   function getArtistStats(artistName) {
-    if (!artistName) return { artist: "", count: 0, avg: "0.00", topRating: "", topProject: null, cover: "assets/images/spins/placeholder.png", covers: [], commonGenres: [] };
+    if (!artistName) return { artist: "", count: 0, avg: "0.00", topRating: "", topProject: null, cover: "assets/images/spins/placeholder.png", covers: [], commonGenres: [], commonDescriptors: [], projectsMap: {} };
+
+    const canonical = getCanonicalArtist(artistName);
+    const targetGroup = getAllArtistGroupNames(canonical).map(n => n.toLowerCase());
 
     let count = 0;
     const covers = [];
     const genresMap = {};
+    const descriptorsMap = {};
     const projectsMap = {}; // projectKey -> latest rated spin
 
     (allEntries || []).forEach(s => {
@@ -2526,10 +2617,10 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       const raw = String(s.artist).trim();
       let matches = false;
       if (/^Tyler,\s*The Creator$/i.test(raw)) {
-        matches = (artistName.toLowerCase() === "tyler, the creator");
+        matches = targetGroup.includes("tyler, the creator");
       } else {
         const split = raw.split(/(?:,|\s+(?:&|feat\.?|ft\.?|with)\s+)/i).map(a => a.trim().toLowerCase());
-        matches = split.includes(artistName.toLowerCase());
+        matches = split.some(a => targetGroup.includes(a)) || targetGroup.includes(raw.toLowerCase());
       }
 
       if (matches) {
@@ -2550,6 +2641,14 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
         const gList = Array.isArray(s.genres) ? s.genres : (typeof s.genres === "string" ? s.genres.split(",") : []);
         gList.map(g => String(g).trim()).filter(Boolean).forEach(g => {
           genresMap[g] = (genresMap[g] || 0) + 1;
+        });
+        const sgList = Array.isArray(s.secondary_genres) ? s.secondary_genres : (typeof s.secondary_genres === "string" ? s.secondary_genres.split(",") : []);
+        sgList.map(g => String(g).trim()).filter(Boolean).forEach(g => {
+          genresMap[g] = (genresMap[g] || 0) + 1;
+        });
+        const dList = Array.isArray(s.descriptors) ? s.descriptors : (typeof s.descriptors === "string" ? s.descriptors.split(",") : []);
+        dList.map(d => String(d).trim()).filter(Boolean).forEach(d => {
+          descriptorsMap[d] = (descriptorsMap[d] || 0) + 1;
         });
       }
     });
@@ -2579,7 +2678,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     const avg = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(2) : "0.00";
     const weightedAvg = weightTotal > 0 ? (weightedSum / weightTotal).toFixed(2) : avg;
     return {
-      artist: artistName,
+      artist: canonical,
       count,
       ratingsCount: ratings.length,
       avg,
@@ -2588,7 +2687,9 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       topProject,
       cover: (topProject && topProject.cover_url) || covers[0] || "assets/images/spins/placeholder.png",
       covers: Array.from(new Set(covers)),
-      commonGenres: Object.entries(genresMap).sort((a, b) => b[1] - a[1])
+      commonGenres: Object.entries(genresMap).sort((a, b) => b[1] - a[1]),
+      commonDescriptors: Object.entries(descriptorsMap).sort((a, b) => b[1] - a[1]),
+      projectsMap
     };
   }
 
@@ -2615,22 +2716,23 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       const projectKey = titleNorm + (yearNorm ? `::${yearNorm}` : "");
 
       individualArtists.forEach(a => {
-        if (!artistMap[a]) {
-          artistMap[a] = {
-            artist: a,
+        const canonical = getCanonicalArtist(a);
+        if (!artistMap[canonical]) {
+          artistMap[canonical] = {
+            artist: canonical,
             count: 0,
             projects: {},
             covers: []
           };
         }
-        artistMap[a].count++;
+        artistMap[canonical].count++;
         if (!isNaN(r) && projectKey) {
-          const existing = artistMap[a].projects[projectKey];
+          const existing = artistMap[canonical].projects[projectKey];
           if (!existing || isSpinMoreRecent(s, existing)) {
-            artistMap[a].projects[projectKey] = s;
+            artistMap[canonical].projects[projectKey] = s;
           }
         }
-        if (s.cover_url) artistMap[a].covers.push(s.cover_url);
+        if (s.cover_url) artistMap[canonical].covers.push(s.cover_url);
       });
     });
 
@@ -3230,12 +3332,12 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
 
     attachSlotEvents(topArtistsPodium, true);
 
-    // 2. Upper Tier (Ranks 4 - 10)
+    // 2. Upper Tier (Ranks 4 - 15)
     if (topArtistsTierGrid && topArtistsTierSection) {
       if (limit >= 4) {
         topArtistsTierSection.style.display = "block";
         let tierHtml = "";
-        for (let r = 4; r <= 10; r++) {
+        for (let r = 4; r <= 15; r++) {
           const item = topArtistsCuratedState[r];
           const isPopulated = !!(item && item.artist);
           if (isPopulated) {
@@ -3288,15 +3390,15 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       }
     }
 
-    // 3. Main Grid (Ranks 11 - limit)
+    // 3. Main Grid (Ranks 16 - limit)
     if (topArtistsMainSection && topArtistsMainGrid) {
-      if (limit >= 11) {
+      if (limit >= 16) {
         topArtistsMainSection.style.display = "block";
         if (topArtistsMainGridPill) {
-          topArtistsMainGridPill.innerHTML = `[ RANKS 11 &ndash; ${limit} ]`;
+          topArtistsMainGridPill.innerHTML = `[ RANKS 16 &ndash; ${limit} ]`;
         }
         let mainHtml = "";
-        for (let r = 11; r <= limit; r++) {
+        for (let r = 16; r <= limit; r++) {
           const item = topArtistsCuratedState[r];
           const isPopulated = !!(item && item.artist);
           if (isPopulated) {
@@ -3958,66 +4060,125 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     top100DetailModal.style.display = "flex";
   }
 
-  function openArtistDetailModal(rank, artistName) {
-    if (!top100DetailModal || !top100ModalBody) return;
-    const modalTitle = top100DetailModal.querySelector(".title-bar-text");
-    if (modalTitle) modalTitle.innerHTML = `<i class=\'bx bx-user-voice\'></i> Artist Details`;
+  function openArtistQuickModal(artistName, rank = null) {
+    const modal = document.getElementById("artistQuickModal");
+    const body = document.getElementById("artistQuickModalBody");
+    const titleEl = document.getElementById("artistQuickTitle");
+    if (!modal || !body) return;
 
-    const stats = getArtistStats(artistName);
-    const curated = topArtistsCuratedState[rank] || {};
-    const displayImg = curated.custom_image || stats.cover;
-
-    let genresHtml = "";
-    if (stats.commonGenres.length) {
-      genresHtml = `
-        <div style="margin-top: 0.65rem;">
-          <span style="font-size: 0.72rem; font-weight: 700; color: #059669; display: block; margin-bottom: 4px;">Top Genres:</span>
-          <div style="display: flex; flex-wrap: wrap; gap: 5px;">
-            ${stats.commonGenres.slice(0, 8).map(([g, count]) => `
-              <span class="genre-pill genre-primary">${escapeHtml(g)} <span style="opacity: 0.7; font-size: 0.65rem;">(${count})</span></span>
-            `).join("")}
-          </div>
-        </div>
-      `;
+    if (!modal.dataset.hasOutsideClickListener) {
+      modal.dataset.hasOutsideClickListener = "true";
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal || !e.target.closest(".artist-quick-window")) {
+          closeArtistQuickModal();
+        }
+      });
     }
 
-    const artistSpins = allEntries.filter(s => {
-      if (!s.artist) return false;
-      const raw = String(s.artist).trim();
-      if (/^Tyler,\s*The Creator$/i.test(raw)) {
-        return artistName.toLowerCase() === "tyler, the creator";
-      }
+    if (!window._hasArtistModalEscListener) {
+      window._hasArtistModalEscListener = true;
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          const aq = document.getElementById("artistQuickModal");
+          if (aq && aq.style.display !== "none") {
+            closeArtistQuickModal();
+          }
+        }
+      });
+    }
+
+    const canonical = getCanonicalArtist(artistName);
+    const aliases = getArtistAliases(canonical);
+    const stats = getArtistStats(canonical);
+
+    if (titleEl) {
+      titleEl.innerHTML = `<i class='bx bx-user-voice'></i> Artist Details &mdash; ${escapeHtml(canonical)}`;
+    }
+
+    const targetGroup = getAllArtistGroupNames(canonical).map(n => n.toLowerCase());
+
+    // Backlog / challenge status
+    const backlogItems = (backlogTagEntries || []).filter(b => {
+      if (!b.artist) return false;
+      const raw = String(b.artist).trim();
+      if (/^Tyler,\s*The Creator$/i.test(raw)) return targetGroup.includes("tyler, the creator");
       const split = raw.split(/(?:,|\s+(?:&|feat\.?|ft\.?|with)\s+)/i).map(a => a.trim().toLowerCase());
-      return split.includes(artistName.toLowerCase());
+      return split.some(a => targetGroup.includes(a)) || targetGroup.includes(raw.toLowerCase());
     });
 
-    artistSpins.sort((a, b) => (parseFloat(b.rating) || 0) - (parseFloat(a.rating) || 0) || (b.year || 0) - (a.year || 0));
+    const topProjects = Object.values(stats.projectsMap || {}).sort((a, b) => {
+      const rA = parseFloat(a.rating) || 0;
+      const rB = parseFloat(b.rating) || 0;
+      if (rB !== rA) return rB - rA;
+      return (parseInt(b.year, 10) || 0) - (parseInt(a.year, 10) || 0);
+    });
+
+    let curated = {};
+    if (rank && typeof topArtistsCuratedState !== "undefined" && topArtistsCuratedState[rank]) {
+      curated = topArtistsCuratedState[rank];
+    }
+    const displayImg = curated.custom_image || stats.cover;
+
+    const rankBadge = rank ? `<div class="top100-detail-rank-badge" style="font-size: 0.72rem; padding: 2px 7px; margin-bottom: 4px;"><i class='bx bxs-award'></i> Rank #${rank}</div>` : "";
+
+    const akaHtml = aliases.length ? `
+      <div class="artist-quick-aka">
+        <span style="opacity: 0.7; font-weight: 500;">AKA:</span>
+        <span>${escapeHtml(aliases.join(", "))}</span>
+      </div>
+    ` : "";
+
+    const top5Genres = (stats.commonGenres || []).slice(0, 5);
+    const genresHtml = top5Genres.length ? `
+      <div class="artist-quick-section">
+        <div class="artist-quick-sec-title"><i class='bx bx-purchase-tag-alt'></i> Top Genres:</div>
+        <div class="artist-quick-pills">
+          ${top5Genres.map(([g, c]) => `
+            <span class="genre-pill genre-primary" onclick="closeArtistQuickModal(); if (typeof setSidebarFilter === 'function') setSidebarFilter('genre', '${g.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}');" title="Filter by ${escapeHtml(g)}">${escapeHtml(g)} <span style="opacity: 0.7; font-size: 0.65rem;">(${c})</span></span>
+          `).join("")}
+        </div>
+      </div>
+    ` : "";
+
+    const top5Descriptors = (stats.commonDescriptors || []).slice(0, 5);
+    const descriptorsHtml = top5Descriptors.length ? `
+      <div class="artist-quick-section">
+        <div class="artist-quick-sec-title"><i class='bx bx-detail'></i> Top Descriptors:</div>
+        <div class="artist-quick-pills">
+          ${top5Descriptors.map(([d, c]) => `
+            <span class="descriptor-pill" onclick="closeArtistQuickModal(); if (typeof setSidebarFilter === 'function') setSidebarFilter('descriptor', '${d.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}');" title="Filter by ${escapeHtml(d)}">${escapeHtml(d)} <span style="opacity: 0.7; font-size: 0.65rem;">(${c})</span></span>
+          `).join("")}
+        </div>
+      </div>
+    ` : "";
 
     let projectsHtml = "";
-    if (artistSpins.length) {
+    if (topProjects.length) {
       projectsHtml = `
-        <div style="margin-top: 0.85rem;">
-          <span style="font-size: 0.74rem; font-weight: 700; color: #1e293b; display: block; margin-bottom: 5px;">
-            <i class='bx bx-disc'></i> Discography & Ranked Projects (${artistSpins.length}):
-          </span>
-          <div class="artist-projects-list">
-            ${artistSpins.map((s, idx) => {
-              const coverSrc = s.cover_url || "assets/images/spins/placeholder.png";
-              const rVal = (s.rating !== null && s.rating !== undefined && s.rating !== "") ? parseFloat(s.rating).toFixed(1) : "-";
-              const yVal = s.year ? `(${s.year})` : "";
-              const typeVal = s.type ? `<span class="type-pill" style="font-size: 0.62rem; padding: 1px 5px;">${escapeHtml(s.type)}</span>` : "";
+        <div class="artist-quick-section">
+          <div class="artist-quick-sec-title"><i class='bx bx-disc'></i> Top Rated Projects (${topProjects.length}):</div>
+          <div class="artist-quick-projects-list">
+            ${topProjects.map((p, idx) => {
+              const r = parseFloat(p.rating);
+              const scoreStr = !isNaN(r) ? r.toFixed(1) : "-";
+              const yStr = p.year ? `(${p.year})` : "";
+              const typePill = p.type ? `<span class="type-pill" style="font-size: 0.62rem; padding: 1px 5px;">${escapeHtml(p.type)}</span>` : "";
+              const isDiffAlias = p.artist && p.artist.toLowerCase() !== canonical.toLowerCase();
+              const aliasTag = isDiffAlias ? `<span style="font-size: 0.64rem; opacity: 0.7; margin-left: 4px;">as ${escapeHtml(p.artist)}</span>` : "";
+
               return `
                 <div class="artist-project-row">
                   <div class="artist-project-left">
-                    <img src="${coverSrc}" alt="${escapeHtml(s.title)}" class="artist-project-cover" loading="lazy">
+                    <span class="artist-project-rank">#${idx + 1}</span>
+                    <img src="${p.cover_url || 'assets/images/spins/placeholder.png'}" alt="${escapeHtml(p.title)}" class="artist-project-cover" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
                     <div class="artist-project-info">
-                      <div class="artist-project-title">${escapeHtml(s.title)} <span style="font-size: 0.72rem; opacity: 0.7;">${yVal}</span></div>
-                      <div class="artist-project-meta">${typeVal} <span>#${idx + 1} rated</span></div>
+                      <div class="artist-project-title" title="${escapeHtml(p.title)}">${escapeHtml(p.title)} <span style="font-size: 0.72rem; opacity: 0.7;">${yStr}</span>${aliasTag}</div>
+                      ${typePill ? `<div class="artist-project-meta">${typePill}</div>` : ""}
                     </div>
                   </div>
                   <div class="artist-project-right">
-                    <span style="font-size: 0.76rem; font-weight: 800; color: #d97706;"><i class='bx bxs-star'></i> ${rVal}</span>
-                    <button type="button" class="aero-command-btn" style="padding: 2px 7px; font-size: 0.72rem;" onclick="closeTop100Modal(); window.jumpToSpinInTimeline(${s.id});" title="View in timeline">
+                    <span style="font-size: 0.76rem; font-weight: 800; color: #d97706;"><i class='bx bxs-star'></i> ${scoreStr}</span>
+                    <button type="button" class="aero-command-btn" style="padding: 2px 7px; font-size: 0.72rem;" onclick="closeArtistQuickModal(); window.jumpToSpinInTimeline(${p.id});" title="Jump to spin in timeline">
                       <i class='bx bx-link-external'></i>
                     </button>
                   </div>
@@ -4029,32 +4190,169 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       `;
     }
 
-    const editCustomImgBtn = isAdmin ? `
-      <button type="button" class="aero-command-btn" style="margin-top: 6px; font-size: 0.74rem; padding: 3px 8px;" onclick="closeTop100Modal(); openArtistCustomImageModal(${rank});">
+    let challengeHtml = "";
+    if (backlogItems.length) {
+      const MONTH_NAMES_LIST = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+      ];
+
+      const groupsMap = new Map();
+
+      backlogItems.forEach(b => {
+        const mRaw = (b.month || "").toLowerCase().trim();
+        const isRecal = mRaw === "recalibrate" || mRaw === "relisten" || !!b.relisten_reason;
+
+        let groupKey, groupLabel, sortVal, icon, targetHash;
+
+        if (isRecal) {
+          groupKey = "recalibrate";
+          groupLabel = "Recalibrate Queue";
+          sortVal = 999999;
+          icon = "bx-rotate-left";
+          targetHash = "recalibrate";
+        } else {
+          let mName = mRaw;
+          let y = b.year ? parseInt(b.year, 10) : null;
+          const matchWithYear = mRaw.match(/^([a-z]+)[-_ ](?:'|20)?(\d{2,4})$/);
+          if (matchWithYear) {
+            mName = matchWithYear[1];
+            const yParsed = parseInt(matchWithYear[2], 10);
+            y = yParsed < 100 ? 2000 + yParsed : yParsed;
+          }
+
+          const monthIdx = MONTH_NAMES_LIST.findIndex(name => name.toLowerCase() === mName);
+          const capitalized = monthIdx !== -1 ? MONTH_NAMES_LIST[monthIdx] : (mName.charAt(0).toUpperCase() + mName.slice(1));
+
+          if (!y) {
+            // Challenge timeline started October 2026:
+            // Oct (9), Nov (10), Dec (11) -> 2026
+            // Jan (0) through Sep (8) -> 2027
+            y = (monthIdx >= 9) ? 2026 : 2027;
+          }
+
+          groupKey = `${mName}_${y}`;
+          groupLabel = `${capitalized} ${y}`;
+          sortVal = (y * 100) + (monthIdx !== -1 ? monthIdx : 99);
+          icon = "bx-calendar";
+          targetHash = mName;
+        }
+
+        if (!groupsMap.has(groupKey)) {
+          groupsMap.set(groupKey, {
+            groupKey,
+            groupLabel,
+            sortVal,
+            icon,
+            isRecal,
+            targetHash,
+            items: []
+          });
+        }
+        groupsMap.get(groupKey).items.push(b);
+      });
+
+      // Sort groups chronologically
+      const sortedGroups = Array.from(groupsMap.values()).sort((a, b) => a.sortVal - b.sortVal);
+
+      // Sort items within each group chronologically by release year then position
+      sortedGroups.forEach(g => {
+        g.items.sort((a, b) => {
+          const yA = parseInt(a.release_year, 10) || 0;
+          const yB = parseInt(b.release_year, 10) || 0;
+          if (yA !== yB) return yA - yB;
+          const posA = a.position !== null && a.position !== undefined ? parseInt(a.position, 10) : 999;
+          const posB = b.position !== null && b.position !== undefined ? parseInt(b.position, 10) : 999;
+          return posA - posB;
+        });
+      });
+
+      challengeHtml = `
+        <div class="artist-quick-section">
+          <div class="artist-quick-sec-title"><i class='bx bx-calendar-event'></i> Challenge &amp; Recalibrate (${backlogItems.length}):</div>
+          <div class="artist-challenge-box">
+            ${sortedGroups.map(g => `
+              <div class="artist-challenge-group">
+                <div class="artist-challenge-month-header">
+                  <span class="artist-challenge-month-title">
+                    <i class='bx ${g.icon}' style="${g.isRecal ? 'color: #059669;' : 'color: #0284c7;'}"></i> ${escapeHtml(g.groupLabel)}
+                  </span>
+                  <a href="challenge.html#${encodeURIComponent(g.targetHash)}" class="aero-command-btn" style="padding: 1px 7px; font-size: 0.68rem;" title="Open ${escapeHtml(g.groupLabel)} in Challenge">
+                    View Month <i class='bx bx-chevron-right'></i>
+                  </a>
+                </div>
+                <div class="artist-challenge-items-list">
+                  ${g.items.map(b => {
+                    const yStr = b.release_year ? `<span class="artist-challenge-item-year">(${escapeHtml(String(b.release_year))})</span>` : "";
+                    const reasonBadge = b.relisten_reason ? `<span class="artist-challenge-item-reason">${escapeHtml(b.relisten_reason)}</span>` : "";
+                    const itemIcon = g.isRecal ? "bx-rotate-left" : "bx-disc";
+                    const itemColor = g.isRecal ? "#059669" : "#0284c7";
+
+                    return `
+                      <div class="artist-challenge-item">
+                        <div class="artist-challenge-item-left">
+                          <i class='bx ${itemIcon}' style="color: ${itemColor}; font-size: 0.85rem; flex-shrink: 0;"></i>
+                          <span class="artist-challenge-item-title" title="${escapeHtml(b.title)}">${escapeHtml(b.title)}</span>
+                          ${yStr}
+                          ${reasonBadge}
+                        </div>
+                        <a href="challenge.html#${encodeURIComponent(g.targetHash)}" class="aero-command-btn" style="padding: 1px 6px; font-size: 0.68rem;" title="View in Challenge">View</a>
+                      </div>
+                    `;
+                  }).join("")}
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    const editCustomImgBtn = (isAdmin && rank && typeof openArtistCustomImageModal === "function") ? `
+      <button type="button" class="aero-command-btn" style="margin-top: 6px; font-size: 0.72rem; padding: 2px 7px;" onclick="closeArtistQuickModal(); openArtistCustomImageModal(${rank});">
         <i class='bx bx-image-alt'></i> Change Image / GIF
       </button>
     ` : "";
 
-    top100ModalBody.innerHTML = `
-      <div class="top100-detail-body">
-        <div class="top100-detail-header-row">
-          <img src="${displayImg}" alt="${escapeHtml(artistName)}" class="top100-detail-cover" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
-          <div class="top100-detail-info">
-            <div class="top100-detail-rank-badge"><i class=\'bx bxs-award\'></i> Rank #${rank}</div>
-            <div class="top100-detail-title" style="font-size: 1.25rem;">${escapeHtml(artistName)}</div>
-            <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
-              <span class="leaderboard-score-chip" style="font-weight: 800; font-size: 0.8rem;"><i class='bx bxs-star'></i> ${stats.avg} Avg</span>
-              <span class="leaderboard-count-chip" style="font-size: 0.75rem;"><i class='bx bx-disc'></i> ${stats.count} spins</span>
-            </div>
-            ${editCustomImgBtn}
+    body.innerHTML = `
+      <div class="artist-quick-header">
+        <img src="${displayImg}" alt="${escapeHtml(canonical)}" class="artist-quick-avatar" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+        <div class="artist-quick-meta">
+          ${rankBadge}
+          <div class="artist-quick-name">${escapeHtml(canonical)}</div>
+          ${akaHtml}
+          <div class="artist-quick-stats-row">
+            <span class="leaderboard-score-chip" style="font-weight: 800; font-size: 0.8rem;"><i class='bx bxs-star'></i> ${stats.avg} Avg</span>
+            <span class="leaderboard-count-chip" style="font-size: 0.75rem;"><i class='bx bx-disc'></i> ${stats.count} spin${stats.count !== 1 ? 's' : ''}</span>
+            <span class="leaderboard-count-chip" style="font-size: 0.75rem;"><i class='bx bx-collection'></i> ${topProjects.length} project${topProjects.length !== 1 ? 's' : ''}</span>
           </div>
+          ${editCustomImgBtn}
         </div>
-        ${genresHtml}
-        ${projectsHtml}
+      </div>
+      ${genresHtml}
+      ${descriptorsHtml}
+      ${projectsHtml}
+      ${challengeHtml}
+      <div class="artist-quick-actions-bar">
+        <button type="button" class="aero-command-btn" style="padding: 5px 12px; font-weight: 700;" onclick="closeArtistQuickModal(); if (typeof setSidebarFilter === 'function') setSidebarFilter('artist', '${canonical.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'); else window.location.href='sosaspins.html?artist=${encodeURIComponent(canonical)}';">
+          <i class='bx bx-search'></i> View All Spins in Timeline
+        </button>
+        <button type="button" class="w7-auth-btn-secondary" onclick="closeArtistQuickModal()">Close</button>
       </div>
     `;
 
-    top100DetailModal.style.display = "flex";
+    modal.style.display = "flex";
+  }
+  window.openArtistQuickModal = openArtistQuickModal;
+
+  function closeArtistQuickModal() {
+    const modal = document.getElementById("artistQuickModal");
+    if (modal) modal.style.display = "none";
+  }
+  window.closeArtistQuickModal = closeArtistQuickModal;
+
+  function openArtistDetailModal(rank, artistName) {
+    openArtistQuickModal(artistName, rank);
   }
   window.openArtistDetailModal = openArtistDetailModal;
 
@@ -4262,8 +4560,22 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       });
     }
 
+    const artistQuickModalEl = document.getElementById("artistQuickModal");
+    if (artistQuickModalEl && !artistQuickModalEl.dataset.hasOutsideClickListener) {
+      artistQuickModalEl.dataset.hasOutsideClickListener = "true";
+      artistQuickModalEl.addEventListener("click", (e) => {
+        if (e.target === artistQuickModalEl || !e.target.closest(".artist-quick-window")) {
+          closeArtistQuickModal();
+        }
+      });
+    }
+
     window.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
+        const aq = document.getElementById("artistQuickModal");
+        if (aq && aq.style.display !== "none") {
+          closeArtistQuickModal();
+        }
         if (top100DetailModal && top100DetailModal.style.display !== "none") {
           closeTop100Modal();
         }
@@ -5100,15 +5412,16 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         const hasValidRating = e.rating !== null && e.rating !== undefined && e.rating !== "" && !isNaN(parseFloat(e.rating));
 
         individualArtists.forEach(name => {
-          if (!artistData[name]) {
-            artistData[name] = { spinsCount: 0, projects: {} };
+          const canonicalName = getCanonicalArtist(name);
+          if (!artistData[canonicalName]) {
+            artistData[canonicalName] = { spinsCount: 0, projects: {} };
           }
-          artistData[name].spinsCount += 1;
+          artistData[canonicalName].spinsCount += 1;
 
           if (hasValidRating && projectKey) {
-            const existing = artistData[name].projects[projectKey];
+            const existing = artistData[canonicalName].projects[projectKey];
             if (!existing || isSpinMoreRecent(e, existing)) {
-              artistData[name].projects[projectKey] = e;
+              artistData[canonicalName].projects[projectKey] = e;
             }
           }
         });
@@ -5230,7 +5543,16 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       clearActiveFilter();
     } else {
       activeFilter = { type, value: String(val) };
-      if (feedFilterLabel) feedFilterLabel.textContent = `Filtered by ${type}: "${val}"`;
+      if (feedFilterLabel) {
+        if (type === "artist") {
+          const canonical = getCanonicalArtist(val);
+          const aliases = getArtistAliases(canonical);
+          const aliasStr = aliases.length ? ` (incl. ${aliases.join(", ")})` : "";
+          feedFilterLabel.textContent = `Filtered by artist: "${canonical}"${aliasStr}`;
+        } else {
+          feedFilterLabel.textContent = `Filtered by ${type}: "${val}"`;
+        }
+      }
       if (clearFilterBtn) clearFilterBtn.style.display = "inline-block";
       updateCloudActiveStates();
       applyFilters(true);
@@ -5258,8 +5580,10 @@ if (addTrackRatingRowBtn && trackRatingsList) {
   function updateCloudActiveStates() {
     document.querySelectorAll(".cloud-tag, .rating-dist-row").forEach(tag => {
       const rawVal = decodeURIComponent(tag.getAttribute("data-val") || "");
-      const match = tag.getAttribute("data-type") === activeFilter.type &&
-                    rawVal.toLowerCase() === String(activeFilter.value || "").toLowerCase();
+      const isArtistMatch = tag.getAttribute("data-type") === "artist" && activeFilter.type === "artist" &&
+                            isArtistInGroup(rawVal, activeFilter.value);
+      const match = isArtistMatch || (tag.getAttribute("data-type") === activeFilter.type &&
+                    rawVal.toLowerCase() === String(activeFilter.value || "").toLowerCase());
       tag.classList.toggle("active-aero-tag", match);
 
       if (match) {
@@ -5323,8 +5647,9 @@ if (addTrackRatingRowBtn && trackRatingsList) {
               .filter(Boolean);
           }
 
-          const filterLower = String(activeFilter.value || "").trim().toLowerCase();
-          matchesTag = entryArtists.includes(filterLower) || rawArtist.toLowerCase() === filterLower;
+          const targetCanonical = getCanonicalArtist(activeFilter.value).toLowerCase();
+          matchesTag = entryArtists.some(a => getCanonicalArtist(a).toLowerCase() === targetCanonical) ||
+                       getCanonicalArtist(rawArtist).toLowerCase() === targetCanonical;
         }
       }
       else if (activeFilter.type === "rating") {

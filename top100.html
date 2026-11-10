@@ -116,7 +116,7 @@
               <div class="top100-count-wrap" id="topArtistsCountWrap" style="display: none;">
                 <label for="topArtistsCountSelect" class="aero-ctrl-label"><i class='bx bx-list-ol'></i> Show:</label>
                 <select id="topArtistsCountSelect" class="aero-select-styled" onchange="changeTopArtistsCount(this.value)">
-                  <option value="10">Top 10</option>
+                  <option value="15">Top 15</option>
                   <option value="20" selected>Top 20</option>
                   <option value="50">Top 50</option>
                   <option value="all">All</option>
@@ -190,25 +190,25 @@
                   <!-- Injected dynamically: #2 Silver, #1 Gold, #3 Bronze -->
                 </div>
 
-                <!-- 2. The Upper Tier: Artists Ranks 4 to 10 -->
+                <!-- 2. The Upper Tier: Artists Ranks 4 to 15 -->
                 <div class="top100-tier-section" id="topArtistsTierSection">
                   <div class="top100-tier-banner">
-                    <span class="tier-banner-pill"><i class='bx bxs-award'></i> THE TOP 10 &bull; RANKS 4 &ndash; 10</span>
+                    <span class="tier-banner-pill"><i class='bx bxs-award'></i> THE TOP 15 &bull; RANKS 4 &ndash; 15</span>
                     <div class="tier-banner-line"></div>
                   </div>
                   <div class="top100-tier-grid top-artists-tier-grid" id="topArtistsTierGrid">
-                    <!-- Injected dynamically: Ranks 4-10 -->
+                    <!-- Injected dynamically: Ranks 4-15 -->
                   </div>
                 </div>
 
-                <!-- 3. The Main Field: Artists Ranks 11 to N -->
+                <!-- 3. The Main Field: Artists Ranks 16 to N -->
                 <div class="top100-main-section" id="topArtistsMainSection">
                   <div class="top100-tier-banner">
-                    <span class="tier-banner-pill" id="topArtistsMainGridPill">[ RANKS 11 &ndash; 20 ]</span>
+                    <span class="tier-banner-pill" id="topArtistsMainGridPill">[ RANKS 16 &ndash; 20 ]</span>
                     <div class="tier-banner-line"></div>
                   </div>
                   <div class="top-artists-main-grid" id="topArtistsMainGrid">
-                    <!-- Injected dynamically: Ranks 11-20+ -->
+                    <!-- Injected dynamically: Ranks 16-20+ -->
                   </div>
                 </div>
               </div>
@@ -312,6 +312,23 @@
             <button type="button" class="w7-auth-btn-secondary" onclick="closeArtistCustomImageModal()">Cancel</button>
             <button type="button" class="w7-auth-btn-primary" onclick="saveArtistCustomImage()"><i class='bx bx-check'></i> Apply Image</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Windows 7 Aero Artist Quick Details Modal -->
+    <div id="artistQuickModal" class="sosa-modal-backdrop" style="display: none;">
+      <div class="window glass w7-modal-window artist-quick-window" role="dialog" aria-modal="true" aria-labelledby="artistQuickTitle">
+        <div class="title-bar">
+          <div class="title-bar-text" id="artistQuickTitle">
+            <i class='bx bx-user-voice'></i> Artist Details
+          </div>
+          <div class="title-bar-controls">
+            <button type="button" aria-label="Close" class="is-close" onclick="closeArtistQuickModal()"></button>
+          </div>
+        </div>
+        <div class="modal-content-glass artist-quick-content" id="artistQuickModalBody">
+          <!-- Injected dynamically via openArtistQuickModal(artistName) -->
         </div>
       </div>
     </div>
