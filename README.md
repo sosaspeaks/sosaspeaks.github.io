@@ -1,5 +1,11 @@
 # 🌐 SosaSpeaks ([sosaspeaks.org](https://sosaspeaks.org))
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/sosaspeaks/sosaspeaks/blob/main/sosaspeaks-logo-wht.png" />
+  <source media="(prefers-color-scheme: light)" srcset="https://github.com/sosaspeaks/sosaspeaks/blob/main/sosaspeaks-logo-blk.png" />
+  <img alt="sosaspeaks" src="https://github.com/sosaspeaks/sosaspeaks/blob/main/sosaspeaks-logo-blk.png" />
+</picture>
+
 > *"How it is we have so much information, but know so little?"*
 
 Welcome to the repository for **SosaSpeaks**—an independent web publication, research archive, and creative platform built with pure vanilla web technologies and an authentic late-2000s Windows 7 / Windows Vista **Aero Glass** desktop aesthetic.
