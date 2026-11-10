@@ -67,7 +67,7 @@ Welcome to the repository for **SosaSpeaks**—an independent web publication, r
 * **Milestone Analytics:** Track records, longest projects, top rated discoveries, and monthly averages.
 
 ### 📅 6×6 Monthly Challenge (`challenge.html`)
-* **Topster Grid (39 Albums/Month):** Curated 6×6 backlog grid for structured monthly listening goals.
+* **Topster Grid (36 Albums/Month):** Curated 6×6 backlog grid for structured monthly listening goals.
 * **Automated Spin Matching:** Cross-references backlog items with logged spins, automatically badging completed albums with Aero checkmark pills and ratings.
 * **Chronological Month Tabs:** Dynamically sorts calendar months chronologically across years.
 * **Recalibrate Queue:** Dedicated tab and backlog queue for albums queued for relisten, with deep-linking from spin cards.
