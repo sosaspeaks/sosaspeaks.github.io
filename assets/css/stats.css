@@ -123,6 +123,12 @@ body.dark-mode .stats-command-bar {
   flex-wrap: wrap;
 }
 
+.stats-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .stats-filter-btn {
   font-family: var(--font-body, "Plus Jakarta Sans"), sans-serif;
   font-size: 0.78rem;
@@ -466,6 +472,7 @@ body.dark-mode .leaderboard-row:hover {
   align-items: center;
   gap: 10px;
   min-width: 0;
+  flex: 1;
 }
 
 .leaderboard-rank {
@@ -1017,8 +1024,21 @@ body.dark-mode .stats-loading-text {
 }
 
 /* ============================================================
-   Mobile Responsive Statistics Dashboard
+   Mobile & Tablet Responsive Statistics Dashboard
    ============================================================ */
+@media (min-width: 641px) and (max-width: 900px) {
+  .stats-kpi-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 10px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  #descTopAlbumsPanel {
+    margin-top: 0 !important;
+  }
+}
+
 @media (max-width: 768px) {
   html, body {
     overflow-x: hidden !important;
@@ -1028,7 +1048,7 @@ body.dark-mode .stats-loading-text {
 
   .stats-container {
     padding: 0 0.75rem !important;
-    margin: 1.5rem auto 4rem !important;
+    margin: 1.5rem auto 4.5rem !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
   }
@@ -1039,19 +1059,14 @@ body.dark-mode .stats-loading-text {
   }
 
   .stats-window-body {
-    padding: 1rem 0.65rem !important;
+    padding: 1rem 0.75rem !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
   }
 
-  .stats-kpi-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 8px !important;
-  }
-
   .stats-panels-grid {
     grid-template-columns: 1fr !important;
-    gap: 12px !important;
+    gap: 14px !important;
   }
 
   .stats-panels-grid > *,
@@ -1065,19 +1080,261 @@ body.dark-mode .stats-loading-text {
   canvas {
     max-width: 100% !important;
   }
+
+  #ratedArtistsList,
+  #genreCloudMatrix,
+  #genreTopAlbumsList,
+  #descriptorMatrix,
+  #descTopAlbumsList {
+    max-height: 380px !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .descriptor-cloud-wrap {
+    padding: 8px 4px !important;
+    gap: 6px 8px !important;
+  }
+
+  .desc-cloud-tag {
+    padding: 3px 8px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .stats-kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .stats-kpi-card {
+    padding: 11px 10px 9px !important;
+  }
+
+  .kpi-title {
+    font-size: 0.68rem !important;
+  }
+
+  .kpi-value {
+    font-size: clamp(1.2rem, 5.2vw, 1.45rem) !important;
+    white-space: nowrap;
+    letter-spacing: -0.02em;
+  }
+
+  .kpi-subtext {
+    font-size: 0.68rem !important;
+    line-height: 1.25 !important;
+  }
+
+  .panel-header {
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    gap: 6px;
+  }
+
+  .panel-title {
+    font-size: 0.86rem;
+  }
+
+  .panel-badge {
+    font-size: 0.66rem;
+    padding: 1px 6px;
+  }
+
+  .aero-segmented-control {
+    padding: 1.5px;
+    gap: 1.5px;
+  }
+
+  .segmented-btn {
+    padding: 2px 6px;
+    font-size: 0.66rem;
+  }
+
+  .aero-min-spins-btn {
+    padding: 2px 6px;
+    font-size: 0.66rem;
+  }
+
+  .leaderboard-row {
+    padding: 5px 8px !important;
+    gap: 6px;
+  }
+
+  .leaderboard-left {
+    gap: 7px !important;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .leaderboard-avatar {
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  .leaderboard-rank {
+    width: 20px !important;
+    height: 20px !important;
+    font-size: 0.70rem !important;
+  }
+
+  .leaderboard-name {
+    font-size: 0.78rem !important;
+  }
+
+  .leaderboard-stats {
+    gap: 4px !important;
+  }
+
+  .leaderboard-count-chip {
+    padding: 1px 5px !important;
+    font-size: 0.66rem !important;
+  }
+
+  .leaderboard-score-chip {
+    font-size: 0.70rem !important;
+  }
+
+  .strictness-legend {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 6px !important;
+  }
+
+  .legend-item {
+    font-size: 0.68rem !important;
+    white-space: nowrap;
+  }
+
+  .legend-dot {
+    width: 7px;
+    height: 7px;
+  }
 }
 
 @media (max-width: 480px) {
   .stats-container {
     padding: 0 0.5rem !important;
+    margin: 1rem auto 4.5rem !important;
   }
 
   .stats-window-body {
     padding: 0.85rem 0.5rem !important;
   }
 
+  .stats-command-bar {
+    padding: 6px 8px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 6px !important;
+  }
+
+  .stats-filter-group {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 5px !important;
+    width: 100% !important;
+  }
+
+  .stats-filter-btn {
+    width: 100% !important;
+    text-align: center !important;
+    padding: 5px 6px !important;
+    font-size: 0.72rem !important;
+    display: inline-flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 4px !important;
+  }
+
+  .stats-actions-group {
+    display: flex !important;
+    gap: 6px !important;
+    width: 100% !important;
+  }
+
+  .stats-actions-group .aero-command-btn {
+    flex: 1 !important;
+    justify-content: center !important;
+    padding: 5px 8px !important;
+    font-size: 0.74rem !important;
+  }
+
   .stats-kpi-grid {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 6px !important;
+  }
+
+  .stats-kpi-card {
+    padding: 9px 8px 7px !important;
+  }
+
+  .chart-wrapper {
+    height: 220px !important;
+  }
+
+  #topGenresChart {
+    min-height: 240px;
+  }
+
+  .outliers-container {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  .outlier-card {
+    padding: 8px 10px !important;
+    gap: 10px !important;
+  }
+
+  .outlier-cover {
+    width: 46px !important;
+    height: 46px !important;
+  }
+
+  .outlier-title {
+    font-size: 0.80rem !important;
+  }
+
+  .outlier-artist {
+    font-size: 0.72rem !important;
+  }
+
+  .stats-status-bar {
+    padding: 5px 8px !important;
+    font-size: 0.68rem !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 3px !important;
+  }
+}
+
+@media (max-width: 340px) {
+  .stats-container {
+    padding: 0 0.35rem !important;
+  }
+
+  .stats-kpi-grid {
+    gap: 4px !important;
+  }
+
+  .stats-kpi-card {
+    padding: 7px 6px 6px !important;
+  }
+
+  .kpi-value {
+    font-size: 1.15rem !important;
+  }
+
+  .kpi-subtext {
+    font-size: 0.62rem !important;
+  }
+
+  .strictness-legend {
+    grid-template-columns: 1fr !important;
+    gap: 4px !important;
+  }
+
+  .leaderboard-name {
+    font-size: 0.74rem !important;
   }
 }
