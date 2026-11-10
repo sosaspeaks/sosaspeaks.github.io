@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<!--
+                                           _
+                                          | |
+  ___  ___  ___  __ _ ___ _ __   ___  __ _| | _____
+ / __|/ _ \/ __|/ _` / __| '_ \ / _ \/ _` | |/ / __|
+ \__ \ (_) \__ \ (_| \__ \ |_) |  __/ (_| |   <\__ \
+ |___/\___/|___/\__,_|___/ .__/ \___|\__,_|_|\_\___/
+                         | |
+                         |_|
+
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Listening Challenge — SosaSpins</title>
+  <meta name="description" content="Sosa's 7×7 Monthly Listening Challenge (49 Albums) on SosaSpins.">
+  <meta property="og:title" content="Listening Challenge — SosaSpins">
+  <meta property="og:description" content="Explore Sosa's 7×7 monthly album listening challenge backlog and completed spins.">
+  <meta property="og:image" content="https://sosaspeaks.org/assets/images/homepics/Sosa-Icon-V3.png">
+  <link rel="icon" type="image/png" href="assets/images/homepics/Sosa-Icon-V3.png">
+  <link rel="stylesheet" href="assets/css/challenge.css">
+  <link rel="stylesheet" href="assets/css/dock.css">
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+</head>
+<body>
+  <!-- Header -->
+  <header id="siteHeader">
+    <div class="nav container">
+            <!-- Logo -->
+            <a href="index.html" class="nav-logo-link">
+                <img src="assets/images/homepics/Sosa-Icon-V3.png" alt="SosaSpeaks Icon" class="logo-icon">
+            </a>
+            <div class="nav-right-group">
+              <button type="button" id="adminTriggerBtn" class="aero-btn" title="Admin Mode">
+                  <img
+                    id="adminLockIcon"
+                    src="assets/icons/aero/lock_closed.png"
+                    alt="Admin Status"
+                    class="aero-lock-icon nav-custom-icon"
+                  />
+                </button>
+                <a href="sosaspins.html" class="nav-custom-link" title="SosaSpins">
+                    <img src="assets/images/homepics/Folder203.ico" class="nav-custom-icon music-icon" alt="SosaSpins">
+                </a>
+                <a href="about.html" class="nav-custom-link" title="About">
+                    <img src="assets/images/homepics/msgsres_1.ico" class="nav-custom-icon msngr-icon" alt="About">
+                </a>
+                <i class='bx bx-moon theme-toggle' style="scale: 155%;" title="Theme"></i>
+            </div>
+        </div>
+  </header>
+
+  <!-- Banner -->
+  <section class="main-home" id="main-home">
+    <div class="home-text container">
+      <h1 class="home-title">SosaSpins: Backlog</h1>
+      <span class="home-subtitle" id="progressSubtitle">November Listening Challenge</span>
+    </div>
+  </section>
+
+<!-- Month Tabs & Progress Header -->
+  <div class="challenge-controls container">
+    <div class="challenge-actions-bar">
+
+      <!-- Tabs -->
+      <div class="tabs-and-actions-left">
+        <menu role="tablist" class="w7-month-tabs" id="monthTabsList">
+          <button type="button" role="tab" aria-selected="false" data-month="october" data-year="2026">October (36)</button>
+          <button type="button" role="tab" class="active" aria-selected="true" data-month="november" data-year="2026">November (0)</button>
+          <button type="button" role="tab" aria-selected="false" data-month="recalibrate" data-tab-type="relisten" id="recalibrateTabBtn" style="display: none;">Recalibrate (<span id="relistenCount">0</span>)</button>
+        </menu>
+
+        <!-- New Month Button -->
+        <button type="button" id="addNewMonthBtn" class="aero-add-tab-btn admin-only" style="display: none;" title="Create New Month Challenge">
+          + New Month
+        </button>
+
+        <!-- Redo / Recalibrate Queue Toggle Button -->
+        <button type="button" id="recalibrateToggleBtn" class="aero-redo-tab-btn" title="Recalibrate Queue (Relistens)">
+          <i class='bx bx-redo'></i>
+        </button>
+      </div>
+
+    </div>
+
+
+    <!-- Authentic Windows 7 Progress Bar with Animated Sweep -->
+    <div class="challenge-progress-box">
+      <div class="progress-labels">
+        <span id="completedCounter">Completed: 0 / 36</span>
+        <span id="completedPercent">0%</span>
+      </div>
+      <div class="progress-bar-track" role="progressbar">
+        <div class="progress-bar-fill" id="progressFill" style="width: 0%;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STANDALONE VISTA / 7 GRID WINDOW -->
+  <main class="challenge-container container">
+    <div class="window glass grid-window-frame" id="gridWindowFrame">
+      <!-- Window Title Bar: Clean Title Only -->
+      <div class="title-bar">
+        <div class="title-bar-text">
+          <i class='bx bx-disc' style="margin-right: 4px; vertical-align: middle;"></i>
+          SosaSpins Challenge Explorer
+        </div>
+      </div>
+
+      <!-- Attached Vista Command Bar / Controls Bar -->
+      <div class="window-command-bar">
+        <div class="command-group-left">
+          <button type="button" id="viewModeToggleBtn" class="aero-command-btn view-toggle-btn" title="Switch between 7×7 Grid and iPod Cover Flow" aria-pressed="false">
+            <i class='bx bx-carousel'></i> <span class="cmd-text-full">Cover Flow</span><span class="cmd-text-short">Flow</span>
+          </button>
+          <button type="button" id="gridSizeBtn" class="aero-command-btn" title="Cycle grid layout size">
+            <i class='bx bx-grid-alt'></i> <span class="cmd-prefix">Size: </span><span id="gridSizeBtnLabel">Standard</span>
+          </button>
+
+          <!-- Aero Sort Dropdown -->
+          <div class="aero-sort-dropdown-wrap" style="position: relative; display: inline-block;">
+            <button type="button" id="gridSortBtn" class="aero-command-btn" title="Sort challenge albums" aria-haspopup="true" aria-expanded="false">
+              <i class='bx bx-sort-alt-2'></i> <span class="cmd-text-full" id="gridSortBtnLabel">Sort: Default</span><span class="cmd-text-short">Sort</span> <i class='bx bx-chevron-down' style="font-size: 0.85rem; margin-left: 1px;"></i>
+            </button>
+            <div class="aero-menu-dropdown" id="gridSortMenu" style="display: none;">
+              <button type="button" class="aero-menu-item active" data-sort="default">
+                <i class='bx bx-list-ol'></i> Default (Saved Order)
+              </button>
+              <div class="aero-menu-divider"></div>
+              <div class="aero-menu-header">Runtime</div>
+              <button type="button" class="aero-menu-item" data-sort="runtime-asc">
+                <i class='bx bx-time'></i> Runtime: Shortest first
+              </button>
+              <button type="button" class="aero-menu-item" data-sort="runtime-desc">
+                <i class='bx bx-time-five'></i> Runtime: Longest first
+              </button>
+              <div class="aero-menu-divider"></div>
+              <div class="aero-menu-header">Release Year</div>
+              <button type="button" class="aero-menu-item" data-sort="year-asc">
+                <i class='bx bx-calendar'></i> Year: Oldest first
+              </button>
+              <button type="button" class="aero-menu-item" data-sort="year-desc">
+                <i class='bx bx-calendar-event'></i> Year: Newest first
+              </button>
+              <div class="aero-menu-divider"></div>
+              <div class="aero-menu-header">Alphabetical</div>
+              <button type="button" class="aero-menu-item" data-sort="artist-asc">
+                <i class='bx bx-user'></i> Artist: A → Z
+              </button>
+              <button type="button" class="aero-menu-item" data-sort="title-asc">
+                <i class='bx bx-disc'></i> Title: A → Z
+              </button>
+              <div class="aero-menu-divider"></div>
+              <div class="aero-menu-header">Ratings & Status</div>
+              <button type="button" class="aero-menu-item" data-sort="rym-desc">
+                <i class='bx bxs-star' style="color: #38bdf8;"></i> RYM Rating: Highest first
+              </button>
+              <button type="button" class="aero-menu-item" data-sort="rating-desc">
+                <i class='bx bxs-star'></i> My Rating: Highest first
+              </button>
+              <button type="button" class="aero-menu-item" data-sort="status">
+                <i class='bx bx-check-circle' style="color: #10b981;"></i> Status: Completed first
+              </button>
+            </div>
+          </div>
+          <button type="button" id="exportImageBtn" class="aero-command-btn export-emerald-btn" title="Download Topster image">
+            <i class='bx bx-camera'></i> <span class="cmd-text-full">Export Image</span><span class="cmd-text-short">Export</span>
+          </button>
+          <!-- Upload Unfinished Backlog Covers to Supabase Storage -->
+          <button type="button" id="syncBacklogCoversBtn" class="aero-command-btn sync-cloud-btn admin-only" style="display: none;" title="Upload all external backlog artwork directly to Supabase storage">
+            <i class='bx bx-cloud-upload'></i> <span class="cmd-text-full">Sync Art to Cloud</span><span class="cmd-text-short">Sync</span>
+          </button>
+        </div>
+        <div class="command-group-right">
+          <button type="button" id="openAddModalBtn" class="aero-command-btn add-emerald-btn admin-only" style="display: none;">
+            <i class='bx bx-plus'></i> <span class="cmd-text-full">Add Album</span><span class="cmd-text-short">Add</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Recalibrate Category Filter Bar (Only visible on Recalibrate tab) -->
+      <div id="recalibrateFilterBar" class="aero-recalibrate-filter-bar" style="display: none;">
+        <span class="recalibrate-filter-label"><i class='bx bx-revision'></i> Slices:</span>
+        <div class="recalibrate-filter-chips">
+          <button type="button" class="recalibrate-chip active" data-reason="all">All (<span id="countReasonAll">0</span>)</button>
+          <button type="button" class="recalibrate-chip" data-reason="Memory Fog">Memory Fog (<span id="countReasonMemoryFog">0</span>)</button>
+          <button type="button" class="recalibrate-chip" data-reason="Perspective Shift">Perspective Shift (<span id="countReasonPerspectiveShift">0</span>)</button>
+          <button type="button" class="recalibrate-chip" data-reason="Tunnel Vision">Tunnel Vision (<span id="countReasonTunnelVision">0</span>)</button>
+          <button type="button" class="recalibrate-chip" data-reason="Second Chance">Second Chance (<span id="countReasonSecondChance">0</span>)</button>
+          <button type="button" class="recalibrate-chip" data-reason="Time Capsule">Time Capsule (<span id="countReasonTimeCapsule">0</span>)</button>
+          <button type="button" class="recalibrate-chip" data-reason="Ill-Timed">Ill-Timed (<span id="countReasonIllTimed">0</span>)</button>
+          <button type="button" class="recalibrate-chip" data-reason="Discography Run">Discography Run (<span id="countReasonDiscographyRun">0</span>)</button>
+          <button type="button" class="recalibrate-chip" data-reason="Slow Burn">Slow Burn (<span id="countReasonSlowBurn">0</span>)</button>
+        </div>
+      </div>
+
+      <!-- Window Body (Recessed Clean Background for the 7x7 Grid & Cover Flow) -->
+      <div class="window-body grid-window-body">
+        <div id="exportWrapper" class="export-capture-zone">
+          <div class="topster-grid size-standard" id="topsterGrid">
+            <!-- Indeterminate Marquee Loader -->
+            <div class="w7-loading-wrapper">
+              <span class="w7-loading-text">Connecting to SosaSpins database...</span>
+              <div class="progress-bar-track marquee" role="progressbar"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- iPod / iTunes Cover Flow 3D Carousel View -->
+        <div id="coverFlowWrapper" class="coverflow-wrapper" style="display: none;">
+          <div class="coverflow-stage" id="coverFlowStage" tabindex="0" aria-label="Album Cover Flow Carousel">
+            <div class="coverflow-track" id="coverFlowTrack"></div>
+            <div class="coverflow-floor-glow"></div>
+          </div>
+
+          <div class="coverflow-info-panel" id="coverFlowInfoPanel">
+            <div class="cf-album-title" id="cfAlbumTitle">—</div>
+            <div class="cf-album-artist" id="cfAlbumArtist">—</div>
+            <div class="cf-album-meta" id="cfAlbumMeta"></div>
+            <div class="cf-album-actions" id="cfAlbumActions"></div>
+          </div>
+
+          <div class="coverflow-controls-bar">
+            <button type="button" class="cf-nav-btn" id="cfPrevBtn" title="Previous Album (←)" aria-label="Previous Album">
+              <i class='bx bx-chevron-left'></i>
+            </button>
+            <div class="cf-scrubber-wrap">
+              <input type="range" id="cfScrubber" class="cf-scrubber" min="0" max="0" value="0" aria-label="Scrub through albums">
+            </div>
+            <button type="button" class="cf-nav-btn" id="cfNextBtn" title="Next Album (→)" aria-label="Next Album">
+              <i class='bx bx-chevron-right'></i>
+            </button>
+            <span class="cf-position-readout" id="cfPositionReadout">0 / 0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Window Status Bar Footer -->
+      <div class="status-bar">
+        <div class="status-bar-field" id="statusBarSelection">36 items</div>
+        <div class="status-bar-field" style="text-align: right; max-width: 140px;">Ready</div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- DETAIL MODAL: Authentic Windows 7 Glass Window -->
+  <div id="detailModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="window glass w7-modal-window">
+      <div class="title-bar">
+        <div class="title-bar-text">Album Details</div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeDetailModal" aria-label="Close" class="is-close"></button>
+        </div>
+      </div>
+      <div class="window-body" id="modalAlbumBody"></div>
+    </div>
+  </div>
+
+  <!-- ADMIN ADD / EDIT MODAL: Windows 7 Glass Window -->
+  <div id="addModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="window glass w7-modal-window">
+      <div class="title-bar">
+        <div class="title-bar-text" id="addModalTitleText">Manage Backlog Entry</div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeAddModal" aria-label="Close" class="is-close"></button>
+        </div>
+      </div>
+      <!-- ADMIN ADD / EDIT MODAL: Windows 7 Glass Window -->
+      <form id="addAlbumForm" class="window-body" style="display: flex; flex-direction: column; gap: 0.85rem; padding: 1.25rem;">
+        <input type="hidden" id="editEntryId" value="">
+
+        <!-- Top Section: Locked Square Preview + Inputs -->
+        <div class="add-album-top-row">
+          <div class="modal-cover-preview">
+            <div class="w7-preview-box">
+              <img
+                id="addPreviewImg"
+                src="assets/images/spins/placeholder.png"
+                alt="Artwork Preview"
+                onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+            </div>
+            <div class="modal-cover-btns">
+              <button type="button" id="fetchCoverBtn" class="aero-btn-action modal-cover-action-btn" title="Fetch high-res album artwork">
+                <i class='bx bx-image'></i> Fetch Art
+              </button>
+              <button type="button" id="fetchSpinCoverBtn" class="aero-btn-action modal-cover-action-btn" title="Match cover from previously logged spins">
+                <i class='bx bx-disc'></i> Get Spin Cover
+              </button>
+              <button type="button" id="rymImportBtn" class="aero-btn-action rym-import-btn modal-cover-action-btn" title="Import release data from Rate Your Music clipboard">
+                <i class='bx bx-clipboard'></i> Import RYM
+              </button>
+            </div>
+          </div>
+          <div class="add-album-inputs-group">
+            <input type="text" id="addArtist" class="sosa-search-input" placeholder="Artist" required>
+            <input type="text" id="addTitle" class="sosa-search-input" placeholder="Album Title" required>
+            <div class="modal-split-row">
+              <input
+                type="number"
+                id="addReleaseYear"
+                class="sosa-search-input"
+                placeholder="Release Year (YYYY)"
+                min="1900"
+                max="2099">
+              <div class="custom-month-dropdown-wrap" id="customMonthDropdownWrap">
+                <button type="button" class="sosa-search-input custom-month-trigger" id="customMonthDropdownBtn" aria-haspopup="listbox" aria-expanded="false" title="Challenge Month / Queue">
+                  <span class="custom-month-trigger-text" id="customMonthTriggerText">
+                    <i class='bx bx-revision queue-icon'></i> <span>Queue: Recalibrate (Relistens)</span>
+                  </span>
+                  <i class='bx bx-chevron-down custom-dropdown-arrow'></i>
+                </button>
+                <div class="aero-menu-dropdown custom-month-menu" id="customMonthMenu" style="display: none;" role="listbox"></div>
+                <select id="addMonth" class="sosa-search-input modal-month-select" title="Challenge Month" style="display: none;">
+                  <option value="recalibrate" data-tab-type="relisten" class="queue-option">Queue: Recalibrate (Relistens)</option>
+                  <option value="october" data-year="2026">Month: October</option>
+                  <option value="november" data-year="2026">Month: November</option>
+                  <option value="december" data-year="2026">Month: December</option>
+                  <option value="january" data-year="2027">Month: January '27</option>
+                  <option value="february" data-year="2027">Month: February '27</option>
+                  <option value="march" data-year="2027">Month: March '27</option>
+                  <option value="april" data-year="2027">Month: April '27</option>
+                  <option value="may" data-year="2027">Month: May '27</option>
+                  <option value="june" data-year="2027">Month: June '27</option>
+                  <option value="july" data-year="2027">Month: July '27</option>
+                  <option value="august" data-year="2027">Month: August '27</option>
+                  <option value="september" data-year="2027">Month: September '27</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Relisten Metadata Fields (Shown when Month is Recalibrate) -->
+            <div id="relistenFieldsContainer" class="modal-relisten-fields-box" style="display: none; margin-bottom: 0.25rem;">
+              <div class="modal-split-row">
+                <div style="flex: 1;">
+                  <label class="modal-field-sublabel" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-color, #334155); margin-bottom: 3px;"><i class='bx bx-revision'></i> Relisten Reason:</label>
+                  <select id="addRelistenReason" class="sosa-search-input">
+                    <option value="Memory Fog">Memory Fog (Years since spin; impressions faded)</option>
+                    <option value="Perspective Shift">Perspective Shift (Tastes matured; revisiting with new ears)</option>
+                    <option value="Tunnel Vision">Tunnel Vision (Loved 1-2 standout tracks, need full album re-eval)</option>
+                    <option value="Second Chance">Second Chance (Didn't click initially; deserves a fresh listen)</option>
+                    <option value="Time Capsule">Time Capsule (Past era favorite; seeing if it still holds up today)</option>
+                    <option value="Ill-Timed">Ill-Timed (Heard in wrong setting or headspace; deserves proper focus)</option>
+                    <option value="Discography Run">Discography Run (Revisiting in context of artist's catalog)</option>
+                    <option value="Slow Burn">Slow Burn (Challenging or gradual record; revisiting with deeper appreciation)</option>
+                  </select>
+                </div>
+                <div style="width: 130px;">
+                  <label class="modal-field-sublabel" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-color, #334155); margin-bottom: 3px;">Prior Rating:</label>
+                  <input type="number" id="addPrevRating" class="sosa-search-input" placeholder="e.g. 3.5" min="0.5" max="5.0" step="0.5">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cover Selector Carousel -->
+        <div id="artCandidatesContainer" class="art-candidates-picker is-hidden" style="display: none;">
+          <span class="picker-label">Select Artwork:</span>
+          <div id="artThumbnailsRow" class="thumbnails-scroll-row"></div>
+        </div>
+
+        <div class="modal-split-row">
+          <input type="text" id="addRuntime" class="sosa-search-input" placeholder="Runtime (e.g. 42m 15s)">
+          <input type="number" id="addRymRating" class="sosa-search-input" placeholder="RYM Rating (e.g. 3.75)" step="0.01" min="0" max="5.0">
+        </div>
+
+                <input type="text" id="addCoverUrl" class="sosa-search-input" placeholder="Cover URL">
+       <!-- Primary Genres Tag Box -->
+        <div class="tag-field-row">
+          <div class="tag-input-box" id="genresTagBox">
+            <input type="text" id="addGenresInput" class="tag-inline-input" placeholder="Add Primary Genre..." autocomplete="off">
+          </div>
+          <div class="aero-autocomplete-menu" id="genresDropdown" style="display: none;"></div>
+        </div>
+        <input type="hidden" id="addGenres" value="">
+
+        <!-- Secondary Genres Tag Box -->
+        <div class="tag-field-row">
+          <div class="tag-input-box" id="secondaryGenresTagBox">
+            <input type="text" id="addSecondaryGenresInput" class="tag-inline-input" placeholder="Add Secondary Genre..." autocomplete="off">
+          </div>
+          <div class="aero-autocomplete-menu" id="secondaryGenresDropdown" style="display: none;"></div>
+        </div>
+        <input type="hidden" id="addSecondaryGenres" value="">
+
+
+        <!-- Descriptors Tag Box -->
+        <div class="tag-field-row">
+          <div class="tag-input-box" id="descriptorsTagBox">
+            <input type="text" id="addDescriptorsInput" class="tag-inline-input" placeholder="Add Descriptor..." autocomplete="off">
+          </div>
+          <div class="aero-autocomplete-menu" id="descriptorsDropdown" style="display: none;"></div>
+        </div>
+        <input type="hidden" id="addDescriptors" value="">
+
+        <button type="submit" id="submitAddAlbumBtn" class="aero-btn-action primary-save-btn">
+          Save to Backlog
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ADMIN SECURITY / AUTH MODAL: Windows 7 Aero Glass Dialog -->
+  <div id="adminAuthModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="modal-dialog w7-window window glass w7-modal-window w7-auth-window">
+      <div class="title-bar">
+        <div class="title-bar-text">
+          <img src="assets/icons/aero/lock_closed.png" alt="" class="w7-title-icon" id="authModalTitleIcon">
+          <span id="authModalTitleText">Windows Security — SosaSpins Admin</span>
+        </div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeAdminAuthModalBtn" aria-label="Close" class="is-close"></button>
+        </div>
+      </div>
+      <div class="window-body w7-auth-body">
+        <form id="adminAuthForm" class="w7-auth-form" autocomplete="on">
+          <div class="w7-auth-header-row">
+            <img src="assets/icons/aero/lock_closed.png" alt="Security Lock" class="w7-auth-hero-icon" id="authHeroIcon">
+            <div class="w7-auth-copy">
+              <div class="w7-auth-heading" id="authHeadingText">Windows Security</div>
+              <div class="w7-auth-subtext" id="authSubText">Enter your administrator credentials to sign in.</div>
+            </div>
+          </div>
+
+          <div class="w7-auth-fields-wrap" style="display: flex; flex-direction: column; gap: 12px; margin: 1rem 1.2rem 1.1rem 1.2rem;">
+            <div class="w7-auth-field-group">
+              <label for="authEmailInput" class="w7-auth-subtext" style="display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.8rem;">Email</label>
+              <input
+                type="email"
+                id="authEmailInput"
+                class="sosa-search-input w7-pass-input"
+                placeholder="admin@sosaspeaks.org"
+                autocomplete="username"
+                required
+              >
+            </div>
+            <div class="w7-auth-field-group" style="position: relative;">
+              <label for="authPasswordInput" class="w7-auth-subtext" style="display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.8rem;">Password</label>
+              <div style="position: relative; display: flex; align-items: center;">
+                <input
+                  type="password"
+                  id="authPasswordInput"
+                  class="sosa-search-input w7-pass-input"
+                  placeholder="••••••••"
+                  autocomplete="current-password"
+                  required
+                >
+                <button type="button" id="togglePassVisibilityBtn" class="w7-pass-eye-btn" title="Show / Hide Password" tabindex="-1">
+                  <i class="bx bx-hide" id="togglePassEyeIcon"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div id="authErrorMessage" class="w7-auth-error" style="display: none;">
+            <i class="bx bx-error-circle"></i>
+            <span class="auth-error-text"></span>
+          </div>
+
+          <div class="w7-auth-footer">
+            <button type="button" id="cancelAuthBtn" class="aero-btn-action w7-auth-btn-secondary">Cancel</button>
+            <button type="submit" id="submitAuthBtn" class="aero-btn-action primary-save-btn w7-auth-btn-primary">
+              Log On
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer container">
+        <p class="footer-copyright">
+            &#169; SosaSpeaks. All non-quoted material is the original writing of SosaSpeaks and its authors.
+        </p>
+
+        <p class="footer-links">
+            <a href="https://github.com/sosaspeaks/sosaspeaks.github.io" target="_blank" rel="noopener">
+                <i class='bx bxl-github'></i> Source code via GitHub
+            </a>
+            <span class="footer-divider">&middot;</span>
+            <a href="mailto:sosa@sosaspeaks.org">
+                <i class='bx bx-envelope'></i> sosa@sosaspeaks.org
+            </a>
+        </p>
+    </footer>
+
+    <!-- Aero Glass Mini-Player Dock -->
+    <div id="miniPlayerDock" class="aero-player-dock" style="display: none;">
+      <div id="miniPlayerBg" class="aero-player-bg"></div>
+      <div class="aero-player-titlebar">
+        <div class="aero-now-playing-indicator">
+          <span class="aero-equalizer-bars" id="wmpEqualizer">
+            <span></span><span></span><span></span><span></span>
+          </span>
+          <span class="aero-status-text" id="wmpStatusText">NOW PLAYING</span>
+        </div>
+        <button type="button" class="aero-player-close" onclick="closeMiniPlayer()" title="Close Player" aria-label="Close Player">
+          <img src="assets/icons/aero/close.ico" alt="Close" class="mini-close-icon">
+        </button>
+      </div>
+
+      <div class="aero-player-meta">
+        <div id="miniPlayerTrack" class="aero-meta-track">Track Title</div>
+        <div class="aero-meta-sub">
+          <span id="miniPlayerArtist" class="aero-meta-artist">Artist</span>
+          <span class="aero-meta-sep"> • </span>
+          <span id="miniPlayerAlbum" class="aero-meta-album">Album</span>
+        </div>
+      </div>
+
+      <div id="miniPlayerFrameWrap" class="aero-player-frame-wrap"></div>
+
+      <!-- Windows Media Player Aero Glass Control Bar -->
+      <div id="wmpControlsBar" class="wmp-controls-bar" style="display: none;">
+        <!-- Scrubber -->
+        <div class="wmp-scrubber-section">
+          <span class="wmp-time-text" id="wmpCurrentTime">0:00</span>
+          <div class="wmp-scrubber-track" id="wmpScrubberTrack" role="slider" aria-label="Timeline Scrubber" tabindex="0">
+            <div class="wmp-progress-fill" id="wmpProgressFill">
+              <span class="wmp-scrubber-knob"></span>
+            </div>
+          </div>
+          <span class="wmp-time-text" id="wmpDuration">0:00</span>
+        </div>
+
+        <!-- Symmetrical Playback Row: Rewind, Stop, Play/Pause Orb, FFwd, Loop -->
+        <div class="wmp-buttons-row">
+          <button type="button" class="wmp-ctrl-btn" id="wmpRwBtn" onclick="wmpSkip(-10)" title="Rewind 10s">
+            <i class='bx bx-rewind'></i>
+          </button>
+          <button type="button" class="wmp-ctrl-btn" id="wmpStopBtn" onclick="wmpStop()" title="Stop">
+            <i class='bx bx-stop'></i>
+          </button>
+
+          <!-- Centered Glass Orb -->
+          <div class="wmp-orb-stage">
+            <button type="button" class="wmp-orb-btn" id="wmpPlayPauseBtn" onclick="wmpTogglePlayPause()" title="Play / Pause">
+              <div class="wmp-orb-glass-reflection"></div>
+              <img src="assets/icons/aero/play.ico" alt="Play" class="wmp-orb-icon" id="wmpOrbPlayIcon">
+              <img src="assets/icons/aero/pause.ico" alt="Pause" class="wmp-orb-icon wmp-orb-pause-icon" id="wmpOrbPauseIcon" style="display: none;">
+            </button>
+          </div>
+
+          <button type="button" class="wmp-ctrl-btn" id="wmpFfBtn" onclick="wmpSkip(10)" title="Fast Forward 10s">
+            <i class='bx bx-fast-forward'></i>
+          </button>
+          <button type="button" class="wmp-ctrl-btn" id="wmpLoopBtn" onclick="wmpToggleLoop()" title="Loop Track">
+            <i class='bx bx-repeat'></i>
+          </button>
+        </div>
+
+        <!-- Sub-utility bar: Aero Glass Volume Slider (Left) and Fullscreen (Right) -->
+        <div class="wmp-sub-bar">
+          <div class="wmp-volume-wrap">
+            <button type="button" class="wmp-vol-btn" onclick="wmpToggleMute()" title="Mute / Unmute">
+              <i class='bx bx-volume-full' id="wmpVolIcon"></i>
+            </button>
+            <input type="range" id="wmpVolumeSlider" class="wmp-aero-slider" min="0" max="1" step="0.05" value="1" oninput="wmpSetVolume(this.value)" title="Volume">
+          </div>
+          <button type="button" class="wmp-sub-btn" id="wmpFullscreenBtn" onclick="wmpToggleFullscreen()" title="Fullscreen Video" style="display: none;">
+            <i class='bx bx-fullscreen'></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  <!-- Windows 7 Aero Taskbar ("Superbar") -->
+  <nav class="aero-taskbar-container" id="aeroTaskbar" aria-label="SosaSpins Taskbar">
+    <div class="taskbar-inner">
+      <!-- Windows 7 Start Orb (Timeline Feed / Home) -->
+      <a href="sosaspins.html" class="taskbar-start-orb" id="taskbarStartOrb" aria-label="Timeline Feed">
+        <span class="taskbar-tooltip">Timeline Feed</span>
+        <div class="start-orb-glass">
+          <div class="start-orb-reflection"></div>
+          <img src="assets/images/homepics/Folder203.ico" alt="Timeline Feed" class="start-orb-icon">
+        </div>
+      </a>
+
+      <!-- Superbar App Buttons -->
+      <div class="taskbar-apps" role="toolbar" aria-label="Running Portals">
+        <a href="challenge.html" class="taskbar-app-btn" data-portal="challenge" aria-label="Challenge Grid">
+          <span class="taskbar-tooltip">Challenge Grid</span>
+          <div class="app-btn-plate">
+            <img src="assets/icons/aero/challenge.ico" alt="Challenge Grid" class="win7-app-icon challenge-icon">
+          </div>
+        </a>
+        <a href="top100.html" class="taskbar-app-btn" data-portal="top100" aria-label="Top 100 Showcase">
+          <span class="taskbar-tooltip">Top 100 Showcase</span>
+          <div class="app-btn-plate">
+            <img src="assets/icons/aero/top100.png" alt="Top 100 Showcase" class="win7-app-icon top100-icon">
+          </div>
+        </a>
+        <a href="stats.html" class="taskbar-app-btn" data-portal="stats" aria-label="Listening Stats">
+          <span class="taskbar-tooltip">Listening Stats</span>
+          <div class="app-btn-plate">
+            <img src="assets/icons/aero/stats.png" alt="Listening Stats" class="win7-app-icon stats-icon">
+          </div>
+        </a>
+      </div>
+
+      <div class="taskbar-spacer"></div>
+
+      <!-- System Tray (Notification Area & Clock) -->
+      <div class="taskbar-tray">
+        <div class="tray-clock" id="taskbarClock" title="SosaSpins Aero Clock">
+          <span class="tray-time" id="trayTime">12:00 PM</span>
+          <span class="tray-date" id="trayDate">11/3/2026</span>
+        </div>
+      </div>
+
+      <!-- Windows 7 "Show Desktop" / Aero Peek Strip -->
+      <button type="button" class="taskbar-show-desktop" id="taskbarShowDesktop" aria-label="Show Desktop / Auto-Hide Taskbar" title="Auto-Hide / Pin Taskbar">
+        <div class="show-desktop-bar"></div>
+      </button>
+    </div>
+  </nav>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/js/challenge.js"></script>
+  <script src="assets/js/dock.js"></script>
+</body>
+</html>

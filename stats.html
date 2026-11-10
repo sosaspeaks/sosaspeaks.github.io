@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<!--
+                                           _
+                                          | |
+  ___  ___  ___  __ _ ___ _ __   ___  __ _| | _____
+ / __|/ _ \/ __|/ _` / __| '_ \ / _ \/ _` | |/ / __|
+ \__ \ (_) \__ \ (_| \__ \ |_) |  __/ (_| |   <\__ \
+ |___/\___/|___/\__,_|___/ .__/ \___|\__,_|_|\_\___/
+                         | |
+                         |_|
+
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Listening Insights &amp; Statistics — SosaSpins</title>
+    <meta name="description" content="Analytical listening insights, rating distributions, and genre breakdowns for SosaSpins.">
+    <meta property="og:title" content="Listening Insights &amp; Statistics — SosaSpins">
+    <meta property="og:description" content="When Sosa Speaks, we listen. Explore real-time analytics, bell curves, and rotation stats.">
+    <meta property="og:image" content="https://sosaspeaks.org/assets/images/homepics/Sosa-Icon-V3.png">
+    <link rel="icon" type="image/png" href="assets/images/homepics/Sosa-Icon-V3.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/images/homepics/apple-touch-icon.png?v=20260527" />
+    <meta name="apple-mobile-web-app-title" content="SosaSpeaks" />
+    <link rel="manifest" href="assets/images/homepics/site.webmanifest?v=20260527" />
+
+    <!-- Style sheets -->
+    <link rel="stylesheet" href="assets/css/sosaspins.css">
+    <link rel="stylesheet" href="assets/css/stats.css">
+    <link rel="stylesheet" href="assets/css/dock.css">
+
+    <!-- Box icons -->
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+</head>
+<body class="stats-view-active">
+    <!-- Header -->
+    <header>
+        <!-- Nav -->
+        <div class="nav container">
+            <!-- Logo -->
+            <a href="index.html" class="nav-logo-link">
+                <img src="assets/images/homepics/Sosa-Icon-V3.png" alt="SosaSpeaks Icon" class="logo-icon">
+            </a>
+            <div class="nav-right-group">
+                <button type="button" id="adminTriggerBtn" class="aero-btn" title="Admin Mode">
+                  <img
+                    id="adminLockIcon"
+                    src="assets/icons/aero/lock_closed.png"
+                    alt="Admin Status"
+                    class="aero-lock-icon nav-custom-icon"
+                  />
+                </button>
+                <a href="sosaspins.html" class="nav-custom-link" title="SosaSpins">
+                    <img src="assets/images/homepics/Folder203.ico" class="nav-custom-icon music-icon" alt="SosaSpins">
+                </a>
+                <a href="about.html" class="nav-custom-link" title="About">
+                    <img src="assets/images/homepics/msgsres_1.ico" class="nav-custom-icon msngr-icon" alt="About">
+                </a>
+                <i class='bx bx-moon theme-toggle' style="scale: 155%;" title="Theme"></i>
+            </div>
+        </div>
+    </header>
+
+    <!-- Header Hero -->
+    <section class="main-home" id="home">
+        <div class="home-text container">
+            <h2 class="home-title">SosaSpins</h2>
+            <span class="home-subtitle">Listening Insights and Statistics</span>
+        </div>
+    </section>
+
+    <!-- Main Window Container -->
+    <main class="stats-container">
+        <div class="window glass w7-window stats-window-frame" id="statsWindowFrame">
+            <!-- Title Bar -->
+            <div class="title-bar">
+                <div class="title-bar-text">
+                    <i class='bx bx-line-chart' style="color: #10b981; font-size: 1.15rem;"></i>
+                    SosaSpins Statistics
+                </div>
+                <div class="title-bar-controls"></div>
+            </div>
+
+            <!-- Windows 7 Command Bar -->
+            <div class="stats-command-bar">
+                <div class="stats-filter-group">
+                    <button type="button" class="stats-filter-btn active" data-filter="all">
+                        <i class='bx bx-collection'></i> All Spins
+                    </button>
+                    <button type="button" class="stats-filter-btn" data-filter="albums">
+                        <i class='bx bx-disc'></i> Albums
+                    </button>
+                    <button type="button" class="stats-filter-btn" data-filter="singles">
+                        <i class='bx bx-music'></i> Singles &amp; EPs
+                    </button>
+                    <button type="button" class="stats-filter-btn" data-filter="relistens">
+                        <i class='bx bx-revision'></i> Relistens
+                    </button>
+                </div>
+                <div class="stats-actions-group">
+                    <button type="button" id="statsRefreshBtn" class="aero-command-btn" title="Refresh Live Data">
+                        <i class='bx bx-refresh'></i> Refresh
+                    </button>
+                    <button type="button" id="statsExportBtn" class="aero-command-btn" title="Print / Export Report">
+                        <i class='bx bx-printer'></i> Print
+                    </button>
+                </div>
+            </div>
+
+            <!-- Window Body -->
+            <div class="stats-window-body">
+                <!-- Windows 7 Indeterminate Marquee Loader -->
+                <div id="statsLoader" class="stats-loading-zone">
+                    <div class="stats-marquee-track">
+                        <div class="stats-marquee-block"></div>
+                    </div>
+                    <div class="stats-loading-text">Querying Supabase spins ledger...</div>
+                </div>
+
+                <!-- Dashboard Content Area -->
+                <div id="statsDashboardContent" style="display: none;">
+                    <!-- 1. High-Level Metric Cards Strip (KPI) -->
+                    <section class="stats-kpi-grid">
+                        <div class="stats-kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Total Spins</span>
+                                <i class='bx bx-disc kpi-icon'></i>
+                            </div>
+                            <div class="kpi-value" id="kpiTotalSpins">—</div>
+                            <div class="kpi-subtext" id="kpiTotalSpinsSub">Analyzing library...</div>
+                        </div>
+
+                        <div class="stats-kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Listening Time</span>
+                                <i class='bx bx-time-five kpi-icon'></i>
+                            </div>
+                            <div class="kpi-value" id="kpiTotalTime">—</div>
+                            <div class="kpi-subtext" id="kpiTotalTimeSub">Cumulative runtime</div>
+                        </div>
+
+                        <div class="stats-kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Average Rating</span>
+                                <i class='bx bxs-star kpi-icon' style="color: #f59e0b;"></i>
+                            </div>
+                            <div class="kpi-value" id="kpiAvgRating">—</div>
+                            <div class="kpi-subtext" id="kpiAvgRatingSub">Std Dev: ±0.00</div>
+                        </div>
+
+                        <div class="stats-kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Unique Artists</span>
+                                <i class='bx bx-user-voice kpi-icon'></i>
+                            </div>
+                            <div class="kpi-value" id="kpiUniqueArtists">—</div>
+                            <div class="kpi-subtext" id="kpiUniqueArtistsSub">Top: —</div>
+                        </div>
+
+                        <div class="stats-kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Unique Genres</span>
+                                <i class='bx bx-purchase-tag-alt kpi-icon'></i>
+                            </div>
+                            <div class="kpi-value" id="kpiUniqueGenres">—</div>
+                            <div class="kpi-subtext" id="kpiUniqueGenresSub">Top: —</div>
+                        </div>
+
+                        <div class="stats-kpi-card">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Re-spin Rate</span>
+                                <i class='bx bx-revision kpi-icon'></i>
+                            </div>
+                            <div class="kpi-value" id="kpiRelistenRate">—</div>
+                            <div class="kpi-subtext" id="kpiRelistenRateSub">Revisited projects</div>
+                        </div>
+                    </section>
+
+                    <!-- 2. Charts & Analytical Panels Grid -->
+                    <div class="stats-panels-grid">
+                        <!-- Panel A: Rating Distribution -->
+                        <div class="aero-panel">
+                            <div class="panel-header">
+                                <div class="panel-title">
+                                    <i class='bx bx-bar-chart-alt-2'></i> Rating Distribution
+                                </div>
+                                <span class="panel-badge">0.5 – 5.0</span>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="ratingDistChart"></canvas>
+                            </div>
+
+                            <!-- Strictness Breakdown Meter -->
+                            <div class="strictness-breakdown">
+                                <div class="multi-progress-bar" id="strictnessProgressBar" title="Strictness Breakdown">
+                                    <div class="progress-seg seg-5" id="seg5" style="width: 0%;"></div>
+                                    <div class="progress-seg seg-4" id="seg4" style="width: 0%;"></div>
+                                    <div class="progress-seg seg-3" id="seg3" style="width: 0%;"></div>
+                                    <div class="progress-seg seg-sub3" id="segSub3" style="width: 0%;"></div>
+                                </div>
+                                <div class="strictness-legend">
+                                    <div class="legend-item">
+                                        <span class="legend-dot seg-5"></span>
+                                        <span>5.0 ★: <strong id="leg5Count">0</strong></span>
+                                    </div>
+                                    <div class="legend-item">
+                                        <span class="legend-dot seg-4"></span>
+                                        <span>4.0–4.5 ★: <strong id="leg4Count">0</strong></span>
+                                    </div>
+                                    <div class="legend-item">
+                                        <span class="legend-dot seg-3"></span>
+                                        <span>3.0–3.5 ★: <strong id="leg3Count">0</strong></span>
+                                    </div>
+                                    <div class="legend-item">
+                                        <span class="legend-dot seg-sub3"></span>
+                                        <span>&lt;3.0 ★: <strong id="legSub3Count">0</strong></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Panel B: Decades -->
+                        <div class="aero-panel">
+                            <div class="panel-header">
+                                <div class="panel-title">
+                                    <i class='bx bx-calendar-event'></i> Release Decades
+                                </div>
+                                <span class="panel-badge">Eras</span>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="decadesChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Panel C: Listening Velocity -->
+                        <div class="aero-panel">
+                            <div class="panel-header">
+                                <div class="panel-title">
+                                    <i class='bx bx-pulse'></i> Listening Velocity
+                                </div>
+                                <span class="panel-badge">Monthly</span>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="velocityChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Panel D: Top Genres -->
+                        <div class="aero-panel">
+                            <div class="panel-header">
+                                <div class="panel-title">
+                                    <i class='bx bx-equalizer'></i> Top Genres
+                                </div>
+                                <span class="panel-badge">Top 10</span>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="topGenresChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Panel E: Most Spun Artists -->
+                        <div class="aero-panel">
+                            <div class="panel-header">
+                                <div class="panel-title">
+                                    <i class='bx bxs-medal'></i> Most Spun Artists
+                                </div>
+                                <span class="panel-badge">Top 10</span>
+                            </div>
+                            <div class="leaderboard-list" id="topArtistsList">
+                                <!-- Populated by stats.js -->
+                            </div>
+                        </div>
+
+                        <!-- Panel F: Rated Artists (Top 20 / Bottom 20 with Min Spins Toggle) -->
+                        <div class="aero-panel">
+                            <div class="panel-header" style="flex-wrap: wrap; gap: 8px;">
+                                <div class="panel-title">
+                                    <i class='bx bxs-star-half'></i> Rated Artists
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <div class="aero-segmented-control" role="tablist">
+                                        <button type="button" class="segmented-btn active" id="btnTopRatedArtists" role="tab" aria-selected="true">
+                                            Top 20
+                                        </button>
+                                        <button type="button" class="segmented-btn" id="btnBottomRatedArtists" role="tab" aria-selected="false">
+                                            Bottom 20
+                                        </button>
+                                    </div>
+                                    <button type="button" class="aero-min-spins-btn" id="minSpinsToggleBtn" title="Cycle minimum spins threshold">
+                                        <i class='bx bx-filter-alt'></i> Min: <strong id="minSpinsDisplay">2+</strong>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="leaderboard-list" id="ratedArtistsList" style="max-height: 480px; overflow-y: auto;">
+                                <!-- Populated dynamically by stats.js -->
+                            </div>
+                        </div>
+
+                        <!-- Panel G: Genre Cloud Explorer -->
+                        <div class="aero-panel" id="genreCloudPanel">
+                            <div class="panel-header" style="flex-wrap: wrap; gap: 8px;">
+                                <div class="panel-title">
+                                    <i class='bx bx-equalizer'></i> Genre Cloud
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                    <div class="aero-segmented-control" role="tablist">
+                                        <button type="button" class="segmented-btn active" id="btnPrimaryGenres" role="tab" aria-selected="true">
+                                            Primary
+                                        </button>
+                                        <button type="button" class="segmented-btn" id="btnSecondaryGenres" role="tab" aria-selected="false">
+                                            Secondary
+                                        </button>
+                                    </div>
+                                    <div class="aero-segmented-control" role="tablist">
+                                        <button type="button" class="segmented-btn active" id="btnGenreSortQty" role="tab" aria-selected="true">
+                                            Quantity
+                                        </button>
+                                        <button type="button" class="segmented-btn" id="btnGenreSortRating" role="tab" aria-selected="false">
+                                            Rating
+                                        </button>
+                                    </div>
+                                    <span class="panel-badge" id="genreCloudBadge">Genres</span>
+                                </div>
+                            </div>
+                            <div class="descriptor-cloud-wrap" id="genreCloudMatrix" style="min-height: 280px; max-height: 480px; overflow-y: auto;">
+                                <!-- Populated dynamically by stats.js -->
+                            </div>
+                        </div>
+
+                        <!-- Panel H: Top Albums for Selected Genre -->
+                        <div class="aero-panel" id="genreTopAlbumsPanel">
+                            <div class="panel-header">
+                                <div class="panel-title">
+                                    <i class='bx bxs-disc'></i> Top Albums: <span id="genreSelectedTitle" style="color: #059669; font-weight: 700;">Select Genre</span>
+                                </div>
+                                <span class="panel-badge" id="genreSelectedBadge">0 Albums</span>
+                            </div>
+                            <div class="leaderboard-list" id="genreTopAlbumsList" style="min-height: 280px; max-height: 480px; overflow-y: auto;">
+                                <!-- Populated dynamically by stats.js -->
+                            </div>
+                        </div>
+
+                        <!-- Panel I: Descriptor Cloud (with Space Above) -->
+                        <div class="aero-panel descriptor-explorer-panel" id="descriptorCloudPanel" style="margin-top: 1.5rem;">
+                            <div class="panel-header" style="flex-wrap: wrap; gap: 8px;">
+                                <div class="panel-title">
+                                    <i class='bx bx-cloud'></i> Descriptor Cloud
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <div class="aero-segmented-control" role="tablist">
+                                        <button type="button" class="segmented-btn active" id="btnDescSortQty" role="tab" aria-selected="true">
+                                            Quantity
+                                        </button>
+                                        <button type="button" class="segmented-btn" id="btnDescSortRating" role="tab" aria-selected="false">
+                                            Rating
+                                        </button>
+                                    </div>
+                                    <span class="panel-badge" id="descCloudBadge">All Tags</span>
+                                </div>
+                            </div>
+                            <div class="descriptor-cloud-wrap" id="descriptorMatrix" style="min-height: 280px; max-height: 480px; overflow-y: auto;">
+                                <!-- Populated dynamically by stats.js -->
+                            </div>
+                        </div>
+
+                        <!-- Panel J: Top Albums for Selected Descriptor (with Space Above) -->
+                        <div class="aero-panel descriptor-explorer-panel" id="descTopAlbumsPanel" style="margin-top: 1.5rem;">
+                            <div class="panel-header">
+                                <div class="panel-title">
+                                    <i class='bx bxs-disc'></i> Top Albums: <span id="descSelectedTitle" style="color: #059669; font-weight: 700;">Select Tag</span>
+                                </div>
+                                <span class="panel-badge" id="descSelectedBadge">0 Albums</span>
+                            </div>
+                            <div class="leaderboard-list" id="descTopAlbumsList" style="min-height: 280px; max-height: 480px; overflow-y: auto;">
+                                <!-- Populated dynamically by stats.js -->
+                            </div>
+                        </div>
+
+                        <!-- Panel K: Highest Rated Years -->
+                        <div class="aero-panel">
+                            <div class="panel-header">
+                                <div class="panel-title">
+                                    <i class='bx bxs-trophy'></i> Highest Rated Years
+                                </div>
+                                <span class="panel-badge">Min 3 Spins</span>
+                            </div>
+                            <div class="leaderboard-list" id="goldenYearsList">
+                                <!-- Populated by stats.js -->
+                            </div>
+                        </div>
+
+                        <!-- Panel L: Duration Outliers -->
+                        <div class="aero-panel">
+                            <div class="panel-header">
+                                <div class="panel-title">
+                                    <i class='bx bx-timer'></i> Duration Outliers
+                                </div>
+                                <span class="panel-badge">Runtime</span>
+                            </div>
+                            <div class="outliers-container">
+                                <div id="longestProjectCard"></div>
+                                <div id="shortestProjectCard"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Bar Footer -->
+            <div class="stats-status-bar">
+                <span id="statsStatusRecordCount">Connecting to database...</span>
+                <span><i class='bx bx-cloud-check' style="color: #10b981; vertical-align: middle;"></i> Supabase Live Ledger</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- Windows 7 Aero Taskbar ("Superbar") -->
+    <nav class="aero-taskbar-container" id="aeroTaskbar" aria-label="SosaSpins Taskbar">
+        <div class="taskbar-inner">
+            <!-- Windows 7 Start Orb (Timeline Feed / Home) -->
+            <a href="sosaspins.html" class="taskbar-start-orb" id="taskbarStartOrb" aria-label="Timeline Feed">
+                <span class="taskbar-tooltip">Timeline Feed</span>
+                <div class="start-orb-glass">
+                    <div class="start-orb-reflection"></div>
+                    <img src="assets/images/homepics/Folder203.ico" alt="Timeline Feed" class="start-orb-icon">
+                </div>
+            </a>
+
+            <!-- Superbar App Buttons -->
+            <div class="taskbar-apps" role="toolbar" aria-label="Running Portals">
+                <a href="challenge.html" class="taskbar-app-btn" data-portal="challenge" aria-label="Challenge Grid">
+                    <span class="taskbar-tooltip">Challenge Grid</span>
+                    <div class="app-btn-plate">
+                        <img src="assets/icons/aero/challenge.ico" alt="Challenge Grid" class="win7-app-icon challenge-icon">
+                    </div>
+                </a>
+                <a href="top100.html" class="taskbar-app-btn" data-portal="top100" aria-label="Top 100 Showcase">
+                    <span class="taskbar-tooltip">Top 100 Showcase</span>
+                    <div class="app-btn-plate">
+                        <img src="assets/icons/aero/top100.png" alt="Top 100 Showcase" class="win7-app-icon top100-icon">
+                    </div>
+                </a>
+                <a href="stats.html" class="taskbar-app-btn" data-portal="stats" aria-label="Listening Stats">
+                    <span class="taskbar-tooltip">Listening Stats</span>
+                    <div class="app-btn-plate">
+                        <img src="assets/icons/aero/stats.png" alt="Listening Stats" class="win7-app-icon stats-icon">
+                    </div>
+                </a>
+            </div>
+
+            <div class="taskbar-spacer"></div>
+
+            <!-- System Tray (Notification Area & Clock) -->
+            <div class="taskbar-tray">
+                <div class="tray-clock" id="taskbarClock" title="SosaSpins Aero Clock">
+                    <span class="tray-time" id="trayTime">12:00 PM</span>
+                    <span class="tray-date" id="trayDate">11/3/2026</span>
+                </div>
+            </div>
+
+            <!-- Windows 7 "Show Desktop" / Aero Peek Strip -->
+            <button type="button" class="taskbar-show-desktop" id="taskbarShowDesktop" aria-label="Show Desktop / Auto-Hide Taskbar" title="Auto-Hide / Pin Taskbar">
+                <div class="show-desktop-bar"></div>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Footer -->
+    <footer class="footer container" style="margin-top: 4rem;">
+        <p class="footer-copyright">
+            &#169; SosaSpeaks. All non-quoted material is the original writing of SosaSpeaks and its authors.
+        </p>
+        <p class="footer-links">
+            <a href="https://github.com/SosaSpeaks/sosaspeaks.github.io" target="_blank" rel="noopener noreferrer">
+                <i class='bx bxl-github'></i> Source code via GitHub
+            </a>
+            <span class="footer-divider">&middot;</span>
+            <a href="mailto:sosa@sosaspeaks.org">
+                <i class='bx bx-envelope'></i> sosa@sosaspeaks.org
+            </a>
+        </p>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="assets/js/stats.js"></script>
+    <script src="assets/js/dock.js"></script>
+</body>
+</html>
