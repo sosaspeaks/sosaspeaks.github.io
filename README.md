@@ -30,7 +30,7 @@ Welcome to the repository for **SosaSpeaks**—an independent web publication, r
 | **SosaSpins** | [`/sosaspins.html`](https://sosaspeaks.org/sosaspins.html) | Continuous music diary feed, 3D Cover Flow, and listening widgets. |
 | **SosaSpins** | [`/top100.html`](https://sosaspeaks.org/top100.html) | Curated Top 100 Albums & Top Artists showcase with podiums and drag-and-drop ranking. |
 | **SosaSpins** | [`/stats.html`](https://sosaspeaks.org/stats.html) | Listening analytics and visual metrics dashboard powered by Chart.js. |
-| **SosaSpins** | [`/challenge.html`](https://sosaspeaks.org/challenge.html) | 49-album (7×7) monthly listening challenge grid and recalibrate queue. |
+| **SosaSpins** | [`/challenge.html`](https://sosaspeaks.org/challenge.html) | 36 album (6x6) monthly listening challenge grid and recalibrate queue. |
 
 ---
 
@@ -42,9 +42,7 @@ Welcome to the repository for **SosaSpeaks**—an independent web publication, r
 * **High-Performance Feed:** Incremental lazy-loading feed (15 spins per batch) maintaining fast frame rates and low memory consumption.
 * **Dual Display Modes:** Seamless toggle between the continuous chronological **Timeline Sheet** and a retro 3D **Cover Flow** carousel with mirror reflections.
 * **Rich Metadata Logging:** Tracks release year, runtime, star ratings (0.0–5.0), primary & secondary genres, descriptors, and favorite track embeds.
-* **Relisten Taxonomy:** Dedicated tracking for revisited albums categorized by listening intent (*Tunnel Vision*, *Time Capsule*, *Slow Burn*, *Ill-Timed*).
 * **Bilingual Lyrics & Memos:** Support for multi-language lyrics and blockquotes (including CJK font support) with side-by-side translation layouts.
-* **RateYourMusic (RYM) Integration:** One-click import via userscript clipboard JSON and discreet hover tooltips showing community scores.
 * **Interactive Discovery Widgets:**
   * **Top Artists Widget:** Live leaderboard supporting both standard unweighted averages and weighted rankings (prioritizing full albums over singles and EPs).
   * **Rating Scale & Distribution:** Visual tier breakdown filterable by score.
@@ -68,8 +66,8 @@ Welcome to the repository for **SosaSpeaks**—an independent web publication, r
   * Top primary genres and descriptor clouds.
 * **Milestone Analytics:** Track records, longest projects, top rated discoveries, and monthly averages.
 
-### 📅 7×7 Monthly Challenge (`challenge.html`)
-* **Topster Grid (49 Albums/Month):** Curated 7×7 backlog grid for structured monthly listening goals.
+### 📅 6×6 Monthly Challenge (`challenge.html`)
+* **Topster Grid (39 Albums/Month):** Curated 6×6 backlog grid for structured monthly listening goals.
 * **Automated Spin Matching:** Cross-references backlog items with logged spins, automatically badging completed albums with Aero checkmark pills and ratings.
 * **Chronological Month Tabs:** Dynamically sorts calendar months chronologically across years.
 * **Recalibrate Queue:** Dedicated tab and backlog queue for albums queued for relisten, with deep-linking from spin cards.
@@ -140,38 +138,6 @@ sosaspeaks.github.io/
 ├── template.html            # Standardized article template
 └── top100.html              # Standalone Top 100 Albums & Top Artists showcase
 ```
-
----
-
-## 🚀 Local Development Setup
-
-Because the project is built on vanilla web standards, no compilation or npm dependencies are required to run the frontend.
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/sosaspeaks/sosaspeaks.github.io.git
-   cd sosaspeaks.github.io
-   ```
-
-2. **Serve locally:**
-   Run any local HTTP server from the project root (necessary for ES modules, web workers, and font loading):
-
-   *Using Python 3:*
-   ```bash
-   python -m http.server 8000
-   ```
-
-   *Using Node (`npx`):*
-   ```bash
-   npx serve .
-   ```
-
-   *Using VS Code:*
-   Install the **Live Server** extension and click **Go Live**.
-
-3. **Open in browser:**
-   Navigate to `http://localhost:8000` or open any page directly (e.g. `http://localhost:8000/sosaspins.html`).
-
 ---
 
 ## 🔒 Security & Admin Permissions
