@@ -1,44 +1,43 @@
-# 🌐 SosaSpeaks & SosaSpins ([sosaspeaks.org](https://sosaspeaks.org))
+# 🌐 SosaSpeaks ([sosaspeaks.org](https://sosaspeaks.org))
 
 > *"How it is we have so much information, but know so little?"*
 
-Welcome to the repository for **SosaSpeaks** and **SosaSpins**—an independent web publication, philosophical archive, and retro-futuristic music tracking hub built with pure vanilla web technologies and an authentic Windows 7 / Windows Vista **Aero Glass** design system.
+Welcome to the repository for **SosaSpeaks**—an independent web publication, research archive, and creative platform built with pure vanilla web technologies and an authentic late-2000s Windows 7 / Windows Vista **Aero Glass** desktop aesthetic.
 
 ---
 
-## 🧭 Overview & Core Pillars
+## 🧭 About SosaSpeaks
 
-The site consists of two interconnected pillars:
+**SosaSpeaks** is an independent platform dedicated to long-form political commentary, ethics, media criticism, and historical research. Alongside its essay publications, the platform integrates **SosaSpins**—a dedicated music diary, listening challenge tracker, and personal discovery subproject.
 
-### 1. 📰 SosaSpeaks (The Publication)
-An independent web-zine and research archive featuring long-form commentary across political philosophy, media analysis, ethics, foreign policy, and history. Designed for readability with clean typography, reading time estimates, author attribution, and dark/light mode toggles.
-
-### 2. 💿 SosaSpins (The Music Suite)
-A complete music diary, listening log, Topster challenge explorer, and personal analytics suite. Modeled after late-2000s desktop computing—complete with Windows 7 Aero Glass window frames, specular reflections, a functional Windows Media Player (WMP) dock miniplayer, and interactive skeuomorphic widgets.
+* **The Publication (`/index.html`, `/about.html`, `/articles/`):** Long-form investigative essays, cultural commentary, and philosophical critiques designed for focused reading with clean typography, reading time estimates, and responsive light/dark themes.
+* **SosaSpins (Music Subproject):** A personal music listening diary, album rating archive, Topster challenge grid, and analytics suite running inside an authentic Aero Glass desktop environment.
 
 ---
 
-## 🗂️ Navigation & Portals
+## 🗂️ Site Navigation & Portals
 
-| Portal | URL Path | Description |
+| Section | Page / Route | Description |
 | :--- | :--- | :--- |
-| **SosaSpeaks Portal** | [`/index.html`](https://sosaspeaks.org/index.html) | Editorial home, essay index, and featured commentary. |
-| **About the Authors** | [`/about.html`](https://sosaspeaks.org/about.html) | Author biographies, site background, and editorial ethos. |
-| **SosaSpins Diary** | [`/sosaspins.html`](https://sosaspeaks.org/sosaspins.html) | Chronological music diary, infinite feed, 3D Cover Flow, and sidebar widgets. |
-| **Top 100 Showcase** | [`/top100.html`](https://sosaspeaks.org/top100.html) | Curated all-time Top 100 Albums & Top Artists showcase with podiums and drag-and-drop editing. |
-| **Listening Insights** | [`/stats.html`](https://sosaspeaks.org/stats.html) | Interactive analytics portal powered by Chart.js and Supabase database aggregations. |
-| **7×7 Challenge** | [`/challenge.html`](https://sosaspeaks.org/challenge.html) | 49-album monthly listening challenge grid, chronological month tabs, and recalibrate queue. |
+| **SosaSpeaks** | [`/index.html`](https://sosaspeaks.org/index.html) | Main publication portal, essay index, and featured articles. |
+| **SosaSpeaks** | [`/about.html`](https://sosaspeaks.org/about.html) | About the authors, background, and publication mission. |
+| **SosaSpins** | [`/sosaspins.html`](https://sosaspeaks.org/sosaspins.html) | Continuous music diary feed, 3D Cover Flow, and listening widgets. |
+| **SosaSpins** | [`/top100.html`](https://sosaspeaks.org/top100.html) | Curated Top 100 Albums & Top Artists showcase with podiums and drag-and-drop ranking. |
+| **SosaSpins** | [`/stats.html`](https://sosaspeaks.org/stats.html) | Listening analytics and visual metrics dashboard powered by Chart.js. |
+| **SosaSpins** | [`/challenge.html`](https://sosaspeaks.org/challenge.html) | 49-album (7×7) monthly listening challenge grid and recalibrate queue. |
 
 ---
 
-## ✨ SosaSpins Feature Highlights
+## 💿 Subproject: SosaSpins
+
+**SosaSpins** is the dedicated music logging, exploration, and discovery subproject within SosaSpeaks. It brings late-2000s desktop computing nostalgia to music archiving through an authentic Windows 7 Aero Glass interface.
 
 ### 🎧 Listening Timeline & Diary (`sosaspins.html`)
-* **High-Performance Feed:** Incremental lazy-loading feed (15 spins per batch) maintaining fast frame rates and minimal memory footprint.
+* **High-Performance Feed:** Incremental lazy-loading feed (15 spins per batch) maintaining fast frame rates and low memory consumption.
 * **Dual Display Modes:** Seamless toggle between the continuous chronological **Timeline Sheet** and a retro 3D **Cover Flow** carousel with mirror reflections.
 * **Rich Metadata Logging:** Tracks release year, runtime, star ratings (0.0–5.0), primary & secondary genres, descriptors, and favorite track embeds.
 * **Relisten Taxonomy:** Dedicated tracking for revisited albums categorized by listening intent (*Tunnel Vision*, *Time Capsule*, *Slow Burn*, *Ill-Timed*).
-* **Bilingual Lyrics & Memos:** Full support for multi-language lyrics and blockquotes (including CJK font support) with side-by-side translation layouts.
+* **Bilingual Lyrics & Memos:** Support for multi-language lyrics and blockquotes (including CJK font support) with side-by-side translation layouts.
 * **RateYourMusic (RYM) Integration:** One-click import via userscript clipboard JSON and discreet hover tooltips showing community scores.
 * **Interactive Discovery Widgets:**
   * **Top Artists Widget:** Live leaderboard supporting both standard unweighted averages and weighted rankings (prioritizing full albums over singles and EPs).
@@ -135,6 +134,37 @@ sosaspeaks.github.io/
 ├── template.html            # Standardized article template
 └── top100.html              # Standalone Top 100 Albums & Top Artists showcase
 ```
+
+---
+
+## 🚀 Local Development Setup
+
+Because the project is built on vanilla web standards, no compilation or npm dependencies are required to run the frontend.
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/sosaspeaks/sosaspeaks.github.io.git
+   cd sosaspeaks.github.io
+   ```
+
+2. **Serve locally:**
+   Run any local HTTP server from the project root (necessary for ES modules, web workers, and font loading):
+
+   *Using Python 3:*
+   ```bash
+   python -m http.server 8000
+   ```
+
+   *Using Node (`npx`):*
+   ```bash
+   npx serve .
+   ```
+
+   *Using VS Code:*
+   Install the **Live Server** extension and click **Go Live**.
+
+3. **Open in browser:**
+   Navigate to `http://localhost:8000` or open any page directly (e.g. `http://localhost:8000/sosaspins.html`).
 
 ---
 
