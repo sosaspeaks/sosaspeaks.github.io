@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<!--
+                                           _
+                                          | |
+  ___  ___  ___  __ _ ___ _ __   ___  __ _| | _____
+ / __|/ _ \/ __|/ _` / __| '_ \ / _ \/ _` | |/ / __|
+ \__ \ (_) \__ \ (_| \__ \ |_) |  __/ (_| |   <\__ \
+ |___/\___/|___/\__,_|___/ .__/ \___|\__,_|_|\_\___/
+                         | |
+                         |_|
+
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading Essay — SosaSpeaks</title>
+    <meta name="description" content="“How it is we have so much information, but know so little?”">
+    <link rel="icon" type="favicon" href="assets/images/homepics/Sosa-Icon-V3.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/images/homepics/apple-touch-icon.png?v=20260527" />
+    <meta name="apple-mobile-web-app-title" content="SosaSpeaks" />
+    <link rel="manifest" href="assets/images/homepics/site.webmanifest?v=20260527" />
+    <link id="articleThemeCss" rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/article-reader.css">
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+</head>
+<body>
+    <div class="loader"></div>
+
+    <header>
+        <div class="nav container">
+            <a href="index.html" class="nav-logo-link">
+                <img src="assets/images/homepics/Sosa-Icon-V3.png" alt="SosaSpeaks Icon" class="logo-icon">
+            </a>
+            <div class="nav-right-group">
+                <a href="sosaspins.html" class="nav-custom-link" title="SosaSpins">
+                    <img src="assets/images/homepics/Folder203.ico" class="nav-custom-icon music-icon" alt="SosaSpins">
+                </a>
+                <a href="about.html" class="nav-custom-link" title="About">
+                    <img src="assets/images/homepics/msgsres_1.ico" class="nav-custom-icon msngr-icon" alt="About">
+                </a>
+                <i class='bx bx-moon theme-toggle' style="scale: 155%;" title="Theme"></i>
+            </div>
+        </div>
+    </header>
+
+    <!-- Admin / Draft Preview Banner -->
+    <div id="articleAdminBar" class="article-admin-bar-wrap" style="display: none;">
+        <div id="aeroDraftBanner" class="aero-draft-banner">
+            <div class="aero-draft-status">
+                <img src="assets/icons/aero/lock_open.png" alt="" class="aero-draft-icon" id="draftBannerIcon">
+                <span id="draftBannerText">Admin Session Active</span>
+            </div>
+            <div class="aero-draft-actions">
+                <a id="editInStudioLink" href="studio.html" class="aero-pill-link">
+                    <img src="assets/icons/aero/edit.ico" alt="">
+                    <span>Edit in Studio</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading / Error Stage -->
+    <main id="articleStatusStage" class="article-status-stage">
+        <div class="article-status-window">
+            <div class="title-bar">
+                <div class="title-bar-text">
+                    <img src="assets/icons/aero/log.ico" alt="" id="statusTitleIcon">
+                    <span id="statusTitleText">SosaSpeaks Archive — Connecting...</span>
+                </div>
+            </div>
+            <div class="window-body" id="statusWindowBody">
+                <div class="article-status-body-row">
+                    <img src="assets/icons/aero/search.ico" alt="" class="article-status-hero-icon" id="statusHeroIcon">
+                    <div style="flex: 1;">
+                        <div class="article-status-heading" id="statusHeading">Retrieving Essay</div>
+                        <div class="article-status-copy" id="statusCopy">Querying SosaSpeaks database for the requested document...</div>
+                        <div class="w7-progress-track" id="statusProgressTrack">
+                            <div class="w7-progress-indeterminate"></div>
+                        </div>
+                        <form id="unlistedPasscodeForm" class="unlisted-passcode-form" style="display: none;">
+                            <div class="unlisted-input-wrap">
+                                <input
+                                    type="password"
+                                    id="unlistedPasscodeInput"
+                                    class="unlisted-passcode-input"
+                                    placeholder="Enter essay passcode..."
+                                    autocomplete="off"
+                                    required
+                                >
+                                <button type="button" id="unlistedEyeBtn" class="unlisted-eye-btn" title="Show / Hide Passcode" tabindex="-1">
+                                    <i class="bx bx-hide" id="unlistedEyeIcon"></i>
+                                </button>
+                            </div>
+                            <div id="unlistedPasscodeError" class="unlisted-passcode-error" style="display: none;">
+                                <i class="bx bx-error-circle"></i>
+                                <span id="unlistedPasscodeErrorText">Incorrect passcode.</span>
+                            </div>
+                            <div class="article-status-footer" style="margin-top: 0.25rem;">
+                                <a href="index.html" class="aero-win-btn">Return to Home</a>
+                                <button type="submit" id="unlistedUnlockBtn" class="aero-win-btn is-primary">
+                                    <i class="bx bx-lock-open-alt"></i> Unlock Essay
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <div class="article-status-footer" id="statusFooter" style="display: none;">
+                    <a href="index.html" class="aero-win-btn">Return to Home</a>
+                    <a id="statusStudioBtn" href="studio.html" class="aero-win-btn" style="display: none;">Open Studio</a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Dynamic Article Container -->
+    <div id="articleRoot" style="display: none;">
+        <section class="post-header" id="articleHeaderSection"></section>
+        <section class="post-content post-container" id="articleBodySection"></section>
+    </div>
+
+    <!-- Windows Media Player Dock (Used for Sosa Study articles) -->
+    <div id="miniPlayerDock" class="aero-player-dock" style="display: none;">
+      <div id="miniPlayerBg" class="aero-player-bg"></div>
+      <div class="aero-player-titlebar">
+        <div class="aero-now-playing-indicator">
+          <span class="aero-equalizer-bars" id="wmpEqualizer">
+            <span></span><span></span><span></span><span></span>
+          </span>
+          <span class="aero-status-text" id="wmpStatusText">NOW PLAYING</span>
+        </div>
+        <button type="button" class="aero-player-close" onclick="closeMiniPlayer()" title="Close Player" aria-label="Close Player">
+          <img src="assets/icons/aero/close.ico" alt="Close" class="mini-close-icon">
+        </button>
+      </div>
+
+      <div class="aero-player-meta">
+        <div id="miniPlayerTrack" class="aero-meta-track">Track Title</div>
+        <div class="aero-meta-sub">
+          <span id="miniPlayerArtist" class="aero-meta-artist">Artist</span>
+          <span class="aero-meta-sep"> • </span>
+          <span id="miniPlayerAlbum" class="aero-meta-album">Album</span>
+        </div>
+      </div>
+
+      <div id="miniPlayerFrameWrap" class="aero-player-frame-wrap"></div>
+
+      <div id="wmpControlsBar" class="wmp-controls-bar" style="display: none;">
+        <div class="wmp-scrubber-section">
+          <span class="wmp-time-text" id="wmpCurrentTime">0:00</span>
+          <div class="wmp-scrubber-track" id="wmpScrubberTrack" role="slider" aria-label="Timeline Scrubber" tabindex="0">
+            <div class="wmp-progress-fill" id="wmpProgressFill">
+              <span class="wmp-scrubber-knob"></span>
+            </div>
+          </div>
+          <span class="wmp-time-text" id="wmpDuration">0:00</span>
+        </div>
+
+        <div class="wmp-buttons-row">
+          <button type="button" class="wmp-ctrl-btn" id="wmpRwBtn" onclick="wmpSkip(-10)" title="Rewind 10s">
+            <i class='bx bx-rewind'></i>
+          </button>
+          <button type="button" class="wmp-ctrl-btn" id="wmpStopBtn" onclick="wmpStop()" title="Stop">
+            <i class='bx bx-stop'></i>
+          </button>
+
+          <div class="wmp-orb-stage">
+            <button type="button" class="wmp-orb-btn" id="wmpPlayPauseBtn" onclick="wmpTogglePlayPause()" title="Play / Pause">
+              <div class="wmp-orb-glass-reflection"></div>
+              <img src="assets/icons/aero/play.ico" alt="Play" class="wmp-orb-icon" id="wmpOrbPlayIcon">
+              <img src="assets/icons/aero/pause.ico" alt="Pause" class="wmp-orb-icon wmp-orb-pause-icon" id="wmpOrbPauseIcon" style="display: none;">
+            </button>
+          </div>
+
+          <button type="button" class="wmp-ctrl-btn" id="wmpFfBtn" onclick="wmpSkip(10)" title="Fast Forward 10s">
+            <i class='bx bx-fast-forward'></i>
+          </button>
+          <button type="button" class="wmp-ctrl-btn" id="wmpLoopBtn" onclick="wmpToggleLoop()" title="Loop Track">
+            <i class='bx bx-repeat'></i>
+          </button>
+        </div>
+
+        <div class="wmp-sub-bar">
+          <div class="wmp-volume-wrap">
+            <button type="button" class="wmp-vol-btn" onclick="wmpToggleMute()" title="Mute / Unmute">
+              <i class='bx bx-volume-full' id="wmpVolIcon"></i>
+            </button>
+            <input type="range" id="wmpVolumeSlider" class="wmp-aero-slider" min="0" max="1" step="0.05" value="1" oninput="wmpSetVolume(this.value)" title="Volume">
+          </div>
+          <button type="button" class="wmp-sub-btn" id="wmpFullscreenBtn" onclick="wmpToggleFullscreen()" title="Fullscreen Video" style="display: none;">
+            <i class='bx bx-fullscreen'></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer container">
+        <p class="footer-copyright">
+            &#169; SosaSpeaks. All non-quoted material is the original writing of SosaSpeaks and its authors.
+        </p>
+
+        <p class="footer-links">
+            <a href="https://github.com/sosaspeaks/sosaspeaks.github.io" target="_blank" rel="noopener">
+                <i class='bx bxl-github'></i> Source code via GitHub
+            </a>
+            <span class="footer-divider">&middot;</span>
+            <a href="mailto:sosa@sosaspeaks.org">
+                <i class='bx bx-envelope'></i> sosa@sosaspeaks.org
+            </a>
+        </p>
+    </footer>
+
+    <script
+        src="https://code.jquery.com/jquery-3.7.1.js"
+        integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4="
+        crossorigin="anonymous"></script>
+    <button class="to-top"><i class='bx bx-up-arrow-alt' style="scale: 250%;"></i></button>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="assets/js/article-reader.js"></script>
+    <script src="assets/js/main.js"></script>
+</body>
+</html>

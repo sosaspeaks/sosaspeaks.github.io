@@ -100,13 +100,16 @@
   }
 
   try {
-    const currentPath = window.location.pathname.replace(/^\//, "");
+    const currentPath = (window.location.pathname.replace(/^\//, "") + window.location.search).trim();
+    const orClause = currentPath
+      ? `review_url.ilike.%${currentPath}%,and(artist.ilike.${artist},title.ilike.${album})`
+      : `and(artist.ilike.${artist},title.ilike.${album})`;
 
     // Match by review_url or artist + album
     const { data, error } = await sb
       .from("spins")
       .select("*")
-      .or(`review_url.ilike.%${currentPath}%,and(artist.ilike.${artist},title.ilike.${album})`)
+      .or(orClause)
       .order("id", { ascending: false })
       .limit(1);
 

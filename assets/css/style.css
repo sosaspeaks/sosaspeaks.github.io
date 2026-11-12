@@ -260,11 +260,13 @@ header.shadow .bx-moon{
 
 .post-filter{
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     align-items: center;
     margin-top: 2rem !important;
     font-family: "Plus Jakarta Sans", sans-serif;
     column-gap: 12px;
+    row-gap: 8px;
     box-sizing: border-box;
 }
 

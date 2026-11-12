@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<!--
+                                           _
+                                          | |
+  ___  ___  ___  __ _ ___ _ __   ___  __ _| | _____
+ / __|/ _ \/ __|/ _` / __| '_ \ / _ \/ _` | |/ / __|
+ \__ \ (_) \__ \ (_| \__ \ |_) |  __/ (_| |   <\__ \
+ |___/\___/|___/\__,_|___/ .__/ \___|\__,_|_|\_\___/
+                         | |
+                         |_|
+
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Writing Studio — SosaSpeaks</title>
+    <meta name="description" content="SosaSpeaks Admin Writing Studio">
+    <link rel="icon" type="favicon" href="assets/images/homepics/Sosa-Icon-V3.png">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Mono:wght@400..700&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/studio.css">
+</head>
+<body class="studio-body">
+
+    <!-- Top Navigation Bar -->
+    <header class="studio-header">
+        <div class="studio-nav">
+            <div class="studio-nav-left">
+                <a href="index.html" title="Back to SosaSpeaks Home" style="display:inline-flex;align-items:center;text-decoration:none;gap:10px;">
+                    <img src="assets/images/homepics/Sosa-Icon-V3.png" alt="SosaSpeaks" class="logo-icon">
+                    <span class="studio-brand-title">SosaSpeaks</span>
+                </a>
+                <span class="studio-nav-badge">Writing Studio</span>
+            </div>
+            <div class="studio-nav-right">
+                <span id="studioUserPill" class="studio-user-pill" style="display: none;">
+                    <i class="bx bxs-user-check"></i>
+                    <span id="studioUserEmail">admin</span>
+                </span>
+                <button type="button" id="adminTriggerBtn" class="aero-btn" title="Admin Authentication">
+                    <img id="adminLockIcon" src="assets/icons/aero/lock_closed.png" alt="Admin Status" class="nav-custom-icon">
+                </button>
+                <a href="sosaspins.html" title="SosaSpins" style="display:inline-flex;align-items:center;">
+                    <img src="assets/images/homepics/Folder203.ico" class="nav-custom-icon" alt="SosaSpins">
+                </a>
+                <i class="bx bx-moon theme-toggle" id="studioThemeToggle" title="Toggle Studio Theme"></i>
+            </div>
+        </div>
+    </header>
+
+    <!-- AUTH GATE: Windows 7 Aero Security Dialog (Visible when logged out) -->
+    <main id="studioLockScreen" class="studio-lock-screen">
+        <div class="w7-window w7-auth-window">
+            <div class="title-bar">
+                <div class="title-bar-text">
+                    <img src="assets/icons/aero/lock_closed.png" alt="" class="w7-title-icon">
+                    <span>Windows Security — SosaSpeaks Studio</span>
+                </div>
+            </div>
+            <div class="window-body">
+                <form id="adminAuthForm" autocomplete="on">
+                    <div class="w7-auth-header-row">
+                        <img src="assets/icons/aero/lock_closed.png" alt="Security Lock" class="w7-auth-hero-icon">
+                        <div>
+                            <div class="w7-auth-heading">Writing Studio Locked</div>
+                            <div class="w7-auth-subtext">Sign in with your Supabase administrator account to access drafts and publish essays.</div>
+                        </div>
+                    </div>
+
+                    <div class="w7-auth-fields-wrap">
+                        <div>
+                            <label for="authEmailInput" class="meta-label" style="margin-bottom:4px;">Email</label>
+                            <input
+                                type="email"
+                                id="authEmailInput"
+                                class="studio-input"
+                                placeholder="admin@sosaspeaks.org"
+                                autocomplete="username"
+                                required
+                            >
+                        </div>
+                        <div>
+                            <label for="authPasswordInput" class="meta-label" style="margin-bottom:4px;">Password</label>
+                            <div style="position:relative;display:flex;align-items:center;">
+                                <input
+                                    type="password"
+                                    id="authPasswordInput"
+                                    class="studio-input"
+                                    placeholder="••••••••"
+                                    autocomplete="current-password"
+                                    style="padding-right:34px;"
+                                    required
+                                >
+                                <button type="button" id="togglePassVisibilityBtn" class="w7-pass-eye-btn" title="Show / Hide Password" tabindex="-1">
+                                    <i class="bx bx-hide" id="togglePassEyeIcon"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="authErrorMessage" class="w7-auth-error" style="display: none;">
+                        <i class="bx bx-error-circle"></i>
+                        <span class="auth-error-text"></span>
+                    </div>
+
+                    <div class="w7-auth-footer">
+                        <a href="index.html" class="aero-command-btn" style="text-decoration:none;">Return Home</a>
+                        <button type="submit" id="submitAuthBtn" class="aero-command-btn is-primary">
+                            <i class="bx bx-log-in"></i> Log On
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- AUTHENTICATED WORKSPACE -->
+    <main id="studioWorkspace" class="studio-workspace" style="display: none;">
+        <div class="w7-window studio-main-window">
+            <!-- Window Title Bar -->
+            <div class="title-bar">
+                <div class="title-bar-text">
+                    <img src="assets/icons/aero/edit.ico" alt="" class="w7-title-icon">
+                    <span>Windows Journal — SosaSpeaks Writing Studio</span>
+                    <span id="activeDocStatusBadge" class="status-badge-pill is-draft" style="margin-left:6px;">New Draft</span>
+                </div>
+                <div class="title-bar-text" style="font-size:0.75rem;opacity:0.8;">
+                    <span id="titleBarSlugPreview">unsaved-essay</span>
+                </div>
+            </div>
+
+            <!-- Aero Command Bar -->
+            <div class="studio-command-bar">
+                <div class="studio-cmd-group">
+                    <button type="button" id="toggleSidebarBtn" class="aero-command-btn" title="Toggle Explorer Sidebar">
+                        <i class="bx bx-sidebar"></i> Explorer
+                    </button>
+                    <button type="button" id="newEssayBtn" class="aero-command-btn" title="Start a New Essay">
+                        <i class="bx bx-plus-circle"></i> New Essay
+                    </button>
+                    <button type="button" id="saveDraftBtn" class="aero-command-btn" title="Save as Draft (Ctrl+S)">
+                        <i class="bx bx-save"></i> Save Draft
+                    </button>
+                    <button type="button" id="publishBtn" class="aero-command-btn is-primary" title="Publish Live to Archive">
+                        <i class="bx bx-rocket"></i> <span id="publishBtnLabel">Publish</span>
+                    </button>
+                    <button type="button" id="unpublishBtn" class="aero-command-btn" style="display: none;" title="Revert to Private Draft">
+                        <i class="bx bx-hide"></i> Unpublish
+                    </button>
+                    <a id="viewLiveBtn" href="article.html" target="_blank" rel="noopener" class="aero-command-btn" style="display: none;" title="Open in Dynamic Reader">
+                        <i class="bx bx-link-external"></i> View Reader
+                    </a>
+                    <button type="button" id="deleteEssayBtn" class="aero-command-btn is-danger" style="display: none;" title="Delete Essay">
+                        <img src="assets/icons/aero/delete-empty.ico" alt=""> Delete
+                    </button>
+                </div>
+
+                <div class="studio-cmd-group">
+                    <span id="saveStatusPill" class="studio-save-status">
+                        <i class="bx bx-cloud"></i>
+                        <span id="saveStatusText">Ready</span>
+                    </span>
+                    <div class="studio-cmd-group" style="gap:3px;">
+                        <button type="button" class="aero-command-btn is-active" data-view-mode="split">Split</button>
+                        <button type="button" class="aero-command-btn" data-view-mode="editor">Editor</button>
+                        <button type="button" class="aero-command-btn" data-view-mode="preview">Preview</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3-Column Split Body -->
+            <div id="studioSplitBody" class="studio-split-body">
+
+                <!-- LEFT SIDEBAR: Article Explorer -->
+                <aside id="studioSidebar" class="studio-sidebar">
+                    <div class="sidebar-top-tools">
+                        <input type="text" id="sidebarSearchInput" class="studio-input" placeholder="Search essays or slugs...">
+                        <div class="sidebar-filter-tabs">
+                            <button type="button" class="sidebar-tab-btn is-active" data-filter-tab="all">All (<span id="countAll">0</span>)</button>
+                            <button type="button" class="sidebar-tab-btn" data-filter-tab="drafts">Drafts (<span id="countDrafts">0</span>)</button>
+                            <button type="button" class="sidebar-tab-btn" data-filter-tab="unlisted">Unlisted (<span id="countUnlisted">0</span>)</button>
+                            <button type="button" class="sidebar-tab-btn" data-filter-tab="published">Live (<span id="countPublished">0</span>)</button>
+                        </div>
+                    </div>
+                    <div id="sidebarArticleList" class="sidebar-article-list">
+                        <!-- Rendered dynamically -->
+                    </div>
+                </aside>
+
+                <!-- CENTER PANE: Metadata + Snippet Bar + HTML Editor -->
+                <section id="studioEditorPane" class="studio-editor-pane">
+                    <div id="metadataToggleBtn" class="metadata-panel-header">
+                        <span><i class="bx bx-slider-alt"></i> Essay Metadata &amp; Header Settings</span>
+                        <i id="metadataChevron" class="bx bx-chevron-up"></i>
+                    </div>
+
+                    <div id="metadataFormBody" class="metadata-form-body">
+                        <div class="meta-field is-full">
+                            <label class="meta-label" for="metaTitle">
+                                <span>Title <small style="font-weight:500;opacity:0.75;">(supports &lt;i&gt;...&lt;/i&gt;)</small></span>
+                            </label>
+                            <input type="text" id="metaTitle" class="studio-input" placeholder="e.g. An Argument For Empiricism">
+                        </div>
+
+                        <div class="meta-field">
+                            <label class="meta-label" for="metaSlug">
+                                <span>URL Slug</span>
+                                <button type="button" id="toggleSlugLockBtn" class="mini-aero-btn" title="Lock/Unlock auto-slug generation">Auto: ON</button>
+                            </label>
+                            <input type="text" id="metaSlug" class="studio-input" placeholder="an-argument-for-empiricism">
+                        </div>
+
+                        <div class="meta-field">
+                            <label class="meta-label" for="metaPostType">Article Template</label>
+                            <select id="metaPostType" class="studio-input">
+                                <option value="standard">Standard Essay (style.css)</option>
+                                <option value="sosa-study">A Sosa Study (review.css + WMP)</option>
+                            </select>
+                        </div>
+
+                        <div class="meta-field is-full">
+                            <label class="meta-label" for="metaSubtitle">Subtitle / Thesis Quote</label>
+                            <input type="text" id="metaSubtitle" class="studio-input" placeholder="A concise thesis sentence or opening quote...">
+                        </div>
+
+                        <!-- Visibility & Unlisted Passcode -->
+                        <div class="meta-field">
+                            <label class="meta-label" for="metaVisibility">Visibility Mode</label>
+                            <select id="metaVisibility" class="studio-input">
+                                <option value="draft">Private Draft (Admin Only)</option>
+                                <option value="unlisted">Unlisted Draft (Password-Locked Link)</option>
+                                <option value="published">Published Live (Public on Homepage)</option>
+                            </select>
+                        </div>
+
+                        <div id="unlistedSettingsGroup" class="meta-field is-full unlisted-settings-box" style="display: none;">
+                            <div class="meta-label">
+                                <span><i class="bx bx-key"></i> Unlisted Link Passcode</span>
+                                <span id="unlistedPasscodeStatus" class="status-badge-pill is-unlisted">Passcode Required</span>
+                            </div>
+                            <div class="meta-inline-row">
+                                <div style="position:relative;flex:1;display:flex;align-items:center;">
+                                    <input
+                                        type="password"
+                                        id="metaUnlistedPasscode"
+                                        class="studio-input"
+                                        placeholder="Set or replace passcode..."
+                                        autocomplete="new-password"
+                                        style="padding-right:34px;"
+                                    >
+                                    <button type="button" id="toggleUnlistedPassBtn" class="w7-pass-eye-btn" title="Show / Hide Passcode" tabindex="-1">
+                                        <i class="bx bx-hide" id="toggleUnlistedEyeIcon"></i>
+                                    </button>
+                                </div>
+                                <button type="button" id="saveUnlistedLockBtn" class="mini-aero-btn is-active" title="Save Unlisted State & Passcode">
+                                    <i class="bx bx-lock-alt"></i> Save Lock
+                                </button>
+                                <button type="button" id="copyUnlistedLinkBtn" class="mini-aero-btn" title="Copy Shareable Reader URL">
+                                    <i class="bx bx-copy"></i> Copy Link
+                                </button>
+                            </div>
+                            <div style="font-size:0.71rem;opacity:0.8;">
+                                Passcodes are bcrypt-hashed inside Supabase. Visitors with the URL must enter the passcode to unlock; the essay never appears on the homepage.
+                            </div>
+                        </div>
+
+                        <!-- Conditional Sosa Study Fields -->
+                        <div id="studyFieldsGroup" class="meta-field is-full" style="display:none;background:rgba(16,185,129,0.06);padding:8px;border-radius:5px;border:1px solid rgba(16,185,129,0.25);">
+                            <div style="display:grid;grid-template-columns:1fr 1fr 90px;gap:8px;">
+                                <div>
+                                    <label class="meta-label" for="metaStudyArtist">Study Artist</label>
+                                    <input type="text" id="metaStudyArtist" class="studio-input" placeholder="JPEGMAFIA">
+                                </div>
+                                <div>
+                                    <label class="meta-label" for="metaStudyAlbum">Study Album</label>
+                                    <input type="text" id="metaStudyAlbum" class="studio-input" placeholder="EXPERIMENTAL RAP">
+                                </div>
+                                <div>
+                                    <label class="meta-label" for="metaStudyYear">Year</label>
+                                    <input type="number" id="metaStudyYear" class="studio-input" placeholder="2026">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Categories Chip Input -->
+                        <div class="meta-field is-full">
+                            <label class="meta-label" for="categoryChipInput">Categories (press Enter or comma)</label>
+                            <div id="categoryChipBox" class="chip-input-box">
+                                <input type="text" id="categoryChipInput" class="chip-text-input" placeholder="Add category...">
+                            </div>
+                            <div class="preset-chips-row">
+                                <button type="button" class="preset-pill" data-cat-preset="Ethics">+ Ethics</button>
+                                <button type="button" class="preset-pill" data-cat-preset="Media">+ Media</button>
+                                <button type="button" class="preset-pill" data-cat-preset="Politics">+ Politics</button>
+                                <button type="button" class="preset-pill" data-cat-preset="History">+ History</button>
+                                <button type="button" class="preset-pill" data-cat-preset="Poetry">+ Poetry</button>
+                                <button type="button" class="preset-pill" data-cat-preset="SosaSpins">+ SosaSpins</button>
+                            </div>
+                        </div>
+
+                        <!-- Authors Presets & Multi-Author -->
+                        <div class="meta-field is-full">
+                            <label class="meta-label">
+                                <span>Authors</span>
+                                <span style="display:inline-flex;gap:4px;">
+                                    <button type="button" class="mini-aero-btn" data-author-preset="Sosa">+ Sosa</button>
+                                    <button type="button" class="mini-aero-btn" data-author-preset="rawls">+ rawls</button>
+                                    <button type="button" class="mini-aero-btn" data-author-preset="Antoné">+ Antoné</button>
+                                </span>
+                            </label>
+                            <div id="authorsChipWrap" class="chip-input-box" style="min-height:30px;"></div>
+                        </div>
+
+                        <div class="meta-field">
+                            <label class="meta-label" for="metaReadTime">
+                                <span>Read Time</span>
+                                <button type="button" id="autoReadTimeBtn" class="mini-aero-btn">Auto Calc</button>
+                            </label>
+                            <input type="text" id="metaReadTime" class="studio-input" placeholder="6 min read">
+                        </div>
+
+                        <div class="meta-field">
+                            <label class="meta-label" for="metaPublishedAt">Publish Date</label>
+                            <div class="meta-inline-row">
+                                <input type="date" id="metaPublishedAt" class="studio-input">
+                                <input type="number" id="metaReviewRating" class="studio-input" step="0.5" min="0" max="5" placeholder="★ (opt)" title="Optional homepage review star rating (0-5)" style="width:88px;">
+                            </div>
+                        </div>
+
+                        <div class="meta-field">
+                            <label class="meta-label" for="metaHeroUrl">
+                                <span>Hero Image URL</span>
+                                <label for="heroImageFileInput" class="mini-aero-btn" style="cursor:pointer;">Upload</label>
+                                <input type="file" id="heroImageFileInput" accept="image/*" style="display:none;">
+                            </label>
+                            <input type="text" id="metaHeroUrl" class="studio-input" placeholder="assets/images/featured/...">
+                        </div>
+
+                        <div class="meta-field">
+                            <label class="meta-label" for="metaHeroCaption">Hero Caption / Credit</label>
+                            <input type="text" id="metaHeroCaption" class="studio-input" placeholder="Photo credit or caption...">
+                        </div>
+                    </div>
+
+                    <!-- Quick-Insert Snippet Toolbar -->
+                    <div class="snippet-toolbar">
+                        <button type="button" class="snippet-btn" data-snippet="paragraph" title="Insert Paragraph"><i class="bx bx-paragraph"></i> P</button>
+                        <button type="button" class="snippet-btn" data-snippet="h2" title="Insert Section Heading"><i class="bx bx-heading"></i> H2</button>
+                        <button type="button" class="snippet-btn" data-snippet="h3" title="Insert Nested Sub-heading">H3</button>
+                        <button type="button" class="snippet-btn" data-snippet="quote" title="Insert Quote Block"><i class="bx bxs-quote-left"></i> Quote</button>
+                        <button type="button" class="snippet-btn" data-snippet="toc" title="Generate Table of Contents from Headings"><i class="bx bx-list-ul"></i> Auto TOC</button>
+                        <button type="button" class="snippet-btn" id="uploadInlineImageBtn" title="Upload Image to Supabase & Insert Wrapper"><i class="bx bx-image-add"></i> Image</button>
+                        <input type="file" id="inlineImageFileInput" accept="image/*" style="display:none;">
+                        <button type="button" class="snippet-btn" data-snippet="bilingual" title="Insert Bilingual Side-by-Side Block"><i class="bx bx-globe"></i> Bilingual</button>
+                        <button type="button" class="snippet-btn" data-snippet="bold" title="Wrap Selection in <b>"><b>B</b></button>
+                        <button type="button" class="snippet-btn" data-snippet="italic" title="Wrap Selection in <i>"><i>I</i></button>
+                        <button type="button" class="snippet-btn" data-snippet="link" title="Insert Link"><i class="bx bx-link"></i> Link</button>
+                    </div>
+
+                    <!-- Raw HTML Editor -->
+                    <div class="editor-textarea-wrap">
+                        <textarea
+                            id="bodyHtmlEditor"
+                            spellcheck="true"
+                            placeholder="Write your essay HTML here, or use the quick-insert toolbar above (P, H2, Quote, Auto TOC, Image)..."
+                        ></textarea>
+                    </div>
+
+                    <div class="editor-status-footer">
+                        <span id="editorStatsText">0 words &middot; 0 chars &middot; ~1 min read</span>
+                        <span>Auto-saves drafts automatically &middot; Ctrl+S to save now</span>
+                    </div>
+                </section>
+
+                <!-- RIGHT PANE: Live Preview Frame -->
+                <section id="studioPreviewPane" class="studio-preview-pane">
+                    <div class="preview-toolbar">
+                        <span><i class="bx bx-show"></i> Live Preview (<span id="previewStylesheetLabel">style.css</span>)</span>
+                        <button type="button" id="togglePreviewThemeBtn" class="mini-aero-btn">
+                            <i class="bx bx-moon"></i> Preview Dark Mode
+                        </button>
+                    </div>
+                    <iframe id="livePreviewFrame" title="Live Article Preview"></iframe>
+                </section>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteConfirmModal" class="studio-modal-backdrop" style="display: none;">
+        <div class="w7-window w7-auth-window">
+            <div class="title-bar">
+                <div class="title-bar-text">
+                    <img src="assets/icons/aero/delete-full.ico" alt="" class="w7-title-icon">
+                    <span>Confirm Permanent Delete</span>
+                </div>
+            </div>
+            <div class="window-body">
+                <div class="w7-auth-header-row">
+                    <img src="assets/icons/aero/delete-full.ico" alt="" class="w7-auth-hero-icon">
+                    <div>
+                        <div class="w7-auth-heading">Delete this essay?</div>
+                        <div class="w7-auth-subtext" id="deleteConfirmMessage">This will permanently remove the article from Supabase.</div>
+                    </div>
+                </div>
+                <div class="w7-auth-footer">
+                    <button type="button" id="cancelDeleteBtn" class="aero-command-btn">Cancel</button>
+                    <button type="button" id="confirmDeleteBtn" class="aero-command-btn is-danger">Delete Forever</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="studioToast" class="studio-toast"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="assets/js/studio.js"></script>
+</body>
+</html>
