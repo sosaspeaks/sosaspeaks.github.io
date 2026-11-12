@@ -103,6 +103,60 @@
     );
   }
 
+  function preservePoetryLeadingSpaces(line) {
+    return line.replace(/^( +)/, (spaces) => "&nbsp;".repeat(spaces.length));
+  }
+
+  function formatPoetryBody(html) {
+    const normalized = normalizeBodyHtmlAssets(html);
+    if (!normalized.trim()) return "";
+    const hasBlockTags = /<(?:div|p|h[1-6]|blockquote|ul|ol|figure|section|article|bilingual)\b/i.test(normalized);
+    if (hasBlockTags) return normalized;
+
+    return normalized
+      .trim()
+      .split(/\r?\n[ \t]*\r?\n+/)
+      .map((b) => b.replace(/^\r?\n+|\r?\n+$/g, ""))
+      .filter((b) => b.trim().length > 0)
+      .map((block) => {
+        if (/^(?:\*\s*\*\s*\*|\*{3}|-{3})$/.test(block.trim())) {
+          return `<div class="poem-break">* * *</div>`;
+        }
+        const linesHtml = block
+          .split(/\r?\n/)
+          .map((line) => preservePoetryLeadingSpaces(line))
+          .join("<br>\n");
+        return `<div class="poem-stanza">\n${linesHtml}\n</div>`;
+      })
+      .join("\n");
+  }
+
+  function enhancePoetryStanzas(container) {
+    if (!container) return;
+    container.querySelectorAll(".poem-stanza").forEach((stanza) => {
+      if (stanza.querySelector("br, p, div")) return;
+      const rawHtml = stanza.innerHTML;
+      if (!rawHtml.includes("\n")) return;
+
+      const rawLines = rawHtml.split(/\r?\n/);
+      while (rawLines.length && !rawLines[0].trim()) rawLines.shift();
+      while (rawLines.length && !rawLines[rawLines.length - 1].trim()) rawLines.pop();
+      if (!rawLines.length) return;
+
+      const indents = rawLines
+        .filter((l) => l.trim().length > 0)
+        .map((l) => (l.match(/^( *)/)?.[1].length) || 0);
+      const baseIndent = indents.length ? Math.min(...indents) : 0;
+
+      stanza.innerHTML = rawLines
+        .map((line) => {
+          const stripped = baseIndent > 0 && line.length >= baseIndent ? line.slice(baseIndent) : line;
+          return preservePoetryLeadingSpaces(stripped.replace(/\s+$/, ""));
+        })
+        .join("<br>");
+    });
+  }
+
   function formatDisplayDate(isoStr) {
     if (!isoStr) return "";
     const d = new Date(isoStr);
@@ -407,14 +461,21 @@
       }
     }
 
-    if (article.post_type === "sosa-study") {
+    const isStudy = article.post_type === "sosa-study";
+    const isPoetry = article.post_type === "poetry";
+
+    if (isStudy) {
       await swapStylesheet("assets/css/review.css");
       renderSosaStudyHeader(article);
     } else {
       renderStandardHeader(article);
     }
 
-    bodySection.innerHTML = normalizeBodyHtmlAssets(article.body_html || "");
+    bodySection.classList.toggle("is-poetry-mode", isPoetry);
+    bodySection.innerHTML = isPoetry
+      ? formatPoetryBody(article.body_html || "")
+      : normalizeBodyHtmlAssets(article.body_html || "");
+    enhancePoetryStanzas(bodySection);
     enhanceAeroArticleMedia(bodySection);
 
     if (statusStage) statusStage.style.display = "none";

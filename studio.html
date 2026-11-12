@@ -216,6 +216,7 @@
                             <label class="meta-label" for="metaPostType">Article Template</label>
                             <select id="metaPostType" class="studio-input">
                                 <option value="standard">Standard Essay (style.css)</option>
+                                <option value="poetry">Poetry Piece (Literary Format)</option>
                                 <option value="sosa-study">A Sosa Study (review.css + WMP)</option>
                             </select>
                         </div>
@@ -383,6 +384,23 @@
                                             <span class="ribbon-badge is-para">Src</span>
                                             <span class="ribbon-item-copy"><strong>Source / Footnote</strong><small>&lt;p class="source"&gt;</small></span>
                                         </button>
+                                        <div class="ribbon-menu-divider">Poetry Styles</div>
+                                        <button type="button" class="ribbon-menu-item" data-snippet="stanza">
+                                            <span class="ribbon-badge is-poetry"><i class="bx bx-align-left"></i></span>
+                                            <span class="ribbon-item-copy"><strong>Poetry Stanza</strong><small>&lt;div class="poem-stanza"&gt;</small></span>
+                                        </button>
+                                        <button type="button" class="ribbon-menu-item" data-snippet="stanza-centered">
+                                            <span class="ribbon-badge is-poetry"><i class="bx bx-align-middle"></i></span>
+                                            <span class="ribbon-item-copy"><strong>Centered Stanza</strong><small>&lt;div class="poem-stanza is-centered"&gt;</small></span>
+                                        </button>
+                                        <button type="button" class="ribbon-menu-item" data-snippet="epigraph">
+                                            <span class="ribbon-badge is-poetry">&ldquo;</span>
+                                            <span class="ribbon-item-copy"><strong>Poetic Epigraph</strong><small>&lt;blockquote class="poem-epigraph"&gt;</small></span>
+                                        </button>
+                                        <button type="button" class="ribbon-menu-item" data-snippet="poem-note">
+                                            <span class="ribbon-badge is-poetry">Note</span>
+                                            <span class="ribbon-item-copy"><strong>Poet Colophon / Note</strong><small>&lt;p class="poem-note"&gt;</small></span>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -417,6 +435,15 @@
                                             <span class="ribbon-badge is-toc"><i class="bx bx-list-ol"></i></span>
                                             <span class="ribbon-item-copy"><strong>Bulleted List</strong><small>&lt;ul&gt;&lt;li&gt;...&lt;/li&gt;&lt;/ul&gt;</small></span>
                                         </button>
+                                        <div class="ribbon-menu-divider">Poetry Elements</div>
+                                        <button type="button" class="ribbon-menu-item" data-snippet="dedication">
+                                            <span class="ribbon-badge is-poetry"><i class="bx bx-feather"></i></span>
+                                            <span class="ribbon-item-copy"><strong>Poem Dedication</strong><small>&lt;p class="poem-dedication"&gt;</small></span>
+                                        </button>
+                                        <button type="button" class="ribbon-menu-item" data-snippet="poem-break">
+                                            <span class="ribbon-badge is-poetry">* * *</span>
+                                            <span class="ribbon-item-copy"><strong>Stanza Asterisk Break</strong><small>&lt;div class="poem-break"&gt;* * *&lt;/div&gt;</small></span>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -426,6 +453,9 @@
                         <!-- Group 4: View -->
                         <div class="ribbon-group ribbon-group-right">
                             <div class="ribbon-controls-row">
+                                <span id="poetryModePill" class="ribbon-poetry-pill" style="display:none;" title="Poetry Mode preserves plain line breaks &amp; stanzas automatically">
+                                    <i class="bx bx-feather"></i> Poetry Mode
+                                </span>
                                 <button type="button" id="toggleExpandEditorBtn" class="ribbon-btn" title="Collapse Metadata to Expand Writing Area">
                                     <i class="bx bx-expand-alt"></i><span>Expand</span>
                                 </button>

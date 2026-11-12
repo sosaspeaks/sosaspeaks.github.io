@@ -2032,6 +2032,212 @@ body.dark-mode .rating-count {
     text-indent: -2rem;
 }
 
+/* ============================================================
+   POETRY FORMATTING MODE (.is-poetry-mode & .poem-*)
+   ============================================================ */
+.post-content.is-poetry-mode {
+    max-width: 680px !important;
+    padding: 2.35rem 2.6rem;
+    margin-top: 2.1rem !important;
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.78) 0%,
+        rgba(244, 253, 249, 0.62) 55%,
+        rgba(230, 249, 240, 0.5) 100%
+    );
+    border: 1px solid rgba(110, 231, 183, 0.42);
+    border-radius: 0.95rem;
+    box-shadow: 0 14px 36px rgba(10, 40, 25, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.95),
+                inset 0 -1px 0 rgba(16, 185, 129, 0.1);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    box-sizing: border-box;
+    text-align: left;
+}
+
+.post-content.is-poetry-mode .post-text {
+    text-align: left;
+    line-height: 1.9rem;
+}
+
+.poem-dedication {
+    margin: 0 0 1.65rem 0;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 0.95rem;
+    font-style: italic;
+    font-weight: 500;
+    color: #3a5247;
+    opacity: 0.9;
+    text-align: left;
+}
+
+.post-content blockquote.poem-epigraph,
+.poem-epigraph {
+    padding: 0.85rem 1.2rem !important;
+    margin: 0 0 2rem 0 !important;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 0.95rem;
+    line-height: 1.68rem;
+    font-style: italic;
+    color: #164e3a;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.65), rgba(220, 248, 236, 0.36));
+    border: 1px solid rgba(110, 231, 183, 0.35);
+    border-left: 3px solid rgba(16, 185, 129, 0.65);
+    border-radius: 0 10px 10px 0;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.post-content blockquote.poem-epigraph::before {
+    content: none !important;
+}
+
+.poem-epigraph-cite {
+    display: block;
+    margin-top: 0.45rem;
+    font-size: 0.82rem;
+    font-style: normal;
+    font-weight: 600;
+    color: rgba(6, 78, 59, 0.78);
+    text-align: right;
+}
+
+.poem-stanza {
+    margin: 0 0 1.65rem 0;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 1.08rem;
+    line-height: 1.98rem;
+    letter-spacing: 0.005em;
+    color: #17231d;
+    text-align: left;
+    white-space: normal;
+    word-break: break-word;
+}
+
+.poem-stanza:last-child {
+    margin-bottom: 0.25rem;
+}
+
+.poem-stanza.is-centered,
+.post-content.is-poetry-centered .poem-stanza {
+    text-align: center;
+}
+
+.poem-stanza.is-indented {
+    padding-left: 2.15rem;
+}
+
+.poem-stanza.is-right {
+    text-align: right;
+}
+
+.poem-stanza a {
+    color: #047857;
+    text-decoration: none;
+    border-bottom: 1px dashed rgba(4, 120, 87, 0.45);
+    transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.poem-stanza a:hover {
+    color: #00aa66;
+    border-bottom: 1px solid #00aa66;
+}
+
+.poem-break {
+    margin: 1.85rem auto;
+    text-align: center;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.6em;
+    color: #059669;
+    opacity: 0.85;
+    user-select: none;
+}
+
+.poem-note {
+    margin: 2.2rem 0 0 0;
+    padding-top: 1.05rem;
+    border-top: 1px solid rgba(16, 185, 129, 0.24);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 0.88rem;
+    line-height: 1.6rem;
+    font-style: italic;
+    color: #3f574b;
+    text-align: left;
+}
+
+/* Dark Mode Poetry Support */
+body.dark-mode .post-content.is-poetry-mode {
+    background: linear-gradient(
+        180deg,
+        rgba(14, 34, 27, 0.72) 0%,
+        rgba(10, 25, 20, 0.68) 60%,
+        rgba(8, 19, 16, 0.76) 100%
+    );
+    border-color: rgba(52, 211, 153, 0.22);
+    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.45),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1),
+                inset 0 -1px 0 rgba(52, 211, 153, 0.12);
+}
+
+body.dark-mode .poem-stanza {
+    color: #e6f4ee;
+}
+
+body.dark-mode .poem-dedication {
+    color: #9dcbb6;
+}
+
+body.dark-mode .post-content blockquote.poem-epigraph,
+body.dark-mode .poem-epigraph {
+    color: #bbf7d0 !important;
+    background: linear-gradient(135deg, rgba(6, 78, 59, 0.28), rgba(4, 47, 36, 0.42)) !important;
+    border-color: rgba(52, 211, 153, 0.24) !important;
+    border-left-color: #34d399 !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .poem-epigraph-cite {
+    color: rgba(167, 243, 208, 0.78);
+}
+
+body.dark-mode .poem-stanza a {
+    color: #34d399;
+    border-bottom-color: rgba(52, 211, 153, 0.45);
+}
+
+body.dark-mode .poem-stanza a:hover {
+    color: #ffffff;
+    border-bottom-color: #ffffff;
+}
+
+body.dark-mode .poem-break {
+    color: #34d399;
+}
+
+body.dark-mode .poem-note {
+    border-top-color: rgba(52, 211, 153, 0.22);
+    box-shadow: none;
+    color: #a7c4b5;
+}
+
+@media (max-width: 640px) {
+    .post-content.is-poetry-mode {
+        padding: 1.55rem 1.3rem;
+        border-radius: 0.75rem;
+    }
+
+    .poem-stanza {
+        font-size: 1.02rem;
+        line-height: 1.85rem;
+    }
+
+    .poem-stanza.is-indented {
+        padding-left: 1.35rem;
+    }
+}
+
 .to-top{
     position: fixed;
     right: 0px;

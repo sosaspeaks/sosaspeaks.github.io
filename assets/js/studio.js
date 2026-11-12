@@ -93,6 +93,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const bodyHtmlEditor = document.getElementById("bodyHtmlEditor");
   const htmlHighlightLayer = document.getElementById("htmlHighlightLayer");
   const htmlHighlightCode = document.getElementById("htmlHighlightCode");
+  const poetryModePill = document.getElementById("poetryModePill");
   const editorStatsText = document.getElementById("editorStatsText");
   const uploadInlineImageBtn = document.getElementById("uploadInlineImageBtn");
   const inlineImageFileInput = document.getElementById("inlineImageFileInput");
@@ -224,6 +225,60 @@ document.addEventListener("DOMContentLoaded", async () => {
       /(src|href)=["']((?:\.\.\/)+|\/)?assets\//gi,
       '$1="assets/'
     );
+  }
+
+  function preservePoetryLeadingSpaces(line) {
+    return line.replace(/^( +)/, (spaces) => "&nbsp;".repeat(spaces.length));
+  }
+
+  function formatPoetryBody(html) {
+    const normalized = normalizeBodyHtmlAssets(html);
+    if (!normalized.trim()) return "";
+    const hasBlockTags = /<(?:div|p|h[1-6]|blockquote|ul|ol|figure|section|article|bilingual)\b/i.test(normalized);
+    if (hasBlockTags) return normalized;
+
+    return normalized
+      .trim()
+      .split(/\r?\n[ \t]*\r?\n+/)
+      .map((b) => b.replace(/^\r?\n+|\r?\n+$/g, ""))
+      .filter((b) => b.trim().length > 0)
+      .map((block) => {
+        if (/^(?:\*\s*\*\s*\*|\*{3}|-{3})$/.test(block.trim())) {
+          return `<div class="poem-break">* * *</div>`;
+        }
+        const linesHtml = block
+          .split(/\r?\n/)
+          .map((line) => preservePoetryLeadingSpaces(line))
+          .join("<br>\n");
+        return `<div class="poem-stanza">\n${linesHtml}\n</div>`;
+      })
+      .join("\n");
+  }
+
+  function enhancePoetryStanzas(container) {
+    if (!container) return;
+    container.querySelectorAll(".poem-stanza").forEach((stanza) => {
+      if (stanza.querySelector("br, p, div")) return;
+      const rawHtml = stanza.innerHTML;
+      if (!rawHtml.includes("\n")) return;
+
+      const rawLines = rawHtml.split(/\r?\n/);
+      while (rawLines.length && !rawLines[0].trim()) rawLines.shift();
+      while (rawLines.length && !rawLines[rawLines.length - 1].trim()) rawLines.pop();
+      if (!rawLines.length) return;
+
+      const indents = rawLines
+        .filter((l) => l.trim().length > 0)
+        .map((l) => (l.match(/^( *)/)?.[1].length) || 0);
+      const baseIndent = indents.length ? Math.min(...indents) : 0;
+
+      stanza.innerHTML = rawLines
+        .map((line) => {
+          const stripped = baseIndent > 0 && line.length >= baseIndent ? line.slice(baseIndent) : line;
+          return preservePoetryLeadingSpaces(stripped.replace(/\s+$/, ""));
+        })
+        .join("<br>");
+    });
   }
 
   function setSaveStatus(state, message) {
@@ -638,12 +693,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function toggleStudyFields() {
     const isStudy = metaPostType.value === "sosa-study";
+    const isPoetry = metaPostType.value === "poetry";
     if (studyFieldsGroup) {
       studyFieldsGroup.style.display = isStudy ? "block" : "none";
     }
+    if (poetryModePill) {
+      poetryModePill.style.display = isPoetry ? "inline-flex" : "none";
+    }
     const targetCss = isStudy ? "assets/css/review.css" : "assets/css/style.css";
     if (previewStylesheetLabel) {
-      previewStylesheetLabel.textContent = isStudy ? "review.css" : "style.css";
+      previewStylesheetLabel.textContent = isStudy
+        ? "review.css"
+        : isPoetry
+          ? "style.css (poetry)"
+          : "style.css";
     }
     if (currentPreviewStylesheet !== targetCss) {
       currentPreviewStylesheet = targetCss;
@@ -1009,6 +1072,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   function classifyHtmlTag(tagName, attrText) {
     const t = tagName.toLowerCase();
     const a = (attrText || "").toLowerCase();
+    if (a.includes("poem-")) return "hl-tag-poetry";
     if (t === "p" && a.includes("quote-text")) return "hl-tag-quote";
     if ((t === "div" || t === "p") && (a.includes("post-image") || a.includes("image-caption"))) {
       return "hl-tag-media";
@@ -1221,6 +1285,28 @@ document.addEventListener("DOMContentLoaded", async () => {
           break;
         case "source":
           insertTextAtCursor('\n<p class="source">\n    ', "\n</p>\n", "Source citation or footnote...");
+          break;
+        case "stanza":
+          insertTextAtCursor('\n<div class="poem-stanza">\n    ', "\n</div>\n", "First line of verse,\n    Second line of verse.");
+          break;
+        case "stanza-centered":
+          insertTextAtCursor('\n<div class="poem-stanza is-centered">\n    ', "\n</div>\n", "Centered stanza line one,\n    Centered stanza line two.");
+          break;
+        case "epigraph":
+          insertTextAtCursor(
+            '\n<blockquote class="poem-epigraph">\n    ',
+            '\n    <span class="poem-epigraph-cite">— Author / Work</span>\n</blockquote>\n',
+            "Short poetic epigraph line..."
+          );
+          break;
+        case "dedication":
+          insertTextAtCursor('\n<p class="poem-dedication">', "</p>\n", "for ...");
+          break;
+        case "poem-break":
+          insertTextAtCursor('\n<div class="poem-break">* * *</div>\n', "", "");
+          break;
+        case "poem-note":
+          insertTextAtCursor('\n<p class="poem-note">\n    ', "\n</p>\n", "Author note, date, or colophon...");
           break;
         case "toc":
           generateTocSnippet();
@@ -1483,9 +1569,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     const doc = livePreviewFrame.contentDocument;
     const headerMount = doc.getElementById("previewHeaderMount");
     const bodyMount = doc.getElementById("previewBodyMount");
+    const isPoetry = metaPostType.value === "poetry";
     if (headerMount) headerMount.innerHTML = buildPreviewHeaderHtml();
     if (bodyMount) {
-      bodyMount.innerHTML = normalizeBodyHtmlAssets(bodyHtmlEditor.value || "");
+      bodyMount.classList.toggle("is-poetry-mode", isPoetry);
+      bodyMount.innerHTML = isPoetry
+        ? formatPoetryBody(bodyHtmlEditor.value || "")
+        : normalizeBodyHtmlAssets(bodyHtmlEditor.value || "");
+      enhancePoetryStanzas(bodyMount);
       enhancePreviewAeroMedia(bodyMount);
     }
   }
@@ -1551,6 +1642,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   if (metaPostType) {
     metaPostType.addEventListener("change", () => {
+      if (metaPostType.value === "poetry") {
+        if (!currentCategories.some((c) => c.toLowerCase() === "poetry")) {
+          addCategory("Poetry");
+        }
+        const compact = (bodyHtmlEditor.value || "").replace(/\s+/g, "");
+        if (!compact || compact === '<pclass="post-text"></p>') {
+          bodyHtmlEditor.value = `<div class="poem-stanza">\n    First line of the poem,\n    Second line of the poem.\n</div>`;
+          syncCodeHighlight();
+        }
+      }
       toggleStudyFields();
       markDirtyAndPreview();
     });
