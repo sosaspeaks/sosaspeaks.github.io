@@ -1,8 +1,8 @@
-// Filter Js
+// Filter Js (delegated so dynamically generated filter tabs always work)
 $(document).ready(function () {
     const duration = 250;
 
-    $('.filter-item').on('click', function () {
+    $(document).on('click', '.post-filter .filter-item', function () {
         const value = $(this).attr('data-filter');
 
         $('.filter-item').removeClass('active-filter');
@@ -41,11 +41,14 @@ window.addEventListener('scroll', () => {
 // Loader
 window.addEventListener("load", () => {
   const loader = document.querySelector(".loader");
+  if (!loader) return;
 
   loader.classList.add("loader--hidden");
 
   loader.addEventListener("transitionend", () => {
-      document.body.removeChild(loader);
+    if (loader.parentNode) {
+      loader.parentNode.removeChild(loader);
+    }
   });
 });
 
@@ -116,13 +119,19 @@ toTop.addEventListener('click', () => {
 // Admin Lock Button Handler
 const adminTriggerBtn = document.getElementById("adminTriggerBtn");
 const adminLockIcon = document.getElementById("adminLockIcon");
+const studioQuickLink = document.getElementById("studioQuickLink");
 
 if (adminTriggerBtn) {
   // Check if active Supabase auth session exists in localStorage
   const hasAuth = Object.keys(localStorage).some(key => key.includes('sb-') && key.includes('-auth-token'));
-  if (hasAuth && adminLockIcon) {
-    adminLockIcon.src = "assets/icons/aero/lock_open.png";
-    adminTriggerBtn.title = "Admin Mode (Active)";
+  if (hasAuth) {
+    if (adminLockIcon) {
+      adminLockIcon.src = "assets/icons/aero/lock_open.png";
+      adminTriggerBtn.title = "Admin Mode (Active)";
+    }
+    if (studioQuickLink) {
+      studioQuickLink.style.display = "inline-flex";
+    }
   }
 
   adminTriggerBtn.addEventListener("click", () => {

@@ -47,6 +47,9 @@
                         class="aero-lock-icon nav-custom-icon"
                     />
                 </button>
+                <a href="studio.html" id="studioQuickLink" class="nav-custom-link" title="Writing Studio" style="display: none;">
+                    <img src="assets/icons/aero/edit.ico" class="nav-custom-icon" alt="Writing Studio">
+                </a>
                 <a href="sosaspins.html" class="nav-custom-link" title="SosaSpins">
                     <img src="assets/images/homepics/Folder203.ico" class="nav-custom-icon music-icon" alt="SosaSpins">
                 </a>
@@ -73,7 +76,7 @@
         <span class="filter-item" data-filter="history">History</span>
     </div>
     <!-- Posts -->
-    <section class="post container">
+    <section class="post container" id="postGrid">
         <!-- Empiricism - Post Box -->
         <div class="post-box ethics">
             <div class="img-wrapper">
@@ -384,6 +387,8 @@
 			  crossorigin="anonymous"></script>
     <!-- Link to JS -->
     <button class="to-top"><i class='bx bx-up-arrow-alt' style="scale: 250%;"></i></button>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="assets/js/home-feed.js"></script>
     <script src="assets/js/main.js"></script>
 </body>
 </html>
