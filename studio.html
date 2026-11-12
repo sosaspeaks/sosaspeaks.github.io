@@ -344,27 +344,104 @@
                         </div>
                     </div>
 
-                    <!-- Quick-Insert Snippet Toolbar -->
-                    <div class="snippet-toolbar">
-                        <button type="button" class="snippet-btn" data-snippet="paragraph" title="Insert Paragraph"><i class="bx bx-paragraph"></i> P</button>
-                        <button type="button" class="snippet-btn" data-snippet="h2" title="Insert Section Heading"><i class="bx bx-heading"></i> H2</button>
-                        <button type="button" class="snippet-btn" data-snippet="h3" title="Insert Nested Sub-heading">H3</button>
-                        <button type="button" class="snippet-btn" data-snippet="quote" title="Insert Quote Block"><i class="bx bxs-quote-left"></i> Quote</button>
-                        <button type="button" class="snippet-btn" data-snippet="toc" title="Generate Table of Contents from Headings"><i class="bx bx-list-ul"></i> Auto TOC</button>
-                        <button type="button" class="snippet-btn" id="uploadInlineImageBtn" title="Upload Image to Supabase & Insert Wrapper"><i class="bx bx-image-add"></i> Image</button>
-                        <input type="file" id="inlineImageFileInput" accept="image/*" style="display:none;">
-                        <button type="button" class="snippet-btn" data-snippet="bilingual" title="Insert Bilingual Side-by-Side Block"><i class="bx bx-globe"></i> Bilingual</button>
-                        <button type="button" class="snippet-btn" data-snippet="bold" title="Wrap Selection in <b>"><b>B</b></button>
-                        <button type="button" class="snippet-btn" data-snippet="italic" title="Wrap Selection in <i>"><i>I</i></button>
-                        <button type="button" class="snippet-btn" data-snippet="link" title="Insert Link"><i class="bx bx-link"></i> Link</button>
+                    <!-- MS Word-Style Aero Ribbon Toolbar -->
+                    <div class="word-ribbon" id="wordRibbonToolbar">
+                        <!-- Group 1: Format -->
+                        <div class="ribbon-group">
+                            <div class="ribbon-controls-row">
+                                <button type="button" class="ribbon-btn ribbon-icon-only" data-snippet="bold" title="Bold (&lt;b&gt;...&lt;/b&gt;)"><b>B</b></button>
+                                <button type="button" class="ribbon-btn ribbon-icon-only" data-snippet="italic" title="Italic (&lt;i&gt;...&lt;/i&gt;)"><i>I</i></button>
+                                <button type="button" class="ribbon-btn" data-snippet="link" title="Insert Hyperlink"><i class="bx bx-link"></i><span>Link</span></button>
+                            </div>
+                            <div class="ribbon-group-label">Format</div>
+                        </div>
+
+                        <!-- Group 2: Styles -->
+                        <div class="ribbon-group">
+                            <div class="ribbon-controls-row">
+                                <button type="button" class="ribbon-btn" data-snippet="paragraph" title="Insert Paragraph (&lt;p class='post-text'&gt;)">
+                                    <i class="bx bx-paragraph"></i><span>Paragraph</span>
+                                </button>
+                                <div class="ribbon-dropdown" data-ribbon-dropdown="styles">
+                                    <button type="button" class="ribbon-btn ribbon-drop-trigger" aria-expanded="false" title="Headings, Quotes &amp; Notes">
+                                        <i class="bx bx-text"></i><span>Styles</span><i class="bx bx-chevron-down ribbon-caret"></i>
+                                    </button>
+                                    <div class="ribbon-drop-menu">
+                                        <button type="button" class="ribbon-menu-item" data-snippet="h2">
+                                            <span class="ribbon-badge is-heading">H2</span>
+                                            <span class="ribbon-item-copy"><strong>Section Heading</strong><small>&lt;h2 class="sub-heading"&gt;</small></span>
+                                        </button>
+                                        <button type="button" class="ribbon-menu-item" data-snippet="h3">
+                                            <span class="ribbon-badge is-heading">H3</span>
+                                            <span class="ribbon-item-copy"><strong>Nested Sub-heading</strong><small>&lt;h3 class="nested-heading"&gt;</small></span>
+                                        </button>
+                                        <button type="button" class="ribbon-menu-item" data-snippet="quote">
+                                            <span class="ribbon-badge is-quote">&ldquo;&rdquo;</span>
+                                            <span class="ribbon-item-copy"><strong>Aero Quote Block</strong><small>&lt;p class="quote-text"&gt;</small></span>
+                                        </button>
+                                        <button type="button" class="ribbon-menu-item" data-snippet="source">
+                                            <span class="ribbon-badge is-para">Src</span>
+                                            <span class="ribbon-item-copy"><strong>Source / Footnote</strong><small>&lt;p class="source"&gt;</small></span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ribbon-group-label">Styles</div>
+                        </div>
+
+                        <!-- Group 3: Insert -->
+                        <div class="ribbon-group">
+                            <div class="ribbon-controls-row">
+                                <button type="button" class="ribbon-btn" id="uploadInlineImageBtn" title="Upload Image to Supabase &amp; Wrap in Aero Frame">
+                                    <i class="bx bx-image-add"></i><span>Image</span>
+                                </button>
+                                <input type="file" id="inlineImageFileInput" accept="image/*" style="display:none;">
+                                <div class="ribbon-dropdown" data-ribbon-dropdown="insert">
+                                    <button type="button" class="ribbon-btn ribbon-drop-trigger" aria-expanded="false" title="Insert Special Blocks">
+                                        <i class="bx bx-plus-square"></i><span>Insert</span><i class="bx bx-chevron-down ribbon-caret"></i>
+                                    </button>
+                                    <div class="ribbon-drop-menu">
+                                        <button type="button" class="ribbon-menu-item" data-snippet="toc">
+                                            <span class="ribbon-badge is-toc"><i class="bx bx-list-ul"></i></span>
+                                            <span class="ribbon-item-copy"><strong>Auto Table of Contents</strong><small>Scans H2 &amp; H3 headings</small></span>
+                                        </button>
+                                        <button type="button" class="ribbon-menu-item" data-snippet="bilingual">
+                                            <span class="ribbon-badge is-bilingual"><i class="bx bx-globe"></i></span>
+                                            <span class="ribbon-item-copy"><strong>Bilingual Block</strong><small>Side-by-side translation</small></span>
+                                        </button>
+                                        <button type="button" class="ribbon-menu-item" data-snippet="image-frame">
+                                            <span class="ribbon-badge is-media"><i class="bx bx-image"></i></span>
+                                            <span class="ribbon-item-copy"><strong>Image URL Frame</strong><small>Manual URL + bottom caption</small></span>
+                                        </button>
+                                        <button type="button" class="ribbon-menu-item" data-snippet="list">
+                                            <span class="ribbon-badge is-toc"><i class="bx bx-list-ol"></i></span>
+                                            <span class="ribbon-item-copy"><strong>Bulleted List</strong><small>&lt;ul&gt;&lt;li&gt;...&lt;/li&gt;&lt;/ul&gt;</small></span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ribbon-group-label">Insert</div>
+                        </div>
+
+                        <!-- Group 4: View -->
+                        <div class="ribbon-group ribbon-group-right">
+                            <div class="ribbon-controls-row">
+                                <button type="button" id="toggleExpandEditorBtn" class="ribbon-btn" title="Collapse Metadata to Expand Writing Area">
+                                    <i class="bx bx-expand-alt"></i><span>Expand</span>
+                                </button>
+                            </div>
+                            <div class="ribbon-group-label">View</div>
+                        </div>
                     </div>
 
-                    <!-- Raw HTML Editor -->
-                    <div class="editor-textarea-wrap">
+                    <!-- Syntax-Highlighted HTML Code Editor -->
+                    <div class="editor-textarea-wrap" id="editorTextareaWrap">
+                        <pre id="htmlHighlightLayer" class="html-highlight-layer editor-code-sync" aria-hidden="true"><code id="htmlHighlightCode"></code></pre>
                         <textarea
                             id="bodyHtmlEditor"
+                            class="editor-code-sync"
                             spellcheck="true"
-                            placeholder="Write your essay HTML here, or use the quick-insert toolbar above (P, H2, Quote, Auto TOC, Image)..."
+                            placeholder="Write your essay HTML here, or use the MS Word ribbon above (Styles, Insert, Image)..."
                         ></textarea>
                     </div>
 

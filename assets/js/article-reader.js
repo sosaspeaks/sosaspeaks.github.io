@@ -222,14 +222,22 @@
         : "";
 
     const heroUrl = normalizeAssetPath(article.hero_image_url);
+    const heroCaption = (article.hero_image_caption || "").trim();
     const heroHtml = heroUrl
       ? `
-        <img src="${escapeHtml(heroUrl)}" alt="${escapeHtml(stripHtml(article.title))}" class="header-img">
-        ${
-          article.hero_image_caption
-            ? `<p class="image-caption">${escapeHtml(article.hero_image_caption)}</p>`
-            : ""
-        }
+        <div class="post-image-wrapper aero-media-window is-hero-window${heroCaption ? " has-caption" : ""}" data-aero-enhanced="1">
+          <div class="aero-media-viewport">
+            <img src="${escapeHtml(heroUrl)}" alt="${escapeHtml(stripHtml(article.title))}" class="header-img">
+          </div>
+          ${
+            heroCaption
+              ? `<div class="aero-bottom-titlebar">
+                   <span class="aero-caption-icon" aria-hidden="true"><i class='bx bx-image'></i></span>
+                   <span class="aero-caption-text">${sanitizeInlineRichText(heroCaption)}</span>
+                 </div>`
+              : ""
+          }
+        </div>
       `
       : "";
 
@@ -407,6 +415,7 @@
     }
 
     bodySection.innerHTML = normalizeBodyHtmlAssets(article.body_html || "");
+    enhanceAeroArticleMedia(bodySection);
 
     if (statusStage) statusStage.style.display = "none";
     if (articleRoot) articleRoot.style.display = "block";
@@ -425,6 +434,53 @@
         setTimeout(() => target.scrollIntoView({ behavior: "smooth" }), 80);
       }
     }
+  }
+
+  function enhanceAeroArticleMedia(container) {
+    if (!container) return;
+    container.querySelectorAll(".post-image-wrapper").forEach((wrapper) => {
+      if (wrapper.dataset.aeroEnhanced === "1") return;
+      wrapper.dataset.aeroEnhanced = "1";
+      wrapper.classList.add("aero-media-window");
+
+      let captionHtml = "";
+      const innerCaption = wrapper.querySelector(".image-caption, figcaption");
+      if (innerCaption) {
+        captionHtml = innerCaption.innerHTML.trim();
+        innerCaption.remove();
+      } else {
+        const nextEl = wrapper.nextElementSibling;
+        if (nextEl && (nextEl.classList.contains("image-caption") || nextEl.tagName === "FIGCAPTION")) {
+          captionHtml = nextEl.innerHTML.trim();
+          nextEl.remove();
+        }
+      }
+
+      if (!wrapper.querySelector(":scope > .aero-media-viewport")) {
+        const viewport = document.createElement("div");
+        viewport.className = "aero-media-viewport";
+        while (wrapper.firstChild) {
+          const child = wrapper.firstChild;
+          if (child.nodeType === Node.TEXT_NODE && !child.textContent.trim()) {
+            wrapper.removeChild(child);
+            continue;
+          }
+          viewport.appendChild(child);
+        }
+        wrapper.appendChild(viewport);
+      }
+
+      if (captionHtml) {
+        wrapper.classList.add("has-caption");
+        const bar = document.createElement("div");
+        bar.className = "aero-bottom-titlebar";
+        bar.innerHTML = `
+          <span class="aero-caption-icon" aria-hidden="true"><i class='bx bx-image'></i></span>
+          <span class="aero-caption-text">${sanitizeInlineRichText(captionHtml)}</span>
+        `;
+        wrapper.appendChild(bar);
+      }
+    });
   }
 
   function showUnlistedPasscodeGate(targetSlug) {

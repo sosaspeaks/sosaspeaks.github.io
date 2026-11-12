@@ -91,6 +91,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const metaHeroCaption = document.getElementById("metaHeroCaption");
 
   const bodyHtmlEditor = document.getElementById("bodyHtmlEditor");
+  const htmlHighlightLayer = document.getElementById("htmlHighlightLayer");
+  const htmlHighlightCode = document.getElementById("htmlHighlightCode");
   const editorStatsText = document.getElementById("editorStatsText");
   const uploadInlineImageBtn = document.getElementById("uploadInlineImageBtn");
   const inlineImageFileInput = document.getElementById("inlineImageFileInput");
@@ -687,6 +689,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     toggleStudyFields();
     updateActionButtonsUI();
     updateEditorStats();
+    syncCodeHighlight();
     setSaveStatus("idle", "New draft ready");
     renderSidebarList();
     updatePreview();
@@ -736,6 +739,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     toggleStudyFields();
     updateActionButtonsUI();
     updateEditorStats();
+    syncCodeHighlight();
     setSaveStatus(
       "saved",
       currentPublished
@@ -1001,6 +1005,144 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  // --- HTML SYNTAX HIGHLIGHTER & RIBBON TOOLBAR ---
+  function classifyHtmlTag(tagName, attrText) {
+    const t = tagName.toLowerCase();
+    const a = (attrText || "").toLowerCase();
+    if (t === "p" && a.includes("quote-text")) return "hl-tag-quote";
+    if ((t === "div" || t === "p") && (a.includes("post-image") || a.includes("image-caption"))) {
+      return "hl-tag-media";
+    }
+    if (t === "div" && a.includes("toc-box")) return "hl-tag-toc";
+    if (t === "h1" || t === "h2" || t === "h3" || t === "h4" || t === "h5" || t === "h6") {
+      return "hl-tag-heading";
+    }
+    if (t === "blockquote" || t === "cite" || t === "q" || (t === "span" && a.includes("quote-"))) {
+      return "hl-tag-quote";
+    }
+    if (t === "img" || t === "figure" || t === "figcaption" || t === "video" || t === "audio") {
+      return "hl-tag-media";
+    }
+    if (t === "b" || t === "strong" || t === "i" || t === "em" || t === "u" || t === "s" || t === "mark") {
+      return "hl-tag-inline";
+    }
+    if (t === "a") return "hl-tag-link";
+    if (t === "ul" || t === "ol" || t === "li") return "hl-tag-toc";
+    if (t === "bilingual") return "hl-tag-bilingual";
+    if (t === "p" || t === "br" || t === "hr") return "hl-tag-para";
+    return "hl-tag-generic";
+  }
+
+  function highlightTagMarkup(rawTag) {
+    const tagMatch = rawTag.match(/^(<\/?)([a-zA-Z][a-zA-Z0-9-]*)([\s\S]*?)(\/?>)$/);
+    if (!tagMatch) return escapeHtml(rawTag);
+    const [, openBracket, tagName, attrText, closeBracket] = tagMatch;
+    const tagCls = classifyHtmlTag(tagName, attrText);
+
+    let attrsOut = "";
+    if (attrText) {
+      const attrRegex = /(\s+)([a-zA-Z_:][a-zA-Z0-9_.:-]*)(\s*=\s*)("[^"]*"|'[^']*'|[^\s"'=<>`]+)/g;
+      let lastIdx = 0;
+      let m;
+      while ((m = attrRegex.exec(attrText)) !== null) {
+        if (m.index > lastIdx) {
+          attrsOut += escapeHtml(attrText.slice(lastIdx, m.index));
+        }
+        attrsOut +=
+          escapeHtml(m[1]) +
+          `<span class="hl-attr">${escapeHtml(m[2])}</span>` +
+          `<span class="hl-punct">${escapeHtml(m[3])}</span>` +
+          `<span class="hl-string">${escapeHtml(m[4])}</span>`;
+        lastIdx = m.index + m[0].length;
+      }
+      if (lastIdx < attrText.length) {
+        attrsOut += escapeHtml(attrText.slice(lastIdx));
+      }
+    }
+
+    return (
+      `<span class="${tagCls}">${escapeHtml(openBracket + tagName)}</span>` +
+      attrsOut +
+      `<span class="${tagCls}">${escapeHtml(closeBracket)}</span>`
+    );
+  }
+
+  function highlightHtmlCode(raw) {
+    const text = String(raw || "");
+    const tokenRegex =
+      /<!--[\s\S]*?-->|<\/?[a-zA-Z][a-zA-Z0-9-]*(?:\s+(?:[^<>"']|"[^"]*"|'[^']*')*)?\s*\/?>|&(?:[a-zA-Z]+|#\d+|#x[0-9a-fA-F]+);/g;
+    let out = "";
+    let lastIndex = 0;
+    let match;
+
+    while ((match = tokenRegex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        out += escapeHtml(text.slice(lastIndex, match.index));
+      }
+      const token = match[0];
+      if (token.startsWith("<!--")) {
+        out += `<span class="hl-comment">${escapeHtml(token)}</span>`;
+      } else if (token.startsWith("&")) {
+        out += `<span class="hl-entity">${escapeHtml(token)}</span>`;
+      } else {
+        out += highlightTagMarkup(token);
+      }
+      lastIndex = match.index + token.length;
+    }
+
+    if (lastIndex < text.length) {
+      out += escapeHtml(text.slice(lastIndex));
+    }
+
+    // Trailing newline requires a trailing space inside <pre> so final line height matches <textarea>
+    if (text.endsWith("\n")) {
+      out += " ";
+    }
+    return out;
+  }
+
+  function syncCodeHighlight() {
+    if (!htmlHighlightCode || !bodyHtmlEditor) return;
+    htmlHighlightCode.innerHTML = highlightHtmlCode(bodyHtmlEditor.value);
+    if (htmlHighlightLayer) {
+      htmlHighlightLayer.scrollTop = bodyHtmlEditor.scrollTop;
+      htmlHighlightLayer.scrollLeft = bodyHtmlEditor.scrollLeft;
+    }
+  }
+
+  // MS Word Ribbon Dropdown Menus
+  function closeAllRibbonDropdowns(except = null) {
+    document.querySelectorAll(".ribbon-dropdown.is-open").forEach((dd) => {
+      if (dd !== except) {
+        dd.classList.remove("is-open");
+        const trig = dd.querySelector(".ribbon-drop-trigger");
+        if (trig) trig.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
+
+  document.querySelectorAll(".ribbon-drop-trigger").forEach((trigger) => {
+    trigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const parent = trigger.closest(".ribbon-dropdown");
+      if (!parent) return;
+      const willOpen = !parent.classList.contains("is-open");
+      closeAllRibbonDropdowns(willOpen ? parent : null);
+      parent.classList.toggle("is-open", willOpen);
+      trigger.setAttribute("aria-expanded", willOpen ? "true" : "false");
+    });
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".ribbon-dropdown")) {
+      closeAllRibbonDropdowns();
+    }
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeAllRibbonDropdowns();
+  });
+
   // --- SNIPPET TOOLBAR ---
   function insertTextAtCursor(before, after = "", placeholder = "") {
     const ta = bodyHtmlEditor;
@@ -1017,6 +1159,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     } else {
       ta.setSelectionRange(start + inserted.length, start + inserted.length);
     }
+    syncCodeHighlight();
     markDirtyAndPreview();
   }
 
@@ -1048,6 +1191,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   document.querySelectorAll("[data-snippet]").forEach((btn) => {
     btn.addEventListener("click", () => {
+      closeAllRibbonDropdowns();
       const kind = btn.getAttribute("data-snippet");
       const headingCount = (bodyHtmlEditor.value.match(/class="sub-heading"/g) || []).length + 1;
       switch (kind) {
@@ -1070,10 +1214,13 @@ document.addEventListener("DOMContentLoaded", async () => {
           break;
         case "quote":
           insertTextAtCursor(
-            `\n<p class="quote-text">\n    <i class='bx bxs-quote-left'></i>\n    <i>“`,
-            `”</i>\n    <span class="quote-attribution">\n        <span class="quote-author">— Author</span>,\n        <cite class="quote-source">Source</cite>\n    </span>\n</p>\n`,
+            `\n<p class="quote-text">\n    <i class='bx bxs-quote-left'></i>\n    <i>`,
+            `</i>\n    <span class="quote-attribution">\n        <span class="quote-author">— Author</span>,\n        <cite class="quote-source">Source</cite>\n    </span>\n</p>\n`,
             "Quote text goes here..."
           );
+          break;
+        case "source":
+          insertTextAtCursor('\n<p class="source">\n    ', "\n</p>\n", "Source citation or footnote...");
           break;
         case "toc":
           generateTocSnippet();
@@ -1084,6 +1231,16 @@ document.addEventListener("DOMContentLoaded", async () => {
             `\n  </div>\n  <div data-lang="English">\n    English translation here\n  </div>\n</bilingual>\n`,
             "Original lyric or quote here"
           );
+          break;
+        case "image-frame":
+          insertTextAtCursor(
+            `\n<div class="post-image-wrapper">\n    <img src="`,
+            `" alt="" class="post-image-content">\n</div>\n<p class="image-caption">Image caption or source credit.</p>\n`,
+            "https://"
+          );
+          break;
+        case "list":
+          insertTextAtCursor('\n<ul>\n    <li>', "</li>\n    <li>Second item</li>\n</ul>\n", "First item");
           break;
         case "bold":
           insertTextAtCursor("<b>", "</b>", "bold text");
@@ -1098,14 +1255,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   });
 
-  // Tab indentation inside editor
+  // Tab indentation + scroll/input sync for syntax highlighting overlay
   if (bodyHtmlEditor) {
+    bodyHtmlEditor.addEventListener("input", syncCodeHighlight);
+    bodyHtmlEditor.addEventListener("scroll", () => {
+      if (htmlHighlightLayer) {
+        htmlHighlightLayer.scrollTop = bodyHtmlEditor.scrollTop;
+        htmlHighlightLayer.scrollLeft = bodyHtmlEditor.scrollLeft;
+      }
+    });
     bodyHtmlEditor.addEventListener("keydown", (e) => {
       if (e.key === "Tab") {
         e.preventDefault();
         insertTextAtCursor("    ", "", "");
       }
     });
+    syncCodeHighlight();
   }
 
   // --- LIVE IFRAME PREVIEW ---
@@ -1243,12 +1408,74 @@ document.addEventListener("DOMContentLoaded", async () => {
         </div>
         ${
           heroUrl
-            ? `<img src="${escapeHtml(heroUrl)}" alt="" class="header-img">
-               ${metaHeroCaption.value.trim() ? `<p class="image-caption">${escapeHtml(metaHeroCaption.value.trim())}</p>` : ""}`
+            ? (() => {
+                const heroCap = metaHeroCaption.value.trim();
+                return `
+                  <div class="post-image-wrapper aero-media-window is-hero-window${heroCap ? " has-caption" : ""}" data-aero-enhanced="1">
+                    <div class="aero-media-viewport">
+                      <img src="${escapeHtml(heroUrl)}" alt="" class="header-img">
+                    </div>
+                    ${
+                      heroCap
+                        ? `<div class="aero-bottom-titlebar">
+                             <span class="aero-caption-icon" aria-hidden="true"><i class='bx bx-image'></i></span>
+                             <span class="aero-caption-text">${sanitizeInlineRichText(heroCap)}</span>
+                           </div>`
+                        : ""
+                    }
+                  </div>`;
+              })()
             : ""
         }
       </div>
     `;
+  }
+
+  function enhancePreviewAeroMedia(container) {
+    if (!container) return;
+    container.querySelectorAll(".post-image-wrapper").forEach((wrapper) => {
+      if (wrapper.dataset.aeroEnhanced === "1") return;
+      wrapper.dataset.aeroEnhanced = "1";
+      wrapper.classList.add("aero-media-window");
+
+      let captionHtml = "";
+      const innerCaption = wrapper.querySelector(".image-caption, figcaption");
+      if (innerCaption) {
+        captionHtml = innerCaption.innerHTML.trim();
+        innerCaption.remove();
+      } else {
+        const nextEl = wrapper.nextElementSibling;
+        if (nextEl && (nextEl.classList.contains("image-caption") || nextEl.tagName === "FIGCAPTION")) {
+          captionHtml = nextEl.innerHTML.trim();
+          nextEl.remove();
+        }
+      }
+
+      if (!wrapper.querySelector(":scope > .aero-media-viewport")) {
+        const viewport = document.createElement("div");
+        viewport.className = "aero-media-viewport";
+        while (wrapper.firstChild) {
+          const child = wrapper.firstChild;
+          if (child.nodeType === Node.TEXT_NODE && !child.textContent.trim()) {
+            wrapper.removeChild(child);
+            continue;
+          }
+          viewport.appendChild(child);
+        }
+        wrapper.appendChild(viewport);
+      }
+
+      if (captionHtml) {
+        wrapper.classList.add("has-caption");
+        const bar = document.createElement("div");
+        bar.className = "aero-bottom-titlebar";
+        bar.innerHTML = `
+          <span class="aero-caption-icon" aria-hidden="true"><i class='bx bx-image'></i></span>
+          <span class="aero-caption-text">${sanitizeInlineRichText(captionHtml)}</span>
+        `;
+        wrapper.appendChild(bar);
+      }
+    });
   }
 
   function updatePreview() {
@@ -1257,7 +1484,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     const headerMount = doc.getElementById("previewHeaderMount");
     const bodyMount = doc.getElementById("previewBodyMount");
     if (headerMount) headerMount.innerHTML = buildPreviewHeaderHtml();
-    if (bodyMount) bodyMount.innerHTML = normalizeBodyHtmlAssets(bodyHtmlEditor.value || "");
+    if (bodyMount) {
+      bodyMount.innerHTML = normalizeBodyHtmlAssets(bodyHtmlEditor.value || "");
+      enhancePreviewAeroMedia(bodyMount);
+    }
   }
 
   if (togglePreviewThemeBtn) {
@@ -1408,11 +1638,34 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   // --- PANEL & VIEW CONTROLS ---
+  const toggleExpandEditorBtn = document.getElementById("toggleExpandEditorBtn");
+
+  function syncMetadataToggleUI() {
+    if (!metadataFormBody) return;
+    const collapsed = metadataFormBody.classList.contains("is-collapsed");
+    if (metadataChevron) {
+      metadataChevron.className = collapsed ? "bx bx-chevron-down" : "bx bx-chevron-up";
+    }
+    if (toggleExpandEditorBtn) {
+      toggleExpandEditorBtn.innerHTML = collapsed
+        ? `<i class="bx bx-collapse-alt"></i><span>Show Meta</span>`
+        : `<i class="bx bx-expand-alt"></i><span>Expand</span>`;
+    }
+  }
+
   if (metadataToggleBtn && metadataFormBody) {
     metadataToggleBtn.addEventListener("click", () => {
+      metadataFormBody.classList.toggle("is-collapsed");
+      syncMetadataToggleUI();
+    });
+  }
+
+  if (toggleExpandEditorBtn && metadataFormBody) {
+    toggleExpandEditorBtn.addEventListener("click", () => {
       const collapsed = metadataFormBody.classList.toggle("is-collapsed");
-      if (metadataChevron) {
-        metadataChevron.className = collapsed ? "bx bx-chevron-down" : "bx bx-chevron-up";
+      syncMetadataToggleUI();
+      if (collapsed && bodyHtmlEditor) {
+        bodyHtmlEditor.focus();
       }
     });
   }
