@@ -3665,3 +3665,104 @@ body.dark-mode.has-hero-tint .aero-caption-text,
 body.dark-mode.has-hero-tint .image-caption {
   color: var(--hero-tint-bright, #d1fae5) !important;
 }
+
+/* ============================================================
+   GENIUS-STYLE INTERACTIVE LINE ANNOTATIONS (.poem-annotate)
+   ============================================================ */
+.post-content {
+  position: relative;
+}
+
+.poem-annotate {
+  position: relative;
+  display: inline;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(16, 185, 129, 0.15);
+  border-bottom: 1.5px dotted rgba(5, 150, 105, 0.65);
+  cursor: pointer;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.poem-annotate:hover,
+.poem-annotate:focus-visible {
+  background: rgba(16, 185, 129, 0.26);
+  border-bottom-style: solid;
+  border-bottom-color: #059669;
+  outline: none;
+}
+
+.poem-annotate.is-active {
+  background: rgba(16, 185, 129, 0.32);
+  border-bottom: 2px solid #047857;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.25);
+}
+
+body.dark-mode .poem-annotate {
+  background: rgba(52, 211, 153, 0.17);
+  border-bottom-color: rgba(52, 211, 153, 0.65);
+}
+
+body.dark-mode .poem-annotate:hover,
+body.dark-mode .poem-annotate.is-active {
+  background: rgba(52, 211, 153, 0.32);
+  border-bottom-color: #a7f3d0;
+}
+
+body.has-hero-tint .poem-annotate {
+  background: rgba(var(--hero-tint-rgb, 16, 185, 129), 0.17);
+  border-bottom-color: var(--hero-tint-mid, #059669);
+}
+
+body.dark-mode.has-hero-tint .poem-annotate {
+  background: rgba(var(--hero-tint-rgb, 52, 211, 153), 0.2);
+  border-bottom-color: var(--hero-tint-bright, #6ee7b7);
+}
+
+.aero-annotation-panel {
+  display: none;
+  z-index: 40;
+  border-radius: 10px;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(242, 252, 248, 0.9) 100%);
+  border: 1px solid rgba(110, 231, 183, 0.55);
+  border-left: 3.5px solid #10b981;
+  box-shadow: 0 14px 34px rgba(6, 78, 59, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.98);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+  font-family: "Plus Jakarta Sans", sans-serif;
+  text-align: left;
+}
+
+.aero-annotation-panel.is-open { display: block; }
+.aero-annotation-panel.is-inline-card { width: 100%; margin: 0.75rem 0 1.45rem 0; }
+.aero-annot-titlebar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 11px; background: linear-gradient(180deg, rgba(232, 250, 242, 0.92), rgba(209, 245, 230, 0.75)); border-bottom: 1px solid rgba(16, 185, 129, 0.24); font-size: 0.74rem; font-weight: 800; color: #064e3b; }
+.aero-annot-title-left { display: inline-flex; align-items: center; gap: 6px; }
+.aero-annot-controls { display: inline-flex; align-items: center; gap: 4px; }
+.aero-annot-btn { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; border-radius: 4px; border: 1px solid rgba(16, 185, 129, 0.35); background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(235, 250, 243, 0.85)); color: #065f46; font-size: 0.95rem; font-weight: 700; cursor: pointer; }
+.aero-annot-content { padding: 11px 14px 13px 14px; max-height: 440px; overflow-y: auto; }
+.aero-annot-excerpt { margin: 0 0 8px 0; padding: 4px 8px; border-radius: 4px; background: rgba(16, 185, 129, 0.09); font-size: 0.8rem; font-style: italic; line-height: 1.45; color: #065f46; }
+.aero-annot-body { font-size: 0.9rem; line-height: 1.6; color: #1e293b; }
+.aero-annot-body p { margin: 0 0 0.65rem 0; }
+.aero-annot-body p:last-child { margin-bottom: 0; }
+.aero-annot-media-list { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.aero-annot-figure { margin: 0; padding: 4px; border-radius: 6px; background: rgba(255, 255, 255, 0.72); border: 1px solid rgba(16, 185, 129, 0.25); }
+.aero-annot-figure img { display: block; width: 100%; max-height: 280px; object-fit: contain; border-radius: 3px; }
+.aero-annot-figcaption { padding: 5px 4px 2px 4px; font-size: 0.76rem; font-style: italic; color: #475569; text-align: center; }
+
+body.dark-mode .aero-annotation-panel { background: linear-gradient(180deg, rgba(22, 33, 29, 0.94), rgba(13, 20, 18, 0.96)); border-color: rgba(52, 211, 153, 0.32); border-left-color: #34d399; }
+body.dark-mode .aero-annot-titlebar { background: linear-gradient(180deg, rgba(6, 78, 59, 0.42), rgba(15, 23, 20, 0.85)); color: #a7f3d0; }
+body.dark-mode .aero-annot-btn { background: rgba(255, 255, 255, 0.08); border-color: rgba(52, 211, 153, 0.35); color: #a7f3d0; }
+body.dark-mode .aero-annot-excerpt { background: rgba(52, 211, 153, 0.12); color: #a7f3d0; }
+body.dark-mode .aero-annot-body { color: #e2e8f0; }
+body.dark-mode .aero-annot-figure { background: rgba(15, 23, 42, 0.65); border-color: rgba(52, 211, 153, 0.26); }
+body.dark-mode .aero-annot-figcaption { color: #94a3b8; }
+
+body.has-hero-tint .aero-annotation-panel { border-color: rgba(var(--hero-tint-rgb, 110, 231, 183), 0.48); border-left-color: var(--hero-tint-mid, #10b981); }
+body.has-hero-tint .aero-annot-titlebar { background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(var(--hero-tint-rgb, 209, 245, 230), 0.24)); color: var(--hero-tint-deep, #064e3b); }
+body.has-hero-tint .aero-annot-excerpt { background: rgba(var(--hero-tint-rgb, 16, 185, 129), 0.11); color: var(--hero-tint-deep, #065f46); }
+body.dark-mode.has-hero-tint .aero-annotation-panel { background: linear-gradient(180deg, rgba(var(--hero-tint-rgb, 16, 185, 129), 0.18), rgba(12, 16, 20, 0.96)); border-color: rgba(var(--hero-tint-rgb, 52, 211, 153), 0.34); border-left-color: var(--hero-tint-bright, #34d399); }
+body.dark-mode.has-hero-tint .aero-annot-titlebar { color: var(--hero-tint-bright, #a7f3d0); }
+body.dark-mode.has-hero-tint .aero-annot-excerpt { background: rgba(var(--hero-tint-rgb, 52, 211, 153), 0.15); color: var(--hero-tint-bright, #a7f3d0); }

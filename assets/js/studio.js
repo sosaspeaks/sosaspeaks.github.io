@@ -103,6 +103,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   const editorStatsText = document.getElementById("editorStatsText");
   const uploadInlineImageBtn = document.getElementById("uploadInlineImageBtn");
   const inlineImageFileInput = document.getElementById("inlineImageFileInput");
+  const openAnnotationModalBtn = document.getElementById("openAnnotationModalBtn");
+
+  const annotationModal = document.getElementById("annotationModal");
+  const annotPhraseInput = document.getElementById("annotPhraseInput");
+  const annotNoteInput = document.getElementById("annotNoteInput");
+  const annotImageUrlInput = document.getElementById("annotImageUrlInput");
+  const annotImageFileInput = document.getElementById("annotImageFileInput");
+  const annotImageCaptionInput = document.getElementById("annotImageCaptionInput");
+  const cancelAnnotationBtn = document.getElementById("cancelAnnotationBtn");
+  const confirmAnnotationBtn = document.getElementById("confirmAnnotationBtn");
 
   const livePreviewFrame = document.getElementById("livePreviewFrame");
   const previewStylesheetLabel = document.getElementById("previewStylesheetLabel");
@@ -1289,10 +1299,113 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  // --- GENIUS-STYLE ANNOTATION COMPOSER MODAL ---
+  let pendingAnnotRange = null;
+
+  function encodeAttrMultiline(str) {
+    return escapeHtml(str).replace(/\r?\n/g, "&#10;");
+  }
+
+  function openAnnotationModal() {
+    if (!annotationModal || !bodyHtmlEditor) return;
+    const start = bodyHtmlEditor.selectionStart;
+    const end = bodyHtmlEditor.selectionEnd;
+    pendingAnnotRange = { start, end };
+    const selectedText = bodyHtmlEditor.value.slice(start, end);
+    if (annotPhraseInput) annotPhraseInput.value = selectedText;
+    if (annotNoteInput) annotNoteInput.value = "";
+    if (annotImageUrlInput) annotImageUrlInput.value = "";
+    if (annotImageCaptionInput) annotImageCaptionInput.value = "";
+    annotationModal.style.display = "flex";
+    setTimeout(() => {
+      if (!selectedText && annotPhraseInput) annotPhraseInput.focus();
+      else if (annotNoteInput) annotNoteInput.focus();
+    }, 30);
+  }
+
+  function closeAnnotationModal() {
+    if (annotationModal) annotationModal.style.display = "none";
+    pendingAnnotRange = null;
+  }
+
+  if (openAnnotationModalBtn) {
+    openAnnotationModalBtn.addEventListener("click", () => {
+      closeAllRibbonDropdowns();
+      openAnnotationModal();
+    });
+  }
+
+  if (cancelAnnotationBtn) {
+    cancelAnnotationBtn.addEventListener("click", closeAnnotationModal);
+  }
+
+  if (annotationModal) {
+    annotationModal.addEventListener("click", (e) => {
+      if (e.target === annotationModal) closeAnnotationModal();
+    });
+  }
+
+  if (annotImageFileInput) {
+    annotImageFileInput.addEventListener("change", async () => {
+      const file = annotImageFileInput.files?.[0];
+      if (!file) return;
+      try {
+        const publicUrl = await uploadImageToStorage(file);
+        if (publicUrl && annotImageUrlInput) {
+          const existing = annotImageUrlInput.value.trim();
+          annotImageUrlInput.value = existing ? `${existing}, ${publicUrl}` : publicUrl;
+          setSaveStatus("saved", "Annotation image uploaded");
+          showToast("Annotation image uploaded!");
+        }
+      } catch (err) {
+        showToast("Upload failed: " + err.message, true);
+        setSaveStatus("idle", "Upload failed");
+      } finally {
+        annotImageFileInput.value = "";
+      }
+    });
+  }
+
+  if (confirmAnnotationBtn) {
+    confirmAnnotationBtn.addEventListener("click", () => {
+      const phrase = (annotPhraseInput?.value || "").trim() || "annotated line";
+      const note = (annotNoteInput?.value || "").trim();
+      const imgUrl = (annotImageUrlInput?.value || "").trim();
+      const imgCap = (annotImageCaptionInput?.value || "").trim();
+
+      if (!note && !imgUrl) {
+        showToast("Add an explanation or image for the annotation", true);
+        if (annotNoteInput) annotNoteInput.focus();
+        return;
+      }
+
+      const attrs = [`class="poem-annotate"`];
+      if (note) attrs.push(`data-note="${encodeAttrMultiline(note)}"`);
+      if (imgUrl) attrs.push(`data-note-img="${escapeHtml(imgUrl)}"`);
+      if (imgCap) attrs.push(`data-note-caption="${escapeHtml(imgCap)}"`);
+
+      const spanMarkup = `<span ${attrs.join(" ")}>${phrase}</span>`;
+
+      if (bodyHtmlEditor && pendingAnnotRange) {
+        const { start, end } = pendingAnnotRange;
+        bodyHtmlEditor.setRangeText(spanMarkup, start, end, "end");
+        bodyHtmlEditor.focus();
+        syncCodeHighlight();
+        markDirtyAndPreview();
+      } else {
+        insertTextAtCursor(spanMarkup, "", "");
+      }
+
+      closeAnnotationModal();
+      showToast("Annotation inserted!");
+    });
+  }
+
   // --- HTML SYNTAX HIGHLIGHTER & RIBBON TOOLBAR ---
   function classifyHtmlTag(tagName, attrText) {
     const t = tagName.toLowerCase();
     const a = (attrText || "").toLowerCase();
+    if (a.includes("poem-annotate")) return "hl-tag-annotate";
     if (a.includes("poem-")) return "hl-tag-poetry";
     if (t === "p" && a.includes("quote-text")) return "hl-tag-quote";
     if ((t === "div" || t === "p") && (a.includes("post-image") || a.includes("image-caption"))) {
@@ -1425,7 +1538,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeAllRibbonDropdowns();
+    if (e.key === "Escape") {
+      closeAllRibbonDropdowns();
+      closeAnnotationModal();
+    }
   });
 
   // --- SNIPPET TOOLBAR ---
@@ -1528,6 +1644,9 @@ document.addEventListener("DOMContentLoaded", async () => {
           break;
         case "poem-note":
           insertTextAtCursor('\n<p class="poem-note">\n    ', "\n</p>\n", "Author note, date, or colophon...");
+          break;
+        case "annotate":
+          openAnnotationModal();
           break;
         case "toc":
           generateTocSnippet();
@@ -1739,6 +1858,234 @@ document.addEventListener("DOMContentLoaded", async () => {
     `;
   }
 
+  function formatAnnotationBodyHtml(rawNote) {
+    const text = String(rawNote || "").trim();
+    if (!text) return "";
+    return text
+      .split(/\r?\n[ \t]*\r?\n+/)
+      .map((block) => {
+        const lines = block
+          .trim()
+          .split(/\r?\n/)
+          .map((l) => sanitizeInlineRichText(l))
+          .join("<br>");
+        return lines ? `<p>${lines}</p>` : "";
+      })
+      .filter(Boolean)
+      .join("");
+  }
+
+  function buildAnnotationMediaHtml(span) {
+    const rawImgs = (span.getAttribute("data-note-img") || "")
+      .split(/[,\r\n]+/)
+      .map((u) => normalizeAssetPath(u.trim()))
+      .filter(Boolean);
+    const captions = (span.getAttribute("data-note-caption") || "")
+      .split("|")
+      .map((c) => c.trim());
+
+    const figures = rawImgs.map((src, idx) => {
+      const cap = captions[idx] || (rawImgs.length === 1 ? captions[0] : "") || "";
+      return `
+        <figure class="aero-annot-figure">
+          <img src="${escapeHtml(src)}" alt="${escapeHtml(stripHtml(cap) || "Annotation image")}" loading="lazy">
+          ${cap ? `<figcaption class="aero-annot-figcaption">${sanitizeInlineRichText(cap)}</figcaption>` : ""}
+        </figure>
+      `;
+    });
+
+    const tpl = span.querySelector("template.poem-note-body");
+    if (tpl && tpl.content) {
+      tpl.content.querySelectorAll("img").forEach((imgEl) => {
+        const src = normalizeAssetPath(imgEl.getAttribute("src") || "");
+        if (!src) return;
+        const cap = imgEl.getAttribute("data-caption") || imgEl.getAttribute("alt") || "";
+        figures.push(`
+          <figure class="aero-annot-figure">
+            <img src="${escapeHtml(src)}" alt="${escapeHtml(cap || "Annotation image")}" loading="lazy">
+            ${cap ? `<figcaption class="aero-annot-figcaption">${sanitizeInlineRichText(cap)}</figcaption>` : ""}
+          </figure>
+        `);
+      });
+    }
+
+    return figures.length ? `<div class="aero-annot-media-list">${figures.join("")}</div>` : "";
+  }
+
+  function extractAnnotationBodyHtml(span) {
+    const attrNote = span.getAttribute("data-note");
+    if (attrNote && attrNote.trim()) {
+      return formatAnnotationBodyHtml(attrNote);
+    }
+    const tpl = span.querySelector("template.poem-note-body");
+    if (tpl && tpl.content) {
+      const clone = tpl.content.cloneNode(true);
+      clone.querySelectorAll("img").forEach((el) => el.remove());
+      const paragraphs = Array.from(clone.querySelectorAll("p"));
+      if (paragraphs.length) {
+        return paragraphs
+          .map((p) => `<p>${sanitizeInlineRichText(p.innerHTML)}</p>`)
+          .join("");
+      }
+      const holder = document.createElement("div");
+      holder.appendChild(clone);
+      return formatAnnotationBodyHtml(holder.innerHTML);
+    }
+    return "";
+  }
+
+  function setupPoetryAnnotations(container, { doc = document, win = window } = {}) {
+    if (!container) return;
+    const spans = Array.from(container.querySelectorAll(".poem-annotate"));
+    const existingPanel = doc.getElementById("poemAnnotationPanel");
+    if (!spans.length) {
+      if (existingPanel) existingPanel.classList.remove("is-open");
+      return;
+    }
+
+    let panel = existingPanel;
+    if (!panel) {
+      panel = doc.createElement("aside");
+      panel.id = "poemAnnotationPanel";
+      panel.className = "aero-annotation-panel";
+      panel.setAttribute("role", "dialog");
+      panel.setAttribute("aria-label", "Line Annotation");
+      container.appendChild(panel);
+    }
+
+    let activeIndex = -1;
+
+    function closePanel() {
+      activeIndex = -1;
+      spans.forEach((s) => {
+        s.classList.remove("is-active");
+        s.setAttribute("aria-expanded", "false");
+      });
+      panel.classList.remove("is-open", "is-side-docked", "is-inline-card");
+    }
+
+    function openAnnotation(idx) {
+      if (idx < 0 || idx >= spans.length) return;
+      const span = spans[idx];
+      if (activeIndex === idx && panel.classList.contains("is-open")) {
+        closePanel();
+        return;
+      }
+
+      activeIndex = idx;
+      spans.forEach((s, i) => {
+        const isCurrent = i === idx;
+        s.classList.toggle("is-active", isCurrent);
+        s.setAttribute("aria-expanded", isCurrent ? "true" : "false");
+      });
+
+      const excerptText = (span.textContent || "").trim();
+      const bodyHtml = extractAnnotationBodyHtml(span);
+      const mediaHtml = buildAnnotationMediaHtml(span);
+
+      panel.innerHTML = `
+        <div class="aero-annot-titlebar">
+          <span class="aero-annot-title-left">
+            <i class="bx bx-comment-detail"></i>
+            <span>Annotation ${idx + 1} of ${spans.length}</span>
+          </span>
+          <span class="aero-annot-controls">
+            ${
+              spans.length > 1
+                ? `<button type="button" class="aero-annot-btn" data-annot-nav="prev" title="Previous annotation">&lsaquo;</button>
+                   <button type="button" class="aero-annot-btn" data-annot-nav="next" title="Next annotation">&rsaquo;</button>`
+                : ""
+            }
+            <button type="button" class="aero-annot-btn is-close" data-annot-close="1" title="Close annotation">&times;</button>
+          </span>
+        </div>
+        <div class="aero-annot-content">
+          ${excerptText ? `<div class="aero-annot-excerpt">&ldquo;${escapeHtml(excerptText)}&rdquo;</div>` : ""}
+          ${bodyHtml ? `<div class="aero-annot-body">${bodyHtml}</div>` : ""}
+          ${mediaHtml}
+        </div>
+      `;
+
+      const useSideDock = container.classList.contains("is-poetry-mode") && win.innerWidth >= 1360;
+      if (useSideDock) {
+        if (panel.parentElement !== container) container.appendChild(panel);
+        const spanRect = span.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const topOffset = Math.max(12, Math.round(spanRect.top - containerRect.top - 10));
+        panel.style.setProperty("--annot-top", `${topOffset}px`);
+        panel.classList.remove("is-inline-card");
+        panel.classList.add("is-side-docked", "is-open");
+      } else {
+        panel.style.removeProperty("--annot-top");
+        panel.classList.remove("is-side-docked");
+        panel.classList.add("is-inline-card", "is-open");
+        const anchorBlock = span.closest(".poem-stanza, p, blockquote, li, .bilingual-container") || span;
+        if (anchorBlock.nextElementSibling !== panel) {
+          anchorBlock.insertAdjacentElement("afterend", panel);
+        }
+        panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+
+      const closeBtn = panel.querySelector("[data-annot-close]");
+      if (closeBtn) closeBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        closePanel();
+      });
+
+      panel.querySelectorAll("[data-annot-nav]").forEach((navBtn) => {
+        navBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const dir = navBtn.getAttribute("data-annot-nav") === "prev" ? -1 : 1;
+          const nextIdx = (activeIndex + dir + spans.length) % spans.length;
+          openAnnotation(nextIdx);
+        });
+      });
+    }
+
+    spans.forEach((span, idx) => {
+      span.setAttribute("role", "button");
+      span.setAttribute("tabindex", "0");
+      span.setAttribute("aria-expanded", "false");
+      span.dataset.annotIndex = String(idx);
+
+      span.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openAnnotation(idx);
+      });
+      span.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          e.stopPropagation();
+          openAnnotation(idx);
+        }
+      });
+    });
+
+    if (doc.body && doc.body.dataset.annotDocBound !== "1") {
+      doc.body.dataset.annotDocBound = "1";
+      doc.addEventListener("click", (e) => {
+        const livePanel = doc.getElementById("poemAnnotationPanel");
+        if (!livePanel || !livePanel.classList.contains("is-open")) return;
+        if (e.target.closest("#poemAnnotationPanel") || e.target.closest(".poem-annotate")) return;
+        livePanel.classList.remove("is-open", "is-side-docked", "is-inline-card");
+        doc.querySelectorAll(".poem-annotate.is-active").forEach((el) => {
+          el.classList.remove("is-active");
+          el.setAttribute("aria-expanded", "false");
+        });
+      });
+      doc.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape") return;
+        const livePanel = doc.getElementById("poemAnnotationPanel");
+        if (!livePanel || !livePanel.classList.contains("is-open")) return;
+        livePanel.classList.remove("is-open", "is-side-docked", "is-inline-card");
+        doc.querySelectorAll(".poem-annotate.is-active").forEach((el) => {
+          el.classList.remove("is-active");
+          el.setAttribute("aria-expanded", "false");
+        });
+      });
+    }
+  }
+
   function enhancePreviewAeroMedia(container) {
     if (!container) return;
     container.querySelectorAll(".post-image-wrapper").forEach((wrapper) => {
@@ -1800,6 +2147,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         ? formatPoetryBody(bodyHtmlEditor.value || "")
         : normalizeBodyHtmlAssets(bodyHtmlEditor.value || "");
       enhancePoetryStanzas(bodyMount);
+      setupPoetryAnnotations(bodyMount, { doc, win: livePreviewFrame.contentWindow || window });
       enhancePreviewAeroMedia(bodyMount);
     }
   }

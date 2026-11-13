@@ -440,6 +440,9 @@
                                     <i class="bx bx-image-add"></i><span>Image</span>
                                 </button>
                                 <input type="file" id="inlineImageFileInput" accept="image/*" style="display:none;">
+                                <button type="button" class="ribbon-btn" id="openAnnotationModalBtn" title="Insert Genius-Style Line Annotation (with optional image)">
+                                    <i class="bx bx-comment-detail"></i><span>Annotate</span>
+                                </button>
                                 <div class="ribbon-dropdown" data-ribbon-dropdown="insert">
                                     <button type="button" class="ribbon-btn ribbon-drop-trigger" aria-expanded="false" title="Insert Special Blocks">
                                         <i class="bx bx-plus-square"></i><span>Insert</span><i class="bx bx-chevron-down ribbon-caret"></i>
@@ -469,6 +472,10 @@
                                         <button type="button" class="ribbon-menu-item" data-snippet="poem-break">
                                             <span class="ribbon-badge is-poetry">* * *</span>
                                             <span class="ribbon-item-copy"><strong>Stanza Asterisk Break</strong><small>&lt;div class="poem-break"&gt;* * *&lt;/div&gt;</small></span>
+                                        </button>
+                                        <button type="button" class="ribbon-menu-item" data-snippet="annotate">
+                                            <span class="ribbon-badge is-poetry"><i class="bx bx-comment-detail"></i></span>
+                                            <span class="ribbon-item-copy"><strong>Genius Line Annotation</strong><small>Explain a line + attach optional image</small></span>
                                         </button>
                                     </div>
                                 </div>
@@ -542,6 +549,46 @@
                 <div class="w7-auth-footer">
                     <button type="button" id="cancelDeleteBtn" class="aero-command-btn">Cancel</button>
                     <button type="button" id="confirmDeleteBtn" class="aero-command-btn is-danger">Delete Forever</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Genius-Style Annotation Composer Modal -->
+    <div id="annotationModal" class="studio-modal-backdrop" style="display: none;">
+        <div class="w7-window w7-auth-window" style="max-width: 480px;">
+            <div class="title-bar">
+                <div class="title-bar-text">
+                    <img src="assets/icons/aero/edit.ico" alt="" class="w7-title-icon">
+                    <span>Insert Line Annotation</span>
+                </div>
+            </div>
+            <div class="window-body">
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    <div class="meta-field">
+                        <label class="meta-label" for="annotPhraseInput">Highlighted Line / Phrase</label>
+                        <input type="text" id="annotPhraseInput" class="studio-input" placeholder="Selected line or phrase from poem...">
+                    </div>
+                    <div class="meta-field">
+                        <label class="meta-label" for="annotNoteInput">Annotation Explanation <small style="font-weight:500;opacity:0.75;">(blank line = new paragraph, supports &lt;i&gt;, &lt;b&gt;, &lt;a&gt;)</small></label>
+                        <textarea id="annotNoteInput" class="studio-input" rows="4" style="resize:vertical;font-family:inherit;line-height:1.45;" placeholder="What inspired this line, memory, or reference..."></textarea>
+                    </div>
+                    <div class="meta-field">
+                        <label class="meta-label" for="annotImageUrlInput">
+                            <span>Optional Image URL (or multiple separated by comma)</span>
+                            <label for="annotImageFileInput" class="mini-aero-btn" style="cursor:pointer;">Upload</label>
+                            <input type="file" id="annotImageFileInput" accept="image/*" style="display:none;">
+                        </label>
+                        <input type="text" id="annotImageUrlInput" class="studio-input" placeholder="https://... (optional)">
+                    </div>
+                    <div class="meta-field">
+                        <label class="meta-label" for="annotImageCaptionInput">Image Caption (optional)</label>
+                        <input type="text" id="annotImageCaptionInput" class="studio-input" placeholder="Caption or context for the image...">
+                    </div>
+                </div>
+                <div class="w7-auth-footer" style="margin-top: 12px;">
+                    <button type="button" id="cancelAnnotationBtn" class="aero-command-btn">Cancel</button>
+                    <button type="button" id="confirmAnnotationBtn" class="aero-command-btn is-primary">Insert Annotation</button>
                 </div>
             </div>
         </div>

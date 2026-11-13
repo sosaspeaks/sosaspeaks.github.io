@@ -1483,6 +1483,7 @@ body.dark-mode #bodyHtmlEditor::selection {
 .hl-tag-toc       { color: #4338ca; background: rgba(67, 56, 202, 0.09); border-radius: 2px; }
 .hl-tag-bilingual { color: #c2410c; background: rgba(194, 65, 12, 0.1); border-radius: 2px; }
 .hl-tag-poetry    { color: #9d174d; background: rgba(157, 23, 77, 0.1); border-radius: 2px; }
+.hl-tag-annotate  { color: #b45309; background: rgba(245, 158, 11, 0.14); border-radius: 2px; }
 .hl-tag-generic   { color: #334155; background: rgba(51, 65, 85, 0.08); border-radius: 2px; }
 
 body.dark-mode .hl-comment       { color: #6e7681; }
@@ -1500,6 +1501,7 @@ body.dark-mode .hl-tag-link      { color: #f472b6; background: rgba(244, 114, 18
 body.dark-mode .hl-tag-toc       { color: #818cf8; background: rgba(129, 140, 248, 0.14); }
 body.dark-mode .hl-tag-bilingual { color: #fb923c; background: rgba(251, 146, 60, 0.14); }
 body.dark-mode .hl-tag-poetry    { color: #f9a8d4; background: rgba(244, 114, 182, 0.15); }
+body.dark-mode .hl-tag-annotate  { color: #fcd34d; background: rgba(251, 191, 36, 0.16); }
 body.dark-mode .hl-tag-generic   { color: #cbd5e1; background: rgba(148, 163, 184, 0.14); }
 
 .editor-status-footer {
