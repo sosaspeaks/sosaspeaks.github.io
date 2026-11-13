@@ -157,6 +157,174 @@
     });
   }
 
+  function clampNum(n, min, max) {
+    return Math.min(max, Math.max(min, n));
+  }
+
+  function rgbToHsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0;
+    const l = (max + min) / 2;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / d + 2; break;
+        case b: h = (r - g) / d + 4; break;
+      }
+      h /= 6;
+    }
+    return [h, s, l];
+  }
+
+  function hslToRgb(h, s, l) {
+    let r, g, b;
+    if (s === 0) {
+      r = g = b = l;
+    } else {
+      const hue2rgb = (p, q, t) => {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+        return p;
+      };
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      const p = 2 * l - q;
+      r = hue2rgb(p, q, h + 1 / 3);
+      g = hue2rgb(p, q, h);
+      b = hue2rgb(p, q, h - 1 / 3);
+    }
+    return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+  }
+
+  function rgbToHex(r, g, b) {
+    return "#" + [r, g, b].map((v) => clampNum(v, 0, 255).toString(16).padStart(2, "0")).join("");
+  }
+
+  function parseHexColor(hex) {
+    const clean = String(hex || "").trim().replace(/^#/, "");
+    if (!/^[0-9a-f]{6}$/i.test(clean)) return null;
+    return [
+      parseInt(clean.slice(0, 2), 16),
+      parseInt(clean.slice(2, 4), 16),
+      parseInt(clean.slice(4, 6), 16)
+    ];
+  }
+
+  function computeHeroTintTokens(hexColor) {
+    const rgb = parseHexColor(hexColor);
+    if (!rgb) return null;
+    const [h, s] = rgbToHsl(rgb[0], rgb[1], rgb[2]);
+    const isGray = s < 0.08;
+    const ambS = isGray ? s : clampNum(s, 0.36, 0.8);
+    const deepS = isGray ? s : clampNum(s, 0.36, 0.72);
+    const midS = isGray ? s : clampNum(s, 0.42, 0.78);
+    const brightS = isGray ? s : clampNum(s, 0.48, 0.85);
+
+    const ambRgb = hslToRgb(h, ambS, 0.54);
+    const deepRgb = hslToRgb(h, deepS, 0.25);
+    const midRgb = hslToRgb(h, midS, 0.44);
+    const brightRgb = hslToRgb(h, brightS, 0.73);
+
+    return {
+      hex: rgbToHex(rgb[0], rgb[1], rgb[2]),
+      ambientRgb: `${ambRgb[0]}, ${ambRgb[1]}, ${ambRgb[2]}`,
+      deepHex: rgbToHex(deepRgb[0], deepRgb[1], deepRgb[2]),
+      midHex: rgbToHex(midRgb[0], midRgb[1], midRgb[2]),
+      brightHex: rgbToHex(brightRgb[0], brightRgb[1], brightRgb[2])
+    };
+  }
+
+  function applyHeroColorTint(targetDoc, enabled, hexColor) {
+    const body = targetDoc?.body;
+    if (!body) return;
+    const tokens = enabled ? computeHeroTintTokens(hexColor) : null;
+    if (!tokens) {
+      body.classList.remove("has-hero-tint");
+      body.style.removeProperty("--hero-tint-rgb");
+      body.style.removeProperty("--hero-tint-hex");
+      body.style.removeProperty("--hero-tint-deep");
+      body.style.removeProperty("--hero-tint-mid");
+      body.style.removeProperty("--hero-tint-bright");
+      return;
+    }
+    body.style.setProperty("--hero-tint-rgb", tokens.ambientRgb);
+    body.style.setProperty("--hero-tint-hex", tokens.hex);
+    body.style.setProperty("--hero-tint-deep", tokens.deepHex);
+    body.style.setProperty("--hero-tint-mid", tokens.midHex);
+    body.style.setProperty("--hero-tint-bright", tokens.brightHex);
+    body.classList.add("has-hero-tint");
+  }
+
+  function extractHeroAccentColor(imgUrl) {
+    return new Promise((resolve) => {
+      const normalized = normalizeAssetPath(imgUrl);
+      if (!normalized) return resolve(null);
+      const img = new Image();
+      img.crossOrigin = "Anonymous";
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = 24;
+          canvas.height = 24;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, 24, 24);
+          const data = ctx.getImageData(0, 0, 24, 24).data;
+          const buckets = new Map();
+          let sumR = 0, sumG = 0, sumB = 0, count = 0;
+
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+            if (a < 180) continue;
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            if (max < 18 || (max > 246 && min > 236)) continue;
+
+            sumR += r; sumG += g; sumB += b; count++;
+            const [h, s, l] = rgbToHsl(r, g, b);
+            if (s < 0.14) continue;
+            const lumWeight = 1 - Math.abs(l - 0.52) * 1.35;
+            const weight = Math.max(0.05, s * s * Math.max(0.25, lumWeight));
+            const bin = Math.min(23, Math.floor(h * 24));
+            const entry = buckets.get(bin) || { weight: 0, r: 0, g: 0, b: 0 };
+            entry.weight += weight;
+            entry.r += r * weight;
+            entry.g += g * weight;
+            entry.b += b * weight;
+            buckets.set(bin, entry);
+          }
+
+          if (buckets.size > 0) {
+            let best = null;
+            for (const entry of buckets.values()) {
+              if (!best || entry.weight > best.weight) best = entry;
+            }
+            return resolve(
+              rgbToHex(
+                Math.round(best.r / best.weight),
+                Math.round(best.g / best.weight),
+                Math.round(best.b / best.weight)
+              )
+            );
+          }
+
+          if (count > 0) {
+            return resolve(rgbToHex(Math.round(sumR / count), Math.round(sumG / count), Math.round(sumB / count)));
+          }
+          resolve(null);
+        } catch (err) {
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = normalized;
+    });
+  }
+
   function formatDisplayDate(isoStr) {
     if (!isoStr) return "";
     const d = new Date(isoStr);
@@ -277,9 +445,10 @@
 
     const heroUrl = normalizeAssetPath(article.hero_image_url);
     const heroCaption = (article.hero_image_caption || "").trim();
+    const heroOrigCls = article.hero_original_dimensions ? " is-original-hero" : "";
     const heroHtml = heroUrl
       ? `
-        <div class="post-image-wrapper aero-media-window is-hero-window${heroCaption ? " has-caption" : ""}" data-aero-enhanced="1">
+        <div class="post-image-wrapper aero-media-window is-hero-window${heroOrigCls}${heroCaption ? " has-caption" : ""}" data-aero-enhanced="1">
           <div class="aero-media-viewport">
             <img src="${escapeHtml(heroUrl)}" alt="${escapeHtml(stripHtml(article.title))}" class="header-img">
           </div>
@@ -477,6 +646,17 @@
       : normalizeBodyHtmlAssets(article.body_html || "");
     enhancePoetryStanzas(bodySection);
     enhanceAeroArticleMedia(bodySection);
+
+    if (article.hero_tint_enabled) {
+      if (article.hero_tint_color) {
+        applyHeroColorTint(document, true, article.hero_tint_color);
+      } else if (article.hero_image_url) {
+        const sampledHex = await extractHeroAccentColor(article.hero_image_url);
+        applyHeroColorTint(document, !!sampledHex, sampledHex);
+      }
+    } else {
+      applyHeroColorTint(document, false, null);
+    }
 
     if (statusStage) statusStage.style.display = "none";
     if (articleRoot) articleRoot.style.display = "block";

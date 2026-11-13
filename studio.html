@@ -343,6 +343,32 @@
                             <label class="meta-label" for="metaHeroCaption">Hero Caption / Credit</label>
                             <input type="text" id="metaHeroCaption" class="studio-input" placeholder="Photo credit or caption...">
                         </div>
+
+                        <div class="meta-field is-full hero-tint-field">
+                            <div class="hero-tint-toggle-row">
+                                <label class="hero-tint-check-label" for="metaHeroTintEnabled">
+                                    <input type="checkbox" id="metaHeroTintEnabled" class="hero-tint-checkbox">
+                                    <span class="hero-tint-copy">
+                                        <strong>Tint article theme from hero image</strong>
+                                        <small>Applies hero color accent to header gradient, quotes &amp; Aero chrome</small>
+                                    </span>
+                                </label>
+                                <span id="heroTintSwatchWrap" class="hero-tint-swatch-wrap" style="display:none;">
+                                    <input type="color" id="metaHeroTintColor" class="hero-tint-color-input" value="#10b981" title="Fine-tune hero tint color">
+                                    <span id="heroTintHexLabel" class="hero-tint-hex-label">#10B981</span>
+                                    <button type="button" id="resampleHeroTintBtn" class="mini-aero-btn" title="Re-sample accent color from hero image">Sample</button>
+                                </span>
+                            </div>
+                            <div class="hero-tint-toggle-row" style="margin-top:5px;">
+                                <label class="hero-tint-check-label" for="metaHeroOriginalDims">
+                                    <input type="checkbox" id="metaHeroOriginalDims" class="hero-tint-checkbox">
+                                    <span class="hero-tint-copy">
+                                        <strong>Original hero dimensions (0px border radius)</strong>
+                                        <small>Displays the article hero image at its natural aspect ratio with sharp corners instead of the 400px crop</small>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- MS Word-Style Aero Ribbon Toolbar -->

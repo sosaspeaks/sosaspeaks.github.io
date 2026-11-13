@@ -879,6 +879,91 @@ body.dark-mode .meta-label {
   gap: 6px;
 }
 
+.hero-tint-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 6px 9px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+body.dark-mode .hero-tint-toggle-row {
+  background: rgba(15, 23, 42, 0.45);
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+.hero-tint-check-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  flex: 1 1 220px;
+}
+
+.hero-tint-checkbox {
+  width: 15px;
+  height: 15px;
+  accent-color: #10b981;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.hero-tint-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.hero-tint-copy strong {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.hero-tint-copy small {
+  font-size: 0.68rem;
+  color: #64748b;
+}
+
+body.dark-mode .hero-tint-copy strong {
+  color: #e2e8f0;
+}
+
+body.dark-mode .hero-tint-copy small {
+  color: #94a3b8;
+}
+
+.hero-tint-swatch-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hero-tint-color-input {
+  width: 26px;
+  height: 22px;
+  padding: 1px;
+  border: 1px solid rgba(148, 163, 184, 0.55);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.hero-tint-hex-label {
+  font-family: "Noto Sans Mono", monospace;
+  font-size: 0.71rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+body.dark-mode .hero-tint-hex-label {
+  color: #cbd5e1;
+}
+
 .mini-aero-btn {
   padding: 4px 8px;
   font-size: 0.72rem;
