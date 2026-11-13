@@ -641,9 +641,7 @@
     }
 
     bodySection.classList.toggle("is-poetry-mode", isPoetry);
-    bodySection.innerHTML = isPoetry
-      ? formatPoetryBody(article.body_html || "")
-      : normalizeBodyHtmlAssets(article.body_html || "");
+    mountPoemPrefaceAndBody(bodySection, article.body_html || "", isPoetry, { doc: document });
     enhancePoetryStanzas(bodySection);
     setupPoetryAnnotations(bodySection);
     enhanceAeroArticleMedia(bodySection);
@@ -676,6 +674,46 @@
         setTimeout(() => target.scrollIntoView({ behavior: "smooth" }), 80);
       }
     }
+  }
+
+  function mountPoemPrefaceAndBody(bodyEl, rawHtml, isPoetry, { doc = document } = {}) {
+    if (!bodyEl) return;
+    const prevStage = bodyEl.previousElementSibling;
+    if (prevStage && prevStage.classList.contains("poem-preface-stage")) {
+      prevStage.remove();
+    }
+
+    const normalized = normalizeBodyHtmlAssets(rawHtml || "");
+    const parser = new DOMParser();
+    const parsedDoc = parser.parseFromString(`<div id="__sosaTmpRoot">${normalized}</div>`, "text/html");
+    const tmpRoot = parsedDoc.getElementById("__sosaTmpRoot");
+
+    const prefaces = tmpRoot ? Array.from(tmpRoot.querySelectorAll(".poem-preface")) : [];
+    if (prefaces.length > 0 && bodyEl.parentNode) {
+      prefaces.forEach((p) => p.remove());
+      const stage = doc.createElement("section");
+      stage.className = `poem-preface-stage post-container${isPoetry ? " is-poetry-width" : ""}`;
+      stage.setAttribute("aria-label", "Preface");
+
+      prefaces.forEach((preEl) => {
+        const adopted = doc.importNode(preEl, true);
+        const rawLabel = adopted.getAttribute("data-label");
+        const label = rawLabel ? rawLabel.trim() : "";
+        if (label && !adopted.querySelector(".poem-preface-header")) {
+          const hdr = doc.createElement("div");
+          hdr.className = "poem-preface-header";
+          hdr.innerHTML = `<i class="bx bx-info-circle"></i><span>${escapeHtml(label)}</span>`;
+          adopted.prepend(hdr);
+        }
+        stage.appendChild(adopted);
+      });
+
+      bodyEl.parentNode.insertBefore(stage, bodyEl);
+    }
+
+    const remainingHtml = tmpRoot ? tmpRoot.innerHTML : normalized;
+    bodyEl.classList.toggle("is-poetry-mode", isPoetry);
+    bodyEl.innerHTML = isPoetry ? formatPoetryBody(remainingHtml) : remainingHtml;
   }
 
   function formatAnnotationBodyHtml(rawNote) {
@@ -756,8 +794,15 @@
 
   function setupPoetryAnnotations(container, { doc = document, win = window } = {}) {
     if (!container) return;
+    function clearShiftStyles() {
+      container.classList.remove("has-side-annotation-shift");
+      container.style.removeProperty("--annot-poem-w");
+      container.style.removeProperty("--annot-shift-left");
+    }
+
     const spans = Array.from(container.querySelectorAll(".poem-annotate"));
     const existingPanel = doc.getElementById("poemAnnotationPanel");
+    clearShiftStyles();
     if (!spans.length) {
       if (existingPanel) existingPanel.classList.remove("is-open");
       return;
@@ -775,14 +820,73 @@
 
     let activeIndex = -1;
 
+    function positionPanel(span) {
+      const vw = doc.documentElement?.clientWidth || win.innerWidth || 0;
+      const useSideDock = vw >= 640;
+      if (useSideDock) {
+        if (panel.parentElement !== container) container.appendChild(panel);
+        clearShiftStyles();
+
+        const isPoetry = container.classList.contains("is-poetry-mode");
+        const baseMaxW = isPoetry ? 680 : 760;
+        const gap = vw >= 960 ? 22 : 14;
+        const edgePad = vw >= 960 ? 24 : 14;
+        const desiredW = vw >= 1280 ? 320 : vw >= 900 ? 285 : 240;
+
+        const baseRect = container.getBoundingClientRect();
+        const naturalRight = vw - baseRect.right - edgePad;
+        let panelW = desiredW;
+
+        if (naturalRight < desiredW + gap) {
+          const availW = Math.max(320, vw - 2 * edgePad);
+          panelW = Math.min(desiredW, Math.max(215, Math.floor(availW * 0.4)));
+          const maxPairW = Math.min(availW, baseMaxW + gap + panelW);
+          const poemW = Math.max(280, Math.min(baseMaxW, maxPairW - gap - panelW));
+          const shiftLeft = Math.max(edgePad, Math.round((vw - (poemW + gap + panelW)) / 2));
+          container.style.setProperty("--annot-poem-w", `${poemW}px`);
+          container.style.setProperty("--annot-shift-left", `${shiftLeft}px`);
+          container.classList.add("has-side-annotation-shift");
+        }
+
+        const spanRect = span.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const topOffset = Math.max(8, Math.round(spanRect.top - containerRect.top - 10));
+        panel.style.setProperty("--annot-top", `${topOffset}px`);
+        panel.style.setProperty("--annot-gap", `${gap}px`);
+        panel.style.setProperty("--annot-width", `${panelW}px`);
+        panel.classList.remove("is-inline-card");
+        panel.classList.add("is-side-docked", "is-open");
+      } else {
+        clearShiftStyles();
+        panel.style.removeProperty("--annot-top");
+        panel.style.removeProperty("--annot-gap");
+        panel.style.removeProperty("--annot-width");
+        panel.classList.remove("is-side-docked");
+        panel.classList.add("is-inline-card", "is-open");
+        const anchorBlock = span.closest(".poem-stanza, p, blockquote, li, .bilingual-container") || span;
+        if (anchorBlock.nextElementSibling !== panel) {
+          anchorBlock.insertAdjacentElement("afterend", panel);
+        }
+        panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    }
+
     function closePanel() {
       activeIndex = -1;
+      clearShiftStyles();
       spans.forEach((s) => {
         s.classList.remove("is-active");
         s.setAttribute("aria-expanded", "false");
       });
       panel.classList.remove("is-open", "is-side-docked", "is-inline-card");
     }
+
+    doc._closeActiveAnnotation = closePanel;
+    doc._repositionActiveAnnotation = () => {
+      if (activeIndex >= 0 && spans[activeIndex] && panel.classList.contains("is-open")) {
+        positionPanel(spans[activeIndex]);
+      }
+    };
 
     function openAnnotation(idx) {
       if (idx < 0 || idx >= spans.length) return;
@@ -826,25 +930,7 @@
         </div>
       `;
 
-      const useSideDock = container.classList.contains("is-poetry-mode") && win.innerWidth >= 1360;
-      if (useSideDock) {
-        if (panel.parentElement !== container) container.appendChild(panel);
-        const spanRect = span.getBoundingClientRect();
-        const containerRect = container.getBoundingClientRect();
-        const topOffset = Math.max(12, Math.round(spanRect.top - containerRect.top - 10));
-        panel.style.setProperty("--annot-top", `${topOffset}px`);
-        panel.classList.remove("is-inline-card");
-        panel.classList.add("is-side-docked", "is-open");
-      } else {
-        panel.style.removeProperty("--annot-top");
-        panel.classList.remove("is-side-docked");
-        panel.classList.add("is-inline-card", "is-open");
-        const anchorBlock = span.closest(".poem-stanza, p, blockquote, li, .bilingual-container") || span;
-        if (anchorBlock.nextElementSibling !== panel) {
-          anchorBlock.insertAdjacentElement("afterend", panel);
-        }
-        panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      }
+      positionPanel(span);
 
       const closeBtn = panel.querySelector("[data-annot-close]");
       if (closeBtn) closeBtn.addEventListener("click", (e) => {
@@ -887,21 +973,22 @@
         const livePanel = doc.getElementById("poemAnnotationPanel");
         if (!livePanel || !livePanel.classList.contains("is-open")) return;
         if (e.target.closest("#poemAnnotationPanel") || e.target.closest(".poem-annotate")) return;
-        livePanel.classList.remove("is-open", "is-side-docked", "is-inline-card");
-        doc.querySelectorAll(".poem-annotate.is-active").forEach((el) => {
-          el.classList.remove("is-active");
-          el.setAttribute("aria-expanded", "false");
-        });
+        if (typeof doc._closeActiveAnnotation === "function") {
+          doc._closeActiveAnnotation();
+        }
       });
       doc.addEventListener("keydown", (e) => {
         if (e.key !== "Escape") return;
         const livePanel = doc.getElementById("poemAnnotationPanel");
         if (!livePanel || !livePanel.classList.contains("is-open")) return;
-        livePanel.classList.remove("is-open", "is-side-docked", "is-inline-card");
-        doc.querySelectorAll(".poem-annotate.is-active").forEach((el) => {
-          el.classList.remove("is-active");
-          el.setAttribute("aria-expanded", "false");
-        });
+        if (typeof doc._closeActiveAnnotation === "function") {
+          doc._closeActiveAnnotation();
+        }
+      });
+      win.addEventListener("resize", () => {
+        if (typeof doc._repositionActiveAnnotation === "function") {
+          doc._repositionActiveAnnotation();
+        }
       });
     }
   }

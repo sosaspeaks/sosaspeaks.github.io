@@ -3738,6 +3738,8 @@ body.dark-mode.has-hero-tint .poem-annotate {
 
 .aero-annotation-panel.is-open { display: block; }
 .aero-annotation-panel.is-inline-card { width: 100%; margin: 0.75rem 0 1.45rem 0; }
+.aero-annotation-panel.is-side-docked { position: absolute; left: calc(100% + var(--annot-gap, 20px)); top: var(--annot-top, 0px); width: var(--annot-width, 300px); margin: 0; }
+.post-content.has-side-annotation-shift { max-width: var(--annot-poem-w, 680px) !important; margin-left: var(--annot-shift-left, 16px) !important; margin-right: 0 !important; }
 .aero-annot-titlebar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 11px; background: linear-gradient(180deg, rgba(232, 250, 242, 0.92), rgba(209, 245, 230, 0.75)); border-bottom: 1px solid rgba(16, 185, 129, 0.24); font-size: 0.74rem; font-weight: 800; color: #064e3b; }
 .aero-annot-title-left { display: inline-flex; align-items: center; gap: 6px; }
 .aero-annot-controls { display: inline-flex; align-items: center; gap: 4px; }

@@ -2064,21 +2064,13 @@ body.dark-mode .rating-count {
    ============================================================ */
 .post-content.is-poetry-mode {
     max-width: 680px !important;
-    padding: 2.35rem 2.6rem;
-    margin-top: 2.1rem !important;
-    background: linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 0.78) 0%,
-        rgba(244, 253, 249, 0.62) 55%,
-        rgba(230, 249, 240, 0.5) 100%
-    );
-    border: 1px solid rgba(110, 231, 183, 0.42);
-    border-radius: 0.95rem;
-    box-shadow: 0 14px 36px rgba(10, 40, 25, 0.08),
-                inset 0 1px 0 rgba(255, 255, 255, 0.95),
-                inset 0 -1px 0 rgba(16, 185, 129, 0.1);
-    -webkit-backdrop-filter: blur(14px);
-    backdrop-filter: blur(14px);
+    margin-top: 2rem !important;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
     box-sizing: border-box;
     text-align: left;
 }
@@ -2196,16 +2188,9 @@ body.dark-mode .rating-count {
 
 /* Dark Mode Poetry Support */
 body.dark-mode .post-content.is-poetry-mode {
-    background: linear-gradient(
-        180deg,
-        rgba(14, 34, 27, 0.72) 0%,
-        rgba(10, 25, 20, 0.68) 60%,
-        rgba(8, 19, 16, 0.76) 100%
-    );
-    border-color: rgba(52, 211, 153, 0.22);
-    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.45),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1),
-                inset 0 -1px 0 rgba(52, 211, 153, 0.12);
+    background: transparent;
+    border: none;
+    box-shadow: none;
 }
 
 body.dark-mode .poem-stanza {
@@ -2249,10 +2234,155 @@ body.dark-mode .poem-note {
     color: #a7c4b5;
 }
 
+/* ============================================================
+   POEM PREFACE / SUBTLE CONTEXT NOTE ABOVE POEM (.poem-preface)
+   ============================================================ */
+.poem-preface-stage {
+    margin: 1.75rem auto 0 auto;
+    width: 100%;
+    max-width: 760px;
+    box-sizing: border-box;
+}
+
+.poem-preface-stage.is-poetry-width {
+    max-width: 680px;
+}
+
+.poem-preface-stage::after {
+    content: "";
+    display: block;
+    width: 100%;
+    height: 1px;
+    margin-top: 1.45rem;
+    background: rgba(16, 185, 129, 0.26);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+body.dark-mode .poem-preface-stage::after {
+    background: rgba(52, 211, 153, 0.22);
+    box-shadow: none;
+}
+
+body.has-hero-tint .poem-preface-stage::after {
+    background: rgba(var(--hero-tint-rgb, 16, 185, 129), 0.28);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+body.dark-mode.has-hero-tint .poem-preface-stage::after {
+    background: rgba(var(--hero-tint-rgb, 52, 211, 153), 0.26);
+    box-shadow: none;
+}
+
+.poem-preface-stage + .post-content.is-poetry-mode,
+.poem-preface-stage + .post-content {
+    margin-top: 1.45rem !important;
+}
+
+.poem-preface {
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 0.88rem;
+    font-style: italic;
+    line-height: 1.6rem;
+    color: rgba(36, 59, 48, 0.84);
+    text-align: left;
+    box-sizing: border-box;
+}
+
+.poem-preface + .poem-preface {
+    margin-top: 0.75rem;
+}
+
+.poem-preface-header {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 0.3rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    font-style: normal;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(4, 120, 87, 0.76);
+}
+
+.poem-preface p {
+    margin: 0 0 0.45rem 0;
+}
+
+.poem-preface p:last-child {
+    margin-bottom: 0;
+}
+
+.poem-preface a {
+    color: rgba(4, 120, 87, 0.88);
+    text-decoration: none;
+    border-bottom: 1px dashed rgba(4, 120, 87, 0.38);
+}
+
+.poem-preface a:hover {
+    border-bottom-style: solid;
+}
+
+body.dark-mode .poem-preface {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: rgba(214, 235, 224, 0.78);
+}
+
+body.dark-mode .poem-preface-header {
+    color: rgba(110, 231, 183, 0.78);
+}
+
+body.dark-mode .poem-preface a {
+    color: rgba(110, 231, 183, 0.88);
+    border-bottom-color: rgba(110, 231, 183, 0.38);
+}
+
+body.has-hero-tint .poem-preface {
+    background: transparent;
+    border: none;
+    color: rgba(30, 41, 59, 0.82);
+    color: color-mix(in srgb, var(--hero-tint-deep, #243b30) 58%, #334155);
+}
+
+body.has-hero-tint .poem-preface-header,
+body.has-hero-tint .poem-preface a {
+    color: var(--hero-tint-deep, #047857);
+    opacity: 0.85;
+    border-bottom-color: rgba(var(--hero-tint-rgb, 4, 120, 87), 0.38);
+}
+
+body.dark-mode.has-hero-tint .poem-preface {
+    background: transparent;
+    border: none;
+    color: rgba(226, 232, 240, 0.8);
+    color: color-mix(in srgb, var(--hero-tint-bright, #d6ebe0) 48%, #cbd5e1);
+}
+
+body.dark-mode.has-hero-tint .poem-preface-header,
+body.dark-mode.has-hero-tint .poem-preface a {
+    color: var(--hero-tint-bright, #6ee7b7);
+    opacity: 0.85;
+    border-bottom-color: rgba(var(--hero-tint-rgb, 110, 231, 183), 0.38);
+}
+
+@media (max-width: 640px) {
+    .poem-preface {
+        padding: 0;
+        font-size: 0.85rem;
+        line-height: 1.52rem;
+    }
+}
+
 @media (max-width: 640px) {
     .post-content.is-poetry-mode {
-        padding: 1.55rem 1.3rem;
-        border-radius: 0.75rem;
+        padding: 0 1.25rem;
     }
 
     .poem-stanza {
@@ -6898,32 +7028,11 @@ body.dark-mode.has-hero-tint .aero-caption-icon {
   border-color: rgba(var(--hero-tint-rgb, 52, 211, 153), 0.36);
 }
 
-body.has-hero-tint .post-content.is-poetry-mode {
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.84) 0%,
-    rgba(var(--hero-tint-rgb, 244, 253, 249), 0.12) 55%,
-    rgba(var(--hero-tint-rgb, 230, 249, 240), 0.2) 100%
-  );
-  border-color: rgba(var(--hero-tint-rgb, 110, 231, 183), 0.45);
-  box-shadow:
-    0 14px 36px rgba(var(--hero-tint-rgb, 10, 40, 25), 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    inset 0 -1px 0 rgba(var(--hero-tint-rgb, 16, 185, 129), 0.14);
-}
-
+body.has-hero-tint .post-content.is-poetry-mode,
 body.dark-mode.has-hero-tint .post-content.is-poetry-mode {
-  background: linear-gradient(
-    180deg,
-    rgba(var(--hero-tint-rgb, 16, 185, 129), 0.16) 0%,
-    rgba(16, 20, 24, 0.78) 55%,
-    rgba(10, 14, 18, 0.86) 100%
-  );
-  border-color: rgba(var(--hero-tint-rgb, 52, 211, 153), 0.3);
-  box-shadow:
-    0 16px 38px rgba(0, 0, 0, 0.5),
-    0 0 26px rgba(var(--hero-tint-rgb, 52, 211, 153), 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 body.has-hero-tint .poem-stanza {
@@ -7122,10 +7231,16 @@ body.dark-mode.has-hero-tint .poem-annotate.is-active {
 
 .aero-annotation-panel.is-side-docked {
   position: absolute;
-  left: calc(100% + 22px);
+  left: calc(100% + var(--annot-gap, 20px));
   top: var(--annot-top, 0px);
-  width: 300px;
+  width: var(--annot-width, 300px);
   margin: 0;
+}
+
+.post-content.has-side-annotation-shift {
+  max-width: var(--annot-poem-w, 680px) !important;
+  margin-left: var(--annot-shift-left, 16px) !important;
+  margin-right: 0 !important;
 }
 
 .aero-annot-titlebar {
