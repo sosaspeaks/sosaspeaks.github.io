@@ -11386,7 +11386,7 @@ body.dark-mode .tag-chip.chip-movement {
   visibility: hidden;
   pointer-events: none;
   transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
-  font-family: "Plus Jakarta Sans", sans-serif;
+  font-family: "Plus Jakarta Sans", sans-serif !important;
   font-size: 0.74rem;
   display: inline-flex;
   align-items: center;
@@ -11450,6 +11450,7 @@ body.dark-mode .tag-chip.chip-movement {
   display: inline-flex;
   align-items: center;
   gap: 3px;
+  font-family: "Plus Jakarta Sans", sans-serif !important;
   font-weight: 700;
   font-size: 0.65rem;
   text-transform: uppercase;
@@ -11477,6 +11478,7 @@ body.dark-mode .tag-chip.chip-movement {
   align-items: center;
   padding: 1.5px 8px;
   border-radius: 999px;
+  font-family: "Plus Jakarta Sans", sans-serif !important;
   font-weight: 600;
   font-size: 0.72rem;
   line-height: 1.35;
