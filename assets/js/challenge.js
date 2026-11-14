@@ -527,6 +527,89 @@ document.addEventListener("DOMContentLoaded", async () => {
     return Array.from(set).sort();
   }
 
+  function getLiveScenePool() {
+    const set = new Set();
+    [...backlogEntries, ...loggedSpins].forEach(item => {
+      safeToArray(item.scenes).forEach(s => set.add(s));
+    });
+    return Array.from(set).sort();
+  }
+
+  function getLiveMovementPool() {
+    const set = new Set();
+    [...backlogEntries, ...loggedSpins].forEach(item => {
+      safeToArray(item.movements).forEach(m => set.add(m));
+    });
+    return Array.from(set).sort();
+  }
+
+  function renderContextPinSingle(kind, items) {
+    if (!items || !items.length) return "";
+    const isScene = kind === "scene";
+    const kindClass = isScene ? "is-scene" : "is-movement";
+    const iconClass = isScene ? "bx-map-pin" : "bx-planet";
+    const labelText = isScene ? "Scene:" : "Movement:";
+    const titlePrefix = isScene ? "Scene" : "Movement";
+    const titleAttr = escapeHtml(`${titlePrefix}: ${items.join(", ")}`);
+    const pillsHtml = items.map(val => {
+      const escapedJs = val.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+      return `<button type="button" class="context-popover-pill ${kindClass}" onclick="handleContextPillClick('${kind}', '${escapedJs}', event)" title="View in SosaSpins: ${escapeHtml(val)}">${escapeHtml(val)}</button>`;
+    }).join("");
+
+    return `
+      <span class="context-pin-anchor" title="${titleAttr}">
+        <button type="button" class="context-pin-btn ${kindClass}" aria-label="${titleAttr}" aria-expanded="false" onclick="toggleContextPin(this, event)">
+          <i class='bx ${iconClass} context-pin-icon'></i>
+        </button>
+        <div class="context-pin-popover ${kindClass}" role="dialog" aria-label="${titlePrefix}">
+          <span class="context-popover-label ${kindClass}"><i class='bx ${iconClass} context-popover-icon'></i> ${labelText}</span>
+          ${pillsHtml}
+        </div>
+      </span>
+    `;
+  }
+
+  function renderContextPinsHtml(scenesVal, movementsVal) {
+    const scenes = safeToArray(scenesVal);
+    const movements = safeToArray(movementsVal);
+    if (!scenes.length && !movements.length) return "";
+    return `<span class="context-pins-group">${renderContextPinSingle("scene", scenes)}${renderContextPinSingle("movement", movements)}</span>`;
+  }
+
+  window.toggleContextPin = function(btn, event) {
+    if (event) event.stopPropagation();
+    const anchor = btn ? btn.closest(".context-pin-anchor") : null;
+    if (!anchor) return;
+    const willOpen = !anchor.classList.contains("is-open");
+    document.querySelectorAll(".context-pin-anchor.is-open").forEach(el => {
+      el.classList.remove("is-open");
+      const b = el.querySelector(".context-pin-btn");
+      if (b) b.setAttribute("aria-expanded", "false");
+    });
+    if (willOpen) {
+      anchor.classList.add("is-open");
+      btn.setAttribute("aria-expanded", "true");
+    }
+  };
+
+  window.handleContextPillClick = function(type, val, event) {
+    if (event) event.stopPropagation();
+    window.location.href = `sosaspins.html?${encodeURIComponent(type)}=${encodeURIComponent(val)}`;
+  };
+
+  if (!window._challengeContextPinListener) {
+    window._challengeContextPinListener = true;
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".context-pin-anchor")) {
+        document.querySelectorAll(".context-pin-anchor.is-open").forEach(el => {
+          el.classList.remove("is-open");
+          const b = el.querySelector(".context-pin-btn");
+          if (b) b.setAttribute("aria-expanded", "false");
+        });
+      }
+    });
+  }
+
   // Tag Input Component
   class TagInputManager {
     constructor({ containerId, inputId, dropdownId, hiddenInputId, chipClass, getPool }) {
@@ -668,7 +751,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     addTag(val) {
       let cleaned = String(val).replace(/^\s*descriptors\s*:?\s*/i, "").trim();
       if (!cleaned || cleaned.toLowerCase() === "descriptors") return;
-      if (cleaned.length > 50 || cleaned.split(/\s+/).length > 6) return;
+      if (cleaned.length > 65 || cleaned.split(/\s+/).length > 8) return;
       if (!this.tags.includes(cleaned)) {
         this.tags.push(cleaned);
         this.render();
@@ -687,13 +770,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       } else if (Array.isArray(arrayOrString)) {
         this.tags = arrayOrString
           .map(s => String(s).replace(/^\s*descriptors\s*:?\s*/i, "").trim())
-          .filter(s => s && s.toLowerCase() !== "descriptors" && s.length <= 50 && s.split(/\s+/).length <= 6);
+          .filter(s => s && s.toLowerCase() !== "descriptors" && s.length <= 65 && s.split(/\s+/).length <= 8);
       } else {
         this.tags = String(arrayOrString)
           .replace(/^\s*descriptors\s*:?\s*/i, "")
           .split(",")
           .map(s => s.trim())
-          .filter(s => s && s.toLowerCase() !== "descriptors" && s.length <= 50 && s.split(/\s+/).length <= 6);
+          .filter(s => s && s.toLowerCase() !== "descriptors" && s.length <= 65 && s.split(/\s+/).length <= 8);
       }
       if (this.input) this.input.value = "";
       this.render();
@@ -756,6 +839,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     hiddenInputId: "addDescriptors",
     chipClass: "chip-descriptor",
     getPool: getLiveDescriptorPool
+  });
+
+  window.addScenesManager = new TagInputManager({
+    containerId: "scenesTagBox",
+    inputId: "addScenesInput",
+    dropdownId: "scenesDropdown",
+    hiddenInputId: "addScenes",
+    chipClass: "chip-scene",
+    getPool: getLiveScenePool
+  });
+
+  window.addMovementsManager = new TagInputManager({
+    containerId: "movementsTagBox",
+    inputId: "addMovementsInput",
+    dropdownId: "movementsDropdown",
+    hiddenInputId: "addMovements",
+    chipClass: "chip-movement",
+    getPool: getLiveMovementPool
   });
 
 
@@ -847,6 +948,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const genres = safeToArray(album.genres);
     const secondaryGenres = safeToArray(album.secondary_genres);
     const descriptors = safeToArray(album.descriptors);
+    const scenes = safeToArray(album.scenes);
+    const movements = safeToArray(album.movements);
     const haystack = normalizeSearchText([
       album.artist,
       album.title,
@@ -857,7 +960,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       album.relisten_reason,
       ...genres,
       ...secondaryGenres,
-      ...descriptors
+      ...descriptors,
+      ...scenes,
+      ...movements
     ].filter(Boolean).join(" "));
 
     return tokens.every(tok => haystack.includes(tok));
@@ -1359,6 +1464,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       genres: safeToArray(album.genres).join(", "),
       secondary_genres: safeToArray(album.secondary_genres).join(", "),
       descriptors: safeToArray(album.descriptors).join(", "),
+      scenes: safeToArray(album.scenes).join(", "),
+      movements: safeToArray(album.movements).join(", "),
       runtime: album.runtime || ""
     }));
 
@@ -1380,6 +1487,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const genresList = safeToArray((album.genres && album.genres.length) ? album.genres : (priorSpin ? priorSpin.genres : []));
     const secGenresList = safeToArray((album.secondary_genres && album.secondary_genres.length) ? album.secondary_genres : (priorSpin ? priorSpin.secondary_genres : []));
     const descList = safeToArray((album.descriptors && album.descriptors.length) ? album.descriptors : (priorSpin ? priorSpin.descriptors : []));
+    const scenesList = safeToArray((album.scenes && album.scenes.length) ? album.scenes : (priorSpin ? priorSpin.scenes : []));
+    const movementsList = safeToArray((album.movements && album.movements.length) ? album.movements : (priorSpin ? priorSpin.movements : []));
 
     sessionStorage.setItem("sosaspins_prefill_spin", JSON.stringify({
       artist: album.artist || "",
@@ -1389,6 +1498,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       genres: genresList.join(", "),
       secondary_genres: secGenresList.join(", "),
       descriptors: descList.join(", "),
+      scenes: scenesList.join(", "),
+      movements: movementsList.join(", "),
       runtime: album.runtime || (priorSpin ? priorSpin.runtime : ""),
       relisten: true,
       prevRating: priorRating
@@ -1898,6 +2009,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         window.addDescriptorsManager.setTags(cleanDescriptors);
       }
+      if (window.addScenesManager && Array.isArray(data.scenes)) {
+        window.addScenesManager.setTags(data.scenes);
+      }
+      if (window.addMovementsManager && Array.isArray(data.movements)) {
+        window.addMovementsManager.setTags(data.movements);
+      }
 
       // Visual success confirmation
       const origHtml = rymImportBtn.innerHTML;
@@ -2014,6 +2131,10 @@ document.addEventListener("DOMContentLoaded", async () => {
           `;
         }
 
+        const matchedScenes = safeToArray((match.scenes && match.scenes.length) ? match.scenes : album.scenes);
+        const matchedMovements = safeToArray((match.movements && match.movements.length) ? match.movements : album.movements);
+        const matchedContextPinsHtml = renderContextPinsHtml(matchedScenes, matchedMovements);
+
         let starsHtml = "";
         if (match.rating !== null && match.rating !== undefined && match.rating !== "") {
           const rNum = parseFloat(match.rating);
@@ -2021,8 +2142,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             <div class="modal-detail-rating">
               <span class="stars-gold">${getStarString(rNum)}</span>
               <small class="rating-num">(${isNaN(rNum) ? match.rating : rNum.toFixed(1)})</small>
+              ${matchedContextPinsHtml}
             </div>
           `;
+        } else if (matchedContextPinsHtml) {
+          starsHtml = `<div class="modal-detail-rating">${matchedContextPinsHtml}</div>`;
         }
 
         let favTracksHtml = "";
@@ -2121,6 +2245,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         const primaryGenres = safeToArray((album.genres && album.genres.length) ? album.genres : (priorSpin ? priorSpin.genres : []));
         const secondaryGenres = safeToArray((album.secondary_genres && album.secondary_genres.length) ? album.secondary_genres : (priorSpin ? priorSpin.secondary_genres : []));
         const descriptors = safeToArray((album.descriptors && album.descriptors.length) ? album.descriptors : (priorSpin ? priorSpin.descriptors : []));
+        const unloggedScenes = safeToArray((album.scenes && album.scenes.length) ? album.scenes : (priorSpin ? priorSpin.scenes : []));
+        const unloggedMovements = safeToArray((album.movements && album.movements.length) ? album.movements : (priorSpin ? priorSpin.movements : []));
+        const unloggedContextHtml = renderContextPinsHtml(unloggedScenes, unloggedMovements);
         const dispRuntime = album.runtime || (priorSpin ? priorSpin.runtime : "");
 
         let tagsHtml = "";
@@ -2170,6 +2297,8 @@ document.addEventListener("DOMContentLoaded", async () => {
               ${dispRuntime ? `<div style="font-weight: 600; font-size: 0.85rem; color: #10b981;"><i class='bx bx-time' style='vertical-align: middle;'></i> Runtime: ${dispRuntime}</div>` : ""}
               ${rymBadge}
             </div>
+
+            ${unloggedContextHtml ? `<div class="unlistened-context-pins">${unloggedContextHtml}</div>` : ""}
 
             ${recalibrateHeroHtml}
 
@@ -2870,6 +2999,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         metaPills.push(`<span class="cf-genre-chip">${g}</span>`);
       });
 
+      const cfScenes = safeToArray((match && match.scenes && match.scenes.length) ? match.scenes : ((activeAlbum.scenes && activeAlbum.scenes.length) ? activeAlbum.scenes : (priorSpin ? priorSpin.scenes : [])));
+      const cfMovements = safeToArray((match && match.movements && match.movements.length) ? match.movements : ((activeAlbum.movements && activeAlbum.movements.length) ? activeAlbum.movements : (priorSpin ? priorSpin.movements : [])));
+      const cfPinsHtml = renderContextPinsHtml(cfScenes, cfMovements);
+      if (cfPinsHtml) {
+        metaPills.push(cfPinsHtml);
+      }
+
       cfAlbumMeta.innerHTML = metaPills.join("");
     }
 
@@ -3424,6 +3560,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.addGenresManager.setTags(album.genres);
     window.addSecondaryGenresManager.setTags(album.secondary_genres);
     window.addDescriptorsManager.setTags(album.descriptors);
+    if (window.addScenesManager) window.addScenesManager.setTags(album.scenes || []);
+    if (window.addMovementsManager) window.addMovementsManager.setTags(album.movements || []);
 
     let displayCover = album.cover_url || FALLBACK_PLACEHOLDER;
     if (displayCover.startsWith("../assets/")) displayCover = displayCover.replace(/^\.\.\//, "");
@@ -3478,6 +3616,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       window.addGenresManager.setTags([]);
       window.addSecondaryGenresManager.setTags([]);
       window.addDescriptorsManager.setTags([]);
+      if (window.addScenesManager) window.addScenesManager.setTags([]);
+      if (window.addMovementsManager) window.addMovementsManager.setTags([]);
   
       if (artCandidatesContainer) {
         artCandidatesContainer.style.display = "none";
@@ -3540,9 +3680,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         const relistenReasonVal = addRelistenReason ? addRelistenReason.value : "Memory Fog";
         const prevRatingVal = (addPrevRating && addPrevRating.value.trim()) ? parseFloat(addPrevRating.value.trim()) : null;
 
+        if (window.addGenresManager) window.addGenresManager.addCurrentTag();
+        if (window.addSecondaryGenresManager) window.addSecondaryGenresManager.addCurrentTag();
+        if (window.addDescriptorsManager) window.addDescriptorsManager.addCurrentTag();
+        if (window.addScenesManager) window.addScenesManager.addCurrentTag();
+        if (window.addMovementsManager) window.addMovementsManager.addCurrentTag();
+
         const genres = window.addGenresManager.getTags();
         const secondary_genres = window.addSecondaryGenresManager.getTags();
         const descriptors = window.addDescriptorsManager.getTags();
+        const scenes = window.addScenesManager ? window.addScenesManager.getTags() : [];
+        const movements = window.addMovementsManager ? window.addMovementsManager.getTags() : [];
 
         if (!cover || cover.includes("placeholder.png")) {
           cover = "";
@@ -3566,6 +3714,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             genres,
             secondary_genres,
             descriptors,
+            scenes,
+            movements,
             month: targetMonth
           };
 
@@ -3601,10 +3751,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (error) {
               const errMsg = String(error.message || "").toLowerCase();
-              if (errMsg.includes("rym_rating") || errMsg.includes("relisten_reason") || errMsg.includes("prev_rating")) {
+              const hasEmptyScenes = !scenes || !scenes.length;
+              const hasEmptyMovements = !movements || !movements.length;
+              if (errMsg.includes("rym_rating") || errMsg.includes("relisten_reason") || errMsg.includes("prev_rating") || (errMsg.includes("scenes") && hasEmptyScenes) || (errMsg.includes("movements") && hasEmptyMovements)) {
                 if (errMsg.includes("rym_rating")) delete updatePayload.rym_rating;
                 if (errMsg.includes("relisten_reason")) delete updatePayload.relisten_reason;
                 if (errMsg.includes("prev_rating")) delete updatePayload.prev_rating;
+                if (errMsg.includes("scenes") && hasEmptyScenes) delete updatePayload.scenes;
+                if (errMsg.includes("movements") && hasEmptyMovements) delete updatePayload.movements;
                 const { error: retryErr } = await sb
                   .from("challenge_backlog")
                   .update(updatePayload)
@@ -3654,7 +3808,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             position: maxPos + 1,
             genres,
             secondary_genres,
-            descriptors
+            descriptors,
+            scenes,
+            movements
           };
 
           if (targetMonth === "recalibrate") {
@@ -3666,10 +3822,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             const { data: inserted, error } = await sb.from("challenge_backlog").insert([newRecord]).select();
             if (error) {
               const errMsg = String(error.message || "").toLowerCase();
-              if (errMsg.includes("rym_rating") || errMsg.includes("relisten_reason") || errMsg.includes("prev_rating")) {
+              const hasEmptyScenes = !scenes || !scenes.length;
+              const hasEmptyMovements = !movements || !movements.length;
+              if (errMsg.includes("rym_rating") || errMsg.includes("relisten_reason") || errMsg.includes("prev_rating") || (errMsg.includes("scenes") && hasEmptyScenes) || (errMsg.includes("movements") && hasEmptyMovements)) {
                 if (errMsg.includes("rym_rating")) delete newRecord.rym_rating;
                 if (errMsg.includes("relisten_reason")) delete newRecord.relisten_reason;
                 if (errMsg.includes("prev_rating")) delete newRecord.prev_rating;
+                if (errMsg.includes("scenes") && hasEmptyScenes) delete newRecord.scenes;
+                if (errMsg.includes("movements") && hasEmptyMovements) delete newRecord.movements;
                 const { data: retryInserted, error: retryErr } = await sb.from("challenge_backlog").insert([newRecord]).select();
                 if (retryErr) throw retryErr;
                 if (retryInserted && retryInserted[0]) {
@@ -3711,6 +3871,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         window.addGenresManager.setTags([]);
         window.addSecondaryGenresManager.setTags([]);
         window.addDescriptorsManager.setTags([]);
+        if (window.addScenesManager) window.addScenesManager.setTags([]);
+        if (window.addMovementsManager) window.addMovementsManager.setTags([]);
           if (addPreviewImg) addPreviewImg.src = FALLBACK_PLACEHOLDER;
 
         await loadData();

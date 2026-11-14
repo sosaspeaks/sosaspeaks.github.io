@@ -1014,6 +1014,104 @@ function getDominantColorFromImg(imgUrl) {
     return Array.from(set).sort();
   }
 
+  function getLiveScenePool() {
+    const set = new Set();
+    [...allEntries, ...backlogTagEntries].forEach(item => {
+      safeToArray(item.scenes).forEach(s => set.add(s));
+    });
+    return Array.from(set).sort();
+  }
+
+  function getLiveMovementPool() {
+    const set = new Set();
+    [...allEntries, ...backlogTagEntries].forEach(item => {
+      safeToArray(item.movements).forEach(m => set.add(m));
+    });
+    return Array.from(set).sort();
+  }
+
+  function renderContextPinSingle(kind, items) {
+    if (!items || !items.length) return "";
+    const isScene = kind === "scene";
+    const kindClass = isScene ? "is-scene" : "is-movement";
+    const iconClass = isScene ? "bx-map-pin" : "bx-planet";
+    const labelText = isScene ? "Scene:" : "Movement:";
+    const titlePrefix = isScene ? "Scene" : "Movement";
+    const titleAttr = escapeHtml(`${titlePrefix}: ${items.join(", ")}`);
+    const pillsHtml = items.map(val => {
+      const escapedJs = val.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+      return `<button type="button" class="context-popover-pill ${kindClass}" onclick="handleContextPillClick('${kind}', '${escapedJs}', event)" title="Filter by ${escapeHtml(val)}">${escapeHtml(val)}</button>`;
+    }).join("");
+
+    return `
+      <span class="context-pin-anchor" title="${titleAttr}">
+        <button type="button" class="context-pin-btn ${kindClass}" aria-label="${titleAttr}" aria-expanded="false" onclick="toggleContextPin(this, event)">
+          <i class='bx ${iconClass} context-pin-icon'></i>
+        </button>
+        <div class="context-pin-popover ${kindClass}" role="dialog" aria-label="${titlePrefix}">
+          <span class="context-popover-label ${kindClass}"><i class='bx ${iconClass} context-popover-icon'></i> ${labelText}</span>
+          ${pillsHtml}
+        </div>
+      </span>
+    `;
+  }
+
+  function renderContextPinsHtml(scenesVal, movementsVal) {
+    const scenes = safeToArray(scenesVal);
+    const movements = safeToArray(movementsVal);
+    if (!scenes.length && !movements.length) return "";
+    return `<span class="context-pins-group">${renderContextPinSingle("scene", scenes)}${renderContextPinSingle("movement", movements)}</span>`;
+  }
+
+  window.toggleContextPin = function(btn, event) {
+    if (event) event.stopPropagation();
+    const anchor = btn ? btn.closest(".context-pin-anchor") : null;
+    if (!anchor) return;
+    const willOpen = !anchor.classList.contains("is-open");
+    document.querySelectorAll(".context-pin-anchor.is-open").forEach(el => {
+      el.classList.remove("is-open");
+      const b = el.querySelector(".context-pin-btn");
+      if (b) b.setAttribute("aria-expanded", "false");
+    });
+    if (willOpen) {
+      anchor.classList.add("is-open");
+      btn.setAttribute("aria-expanded", "true");
+    }
+  };
+
+  window.handleContextPillClick = function(type, val, event) {
+    if (event) event.stopPropagation();
+    document.querySelectorAll(".context-pin-anchor.is-open").forEach(el => {
+      el.classList.remove("is-open");
+      const b = el.querySelector(".context-pin-btn");
+      if (b) b.setAttribute("aria-expanded", "false");
+    });
+    if (document.getElementById("top100DedicatedPage") || !document.getElementById("timelineFeed")) {
+      window.location.href = `sosaspins.html?${encodeURIComponent(type)}=${encodeURIComponent(val)}`;
+      return;
+    }
+    if (typeof closeTop100Modal === "function") closeTop100Modal();
+    if (typeof isTop100View !== "undefined" && isTop100View && typeof setTop100View === "function") {
+      setTop100View(false);
+    }
+    if (typeof setSidebarFilter === "function") {
+      setSidebarFilter(type, val);
+    }
+  };
+
+  if (!window._contextPinOutsideListener) {
+    window._contextPinOutsideListener = true;
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".context-pin-anchor")) {
+        document.querySelectorAll(".context-pin-anchor.is-open").forEach(el => {
+          el.classList.remove("is-open");
+          const b = el.querySelector(".context-pin-btn");
+          if (b) b.setAttribute("aria-expanded", "false");
+        });
+      }
+    });
+  }
+
   class TagInputManager {
     constructor({ containerId, inputId, dropdownId, hiddenInputId, chipClass, getPool }) {
       this.container = document.getElementById(containerId);
@@ -1157,7 +1255,7 @@ function getDominantColorFromImg(imgUrl) {
     addTag(val) {
       let cleaned = String(val).replace(/^\s*descriptors\s*:?\s*/i, "").trim();
       if (!cleaned || cleaned.toLowerCase() === "descriptors") return;
-      if (cleaned.length > 50 || cleaned.split(/\s+/).length > 6) return;
+      if (cleaned.length > 65 || cleaned.split(/\s+/).length > 8) return;
       if (!this.tags.includes(cleaned)) {
         this.tags.push(cleaned);
         this.render();
@@ -1176,13 +1274,13 @@ function getDominantColorFromImg(imgUrl) {
       } else if (Array.isArray(arrayOrString)) {
         this.tags = arrayOrString
           .map(s => String(s).replace(/^\s*descriptors\s*:?\s*/i, "").trim())
-          .filter(s => s && s.toLowerCase() !== "descriptors" && s.length <= 50 && s.split(/\s+/).length <= 6);
+          .filter(s => s && s.toLowerCase() !== "descriptors" && s.length <= 65 && s.split(/\s+/).length <= 8);
       } else {
         this.tags = String(arrayOrString)
           .replace(/^\s*descriptors\s*:?\s*/i, "")
           .split(",")
           .map(s => s.trim())
-          .filter(s => s && s.toLowerCase() !== "descriptors" && s.length <= 50 && s.split(/\s+/).length <= 6);
+          .filter(s => s && s.toLowerCase() !== "descriptors" && s.length <= 65 && s.split(/\s+/).length <= 8);
       }
       if (this.input) this.input.value = "";
       this.render();
@@ -1246,6 +1344,24 @@ function getDominantColorFromImg(imgUrl) {
     getPool: getLiveDescriptorPool
   });
 
+  window.logScenesManager = new TagInputManager({
+    containerId: "scenesTagBox",
+    inputId: "logScenesInput",
+    dropdownId: "scenesDropdown",
+    hiddenInputId: "logScenes",
+    chipClass: "chip-scene",
+    getPool: getLiveScenePool
+  });
+
+  window.logMovementsManager = new TagInputManager({
+    containerId: "movementsTagBox",
+    inputId: "logMovementsInput",
+    dropdownId: "movementsDropdown",
+    hiddenInputId: "logMovements",
+    chipClass: "chip-movement",
+    getPool: getLiveMovementPool
+  });
+
 
 
 
@@ -1261,6 +1377,8 @@ function getDominantColorFromImg(imgUrl) {
       if (window.logGenresManager) window.logGenresManager.setTags([]);
       if (window.logSecondaryGenresManager) window.logSecondaryGenresManager.setTags([]);
       if (window.logDescriptorsManager) window.logDescriptorsManager.setTags([]);
+      if (window.logScenesManager) window.logScenesManager.setTags([]);
+      if (window.logMovementsManager) window.logMovementsManager.setTags([]);
       if (logFavTracks) logFavTracks.value = "";
       if (logSingleAudioUrl) logSingleAudioUrl.value = "";
       updateSingleModeFields();
@@ -1306,6 +1424,14 @@ function getDominantColorFromImg(imgUrl) {
     if (window.logDescriptorsManager) {
       window.logDescriptorsManager.setTags([]);
       window.logDescriptorsManager.closeDropdown();
+    }
+    if (window.logScenesManager) {
+      window.logScenesManager.setTags([]);
+      window.logScenesManager.closeDropdown();
+    }
+    if (window.logMovementsManager) {
+      window.logMovementsManager.setTags([]);
+      window.logMovementsManager.closeDropdown();
     }
     if (artThumbnailsRow) artThumbnailsRow.innerHTML = "";
     if (logPrevRating) logPrevRating.style.display = "none";
@@ -1389,6 +1515,18 @@ function getDominantColorFromImg(imgUrl) {
           document.getElementById("logDescriptors").value = item.descriptors || "";
         }
 
+        if (window.logScenesManager) {
+          window.logScenesManager.setTags(item.scenes || "");
+        } else if (document.getElementById("logScenes")) {
+          document.getElementById("logScenes").value = item.scenes || "";
+        }
+
+        if (window.logMovementsManager) {
+          window.logMovementsManager.setTags(item.movements || "");
+        } else if (document.getElementById("logMovements")) {
+          document.getElementById("logMovements").value = item.movements || "";
+        }
+
         // 4. Pre-fill runtime or listening notes memo if available
         if (logRuntime && item.runtime) {
           logRuntime.value = item.runtime;
@@ -1446,7 +1584,7 @@ function getDominantColorFromImg(imgUrl) {
       await loadArtistAliases();
       const [{ data, error }, backlogRes] = await Promise.all([
         supabaseClient.from("spins").select("*"),
-        supabaseClient.from("challenge_backlog").select("id, artist, title, month, year, release_year, cover_url, position, relisten_reason, prev_rating, genres, secondary_genres, descriptors"),
+        supabaseClient.from("challenge_backlog").select("id, artist, title, month, year, release_year, cover_url, position, relisten_reason, prev_rating, genres, secondary_genres, descriptors, scenes, movements"),
         loadComments()
       ]);
 
@@ -1476,8 +1614,14 @@ function getDominantColorFromImg(imgUrl) {
       if (!document.getElementById("top100DedicatedPage")) {
         const urlParams = new URLSearchParams(window.location.search);
         const artistParam = urlParams.get("artist");
+        const sceneParam = urlParams.get("scene");
+        const movementParam = urlParams.get("movement");
         if (artistParam) {
           setSidebarFilter("artist", artistParam);
+        } else if (sceneParam) {
+          setSidebarFilter("scene", sceneParam);
+        } else if (movementParam) {
+          setSidebarFilter("movement", movementParam);
         } else {
           applyFilters(false);
         }
@@ -2198,7 +2342,8 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     if (spinsCfMeta) {
       const rowsHtml = [];
 
-      // 1. Star Rating Row (Out of badge, dedicated row)
+      // 1. Star Rating Row (Out of badge, dedicated row) + Dual Scene/Movement Pins
+      const cfContextPinsHtml = renderContextPinsHtml(item.scenes, item.movements);
       if (item.rating !== null && item.rating !== undefined && item.rating !== "") {
         const rNum = parseFloat(item.rating);
         if (!isNaN(rNum)) {
@@ -2206,9 +2351,14 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
             <div class="cf-meta-row cf-meta-rating-row" title="Rating: ${rNum.toFixed(1)} / 5.0">
               <span class="cf-rating-stars">${getStarString(rNum)}</span>
               <span class="cf-rating-score">${rNum.toFixed(1)}</span>
+              ${cfContextPinsHtml}
             </div>
           `);
+        } else if (cfContextPinsHtml) {
+          rowsHtml.push(`<div class="cf-meta-row cf-meta-rating-row">${cfContextPinsHtml}</div>`);
         }
+      } else if (cfContextPinsHtml) {
+        rowsHtml.push(`<div class="cf-meta-row cf-meta-rating-row">${cfContextPinsHtml}</div>`);
       }
 
       // 2. Info Row (Release Type, Date, Runtime, Relisten / Recalibrate Queue)
@@ -2593,6 +2743,8 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
         resolved.genres = match.genres || [];
         resolved.secondary_genres = match.secondary_genres || [];
         resolved.descriptors = match.descriptors || [];
+        resolved.scenes = (match.scenes && match.scenes.length) ? match.scenes : (album.scenes || []);
+        resolved.movements = (match.movements && match.movements.length) ? match.movements : (album.movements || []);
         resolved.fav_tracks = match.fav_tracks || "";
         resolved.rym_rating = (match.rym_rating !== null && match.rym_rating !== undefined && match.rym_rating !== "") ? match.rym_rating : (album.rym_rating || null);
       }
@@ -3556,7 +3708,9 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
           release_year: spin.year ? parseInt(spin.year, 10) : null,
           cover_url: spin.cover_url || "assets/images/spins/placeholder.png",
           rating: (spin.rating !== null && spin.rating !== undefined && spin.rating !== "") ? parseFloat(spin.rating) : null,
-          custom_note: spin.memo || null
+          custom_note: spin.memo || null,
+          scenes: Array.isArray(spin.scenes) ? spin.scenes : [],
+          movements: Array.isArray(spin.movements) ? spin.movements : []
         };
         renderTop100View();
         renderAlbumBank();
@@ -4041,12 +4195,19 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
             <div class="top100-detail-title">${escapeHtml(album.title)}${yearStr}</div>
             <div class="top100-detail-artist">${escapeHtml(album.artist)}</div>
             ${(album.rym_rating !== null && album.rym_rating !== undefined && album.rym_rating !== "") ? `<div style="margin-top: 4px;"><span class="category spin-rym-tag"><i class='bx bxs-star' style='color: #38bdf8;'></i> RYM: ${parseFloat(album.rym_rating).toFixed(2)}</span></div>` : ""}
-            ${ratingVal ? `
-              <div class="top100-detail-rating-row">
-                <span class="top100-detail-stars">${getStarString(album.rating)}</span>
-                <span class="top100-detail-score">${ratingVal}/5.0</span>
-              </div>
-            ` : ""}
+            ${(() => {
+              const top100ContextPins = renderContextPinsHtml(album.scenes, album.movements);
+              if (ratingVal) {
+                return `
+                  <div class="top100-detail-rating-row">
+                    <span class="top100-detail-stars">${getStarString(album.rating)}</span>
+                    <span class="top100-detail-score">${ratingVal}/5.0</span>
+                    ${top100ContextPins}
+                  </div>
+                `;
+              }
+              return top100ContextPins ? `<div class="top100-detail-rating-row">${top100ContextPins}</div>` : "";
+            })()}
           </div>
         </div>
         ${genresHtml}
@@ -4389,6 +4550,8 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
               cover_url: item.cover_url || null,
               rating: (item.rating !== null && item.rating !== undefined && item.rating !== "") ? parseFloat(item.rating) : null,
               custom_note: item.custom_note || null,
+              scenes: Array.isArray(item.scenes) ? item.scenes : [],
+              movements: Array.isArray(item.movements) ? item.movements : [],
               updated_at: new Date().toISOString()
             });
           } else if (topAlbumsOriginal[r]) {
@@ -4716,29 +4879,40 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
             <span class="post-date">${item.log_date || ""}</span>
           </div>
 
-          <!-- Dedicated Spin Star Rating -->
-          ${(item.rating !== null && item.rating !== undefined) ? `
-            <div class="spin-star-rating" ${(item.rym_rating !== null && item.rym_rating !== undefined && item.rym_rating !== "") ? `title="RYM Avg: ${parseFloat(item.rym_rating).toFixed(2)}"` : ""}>
-              ${(item.rym_rating !== null && item.rym_rating !== undefined && item.rym_rating !== "") ? `<span class="rym-rating-tooltip"><i class=\'bx bxs-star\'></i> RYM Avg: ${parseFloat(item.rym_rating).toFixed(2)}</span>` : ""}
-              ${item.rating_shift ? `
-                <div class="rating-shift-box">
-                  <span class="old-rating">${getStarString(item.rating_shift.from)}</span>
-                  <small class="spin-rating-num">(${Number(item.rating_shift.from).toFixed(1)})</small>
-                  <span class="shift-arrow">➔</span>
-                  <span class="new-rating">${getStarString(item.rating_shift.to || item.rating)}</span>
-                  <small class="spin-rating-num">(${Number(item.rating_shift.to || item.rating).toFixed(1)})</small>
+          <!-- Dedicated Spin Star Rating + Dual Scene/Movement Pins -->
+          ${(() => {
+            const contextPinsHtml = renderContextPinsHtml(item.scenes, item.movements);
+            if (item.rating !== null && item.rating !== undefined) {
+              return `
+                <div class="spin-star-rating" ${(item.rym_rating !== null && item.rym_rating !== undefined && item.rym_rating !== "") ? `title="RYM Avg: ${parseFloat(item.rym_rating).toFixed(2)}"` : ""}>
+                  ${(item.rym_rating !== null && item.rym_rating !== undefined && item.rym_rating !== "") ? `<span class="rym-rating-tooltip"><i class=\'bx bxs-star\'></i> RYM Avg: ${parseFloat(item.rym_rating).toFixed(2)}</span>` : ""}
+                  ${item.rating_shift ? `
+                    <div class="rating-shift-box">
+                      <span class="old-rating">${getStarString(item.rating_shift.from)}</span>
+                      <small class="spin-rating-num">(${Number(item.rating_shift.from).toFixed(1)})</small>
+                      <span class="shift-arrow">➔</span>
+                      <span class="new-rating">${getStarString(item.rating_shift.to || item.rating)}</span>
+                      <small class="spin-rating-num">(${Number(item.rating_shift.to || item.rating).toFixed(1)})</small>
+                    </div>
+                  ` : `
+                    <span class="active-spin-stars">${getStarString(item.rating)}</span>
+                    <small class="spin-rating-num">(${Number(item.rating).toFixed(1)})</small>
+                  `}
+                  ${item.relisten ? `<span class="relisten-icon" title="Relisten: This symbol signifies that this spin is a relisten" aria-label="Relisten: This symbol signifies that this spin is a relisten"><i class='bx bx-rotate-left'></i></span>` : ""}
+                  ${contextPinsHtml}
                 </div>
-              ` : `
-                <span class="active-spin-stars">${getStarString(item.rating)}</span>
-                <small class="spin-rating-num">(${Number(item.rating).toFixed(1)})</small>
-              `}
-              ${item.relisten ? `<span class="relisten-icon" title="Relisten: This symbol signifies that this spin is a relisten" aria-label="Relisten: This symbol signifies that this spin is a relisten"><i class='bx bx-rotate-left'></i></span>` : ""}
-            </div>
-          ` : (item.relisten ? `
-            <div class="spin-star-rating">
-              <span class="relisten-icon" title="Relisten: This symbol signifies that this spin is a relisten" aria-label="Relisten: This symbol signifies that this spin is a relisten"><i class='bx bx-rotate-left'></i></span>
-            </div>
-          ` : "")}
+              `;
+            }
+            if (item.relisten || contextPinsHtml) {
+              return `
+                <div class="spin-star-rating">
+                  ${item.relisten ? `<span class="relisten-icon" title="Relisten: This symbol signifies that this spin is a relisten" aria-label="Relisten: This symbol signifies that this spin is a relisten"><i class='bx bx-rotate-left'></i></span>` : ""}
+                  ${contextPinsHtml}
+                </div>
+              `;
+            }
+            return "";
+          })()}
 
           <!-- Primary and Secondary Genres -->
           ${(hasPrimary || hasSecondary) ? `
@@ -5609,7 +5783,9 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       const matchesSearch = !val || (
         (i.artist && i.artist.toLowerCase().includes(val)) ||
         (i.title && i.title.toLowerCase().includes(val)) ||
-        (i.genres && i.genres.some(g => g.toLowerCase().includes(val)))
+        (i.genres && i.genres.some(g => g.toLowerCase().includes(val))) ||
+        safeToArray(i.scenes).some(s => s.toLowerCase().includes(val)) ||
+        safeToArray(i.movements).some(m => m.toLowerCase().includes(val))
       );
 
       // Safe checks using optional chaining and default fallback
@@ -5631,8 +5807,13 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       } else if (activeFilter.type === "descriptor") {
         const fVal = String(activeFilter.value || "").toLowerCase();
         matchesTag = i.descriptors && i.descriptors.some(d => String(d).toLowerCase() === fVal);
-      }
-        else if (activeFilter.type === "artist") {
+      } else if (activeFilter.type === "scene") {
+        const fVal = String(activeFilter.value || "").toLowerCase();
+        matchesTag = safeToArray(i.scenes).some(s => String(s).toLowerCase() === fVal);
+      } else if (activeFilter.type === "movement") {
+        const fVal = String(activeFilter.value || "").toLowerCase();
+        matchesTag = safeToArray(i.movements).some(m => String(m).toLowerCase() === fVal);
+      } else if (activeFilter.type === "artist") {
         if (!i.artist) {
           matchesTag = false;
         } else {
@@ -5725,6 +5906,16 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       window.logDescriptorsManager.setTags(item.descriptors || []);
     } else if (document.getElementById("logDescriptors")) {
       document.getElementById("logDescriptors").value = (item.descriptors || []).join(", ");
+    }
+    if (window.logScenesManager) {
+      window.logScenesManager.setTags(item.scenes || []);
+    } else if (document.getElementById("logScenes")) {
+      document.getElementById("logScenes").value = safeToArray(item.scenes).join(", ");
+    }
+    if (window.logMovementsManager) {
+      window.logMovementsManager.setTags(item.movements || []);
+    } else if (document.getElementById("logMovements")) {
+      document.getElementById("logMovements").value = safeToArray(item.movements).join(", ");
     }
     const isSingle = (item.type || "").trim().toLowerCase() === "single";
     if (isSingle) {
@@ -5819,6 +6010,22 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       descriptors = rawD ? rawD.split(",").map(s => s.trim()).filter(Boolean) : [];
     }
 
+    let scenes = [];
+    if (window.logScenesManager) {
+      scenes = window.logScenesManager.getTags();
+    } else {
+      const rawSc = document.getElementById("logScenes") ? document.getElementById("logScenes").value : "";
+      scenes = rawSc ? rawSc.split(",").map(s => s.trim()).filter(Boolean) : [];
+    }
+
+    let movements = [];
+    if (window.logMovementsManager) {
+      movements = window.logMovementsManager.getTags();
+    } else {
+      const rawMv = document.getElementById("logMovements") ? document.getElementById("logMovements").value : "";
+      movements = rawMv ? rawMv.split(",").map(s => s.trim()).filter(Boolean) : [];
+    }
+
     const trackRatings = [];
     if (trackRatingsList) {
       trackRatingsList.querySelectorAll(".track-rating-input-row").forEach(row => {
@@ -5851,6 +6058,8 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       genres,
       secondary_genres: secondaryGenres,
       descriptors,
+      scenes,
+      movements,
       fav_tracks: favTracks,
       single_audio_url: singleAudioUrl,
       review_url: reviewUrl,
@@ -5928,6 +6137,18 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       document.getElementById("logDescriptors").value = (spinData.descriptors || []).join(", ");
     }
 
+    if (window.logScenesManager) {
+      window.logScenesManager.setTags(spinData.scenes || []);
+    } else if (document.getElementById("logScenes")) {
+      document.getElementById("logScenes").value = safeToArray(spinData.scenes).join(", ");
+    }
+
+    if (window.logMovementsManager) {
+      window.logMovementsManager.setTags(spinData.movements || []);
+    } else if (document.getElementById("logMovements")) {
+      document.getElementById("logMovements").value = safeToArray(spinData.movements).join(", ");
+    }
+
     const isSingle = (spinData.type || "").trim().toLowerCase() === "single";
     if (isSingle) {
       if (logSingleAudioUrl) logSingleAudioUrl.value = spinData.single_audio_url || "";
@@ -5998,6 +6219,8 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       if (window.logGenresManager) window.logGenresManager.addCurrentTag();
       if (window.logSecondaryGenresManager) window.logSecondaryGenresManager.addCurrentTag();
       if (window.logDescriptorsManager) window.logDescriptorsManager.addCurrentTag();
+      if (window.logScenesManager) window.logScenesManager.addCurrentTag();
+      if (window.logMovementsManager) window.logMovementsManager.addCurrentTag();
 
       const artistVal = logArtist.value.trim();
       const titleVal = logTitle.value.trim();
@@ -6057,6 +6280,12 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         descriptors: window.logDescriptorsManager
           ? window.logDescriptorsManager.getTags()
           : parseList(document.getElementById("logDescriptors").value),
+        scenes: window.logScenesManager
+          ? window.logScenesManager.getTags()
+          : parseList(document.getElementById("logScenes") ? document.getElementById("logScenes").value : ""),
+        movements: window.logMovementsManager
+          ? window.logMovementsManager.getTags()
+          : parseList(document.getElementById("logMovements") ? document.getElementById("logMovements").value : ""),
         cover_url: finalCoverUrl,
         runtime: runtimeVal || null,
         rym_rating: rymRatingVal,
@@ -6081,9 +6310,13 @@ if (addTrackRatingRowBtn && trackRatingsList) {
 
         if (error) {
           const errMsg = String(error.message || "").toLowerCase();
-          if (errMsg.includes("rym_rating")) {
+          const hasEmptyScenes = !spinData.scenes || !spinData.scenes.length;
+          const hasEmptyMovements = !spinData.movements || !spinData.movements.length;
+          if (errMsg.includes("rym_rating") || (errMsg.includes("scenes") && hasEmptyScenes) || (errMsg.includes("movements") && hasEmptyMovements)) {
             const retryPayload = { ...spinData };
             if (errMsg.includes("rym_rating")) delete retryPayload.rym_rating;
+            if (errMsg.includes("scenes") && hasEmptyScenes) delete retryPayload.scenes;
+            if (errMsg.includes("movements") && hasEmptyMovements) delete retryPayload.movements;
             const retryRes = await supabaseClient
               .from("spins")
               .update(retryPayload)
@@ -6101,9 +6334,13 @@ if (addTrackRatingRowBtn && trackRatingsList) {
 
         if (error) {
           const errMsg = String(error.message || "").toLowerCase();
-          if (errMsg.includes("rym_rating")) {
+          const hasEmptyScenes = !spinData.scenes || !spinData.scenes.length;
+          const hasEmptyMovements = !spinData.movements || !spinData.movements.length;
+          if (errMsg.includes("rym_rating") || (errMsg.includes("scenes") && hasEmptyScenes) || (errMsg.includes("movements") && hasEmptyMovements)) {
             const retryPayload = { ...spinData };
             if (errMsg.includes("rym_rating")) delete retryPayload.rym_rating;
+            if (errMsg.includes("scenes") && hasEmptyScenes) delete retryPayload.scenes;
+            if (errMsg.includes("movements") && hasEmptyMovements) delete retryPayload.movements;
             const retryRes = await supabaseClient
               .from("spins")
               .insert([retryPayload]);
@@ -6411,6 +6648,12 @@ if (addTrackRatingRowBtn && trackRatingsList) {
           });
         }
         window.logDescriptorsManager.setTags(cleanDescriptors);
+      }
+      if (window.logScenesManager && data.scenes) {
+        window.logScenesManager.setTags(data.scenes);
+      }
+      if (window.logMovementsManager && data.movements) {
+        window.logMovementsManager.setTags(data.movements);
       }
 
       // Visual success confirmation on button

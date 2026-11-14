@@ -1833,7 +1833,7 @@ body.dark-mode .rym-rating-tooltip::after,
   align-self: center;
 }
 
-.spin-star-rating i.bx:not(.bx-rotate-left) {
+.spin-star-rating i.bx:not(.bx-rotate-left):not(.context-pin-icon):not(.context-popover-icon) {
   color: #fbbf24;
   filter: drop-shadow(0 1px 1px rgba(245, 158, 11, 0.25));
   transition: transform 0.15s ease;
@@ -7449,7 +7449,7 @@ body.top100-view-active .widgets-edge-tab {
     gap: 0.25rem !important;
   }
 
-  .spin-star-rating i.bx:not(.bx-rotate-left),
+  .spin-star-rating i.bx:not(.bx-rotate-left):not(.context-pin-icon):not(.context-popover-icon),
   .rating-shift-box i.bx {
     font-size: 1.15rem !important;
   }
@@ -7708,7 +7708,7 @@ body.top100-view-active .widgets-edge-tab {
     gap: 0.2rem !important;
   }
 
-  .spin-star-rating i.bx:not(.bx-rotate-left),
+  .spin-star-rating i.bx:not(.bx-rotate-left):not(.context-pin-icon):not(.context-popover-icon),
   .rating-shift-box i.bx {
     font-size: 1.02rem !important;
   }
@@ -11264,4 +11264,425 @@ body.dark-mode .artist-challenge-item-reason {
 
 body.dark-mode .artist-quick-actions-bar {
   border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================================
+   SCENES & MOVEMENTS — DUAL AERO PINS (OPTION 3C) & TAG CHIPS
+   ============================================================ */
+.tag-chip.chip-scene {
+  color: #0369a1 !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(224, 242, 254, 0.85) 100%) !important;
+  border: 1px solid rgba(56, 189, 248, 0.55) !important;
+}
+
+.tag-chip.chip-movement {
+  color: #5b21b6 !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(237, 233, 254, 0.85) 100%) !important;
+  border: 1px solid rgba(139, 92, 246, 0.5) !important;
+}
+
+body.dark-mode .tag-chip.chip-scene {
+  color: #7dd3fc !important;
+  background: rgba(14, 116, 144, 0.28) !important;
+  border-color: rgba(56, 189, 248, 0.45) !important;
+}
+
+body.dark-mode .tag-chip.chip-movement {
+  color: #c4b5fd !important;
+  background: rgba(91, 33, 182, 0.28) !important;
+  border-color: rgba(167, 139, 250, 0.45) !important;
+}
+
+.context-pins-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: 0.35rem;
+  vertical-align: middle;
+}
+
+.context-pin-anchor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  z-index: 20;
+}
+
+.context-pin-anchor:hover,
+.context-pin-anchor:focus-within,
+.context-pin-anchor.is-open {
+  z-index: 120;
+}
+
+.context-pin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 21px;
+  height: 21px;
+  padding: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+  outline: none;
+}
+
+.context-pin-btn i.bx {
+  font-size: 0.8rem !important;
+  line-height: 1 !important;
+  filter: none !important;
+}
+
+.context-pin-btn.is-scene {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(224, 242, 254, 0.9) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.62);
+  color: #0284c7;
+  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.18), inset 0 1px 0 #ffffff;
+}
+
+.context-pin-btn.is-scene i.bx {
+  color: #0284c7 !important;
+}
+
+.context-pin-btn.is-movement {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(237, 233, 254, 0.9) 100%);
+  border: 1px solid rgba(139, 92, 246, 0.56);
+  color: #6d28d9;
+  box-shadow: 0 1px 3px rgba(109, 40, 217, 0.18), inset 0 1px 0 #ffffff;
+}
+
+.context-pin-btn.is-movement i.bx {
+  color: #6d28d9 !important;
+}
+
+.context-pin-anchor:hover .context-pin-btn,
+.context-pin-anchor.is-open .context-pin-btn,
+.context-pin-btn:focus-visible {
+  transform: translateY(-1px);
+}
+
+.context-pin-anchor:hover .context-pin-btn.is-scene,
+.context-pin-anchor.is-open .context-pin-btn.is-scene {
+  border-color: #0ea5e9;
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.35), inset 0 1px 0 #ffffff;
+}
+
+.context-pin-anchor:hover .context-pin-btn.is-movement,
+.context-pin-anchor.is-open .context-pin-btn.is-movement {
+  border-color: #8b5cf6;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.35), inset 0 1px 0 #ffffff;
+}
+
+.context-pin-popover {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 9px);
+  transform: translateY(-50%) translateX(-4px);
+  padding: 5px 10px;
+  border-radius: 7px;
+  white-space: nowrap;
+  z-index: 150;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.74rem;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  max-width: min(360px, 72vw);
+}
+
+/* Hover bridge across the 9px gap so cursor can move onto pills cleanly */
+.context-pin-popover::before {
+  content: "";
+  position: absolute;
+  right: 100%;
+  top: -6px;
+  bottom: -6px;
+  width: 14px;
+}
+
+.context-pin-popover::after {
+  content: "";
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border-width: 5px;
+  border-style: solid;
+}
+
+.context-pin-popover.is-scene {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(240, 248, 255, 0.96) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.72);
+  box-shadow: 0 6px 18px rgba(2, 132, 199, 0.22), inset 0 1px 0 #ffffff;
+  color: #0f172a;
+}
+
+.context-pin-popover.is-scene::after {
+  border-color: transparent rgba(56, 189, 248, 0.72) transparent transparent;
+}
+
+.context-pin-popover.is-movement {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 243, 255, 0.96) 100%);
+  border: 1px solid rgba(139, 92, 246, 0.65);
+  box-shadow: 0 6px 18px rgba(109, 40, 217, 0.18), inset 0 1px 0 #ffffff;
+  color: #0f172a;
+}
+
+.context-pin-popover.is-movement::after {
+  border-color: transparent rgba(139, 92, 246, 0.65) transparent transparent;
+}
+
+.context-pin-anchor:hover .context-pin-popover,
+.context-pin-anchor:focus-within .context-pin-popover,
+.context-pin-anchor.is-open .context-pin-popover {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(-50%) translateX(0);
+}
+
+.context-popover-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 700;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  user-select: none;
+}
+
+.context-popover-label i.bx {
+  font-size: 0.78rem !important;
+  filter: none !important;
+}
+
+.context-popover-label.is-scene,
+.context-popover-label.is-scene i.bx {
+  color: #0284c7 !important;
+}
+
+.context-popover-label.is-movement,
+.context-popover-label.is-movement i.bx {
+  color: #6d28d9 !important;
+}
+
+.context-popover-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 1.5px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  white-space: nowrap;
+  text-transform: none !important;
+  cursor: pointer;
+  transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease;
+}
+
+.context-popover-pill:hover {
+  transform: translateY(-1px);
+  filter: brightness(0.97);
+}
+
+.context-popover-pill.is-scene {
+  background: rgba(224, 242, 254, 0.88);
+  border: 1px solid rgba(125, 211, 252, 0.95);
+  color: #0369a1;
+}
+
+.context-popover-pill.is-movement {
+  background: rgba(237, 233, 254, 0.88);
+  border: 1px solid rgba(196, 181, 253, 0.95);
+  color: #5b21b6;
+}
+
+/* Dark Mode for Dual Pins & Popovers */
+body.dark-mode .context-pin-btn.is-scene,
+.dark-mode .context-pin-btn.is-scene {
+  background: linear-gradient(180deg, rgba(12, 74, 110, 0.75) 0%, rgba(8, 47, 73, 0.85) 100%);
+  border-color: rgba(56, 189, 248, 0.55);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+body.dark-mode .context-pin-btn.is-scene i.bx,
+.dark-mode .context-pin-btn.is-scene i.bx {
+  color: #7dd3fc !important;
+}
+
+body.dark-mode .context-pin-btn.is-movement,
+.dark-mode .context-pin-btn.is-movement {
+  background: linear-gradient(180deg, rgba(76, 29, 149, 0.72) 0%, rgba(46, 16, 101, 0.85) 100%);
+  border-color: rgba(167, 139, 250, 0.55);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+body.dark-mode .context-pin-btn.is-movement i.bx,
+.dark-mode .context-pin-btn.is-movement i.bx {
+  color: #ddd6fe !important;
+}
+
+body.dark-mode .context-pin-popover.is-scene,
+.dark-mode .context-pin-popover.is-scene {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(12, 30, 50, 0.98) 100%);
+  border-color: rgba(56, 189, 248, 0.55);
+  color: #e0f2fe;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+body.dark-mode .context-pin-popover.is-scene::after,
+.dark-mode .context-pin-popover.is-scene::after {
+  border-color: transparent rgba(56, 189, 248, 0.55) transparent transparent;
+}
+
+body.dark-mode .context-pin-popover.is-movement,
+.dark-mode .context-pin-popover.is-movement {
+  background: linear-gradient(180deg, rgba(24, 20, 44, 0.98) 0%, rgba(17, 14, 34, 0.98) 100%);
+  border-color: rgba(167, 139, 250, 0.55);
+  color: #ede9fe;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+body.dark-mode .context-pin-popover.is-movement::after,
+.dark-mode .context-pin-popover.is-movement::after {
+  border-color: transparent rgba(167, 139, 250, 0.55) transparent transparent;
+}
+
+body.dark-mode .context-popover-label.is-scene,
+body.dark-mode .context-popover-label.is-scene i.bx,
+.dark-mode .context-popover-label.is-scene,
+.dark-mode .context-popover-label.is-scene i.bx {
+  color: #38bdf8 !important;
+}
+
+body.dark-mode .context-popover-label.is-movement,
+body.dark-mode .context-popover-label.is-movement i.bx,
+.dark-mode .context-popover-label.is-movement,
+.dark-mode .context-popover-label.is-movement i.bx {
+  color: #a78bfa !important;
+}
+
+body.dark-mode .context-popover-pill.is-scene,
+.dark-mode .context-popover-pill.is-scene {
+  background: rgba(14, 116, 144, 0.35);
+  border-color: rgba(56, 189, 248, 0.55);
+  color: #bae6fd;
+}
+
+body.dark-mode .context-popover-pill.is-movement,
+.dark-mode .context-popover-pill.is-movement {
+  background: rgba(91, 33, 182, 0.38);
+  border-color: rgba(167, 139, 250, 0.55);
+  color: #ddd6fe;
+}
+
+/* Inside modals & Cover Flow & narrow screens: drop downward so popovers stay inside bounds */
+.top100-detail-rating-row .context-pin-popover,
+.cf-meta-rating-row .context-pin-popover {
+  top: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-4px);
+  max-width: min(280px, 75vw);
+  white-space: normal;
+}
+
+.top100-detail-rating-row .context-pin-popover::before,
+.cf-meta-rating-row .context-pin-popover::before {
+  left: -6px;
+  right: -6px;
+  top: -12px;
+  bottom: 100%;
+  width: auto;
+}
+
+.top100-detail-rating-row .context-pin-popover::after,
+.cf-meta-rating-row .context-pin-popover::after {
+  right: auto;
+  left: 50%;
+  top: auto;
+  bottom: 100%;
+  transform: translateX(-50%);
+}
+
+.top100-detail-rating-row .context-pin-popover.is-scene::after,
+.cf-meta-rating-row .context-pin-popover.is-scene::after {
+  border-color: transparent transparent rgba(56, 189, 248, 0.72) transparent;
+}
+
+.top100-detail-rating-row .context-pin-popover.is-movement::after,
+.cf-meta-rating-row .context-pin-popover.is-movement::after {
+  border-color: transparent transparent rgba(139, 92, 246, 0.65) transparent;
+}
+
+body.dark-mode .top100-detail-rating-row .context-pin-popover.is-scene::after,
+body.dark-mode .cf-meta-rating-row .context-pin-popover.is-scene::after {
+  border-color: transparent transparent rgba(56, 189, 248, 0.55) transparent;
+}
+
+body.dark-mode .top100-detail-rating-row .context-pin-popover.is-movement::after,
+body.dark-mode .cf-meta-rating-row .context-pin-popover.is-movement::after {
+  border-color: transparent transparent rgba(167, 139, 250, 0.55) transparent;
+}
+
+.top100-detail-rating-row .context-pin-anchor:hover .context-pin-popover,
+.top100-detail-rating-row .context-pin-anchor:focus-within .context-pin-popover,
+.top100-detail-rating-row .context-pin-anchor.is-open .context-pin-popover,
+.cf-meta-rating-row .context-pin-anchor:hover .context-pin-popover,
+.cf-meta-rating-row .context-pin-anchor:focus-within .context-pin-popover,
+.cf-meta-rating-row .context-pin-anchor.is-open .context-pin-popover {
+  transform: translateX(-50%) translateY(0);
+}
+
+@media (max-width: 640px) {
+  .spin-star-rating .context-pin-popover {
+    top: calc(100% + 7px);
+    left: 0;
+    transform: translateY(-4px);
+    max-width: min(290px, 78vw);
+    white-space: normal;
+  }
+
+  .spin-star-rating .context-pin-popover::before {
+    left: -6px;
+    right: -6px;
+    top: -12px;
+    bottom: 100%;
+    width: auto;
+  }
+
+  .spin-star-rating .context-pin-popover::after {
+    right: auto;
+    left: 10px;
+    top: auto;
+    bottom: 100%;
+    transform: none;
+  }
+
+  .spin-star-rating .context-pin-popover.is-scene::after {
+    border-color: transparent transparent rgba(56, 189, 248, 0.72) transparent;
+  }
+
+  .spin-star-rating .context-pin-popover.is-movement::after {
+    border-color: transparent transparent rgba(139, 92, 246, 0.65) transparent;
+  }
+
+  body.dark-mode .spin-star-rating .context-pin-popover.is-scene::after {
+    border-color: transparent transparent rgba(56, 189, 248, 0.55) transparent;
+  }
+
+  body.dark-mode .spin-star-rating .context-pin-popover.is-movement::after {
+    border-color: transparent transparent rgba(167, 139, 250, 0.55) transparent;
+  }
+
+  .spin-star-rating .context-pin-anchor:hover .context-pin-popover,
+  .spin-star-rating .context-pin-anchor:focus-within .context-pin-popover,
+  .spin-star-rating .context-pin-anchor.is-open .context-pin-popover {
+    transform: translateY(0);
+  }
 }
