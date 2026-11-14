@@ -20,15 +20,27 @@
     album = albumEl.textContent.trim().replace(/\s*\(\d{4}\)$/, "").trim();
   } else {
     const subEl = document.getElementById("studySubheading");
-    if (!subEl) return;
-    const rawSub = subEl.textContent.trim();
-    const splitMatch = rawSub.match(/^(.*?)\s*[-–—]\s*(.*)$/);
-    if (!splitMatch) return;
-    artist = splitMatch[1].trim();
-    album = splitMatch[2].trim();
+    if (subEl) {
+      const rawSub = subEl.textContent.trim();
+      const splitMatch = rawSub.match(/^(.*?)\s*[-–—]\s*(.*)$/);
+      if (splitMatch) {
+        artist = splitMatch[1].trim();
+        album = splitMatch[2].trim();
+      }
+    }
   }
 
-  if (!artist || !album) return;
+  function normalizeStudyMatch(str) {
+    return String(str || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[’‘`]/g, "'")
+      .replace(/[“”]/g, '"')
+      .replace(/\s*\(\d{4}\)\s*$/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+  }
 
   // Helper: Large Gold Stars Renderer
   function renderLargeStars(rating) {
@@ -101,20 +113,60 @@
 
   try {
     const currentPath = (window.location.pathname.replace(/^\//, "") + window.location.search).trim();
-    const orClause = currentPath
-      ? `review_url.ilike.%${currentPath}%,and(artist.ilike.${artist},title.ilike.${album})`
-      : `and(artist.ilike.${artist},title.ilike.${album})`;
+    if (!currentPath && (!artist || !album)) return;
 
-    // Match by review_url or artist + album
-    const { data, error } = await sb
-      .from("spins")
-      .select("*")
-      .or(orClause)
-      .order("id", { ascending: false })
-      .limit(1);
+    let spin = null;
 
-    if (error || !data || data.length === 0) return;
-    const spin = data[0];
+    if (currentPath) {
+      const { data: urlMatches } = await sb
+        .from("spins")
+        .select("*")
+        .ilike("review_url", `%${currentPath}%`)
+        .order("id", { ascending: false })
+        .limit(1);
+      if (urlMatches && urlMatches.length > 0) {
+        spin = urlMatches[0];
+      }
+    }
+
+    if (!spin && artist && album) {
+      const { data: exactMatches } = await sb
+        .from("spins")
+        .select("*")
+        .ilike("artist", artist)
+        .ilike("title", album)
+        .order("id", { ascending: false })
+        .limit(1);
+      if (exactMatches && exactMatches.length > 0) {
+        spin = exactMatches[0];
+      }
+    }
+
+    if (!spin && (artist || album)) {
+      const cleanToken = (album || artist).replace(/[%_]/g, "").trim();
+      if (cleanToken) {
+        let q = sb.from("spins").select("*").order("id", { ascending: false }).limit(20);
+        q = album ? q.ilike("title", `%${cleanToken}%`) : q.ilike("artist", `%${cleanToken}%`);
+        const { data: fuzzyList } = await q;
+        if (fuzzyList && fuzzyList.length > 0) {
+          const targetArtist = normalizeStudyMatch(artist);
+          const targetAlbum = normalizeStudyMatch(album);
+          spin =
+            fuzzyList.find((row) => {
+              const rArtist = normalizeStudyMatch(row.artist);
+              const rAlbum = normalizeStudyMatch(row.title);
+              if (targetArtist && targetAlbum) {
+                return rArtist === targetArtist && rAlbum === targetAlbum;
+              }
+              return targetAlbum ? rAlbum === targetAlbum : rArtist === targetArtist;
+            }) || null;
+        }
+      }
+    }
+
+    if (!spin) return;
+    if (!artist && spin.artist) artist = spin.artist;
+    if (!album && spin.title) album = spin.title;
 
     // --- 0. ALBUM YEAR & REVIEW DATE ---
     const yearEl = document.getElementById("studyAlbumYear");
@@ -198,7 +250,7 @@
             </div>
           `;
         }
-      } else if (spin.rating) {
+      } else if (spin.rating !== null && spin.rating !== undefined && spin.rating !== "") {
         ratingSlot.innerHTML = renderLargeStars(spin.rating);
       }
     }

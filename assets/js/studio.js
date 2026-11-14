@@ -1746,6 +1746,171 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
   }
 
+  const studySpinCache = new Map();
+  let studySpinLookupTimer = null;
+  let activeStudySpinKey = "";
+  let activeStudySpinData = null;
+
+  function normalizeStudyMatch(str) {
+    return String(str || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[’‘`]/g, "'")
+      .replace(/[“”]/g, '"')
+      .replace(/\s*\(\d{4}\)\s*$/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+  }
+
+  function toStudyMetaList(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val.map((x) => String(x || "").trim()).filter(Boolean);
+    if (typeof val === "string") return val.split(",").map((s) => s.trim()).filter(Boolean);
+    return [];
+  }
+
+  function renderStudyLargeStarsHtml(rating) {
+    if (rating === null || rating === undefined || rating === "") return "";
+    const num = parseFloat(rating);
+    if (isNaN(num)) return "";
+    let stars = "";
+    for (let i = 1; i <= 5; i++) {
+      if (num >= i) stars += "<i class='bx bxs-star'></i>";
+      else if (num >= i - 0.5) stars += "<i class='bx bxs-star-half'></i>";
+      else stars += "<i class='bx bx-star'></i>";
+    }
+    return `
+      <span class="study-stars">${stars}</span>
+      <span class="rating-number">(${num.toFixed(1)})</span>
+    `;
+  }
+
+  function formatStudySpinDate(dateStr) {
+    if (!dateStr) return null;
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+    if (typeof dateStr === "string" && dateStr.includes("/")) {
+      const parts = dateStr.trim().split("/");
+      if (parts.length === 3) {
+        const monthIdx = parseInt(parts[0], 10) - 1;
+        const day = parseInt(parts[1], 10);
+        let year = parseInt(parts[2], 10);
+        if (year < 100) year += 2000;
+        if (monthIdx >= 0 && monthIdx < 12 && !isNaN(day) && !isNaN(year)) {
+          return `${monthNames[monthIdx]} ${day}, ${year}`;
+        }
+      }
+    }
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+      return `${monthNames[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+    }
+    return null;
+  }
+
+  function getCurrentStudyKey() {
+    if (!metaPostType || metaPostType.value !== "sosa-study") return "";
+    const artist = (metaStudyArtist?.value || "").trim().toLowerCase();
+    const album = (metaStudyAlbum?.value || stripHtml(metaTitle?.value || "")).trim().toLowerCase();
+    const slug = (metaSlug?.value || "").trim().toLowerCase();
+    return `${artist}||${album}||${slug}`;
+  }
+
+  async function fetchStudySpinForCurrentDraft(cacheKey) {
+    if (!sb || !cacheKey) return null;
+    if (studySpinCache.has(cacheKey)) return studySpinCache.get(cacheKey);
+
+    const artist = (metaStudyArtist?.value || "").trim();
+    const album = (metaStudyAlbum?.value || stripHtml(metaTitle?.value || "")).trim();
+    const slug = (metaSlug?.value || "").trim();
+    if (!slug && (!artist || !album)) {
+      studySpinCache.set(cacheKey, null);
+      return null;
+    }
+
+    let spin = null;
+    try {
+      if (slug) {
+        const { data: urlMatches } = await sb
+          .from("spins")
+          .select("*")
+          .ilike("review_url", `%slug=${slug}%`)
+          .order("id", { ascending: false })
+          .limit(1);
+        if (urlMatches && urlMatches.length > 0) spin = urlMatches[0];
+      }
+
+      if (!spin && artist && album) {
+        const { data: exactMatches } = await sb
+          .from("spins")
+          .select("*")
+          .ilike("artist", artist)
+          .ilike("title", album)
+          .order("id", { ascending: false })
+          .limit(1);
+        if (exactMatches && exactMatches.length > 0) spin = exactMatches[0];
+      }
+
+      if (!spin && (artist || album)) {
+        const cleanToken = (album || artist).replace(/[%_]/g, "").trim();
+        if (cleanToken) {
+          let q = sb.from("spins").select("*").order("id", { ascending: false }).limit(20);
+          q = album ? q.ilike("title", `%${cleanToken}%`) : q.ilike("artist", `%${cleanToken}%`);
+          const { data: fuzzyList } = await q;
+          if (fuzzyList && fuzzyList.length > 0) {
+            const targetArtist = normalizeStudyMatch(artist);
+            const targetAlbum = normalizeStudyMatch(album);
+            spin =
+              fuzzyList.find((row) => {
+                const rArtist = normalizeStudyMatch(row.artist);
+                const rAlbum = normalizeStudyMatch(row.title);
+                if (targetArtist && targetAlbum) {
+                  return rArtist === targetArtist && rAlbum === targetAlbum;
+                }
+                return targetAlbum ? rAlbum === targetAlbum : rArtist === targetArtist;
+              }) || null;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Studio spin preview lookup failed:", err);
+    }
+
+    studySpinCache.set(cacheKey, spin);
+    return spin;
+  }
+
+  function scheduleStudySpinLookup() {
+    if (!metaPostType || metaPostType.value !== "sosa-study") {
+      activeStudySpinKey = "";
+      activeStudySpinData = null;
+      return;
+    }
+    const key = getCurrentStudyKey();
+    if (!key) return;
+    if (studySpinCache.has(key)) {
+      activeStudySpinKey = key;
+      activeStudySpinData = studySpinCache.get(key);
+      return;
+    }
+
+    clearTimeout(studySpinLookupTimer);
+    studySpinLookupTimer = setTimeout(async () => {
+      const resolved = await fetchStudySpinForCurrentDraft(key);
+      if (getCurrentStudyKey() === key) {
+        activeStudySpinKey = key;
+        activeStudySpinData = resolved;
+        if (previewFrameReady && livePreviewFrame?.contentDocument) {
+          const headerMount = livePreviewFrame.contentDocument.getElementById("previewHeaderMount");
+          if (headerMount) headerMount.innerHTML = buildPreviewHeaderHtml();
+        }
+      }
+    }, 180);
+  }
+
   function buildPreviewHeaderHtml() {
     const isStudy = metaPostType.value === "sosa-study";
     const titleHtml = sanitizeInlineTitle(metaTitle.value.trim() || "Untitled Essay");
@@ -1776,26 +1941,96 @@ document.addEventListener("DOMContentLoaded", async () => {
     const heroUrl = normalizeAssetPath(metaHeroUrl.value.trim());
 
     if (isStudy) {
-      const artist = escapeHtml(metaStudyArtist.value.trim() || "Artist");
-      const album = escapeHtml(metaStudyAlbum.value.trim() || stripHtml(metaTitle.value) || "Album");
-      const year = metaStudyYear.value ? `(${escapeHtml(metaStudyYear.value)})` : "";
-      const cover = heroUrl || "assets/images/spins/placeholder.png";
+      const currentKey = getCurrentStudyKey();
+      const spin = activeStudySpinKey === currentKey ? activeStudySpinData : null;
+      const artist = escapeHtml(metaStudyArtist.value.trim() || spin?.artist || "Artist");
+      const album = escapeHtml(metaStudyAlbum.value.trim() || spin?.title || stripHtml(metaTitle.value) || "Album");
+      const effectiveYear = metaStudyYear.value || spin?.year || "";
+      const year = effectiveYear ? `(${escapeHtml(effectiveYear)})` : "";
+      const cover = heroUrl || normalizeAssetPath(spin?.cover_url || "") || "assets/images/spins/placeholder.png";
+      const spinDateFormatted = spin ? formatStudySpinDate(spin.review_date || spin.log_date || spin.created_at) : null;
+      const effectiveReviewDate = spinDateFormatted || dateVal;
+
+      let ratingHtml = "";
+      if (spin && (spin.relisten || spin.rating_shift)) {
+        if (spin.rating_shift && spin.rating_shift.from !== undefined) {
+          ratingHtml = `
+            <div class="study-rating-shift">
+              <span style="opacity: 0.65;">${renderStudyLargeStarsHtml(spin.rating_shift.from)}</span>
+              <span class="shift-arrow">➔</span>
+              <span>${renderStudyLargeStarsHtml(spin.rating_shift.to || spin.rating)}</span>
+              <span class="relisten-icon" title="Relisten"><i class='bx bx-rotate-left'></i></span>
+            </div>
+          `;
+        } else {
+          ratingHtml = `
+            <div class="study-rating-shift">
+              ${spin.rating !== null && spin.rating !== undefined && spin.rating !== "" ? renderStudyLargeStarsHtml(spin.rating) : ""}
+              <span class="relisten-icon" title="Relisten"><i class='bx bx-rotate-left'></i></span>
+            </div>
+          `;
+        }
+      } else if (spin && spin.rating !== null && spin.rating !== undefined && spin.rating !== "") {
+        ratingHtml = renderStudyLargeStarsHtml(spin.rating);
+      } else if (metaReviewRating && metaReviewRating.value.trim() !== "") {
+        ratingHtml = renderStudyLargeStarsHtml(metaReviewRating.value.trim());
+      }
+
+      const primaryGenresHtml = toStudyMetaList(spin?.genres)
+        .map((g) => `<span class="genre-pill genre-primary">${escapeHtml(g)}</span>`)
+        .join("");
+      const secondaryGenresHtml = toStudyMetaList(spin?.secondary_genres)
+        .map((g) => `<span class="genre-pill genre-secondary">${escapeHtml(g)}</span>`)
+        .join("");
+      const descriptorsList = toStudyMetaList(spin?.descriptors);
+      const descriptorsHtml = descriptorsList.length
+        ? `<div class="descriptors-wrapper">
+             <span class="desc-label">descriptors:</span>
+             ${descriptorsList.map((d) => `<span class="descriptor-pill">${escapeHtml(d)}</span>`).join("")}
+           </div>`
+        : "";
+      const favList = toStudyMetaList(spin?.fav_tracks);
+      const favTracksHtml = favList.length
+        ? `<div class="fav-tracks-row">
+             <span class="fav-label">Fav Tracks:</span>
+             <div class="fav-tracks-chips">
+               ${favList
+                 .map((t) => {
+                   if (t.includes("|")) {
+                     const [tName] = t.split("|").map((s) => s.trim());
+                     const cleanName = tName.replace(/^["“]|["”]$/g, "");
+                     return `<span class="fav-track-chip song-embed-link"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(cleanName)}</span>`;
+                   }
+                   return `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon"> ${escapeHtml(t)}</span>`;
+                 })
+                 .join("")}
+             </div>
+           </div>`
+        : "";
+
       return `
         <div class="header-content post-container">
           <div class="study-series-badge">A Sosa Study</div>
           <div class="study-subheading-wrap">
-            <h2 class="post-subheading study-subheading-artist">${artist}</h2>
-            <h2 class="post-subheading study-subheading-album">${album}</h2>
-            <span class="study-subheading-year">${year}</span>
+            <h2 class="post-subheading study-subheading-artist" id="studySubheadingArtist">${artist}</h2>
+            <h2 class="post-subheading study-subheading-album" id="studySubheadingAlbum">${album}</h2>
+            <span class="study-subheading-year" id="studyAlbumYear">${year}</span>
           </div>
           <div class="study-cover-frame">
             <div class="study-cover-stage">
               <div class="study-cover-sleeve">
-                <img src="${escapeHtml(cover)}" alt="" class="study-album-cover">
+                <img src="${escapeHtml(cover)}" alt="${artist} — ${album}" class="study-album-cover" id="studyCoverImg">
                 <div class="study-cover-gloss"></div>
               </div>
-              <div class="study-cover-reflection" style="background-image: url('${escapeHtml(cover)}');"></div>
+              <div class="study-cover-reflection" id="studyCoverReflection" style="background-image: url('${escapeHtml(cover)}');"></div>
             </div>
+          </div>
+          <div class="study-album-meta-block">
+            <div id="studyRatingSlot" class="study-large-rating">${ratingHtml}</div>
+            <div id="studyPrimaryGenres" class="study-genre-row primary-genres-row">${primaryGenresHtml}</div>
+            <div id="studySecondaryGenres" class="study-genre-row secondary-genres-row">${secondaryGenresHtml}</div>
+            <div id="studyDescriptors" class="study-desc-row">${descriptorsHtml}</div>
+            <div id="studyFavTracksSlot" class="study-fav-tracks-row">${favTracksHtml}</div>
           </div>
           <div class="article-metadata-row">
             <div class="article-metadata-top">
@@ -1813,7 +2048,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               </div>
             </div>
             <div class="metadata-date-row">
-              <span class="review-date"><i class='bx bx-calendar-event'></i> Reviewed on ${escapeHtml(dateVal)}</span>
+              <span class="review-date" id="studyReviewDate"><i class='bx bx-calendar-event'></i> Reviewed on ${escapeHtml(effectiveReviewDate)}</span>
             </div>
           </div>
         </div>
@@ -2235,6 +2470,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const headerMount = doc.getElementById("previewHeaderMount");
     const bodyMount = doc.getElementById("previewBodyMount");
     const isPoetry = metaPostType.value === "poetry";
+    scheduleStudySpinLookup();
     applyHeroColorTint(doc, !!metaHeroTintEnabled?.checked, metaHeroTintColor?.value);
     if (headerMount) headerMount.innerHTML = buildPreviewHeaderHtml();
     if (bodyMount) {

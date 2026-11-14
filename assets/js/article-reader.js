@@ -487,6 +487,21 @@
     `;
   }
 
+  function renderStudyFallbackStars(rating) {
+    const num = parseFloat(rating);
+    if (isNaN(num)) return "";
+    let stars = "";
+    for (let i = 1; i <= 5; i++) {
+      if (num >= i) stars += "<i class='bx bxs-star'></i>";
+      else if (num >= i - 0.5) stars += "<i class='bx bxs-star-half'></i>";
+      else stars += "<i class='bx bx-star'></i>";
+    }
+    return `
+      <span class="study-stars">${stars}</span>
+      <span class="rating-number">(${num.toFixed(1)})</span>
+    `;
+  }
+
   function renderSosaStudyHeader(article) {
     const artist = escapeHtml(article.study_artist || "");
     const album = escapeHtml(article.study_album || stripHtml(article.title));
@@ -496,6 +511,10 @@
     const categories = Array.isArray(article.categories) && article.categories.length > 0
       ? article.categories
       : ["SosaSpins"];
+    const fallbackRatingHtml =
+      article.review_rating !== null && article.review_rating !== undefined && article.review_rating !== ""
+        ? renderStudyFallbackStars(article.review_rating)
+        : "";
 
     const categoriesHtml = categories
       .map((c) => `<span class="category spin-format-tag">${escapeHtml(c)}</span>`)
@@ -522,7 +541,7 @@
         </div>
 
         <div class="study-album-meta-block">
-          <div id="studyRatingSlot" class="study-large-rating"></div>
+          <div id="studyRatingSlot" class="study-large-rating">${fallbackRatingHtml}</div>
           <div id="studyPrimaryGenres" class="study-genre-row primary-genres-row"></div>
           <div id="studySecondaryGenres" class="study-genre-row secondary-genres-row"></div>
           <div id="studyDescriptors" class="study-desc-row"></div>
