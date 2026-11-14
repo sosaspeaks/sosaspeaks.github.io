@@ -181,6 +181,30 @@
         </div>
       </div>
 
+      <!-- Aero Explorer Backlog Search Bar (Albums, Artists & Months) -->
+      <div class="explorer-search-bar" id="backlogSearchBar">
+        <div class="explorer-search-input-wrap">
+          <i class='bx bx-search explorer-search-icon' aria-hidden="true"></i>
+          <input
+            type="text"
+            id="backlogSearchInput"
+            class="sosa-search-input explorer-search-input"
+            placeholder="Search albums, artists, or months across the backlog (e.g. Bjork, Vespertine, November)..."
+            aria-label="Search albums, artists, or months across the backlog"
+            autocomplete="off"
+          >
+          <button
+            type="button"
+            id="backlogSearchClearBtn"
+            class="explorer-search-clear-btn"
+            style="display: none;"
+            title="Clear search (Esc)"
+            aria-label="Clear search"
+          >&times;</button>
+        </div>
+        <div class="explorer-search-summary" id="backlogSearchSummaryBar" style="display: none;"></div>
+      </div>
+
       <!-- Recalibrate Category Filter Bar (Only visible on Recalibrate tab) -->
       <div id="recalibrateFilterBar" class="aero-recalibrate-filter-bar" style="display: none;">
         <span class="recalibrate-filter-label"><i class='bx bx-revision'></i> Slices:</span>

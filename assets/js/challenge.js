@@ -42,11 +42,35 @@ document.addEventListener("DOMContentLoaded", async () => {
   const exportImageBtn = document.getElementById("exportImageBtn");
   const exportWrapper = document.getElementById("exportWrapper");
 
-  // Grid Sort Controls
+  // Grid Sort & Explorer Search Controls
   const gridSortBtn = document.getElementById("gridSortBtn");
   const gridSortBtnLabel = document.getElementById("gridSortBtnLabel");
   const gridSortMenu = document.getElementById("gridSortMenu");
   let currentSort = "default";
+
+  const backlogSearchInput = document.getElementById("backlogSearchInput");
+  const backlogSearchClearBtn = document.getElementById("backlogSearchClearBtn");
+  const backlogSearchSummaryBar = document.getElementById("backlogSearchSummaryBar");
+  let backlogSearchQuery = "";
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function normalizeSearchText(str) {
+    if (!str) return "";
+    return String(str)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+  }
 
   // Detail Modal
   const detailModal = document.getElementById("detailModal");
@@ -367,6 +391,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function toggleRecalibrateQueue() {
+    clearBacklogSearch({ rerender: false });
     const isRel = (activeMonth === "recalibrate" || activeMonth === "relisten");
     if (isRel) {
       setActiveMonthTab(lastActiveChallengeMonth || "october");
@@ -767,11 +792,119 @@ document.addEventListener("DOMContentLoaded", async () => {
     return capitalized;
   }
 
+  // Helper: Build Short & Full Backlog Month Metadata
+  function buildShortMonthLabel(fullLabel) {
+    if (!fullLabel) return "";
+    if (fullLabel === "Recalibrate") return "Recal";
+    const parts = fullLabel.split(" ");
+    const first = parts[0].slice(0, 3);
+    return parts.length > 1 ? `${first} ${parts.slice(1).join(" ")}` : first;
+  }
+
+  function getEntryMonthMeta(album) {
+    const rawMonth = (album && album.month ? String(album.month) : "").toLowerCase().trim();
+    const isRel = rawMonth === "recalibrate" || rawMonth === "relisten" || !!(album && album.is_spin_source);
+    if (isRel) {
+      return {
+        key: "recalibrate",
+        label: "Recalibrate",
+        shortLabel: "Recal",
+        sortKey: 999999,
+        isRelisten: true
+      };
+    }
+
+    const tabBtn = rawMonth
+      ? document.querySelector(`menu.w7-month-tabs button[data-month="${rawMonth}"]`)
+      : null;
+    const tabYear = tabBtn ? tabBtn.getAttribute("data-year") : null;
+    const effectiveYear = (album && album.year) || tabYear || null;
+    const fullLabel = rawMonth ? formatMonthDisplay(rawMonth, effectiveYear) : "Unassigned";
+
+    return {
+      key: rawMonth || "unassigned",
+      label: fullLabel,
+      shortLabel: buildShortMonthLabel(fullLabel),
+      sortKey: rawMonth ? getMonthYearSortKey(rawMonth, effectiveYear) : 999998,
+      isRelisten: false
+    };
+  }
+
+  function getAllSearchableBacklogEntries() {
+    const combined = [...backlogEntries];
+    getRelistenEntries().forEach(entry => {
+      if (String(entry.id).startsWith("spin_")) {
+        combined.push(entry);
+      }
+    });
+    return combined;
+  }
+
+  function matchesBacklogSearch(album, monthMeta, query) {
+    const tokens = normalizeSearchText(query).split(/\s+/).filter(Boolean);
+    if (!tokens.length) return true;
+
+    const genres = safeToArray(album.genres);
+    const secondaryGenres = safeToArray(album.secondary_genres);
+    const descriptors = safeToArray(album.descriptors);
+    const haystack = normalizeSearchText([
+      album.artist,
+      album.title,
+      monthMeta.label,
+      album.month,
+      album.year,
+      album.release_year,
+      album.relisten_reason,
+      ...genres,
+      ...secondaryGenres,
+      ...descriptors
+    ].filter(Boolean).join(" "));
+
+    return tokens.every(tok => haystack.includes(tok));
+  }
+
+  function clearBacklogSearch({ rerender = true } = {}) {
+    backlogSearchQuery = "";
+    if (backlogSearchInput) backlogSearchInput.value = "";
+    if (backlogSearchClearBtn) backlogSearchClearBtn.style.display = "none";
+    if (backlogSearchSummaryBar) {
+      backlogSearchSummaryBar.style.display = "none";
+      backlogSearchSummaryBar.innerHTML = "";
+    }
+    if (rerender && typeof renderGrid === "function") renderGrid();
+  }
+
+  if (backlogSearchInput) {
+    backlogSearchInput.addEventListener("input", () => {
+      backlogSearchQuery = backlogSearchInput.value || "";
+      if (backlogSearchClearBtn) {
+        backlogSearchClearBtn.style.display = backlogSearchQuery.trim() ? "inline-flex" : "none";
+      }
+      renderGrid();
+    });
+
+    backlogSearchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && backlogSearchInput.value) {
+        e.preventDefault();
+        e.stopPropagation();
+        clearBacklogSearch();
+      }
+    });
+  }
+
+  if (backlogSearchClearBtn) {
+    backlogSearchClearBtn.addEventListener("click", () => {
+      clearBacklogSearch();
+      if (backlogSearchInput) backlogSearchInput.focus();
+    });
+  }
+
   // Month Tabs Navigation
   function attachMonthTabListeners() {
     const tabs = document.querySelectorAll('menu.w7-month-tabs button[role="tab"]');
     tabs.forEach(tab => {
       tab.onclick = () => {
+        clearBacklogSearch({ rerender: false });
         const m = (tab.getAttribute("data-month") || "").toLowerCase();
         const isRelistenTab = tab.getAttribute("data-tab-type") === "relisten" || m === "recalibrate";
 
@@ -1785,6 +1918,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                   getRelistenEntries().find(a => String(a.id) === String(albumId));
     if (!album) return;
 
+    const monthMeta = getEntryMonthMeta(album);
+    const monthBadgeHtml = `<span class="modal-backlog-month-pill ${monthMeta.isRelisten ? "is-recal" : ""}" title="Backlog placement"><i class='bx ${monthMeta.isRelisten ? "bx-revision" : "bx-calendar"}'></i> ${escapeHtml(monthMeta.label)}</span>`;
+
     const isRecalibrate = (activeMonth === "recalibrate" || activeMonth === "relisten" || (album.month || "").toLowerCase() === "recalibrate" || !!album.relisten_reason);
     const relistenReason = isRecalibrate ? getAlbumRelistenReason(album) : null;
     const prevRating = isRecalibrate ? getAlbumPrevRating(album) : null;
@@ -1951,7 +2087,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               <div class="modal-detail-meta">
                 <div class="modal-detail-title">${match.artist || album.artist} — ${match.title || album.title}${yearDisplay}</div>
                 <div class="modal-detail-submeta">
-                  Logged on: ${match.log_date || "N/A"} ${album.runtime ? `• Runtime: ${album.runtime}` : ""} ${rymBadge}
+                  ${monthBadgeHtml} • Logged on: ${match.log_date || "N/A"} ${album.runtime ? `• Runtime: ${album.runtime}` : ""} ${rymBadge}
                 </div>
                 ${starsHtml}
               </div>
@@ -2030,6 +2166,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             <img src="${unloggedCover}" class="modal-detail-cover" style="width: 130px; height: 130px; border-radius: 10px; margin: 0.25rem auto;">
             <div class="modal-detail-title" style="margin-top: 0.6rem; font-size: 1.1rem; font-weight: 700;">${album.artist} — ${album.title}${yearDisplay}</div>
             <div style="display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
+              ${monthBadgeHtml}
               ${dispRuntime ? `<div style="font-weight: 600; font-size: 0.85rem; color: #10b981;"><i class='bx bx-time' style='vertical-align: middle;'></i> Runtime: ${dispRuntime}</div>` : ""}
               ${rymBadge}
             </div>
@@ -2623,7 +2760,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       card.addEventListener("click", (e) => {
         e.stopPropagation();
         const clickedIdx = parseInt(card.getAttribute("data-cf-index"), 10);
-        const albumId = parseInt(card.getAttribute("data-id"), 10);
+        const albumId = card.getAttribute("data-id");
         if (clickedIdx === coverFlowIndex) {
           if (albumId) openAlbumDetail(albumId);
         } else {
@@ -2700,6 +2837,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (cfAlbumMeta) {
       const metaPills = [];
+      if (backlogSearchQuery.trim()) {
+        const mMeta = getEntryMonthMeta(activeAlbum);
+        metaPills.push(`<span class="cf-genre-chip" style="font-weight: 700;"><i class='bx ${mMeta.isRelisten ? "bx-revision" : "bx-calendar"}'></i> ${escapeHtml(mMeta.label)}</span>`);
+      }
       if (isRel) {
         const reason = getAlbumRelistenReason(activeAlbum);
         metaPills.push(`<span class="cf-genre-chip" style="background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.5); color: #d97706; font-weight: 700;"><i class='bx bx-revision'></i> ${reason}</span>`);
@@ -2733,9 +2874,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     if (cfAlbumActions) {
-      const isRel = (activeMonth === "recalibrate" || activeMonth === "relisten" || (activeAlbum.month || "").toLowerCase() === "recalibrate");
+      const isRel = (activeMonth === "recalibrate" || activeMonth === "relisten" || (activeAlbum.month || "").toLowerCase() === "recalibrate" || !!activeAlbum.relisten_reason);
+      const safeIdArg = `'${String(activeAlbum.id).replace(/'/g, "\\'")}'`;
       let actionsHtml = `
-        <button type="button" class="cf-action-btn primary" onclick="openAlbumDetail(${activeAlbum.id})">
+        <button type="button" class="cf-action-btn primary" onclick="openAlbumDetail(${safeIdArg})">
           <i class='bx bx-album'></i> View Details
         </button>
       `;
@@ -2743,20 +2885,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!match) {
           if (isRel) {
             actionsHtml += `
-              <button type="button" class="cf-action-btn emerald recalibrate-cta-btn" onclick="importRelistenToSpin(${activeAlbum.id})">
+              <button type="button" class="cf-action-btn emerald recalibrate-cta-btn" onclick="importRelistenToSpin(${safeIdArg})">
                 <i class='bx bx-revision'></i> Log Re-evaluation
               </button>
             `;
           } else {
             actionsHtml += `
-              <button type="button" class="cf-action-btn emerald" onclick="importBacklogToSpin(${activeAlbum.id})">
+              <button type="button" class="cf-action-btn emerald" onclick="importBacklogToSpin(${safeIdArg})">
                 <i class='bx bx-plus-circle'></i> Log Spin
               </button>
             `;
           }
         }
         actionsHtml += `
-          <button type="button" class="cf-action-btn" onclick="openEditModal(event, ${activeAlbum.id})">
+          <button type="button" class="cf-action-btn" onclick="openEditModal(event, ${safeIdArg})">
             <i class='bx bx-edit-alt'></i> Edit
           </button>
         `;
@@ -2895,10 +3037,67 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
+  function updateSearchSummaryBar(matches, queryText) {
+    if (!backlogSearchSummaryBar) return;
+    if (!queryText) {
+      backlogSearchSummaryBar.style.display = "none";
+      backlogSearchSummaryBar.innerHTML = "";
+      return;
+    }
+
+    if (!matches.length) {
+      backlogSearchSummaryBar.style.display = "flex";
+      backlogSearchSummaryBar.innerHTML = `<span class="search-summary-count">0 matches across backlog for &ldquo;${escapeHtml(queryText)}&rdquo;</span>`;
+      return;
+    }
+
+    const monthGroups = new Map();
+    matches.forEach(item => {
+      const meta = getEntryMonthMeta(item);
+      if (!monthGroups.has(meta.key)) {
+        monthGroups.set(meta.key, { ...meta, count: 0 });
+      }
+      monthGroups.get(meta.key).count += 1;
+    });
+
+    const sortedGroups = Array.from(monthGroups.values()).sort((a, b) => a.sortKey - b.sortKey);
+    const chipsHtml = sortedGroups.map(g => `
+      <button type="button" class="search-month-chip ${g.isRelisten ? "is-recal" : ""}" data-jump-month="${escapeHtml(g.key)}" title="Jump to ${escapeHtml(g.label)} tab">
+        <span>${escapeHtml(g.label)}</span>
+        <span>(${g.count})</span>
+      </button>
+    `).join("");
+
+    const monthWord = sortedGroups.length === 1 ? "month" : "months";
+    const matchWord = matches.length === 1 ? "match" : "matches";
+    backlogSearchSummaryBar.style.display = "flex";
+    backlogSearchSummaryBar.innerHTML = `
+      <span class="search-summary-count">${matches.length} ${matchWord} across ${sortedGroups.length} ${monthWord}:</span>
+      ${chipsHtml}
+    `;
+
+    backlogSearchSummaryBar.querySelectorAll(".search-month-chip[data-jump-month]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const targetKey = btn.getAttribute("data-jump-month");
+        if (!targetKey || targetKey === "unassigned") return;
+        clearBacklogSearch({ rerender: false });
+        setActiveMonthTab(targetKey);
+        renderGrid();
+      });
+    });
+  }
+
   function renderGrid() {
+    const trimmedSearch = (backlogSearchQuery || "").trim();
+    const isSearchActive = trimmedSearch.length > 0;
     const isRelistenTab = (activeMonth === "recalibrate" || activeMonth === "relisten");
     let rawList;
-    if (isRelistenTab) {
+    if (isSearchActive) {
+      rawList = getAllSearchableBacklogEntries().filter(item => {
+        const mMeta = getEntryMonthMeta(item);
+        return matchesBacklogSearch(item, mMeta, trimmedSearch);
+      });
+    } else if (isRelistenTab) {
       const allRelistens = getRelistenEntries();
       if (activeRelistenReason !== "all") {
         rawList = allRelistens.filter(a => getAlbumRelistenReason(a).toLowerCase() === activeRelistenReason.toLowerCase());
@@ -2909,18 +3108,37 @@ document.addEventListener("DOMContentLoaded", async () => {
       rawList = backlogEntries.filter(item => (item.month || "").toLowerCase() === activeMonth);
     }
 
-    const sorted = sortAlbums(rawList, currentSort);
-    const list = isRelistenTab ? sorted : sorted.slice(0, 36);
+    let sorted;
+    if (isSearchActive && currentSort === "default") {
+      sorted = [...rawList].sort((a, b) => {
+        const mA = getEntryMonthMeta(a);
+        const mB = getEntryMonthMeta(b);
+        if (mA.sortKey !== mB.sortKey) return mA.sortKey - mB.sortKey;
+        const posA = a.position !== null && a.position !== undefined ? a.position : (Number(a.id) || 0);
+        const posB = b.position !== null && b.position !== undefined ? b.position : (Number(b.id) || 0);
+        return posA - posB;
+      });
+    } else {
+      sorted = sortAlbums(rawList, currentSort);
+    }
+
+    const list = (isSearchActive || isRelistenTab) ? sorted : sorted.slice(0, 36);
     currentMonthItems = list;
     let completedCount = 0;
+
+    updateSearchSummaryBar(list, trimmedSearch);
 
     const activeTabBtn = document.querySelector(`menu.w7-month-tabs button[data-month="${activeMonth}"]`);
     const activeYear = activeTabBtn ? activeTabBtn.getAttribute("data-year") : null;
     const displayMonth = isRelistenTab ? "Recalibrate" : formatMonthDisplay(activeMonth, activeYear);
     if (progressSubtitle) {
-      progressSubtitle.textContent = isRelistenTab
-        ? `Album Recalibration & Relisten Queue (${list.length} Albums)`
-        : `${displayMonth} Listening Challenge`;
+      if (isSearchActive) {
+        progressSubtitle.textContent = `Backlog Search: "${trimmedSearch}" (${list.length} ${list.length === 1 ? "Match" : "Matches"})`;
+      } else {
+        progressSubtitle.textContent = isRelistenTab
+          ? `Album Recalibration & Relisten Queue (${list.length} Albums)`
+          : `${displayMonth} Listening Challenge`;
+      }
     }
 
     const progressBox = document.querySelector(".challenge-progress-box");
@@ -2928,17 +3146,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     const currentCalendarMonth = MONTH_NAMES[now.getMonth()].toLowerCase();
     const currentCalendarYear = now.getFullYear();
     const activeYearNum = activeYear ? parseInt(activeYear, 10) : currentCalendarYear;
-    const isCurrentCalendarMonth = !isRelistenTab && (activeMonth === currentCalendarMonth) && (activeYearNum === currentCalendarYear);
+    const isCurrentCalendarMonth = !isSearchActive && !isRelistenTab && (activeMonth === currentCalendarMonth) && (activeYearNum === currentCalendarYear);
     if (progressBox) {
       progressBox.style.display = isCurrentCalendarMonth ? "" : "none";
     }
 
     list.forEach(album => {
-      const isDone = isAlbumDone(album, isRelistenTab);
+      const itemIsRel = isSearchActive ? getEntryMonthMeta(album).isRelisten : isRelistenTab;
+      const isDone = isAlbumDone(album, itemIsRel);
       if (isDone) completedCount++;
     });
 
-    const total = isRelistenTab ? list.length : 36;
+    const total = (isSearchActive || isRelistenTab) ? list.length : 36;
     const pct = total > 0 ? Math.round((completedCount / total) * 100) : 0;
 
     if (counterEl) {
@@ -2951,7 +3170,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (statusBarSelection) {
       const sortSuffix = currentSort !== "default" ? ` • Sorted: ${SORT_LABELS[currentSort] || currentSort}` : "";
-      if (list.length === 0) {
+      if (isSearchActive) {
+        statusBarSelection.textContent = list.length === 0
+          ? `0 backlog matches for "${trimmedSearch}"`
+          : `${list.length} backlog ${list.length === 1 ? "match" : "matches"} (${completedCount} completed)${sortSuffix}`;
+      } else if (list.length === 0) {
         statusBarSelection.textContent = `0 items for ${displayMonth}`;
       } else {
         const itemLabel = isRelistenTab ? `${list.length} relistens (${completedCount} recalibrated)` : `${list.length} items (${completedCount} completed)`;
@@ -2960,7 +3183,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     if (statusBarStatus && !isCoverFlowView) {
-      if (isRelistenTab) {
+      if (isSearchActive) {
+        statusBarStatus.textContent = list.length === 0 ? "No Matches" : "Search Results";
+      } else if (isRelistenTab) {
         statusBarStatus.textContent = list.length === 0 ? "Queue Empty" : "Ready";
       } else {
         statusBarStatus.textContent = list.length === 36 ? "Month Full" : "Ready";
@@ -2970,13 +3195,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderCoverFlow(list);
 
     if (list.length === 0) {
-      topsterGrid.innerHTML = `<div class="grid-loader">${isRelistenTab ? "No albums in recalibrate queue for this filter." : `No albums added for ${displayMonth} yet.`}</div>`;
+      if (isSearchActive) {
+        topsterGrid.innerHTML = `<div class="grid-loader">No albums, artists, or months match &ldquo;${escapeHtml(trimmedSearch)}&rdquo; in the backlog.</div>`;
+      } else {
+        topsterGrid.innerHTML = `<div class="grid-loader">${isRelistenTab ? "No albums in recalibrate queue for this filter." : `No albums added for ${displayMonth} yet.`}</div>`;
+      }
+      updateRecalibrateTabVisibility();
+      if (isSearchActive && recalibrateFilterBar) recalibrateFilterBar.style.display = "none";
       return;
     }
 
     topsterGrid.innerHTML = list.map((album, idx) => {
-      const match = getMatchingSpin(album, isRelistenTab);
-      const isDone = isAlbumDone(album, isRelistenTab);
+      const monthMeta = getEntryMonthMeta(album);
+      const itemIsRel = isSearchActive ? monthMeta.isRelisten : isRelistenTab;
+      const match = getMatchingSpin(album, itemIsRel);
+      const isDone = isAlbumDone(album, itemIsRel);
       const priorSpin = getPriorSpin(album);
 
       let coverSrc = (isDone && match && match.cover_url)
@@ -2997,12 +3230,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       const yearTooltip = (album.release_year || album.year) ? ` (${album.release_year || album.year})` : "";
       const runtimeTooltip = album.runtime ? ` • ${album.runtime}` : "";
 
-      const reason = isRelistenTab ? getAlbumRelistenReason(album) : "";
-      const prevRating = isRelistenTab ? getAlbumPrevRating(album) : null;
-      const reasonTooltip = isRelistenTab && reason ? ` [${reason}]` : "";
+      const reason = itemIsRel ? getAlbumRelistenReason(album) : "";
+      const prevRating = itemIsRel ? getAlbumPrevRating(album) : null;
+      const reasonTooltip = itemIsRel && reason ? ` [${reason}]` : "";
+      const monthTooltip = isSearchActive ? ` • ${monthMeta.label}` : "";
 
       let badgeHtml = "";
-      if (isRelistenTab) {
+      if (itemIsRel) {
         if (isDone) {
           badgeHtml = `
             <div class="aero-completed-pill">
@@ -3036,38 +3270,44 @@ document.addEventListener("DOMContentLoaded", async () => {
         `;
       }
 
-      const reasonPillHtml = (isRelistenTab && reason) ? `
-        <div class="tile-reason-pill" title="Recalibration Reason: ${reason}">
-          <i class='bx bx-tag-alt'></i> ${reason}
+      const monthBadgeHtml = isSearchActive ? `
+        <div class="tile-month-pill ${monthMeta.isRelisten ? "is-recal" : ""}" title="Backlog Month: ${escapeHtml(monthMeta.label)}">${escapeHtml(monthMeta.shortLabel)}</div>
+      ` : "";
+
+      const reasonPillHtml = (itemIsRel && reason) ? `
+        <div class="tile-reason-pill" title="Recalibration Reason: ${escapeHtml(reason)}">
+          <i class='bx bx-tag-alt'></i> ${escapeHtml(reason)}
         </div>
       ` : "";
 
-      const prevRatingTooltip = (isRelistenTab && prevRating !== null) ? ` (Prior: ${prevRating.toFixed(1)} ★)` : "";
+      const prevRatingTooltip = (itemIsRel && prevRating !== null) ? ` (Prior: ${prevRating.toFixed(1)} ★)` : "";
 
       return `
-        <div class="topster-tile ${isDone ? 'is-completed' : (isRelistenTab ? 'is-relisten' : '')}"
-             draggable="${isAdmin && !isRelistenTab && currentSort === 'default'}"
-             data-id="${album.id}"
+        <div class="topster-tile ${isDone ? 'is-completed' : (itemIsRel ? 'is-relisten' : '')}"
+             draggable="${!isSearchActive && isAdmin && !isRelistenTab && currentSort === 'default'}"
+             data-id="${escapeHtml(album.id)}"
              data-index="${idx}"
-             title="${album.artist} — ${album.title}${yearTooltip}${runtimeTooltip}${rymTooltip}${prevRatingTooltip}${reasonTooltip}">
+             title="${escapeHtml(album.artist)} — ${escapeHtml(album.title)}${escapeHtml(yearTooltip)}${escapeHtml(runtimeTooltip)}${escapeHtml(rymTooltip)}${escapeHtml(monthTooltip)}${escapeHtml(prevRatingTooltip)}${escapeHtml(reasonTooltip)}">
 
           <div class="tile-admin-actions">
-            <button type="button" class="tile-icon-btn edit" data-action="edit" data-id="${album.id}" title="Edit">✎</button>
-            <button type="button" class="tile-icon-btn delete" data-action="delete" data-id="${album.id}" title="Remove">✕</button>
+            <button type="button" class="tile-icon-btn edit" data-action="edit" data-id="${escapeHtml(album.id)}" title="Edit">✎</button>
+            <button type="button" class="tile-icon-btn delete" data-action="delete" data-id="${escapeHtml(album.id)}" title="Remove">✕</button>
           </div>
 
-          <img src="${coverSrc}" alt="${album.title}" class="tile-art" loading="lazy">
+          <img src="${escapeHtml(coverSrc)}" alt="${escapeHtml(album.title)}" class="tile-art" loading="lazy">
 
+          ${monthBadgeHtml}
           ${badgeHtml}
           ${reasonPillHtml}
 
-          <div class="tile-tooltip">${album.artist} — ${album.title}${prevRatingTooltip}${reasonTooltip}</div>
+          <div class="tile-tooltip">${escapeHtml(album.artist)} — ${escapeHtml(album.title)}${monthTooltip ? ` <span style="color:#a7f3d0;">(${escapeHtml(monthMeta.shortLabel)})</span>` : ""}${escapeHtml(prevRatingTooltip)}${escapeHtml(reasonTooltip)}</div>
         </div>
       `;
     }).join("");
 
-    if (isAdmin && !isRelistenTab && currentSort === "default") setupDragAndDrop();
+    if (!isSearchActive && isAdmin && !isRelistenTab && currentSort === "default") setupDragAndDrop();
     updateRecalibrateTabVisibility();
+    if (isSearchActive && recalibrateFilterBar) recalibrateFilterBar.style.display = "none";
   }
 
   // Drag & Drop
