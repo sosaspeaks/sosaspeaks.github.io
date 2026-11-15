@@ -180,23 +180,50 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch (e) {}
   }
 
+  function parseLogDate(dateStr) {
+    if (!dateStr) return 0;
+    const raw = String(dateStr).trim();
+    const parts = raw.split("/");
+    if (parts.length === 3) {
+      const month = parseInt(parts[0], 10) - 1;
+      const day = parseInt(parts[1], 10);
+      let year = parseInt(parts[2], 10);
+      if (!isNaN(month) && !isNaN(day) && !isNaN(year)) {
+        if (year < 100) year += 2000;
+        return new Date(year, month, day).getTime();
+      }
+    }
+    const parsed = Date.parse(raw);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+
+  function isPendingRelistenStub(s) {
+    if (!s) return false;
+    return s.relisten_pending === true || (s.relisten === true && (s.rating === null || s.rating === undefined || s.rating === ""));
+  }
+
   function isRelistenSpin(s) {
     if (!s) return false;
     if (s.relisten_pending === true) return false;
     return s.relisten === true || s.relisten === "true" || !!s.rating_shift;
   }
 
-  function getPriorSpin(album) {
-    if (!album) return null;
+  function getAlbumSpins(album) {
+    if (!album) return [];
     const aArtist = (album.artist || "").trim().toLowerCase();
     const aTitle = (album.title || "").trim().toLowerCase();
-    if (!aArtist || !aTitle) return null;
+    if (!aArtist || !aTitle) return [];
 
-    return loggedSpins.find(s => {
+    return loggedSpins.filter(s => {
+      if (isPendingRelistenStub(s)) return false;
       const sArtist = (s.artist || "").trim().toLowerCase();
       const sTitle = (s.title || "").trim().toLowerCase();
       return sArtist === aArtist && sTitle === aTitle;
-    }) || null;
+    });
+  }
+
+  function getPriorSpin(album) {
+    return getAlbumSpins(album)[0] || null;
   }
 
   function getMatchingSpin(album, isRecalContext) {
@@ -205,24 +232,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       ? isRecalContext
       : (activeMonth === "recalibrate" || activeMonth === "relisten" || (album.month || "").toLowerCase() === "recalibrate" || !!album.relisten_reason);
 
-    const aArtist = (album.artist || "").trim().toLowerCase();
-    const aTitle = (album.title || "").trim().toLowerCase();
-    if (!aArtist || !aTitle) return null;
+    const spins = getAlbumSpins(album);
+    if (!spins.length) return null;
 
     if (isRecal) {
-      // For recalibration, ONLY spins explicitly marked as a relisten count as recalibrated!
-      return loggedSpins.find(s => {
-        const sArtist = (s.artist || "").trim().toLowerCase();
-        const sTitle = (s.title || "").trim().toLowerCase();
-        return sArtist === aArtist && sTitle === aTitle && isRelistenSpin(s);
-      }) || null;
+      // For recalibration, ONLY completed spins explicitly marked as a relisten count as recalibrated!
+      return spins.find(s => isRelistenSpin(s)) || null;
     }
 
-    return loggedSpins.find(s => {
-      const sArtist = (s.artist || "").trim().toLowerCase();
-      const sTitle = (s.title || "").trim().toLowerCase();
-      return sArtist === aArtist && sTitle === aTitle;
-    }) || null;
+    // Most recent completed listen
+    return spins[0];
   }
 
   function isAlbumDone(album, isRecalContext) {
@@ -246,14 +265,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       const num = parseFloat(local.prev_rating);
       if (!isNaN(num)) return num;
     }
-    const prior = getPriorSpin(album);
-    if (prior) {
-      if (prior.rating_shift && prior.rating_shift.from !== undefined && prior.rating_shift.from !== null) {
-        const pNum = parseFloat(prior.rating_shift.from);
+    const spins = getAlbumSpins(album);
+    if (spins.length) {
+      const shiftSpin = spins.find(s => s.rating_shift && s.rating_shift.from !== undefined && s.rating_shift.from !== null);
+      if (shiftSpin) {
+        const pNum = parseFloat(shiftSpin.rating_shift.from);
         if (!isNaN(pNum)) return pNum;
       }
-      if (prior.rating !== null && prior.rating !== undefined && prior.rating !== "") {
-        const num = parseFloat(prior.rating);
+      const priorNonRelisten = spins.find(s => !isRelistenSpin(s)) || spins[0];
+      if (priorNonRelisten && priorNonRelisten.rating !== null && priorNonRelisten.rating !== undefined && priorNonRelisten.rating !== "") {
+        const num = parseFloat(priorNonRelisten.rating);
         if (!isNaN(num)) return num;
       }
     }
@@ -2027,6 +2048,96 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  function formatSpinMemoHtml(rawMemo) {
+    if (!rawMemo) return "";
+    let cleanText = String(rawMemo)
+      .replace(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}(?:\s*relistened)?(?:\s*<br\s*\/?>)*/i, "")
+      .trim();
+
+    if (!cleanText) return "";
+
+    cleanText = cleanText.replace(
+      /\[["“]([^"”]+)["”]\]\((https?:\/\/[^\s)]+)\)/g,
+      `<a href="$2" target="_blank" rel="noopener noreferrer" class="inline-quoted-track song-embed-link">“$1” ↗</a>`
+    );
+
+    cleanText = cleanText.replace(
+      /(?<=^|[\s>(])["“]([^"”\n\r<]+)["”](?=[\s.,!?;:)<]|$)/g,
+      `<span class="inline-quoted-track">“$1”</span>`
+    );
+
+    return cleanText.replace(/\r?\n/g, "<br>");
+  }
+
+  function renderSpinHistoryHtml(spins, sectionTitle = "Listening History & Memos") {
+    if (!Array.isArray(spins) || !spins.length) return "";
+
+    const total = spins.length;
+    const entriesHtml = spins.map((spin, idx) => {
+      const spinNumber = total - idx;
+      const isLatest = idx === 0;
+      const isRel = isRelistenSpin(spin);
+      const rNum = (spin.rating !== null && spin.rating !== undefined && spin.rating !== "") ? parseFloat(spin.rating) : NaN;
+
+      let shiftStr = "";
+      if (spin.rating_shift && spin.rating_shift.from !== undefined && spin.rating_shift.to !== undefined) {
+        const fNum = parseFloat(spin.rating_shift.from);
+        const tNum = parseFloat(spin.rating_shift.to);
+        if (!isNaN(fNum) && !isNaN(tNum)) {
+          shiftStr = `<span class="modal-spin-shift-pill" title="Rating recalibration">${fNum.toFixed(1)} ➔ ${tNum.toFixed(1)} ★</span>`;
+        }
+      }
+
+      const ratingPillHtml = !isNaN(rNum)
+        ? `<span class="modal-spin-rating-pill"><span class="stars-gold">${getStarString(rNum)}</span> <span class="rating-val">${rNum.toFixed(1)}</span></span>`
+        : "";
+
+      const numLabel = total === 1
+        ? "Spin #1"
+        : (isLatest ? `Latest • Spin #${spinNumber}` : `Spin #${spinNumber}`);
+
+      const relistenReasonText = spin.relisten_reason ? normalizeRelistenReason(spin.relisten_reason) : "";
+      const relistenBadgeHtml = isRel
+        ? `<span class="modal-spin-relisten-badge"><i class='bx bx-revision'></i> Relisten${relistenReasonText ? `: ${escapeHtml(relistenReasonText)}` : ""}</span>`
+        : "";
+
+      const memoHtml = formatSpinMemoHtml(spin.memo);
+
+      return `
+        <div class="modal-spin-entry ${isLatest ? "is-latest" : ""}">
+          <div class="modal-spin-entry-header">
+            <div class="modal-spin-entry-left">
+              <span class="modal-spin-num-badge ${isLatest ? "is-latest" : ""}">${numLabel}</span>
+              <span class="modal-spin-date"><i class='bx bx-calendar'></i> ${escapeHtml(spin.log_date || "Date N/A")}</span>
+              ${relistenBadgeHtml}
+            </div>
+            <div class="modal-spin-entry-right">
+              ${shiftStr}
+              ${ratingPillHtml}
+            </div>
+          </div>
+          ${memoHtml
+            ? `<div class="spin-memo-entry">${memoHtml}</div>`
+            : `<div class="modal-spin-no-memo">No memo written for this listen.</div>`}
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <div class="modal-spin-history">
+        <div class="modal-spin-history-header">
+          <div class="modal-spin-history-title">
+            <i class='bx bx-history'></i> ${escapeHtml(sectionTitle)}
+          </div>
+          <span class="modal-spin-count-pill">${total} ${total === 1 ? "spin" : "spins"}</span>
+        </div>
+        <div class="modal-spin-history-list">
+          ${entriesHtml}
+        </div>
+      </div>
+    `;
+  }
+
   // Detail Modal Logic
   window.openAlbumDetail = function(albumId) {
     if (!detailModal || !modalBody) return;
@@ -2043,6 +2154,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const prevRating = isRecalibrate ? getAlbumPrevRating(album) : null;
     const match = getMatchingSpin(album, isRecalibrate);
     const priorSpin = getPriorSpin(album);
+    const allSpins = getAlbumSpins(album);
 
     let recalibrateHeroHtml = "";
     if (isRecalibrate && relistenReason) {
@@ -2185,24 +2297,13 @@ document.addEventListener("DOMContentLoaded", async () => {
           }
         }
 
-        let memoHtml = "";
-        if (match.memo) {
-          let cleanText = String(match.memo)
-            .replace(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}(?:\s*relistened)?(?:\s*<br\s*\/?>)*/i, "")
-            .trim();
-
-          cleanText = cleanText.replace(
-            /\[["“]([^"”]+)["”]\]\((https?:\/\/[^\s)]+)\)/g,
-            `<a href="$2" target="_blank" rel="noopener noreferrer" class="inline-quoted-track song-embed-link">“$1” ↗</a>`
-          );
-
-          cleanText = cleanText.replace(
-            /(?<=^|[\s>(])["“]([^"”\n\r<]+)["”](?=[\s.,!?;:)<]|$)/g,
-            `<span class="inline-quoted-track">“$1”</span>`
-          );
-
-          memoHtml = cleanText.replace(/\r?\n/g, "<br>");
-        }
+        const spinHistoryHtml = renderSpinHistoryHtml(
+          allSpins.length ? allSpins : [match],
+          allSpins.length > 1 ? "All Spins & Memos" : "Spin Memo & History"
+        );
+        const loggedDateSummary = allSpins.length > 1
+          ? `Latest: ${match.log_date || "N/A"} • ${allSpins.length} spins`
+          : `Logged on: ${match.log_date || "N/A"}`;
 
         modalBody.innerHTML = `
           <div class="modal-detail-wrapper">
@@ -2211,7 +2312,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               <div class="modal-detail-meta">
                 <div class="modal-detail-title">${match.artist || album.artist} — ${match.title || album.title}${yearDisplay}</div>
                 <div class="modal-detail-submeta">
-                  ${monthBadgeHtml} • Logged on: ${match.log_date || "N/A"} ${album.runtime ? `• Runtime: ${album.runtime}` : ""} ${rymBadge}
+                  ${monthBadgeHtml} • ${loggedDateSummary} ${album.runtime ? `• Runtime: ${album.runtime}` : ""} ${rymBadge}
                 </div>
                 ${starsHtml}
               </div>
@@ -2223,11 +2324,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               ${genresHtml}
               ${descriptorsHtml}
               ${favTracksHtml}
-              ${memoHtml ? `
-                <div class="spin-memo-entry" style="margin-top: 0.85rem;">
-                  ${memoHtml}
-                </div>
-              ` : ""}
+              ${spinHistoryHtml}
               ${isAdmin && isRecalibrate ? `
                 <div style="text-align: center; margin-top: 1rem;">
                   <button type="button" class="review-action-btn recalibrate-cta-btn" onclick="importRelistenToSpin('${album.id}')" style="border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; font-weight: 700; border-radius: 6px;">
@@ -2305,6 +2402,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             <div class="unlistened-metadata-area" style="width: 100%; max-width: 480px; margin: 0.25rem auto;">
               ${tagsHtml}
             </div>
+
+            ${allSpins.length ? `
+              <div class="modal-detail-body" style="width: 100%; text-align: left; margin-top: 0.35rem;">
+                ${renderSpinHistoryHtml(allSpins, "Prior Spins & Memos")}
+              </div>
+            ` : ""}
 
             <p style="color: var(--text-color, #334155); opacity: 0.85; margin: 0.75rem 0 0.85rem; font-size: 0.88rem;">
               ${isRecalibrate
@@ -2724,7 +2827,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         return posA - posB;
       });
 
-      loggedSpins = spinsRes.data || [];
+      loggedSpins = (spinsRes.data || []).sort((a, b) => {
+        const timeA = parseLogDate(a.log_date);
+        const timeB = parseLogDate(b.log_date);
+        if (timeB !== timeA) return timeB - timeA;
+        return (Number(b.id) || 0) - (Number(a.id) || 0);
+      });
 
       syncMonthTabs();
 

@@ -2105,12 +2105,237 @@ body.dark-mode .fav-track-chip.song-embed-link:hover,
   font-size: 0.92rem;
   line-height: 1.65;
   color: #1e293b;
-  margin-top: 0.9rem;
-  padding: 0.85rem 1.1rem;
+  margin-top: 0.55rem;
+  padding: 0.8rem 1.05rem;
   background: linear-gradient(135deg, rgba(167, 243, 208, 0.22) 0%, rgba(110, 231, 183, 0.12) 100%);
   border: 1px solid rgba(16, 185, 129, 0.25);
   border-left: 3px solid #10b981;
   border-radius: 0 6px 6px 0;
+}
+
+.modal-spin-history {
+  margin-top: 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.modal-spin-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.09);
+}
+
+.modal-spin-history-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #065f46;
+}
+
+.modal-spin-count-pill {
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #047857;
+}
+
+.modal-spin-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.modal-spin-entry {
+  padding: 0.7rem 0.85rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 4px rgba(15, 23, 42, 0.05);
+}
+
+.modal-spin-entry.is-latest {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(236, 253, 245, 0.68) 100%);
+  border-color: rgba(16, 185, 129, 0.42);
+}
+
+.modal-spin-entry-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+
+.modal-spin-entry-left,
+.modal-spin-entry-right {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.modal-spin-num-badge {
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(100, 116, 139, 0.13);
+  border: 1px solid rgba(100, 116, 139, 0.28);
+  color: #334155;
+}
+
+.modal-spin-num-badge.is-latest {
+  background: linear-gradient(180deg, #d1fae5 0%, #a7f3d0 100%);
+  border-color: rgba(16, 185, 129, 0.55);
+  color: #065f46;
+}
+
+.modal-spin-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.modal-spin-relisten-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.69rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.42);
+  color: #b45309;
+}
+
+.modal-spin-shift-pill {
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #b45309;
+}
+
+.modal-spin-rating-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 251, 235, 0.9);
+  border: 1px solid rgba(245, 158, 11, 0.42);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #92400e;
+}
+
+.modal-spin-rating-pill .stars-gold {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.78rem;
+  color: #f59e0b;
+}
+
+.modal-spin-rating-pill .stars-gold i.bx-star {
+  color: rgba(146, 64, 14, 0.25);
+}
+
+.modal-spin-no-memo {
+  margin-top: 0.45rem;
+  font-size: 0.8rem;
+  font-style: italic;
+  color: #64748b;
+}
+
+body.dark-mode .modal-spin-history-header {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .modal-spin-history-title {
+  color: #6ee7b7;
+}
+
+body.dark-mode .modal-spin-count-pill {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: rgba(52, 211, 153, 0.4);
+  color: #6ee7b7;
+}
+
+body.dark-mode .modal-spin-entry {
+  background: rgba(15, 23, 42, 0.55);
+  border-color: rgba(148, 163, 184, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .modal-spin-entry.is-latest {
+  background: linear-gradient(180deg, rgba(15, 35, 30, 0.82) 0%, rgba(15, 23, 42, 0.72) 100%);
+  border-color: rgba(52, 211, 153, 0.42);
+}
+
+body.dark-mode .modal-spin-num-badge {
+  background: rgba(148, 163, 184, 0.16);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: #e2e8f0;
+}
+
+body.dark-mode .modal-spin-num-badge.is-latest {
+  background: rgba(16, 185, 129, 0.25);
+  border-color: rgba(52, 211, 153, 0.5);
+  color: #a7f3d0;
+}
+
+body.dark-mode .modal-spin-date {
+  color: #cbd5e1;
+}
+
+body.dark-mode .modal-spin-relisten-badge,
+body.dark-mode .modal-spin-shift-pill {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(251, 191, 36, 0.42);
+  color: #fcd34d;
+}
+
+body.dark-mode .modal-spin-rating-pill {
+  background: rgba(120, 53, 15, 0.28);
+  border-color: rgba(251, 191, 36, 0.42);
+  color: #fde68a;
+}
+
+body.dark-mode .modal-spin-rating-pill .stars-gold i.bx-star {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+body.dark-mode .modal-spin-no-memo {
+  color: #94a3b8;
+}
+
+body.dark-mode .modal-detail-body .spin-memo-entry {
+  color: #e2e8f0;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.16) 0%, rgba(6, 78, 59, 0.24) 100%);
+  border-color: rgba(52, 211, 153, 0.28);
+  border-left: 3px solid #34d399;
 }
 
 .review-action-btn {
