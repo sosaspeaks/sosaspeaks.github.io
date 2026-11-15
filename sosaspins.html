@@ -65,43 +65,99 @@
             <span class="home-subtitle">"When Sosa Speaks, <i>we listen</i>."</span>
         </div>
     </section>
-    <!-- Admin Management Center Bar -->
+    <!-- Admin Management Center (Collapsible Top-Right Aero Dock, Default Collapsed) -->
     <div class="spins-admin-bar-wrap container admin-only" id="spinsAdminBarWrap" style="display: none;">
-      <div class="spins-admin-bar">
-        <div class="spins-admin-bar-left">
-          <div class="spins-admin-badge" title="Administrator Mode Active">
-            <img src="assets/icons/aero/shell32_271.ico" alt="Admin" class="admin-badge-icon">
-            <span class="admin-badge-text">Admin Center</span>
+      <svg width="0" height="0" focusable="false" style="position: absolute; overflow: hidden; pointer-events: none;" aria-hidden="true">
+        <defs>
+          <linearGradient id="adminClockRim" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#fef3c7"/>
+            <stop offset="48%" stop-color="#f59e0b"/>
+            <stop offset="100%" stop-color="#b45309"/>
+          </linearGradient>
+          <linearGradient id="adminClockFace" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#ffffff"/>
+            <stop offset="65%" stop-color="#f0f9ff"/>
+            <stop offset="100%" stop-color="#bae6fd"/>
+          </linearGradient>
+          <linearGradient id="adminClockSheen" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#ffffff" stop-opacity="0.88"/>
+            <stop offset="100%" stop-color="#ffffff" stop-opacity="0.06"/>
+          </linearGradient>
+          <symbol id="aeroClockSymbol" viewBox="0 0 28 28">
+            <rect x="11.8" y="2.2" width="4.4" height="2.4" rx="1" fill="url(#adminClockRim)" stroke="#78350f" stroke-width="0.6"/>
+            <circle cx="14" cy="15" r="10.5" fill="url(#adminClockRim)" stroke="#78350f" stroke-opacity="0.7" stroke-width="0.9"/>
+            <circle cx="14" cy="15" r="8.2" fill="url(#adminClockFace)" stroke="#0284c7" stroke-opacity="0.45" stroke-width="0.7"/>
+            <line x1="14" y1="15" x2="14" y2="9.5" stroke="#0f172a" stroke-width="1.6" stroke-linecap="round"/>
+            <line x1="14" y1="15" x2="18.2" y2="16.8" stroke="#0284c7" stroke-width="1.5" stroke-linecap="round"/>
+            <circle cx="14" cy="15" r="1.4" fill="#d97706"/>
+            <path d="M6.6,13.5 A7.6,7.6 0 0,1 21.4,13.5 C18,15 10,13 6.6,13.5 Z" fill="url(#adminClockSheen)"/>
+          </symbol>
+        </defs>
+      </svg>
+      <div class="spins-admin-dock" id="spinsAdminDock">
+        <button
+          type="button"
+          id="spinsAdminToggleBtn"
+          class="spins-admin-toggle-btn"
+          aria-expanded="false"
+          aria-controls="spinsAdminDrawer"
+          title="Toggle Admin Center"
+        >
+          <i class='bx bx-shield-quarter admin-shield-icon' aria-hidden="true"></i>
+          <span class="admin-badge-text">Admin</span>
+          <span id="adminToggleQueueBadge" class="aero-toggle-queue-badge" style="display: none;">0</span>
+          <i class='bx bx-chevron-down admin-toggle-chevron' aria-hidden="true"></i>
+        </button>
+        <div class="spins-admin-drawer" id="spinsAdminDrawer">
+          <div class="spins-admin-bar spins-admin-capsule">
+            <div class="spins-admin-actions" role="toolbar" aria-label="Admin Actions">
+              <button type="button" id="composerPrompt" class="aero-admin-icon-btn admin-log-btn admin-only" style="display: none;" aria-label="Log a Spin">
+                <span class="taskbar-tooltip admin-tooltip">Log a Spin</span>
+                <div class="admin-icon-stage admin-stage-emerald">
+                  <img src="assets/icons/aero/log.ico" alt="" class="aero-admin-icon" aria-hidden="true">
+                  <div class="admin-icon-reflection admin-refl-log" aria-hidden="true"></div>
+                </div>
+              </button>
+              <button type="button" id="openQueueModalBtn" class="aero-admin-icon-btn aero-queue-btn admin-only" style="display: none;" aria-label="Comment Queue">
+                <span class="taskbar-tooltip admin-tooltip">Comment Queue</span>
+                <span id="queueCountBadge" class="aero-queue-badge aero-queue-float-badge">0</span>
+                <div class="admin-icon-stage admin-stage-sky">
+                  <img src="assets/icons/aero/discuss.png" alt="" class="aero-admin-icon" aria-hidden="true">
+                  <div class="admin-icon-reflection admin-refl-queue" aria-hidden="true"></div>
+                </div>
+              </button>
+              <button type="button" id="batchFetchRuntimesBtn" class="aero-admin-icon-btn admin-runtimes-btn admin-only" style="display: none;" aria-label="Backfill Runtimes">
+                <span class="taskbar-tooltip admin-tooltip" id="batchFetchTooltip">Backfill Runtimes</span>
+                <div class="admin-icon-stage admin-stage-amber">
+                  <svg class="aero-admin-icon aero-clock-svg" viewBox="0 0 28 28" aria-hidden="true"><use href="#aeroClockSymbol"></use></svg>
+                  <div class="admin-icon-reflection admin-refl-clock" aria-hidden="true">
+                    <svg width="26" height="26" viewBox="0 0 28 28"><use href="#aeroClockSymbol"></use></svg>
+                  </div>
+                </div>
+              </button>
+              <a href="studio.html" class="aero-admin-icon-btn admin-studio-btn admin-only" style="display: none; text-decoration: none;" aria-label="Writing Studio">
+                <span class="taskbar-tooltip admin-tooltip">Writing Studio</span>
+                <div class="admin-icon-stage admin-stage-emerald">
+                  <img src="assets/icons/aero/edit.ico" alt="" class="aero-admin-icon" aria-hidden="true">
+                  <div class="admin-icon-reflection admin-refl-studio" aria-hidden="true"></div>
+                </div>
+              </a>
+            </div>
           </div>
-          <div class="spins-admin-divider"></div>
-          <button type="button" id="composerPrompt" class="aero-command-btn add-emerald-btn admin-only" style="display: none;" title="Log a new spin to the archive">
-            <img src="assets/icons/aero/log.ico" alt="Log Spin" class="aero-command-icon"> Log a Spin
-          </button>
-          <button type="button" id="openQueueModalBtn" class="aero-command-btn aero-queue-btn admin-only" style="display: none;" title="Review pending spin comments">
-            <img src="assets/icons/aero/discuss.png" alt="Queue" class="aero-command-icon"> Comment Queue
-            <span id="queueCountBadge" class="aero-queue-badge">0</span>
-          </button>
-          <button type="button" id="batchFetchRuntimesBtn" class="aero-command-btn admin-only" style="display: none;" title="Fetch runtimes for all existing spins missing them">
-            <i class='bx bx-time'></i> Backfill Runtimes
-          </button>
-          <a href="studio.html" class="aero-command-btn admin-only" style="display: none; text-decoration: none;" title="Open the SosaSpeaks Writing Studio">
-            <img src="assets/icons/aero/edit.ico" alt="Studio" class="aero-command-icon"> Writing Studio
-          </a>
-        </div>
-        <div class="spins-admin-bar-right">
-          <span class="spins-admin-chip"><i class='bx bx-shield-quarter'></i> Authorized Session</span>
         </div>
       </div>
     </div>
 
     <!-- Filters -->
     <div class="post-filter container" id="formatFilters">
-        <button type="button" class="filter-item active-filter" data-filter="all">All</button>
-        <button type="button" class="filter-item" data-filter="Album">Albums</button>
-        <button type="button" class="filter-item" data-filter="EP">EPs</button>
-        <button type="button" class="filter-item" data-filter="Single">Singles</button>
-        <button type="button" class="filter-item" data-filter="Mixtape">Mixtapes</button>
-        <button type="button" class="filter-item" data-filter="Music Video">Music Videos</button>
+        <div class="aero-filter-capsule" role="group" aria-label="Format filters">
+            <button type="button" class="filter-item active-filter" data-filter="all">All</button>
+            <button type="button" class="filter-item" data-filter="Album">Albums</button>
+            <button type="button" class="filter-item" data-filter="EP">EPs</button>
+            <button type="button" class="filter-item" data-filter="Single">Singles</button>
+            <button type="button" class="filter-item" data-filter="Mixtape">Mixtapes</button>
+            <button type="button" class="filter-item" data-filter="Music Video">Music Videos</button>
+        </div>
     </div>
     <!-- Feed -->
     <section class="spins-layout-grid container">
@@ -112,8 +168,78 @@
           <button type="button" id="clearFilterBtn" class="aero-command-btn" style="display: none; padding: 2px 8px; font-size: 0.75rem;">✕ Clear</button>
         </div>
         <div class="feed-status-right" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-          <button type="button" id="spinsCoverFlowToggleBtn" class="aero-command-btn aero-cf-btn" title="Switch between Timeline and iPod Cover Flow view" aria-pressed="false">
-            <i class='bx bx-carousel'></i> Cover Flow
+          <svg width="0" height="0" style="position: absolute; overflow: hidden; pointer-events: none;" aria-hidden="true">
+            <defs>
+              <linearGradient id="cfIconSleeveBlue" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#7dd3fc"/>
+                <stop offset="50%" stop-color="#0284c7"/>
+                <stop offset="100%" stop-color="#075985"/>
+              </linearGradient>
+              <linearGradient id="cfIconSleeveEmerald" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#a7f3d0"/>
+                <stop offset="50%" stop-color="#059669"/>
+                <stop offset="100%" stop-color="#064e3b"/>
+              </linearGradient>
+              <linearGradient id="cfIconCenterCover" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#e0f2fe"/>
+                <stop offset="45%" stop-color="#38bdf8"/>
+                <stop offset="100%" stop-color="#0369a1"/>
+              </linearGradient>
+              <linearGradient id="cfIconDiscGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#34d399"/>
+                <stop offset="100%" stop-color="#065f46"/>
+              </linearGradient>
+              <linearGradient id="cfIconGlassSheen" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#ffffff" stop-opacity="0.82"/>
+                <stop offset="100%" stop-color="#ffffff" stop-opacity="0.08"/>
+              </linearGradient>
+              <linearGradient id="tlIconCardGlass" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#ffffff" stop-opacity="0.96"/>
+                <stop offset="50%" stop-color="#ecfdf5" stop-opacity="0.9"/>
+                <stop offset="100%" stop-color="#a7f3d0" stop-opacity="0.88"/>
+              </linearGradient>
+              <linearGradient id="tlIconThumbEmerald" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#6ee7b7"/>
+                <stop offset="50%" stop-color="#10b981"/>
+                <stop offset="100%" stop-color="#047857"/>
+              </linearGradient>
+              <linearGradient id="tlIconThumbSky" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#7dd3fc"/>
+                <stop offset="50%" stop-color="#0284c7"/>
+                <stop offset="100%" stop-color="#075985"/>
+              </linearGradient>
+            </defs>
+            <symbol id="cfAeroSymbol" viewBox="0 0 28 28">
+              <polygon points="3,7 9,5.2 9,22.8 3,21" fill="url(#cfIconSleeveBlue)" stroke="#0c4a6e" stroke-width="0.9" stroke-linejoin="round"/>
+              <polygon points="25,7 19,5.2 19,22.8 25,21" fill="url(#cfIconSleeveEmerald)" stroke="#0c4a6e" stroke-width="0.9" stroke-linejoin="round"/>
+              <rect x="7.5" y="4" width="13" height="20" rx="1.6" fill="url(#cfIconCenterCover)" stroke="#0f172a" stroke-opacity="0.55" stroke-width="1"/>
+              <circle cx="14" cy="14" r="4.2" fill="url(#cfIconDiscGrad)" stroke="rgba(255,255,255,0.8)" stroke-width="0.7"/>
+              <circle cx="14" cy="14" r="1.4" fill="#ffffff" fill-opacity="0.9"/>
+              <path d="M8.3,4.8 L19.7,4.8 L19.7,11.5 C16,13.2 11.5,10.8 8.3,12.5 Z" fill="url(#cfIconGlassSheen)"/>
+            </symbol>
+            <symbol id="tlAeroSymbol" viewBox="0 0 28 28">
+              <rect x="3" y="4" width="22" height="9" rx="2.2" fill="url(#tlIconCardGlass)" stroke="#065f46" stroke-opacity="0.65" stroke-width="0.9"/>
+              <rect x="4.8" y="5.6" width="5.8" height="5.8" rx="1.1" fill="url(#tlIconThumbEmerald)" stroke="#064e3b" stroke-opacity="0.45" stroke-width="0.6"/>
+              <rect x="12.2" y="6.3" width="10.5" height="1.8" rx="0.9" fill="#065f46" fill-opacity="0.82"/>
+              <rect x="12.2" y="9.2" width="7.2" height="1.5" rx="0.75" fill="#0284c7" fill-opacity="0.72"/>
+              <path d="M3.7,4.7 L24.3,4.7 L24.3,8.1 C19,9 9,7.6 3.7,8.7 Z" fill="url(#cfIconGlassSheen)"/>
+              <rect x="3" y="15" width="22" height="9" rx="2.2" fill="url(#tlIconCardGlass)" stroke="#0c4a6e" stroke-opacity="0.6" stroke-width="0.9"/>
+              <rect x="4.8" y="16.6" width="5.8" height="5.8" rx="1.1" fill="url(#tlIconThumbSky)" stroke="#0c4a6e" stroke-opacity="0.45" stroke-width="0.6"/>
+              <rect x="12.2" y="17.3" width="10.5" height="1.8" rx="0.9" fill="#0f172a" fill-opacity="0.72"/>
+              <rect x="12.2" y="20.2" width="6.2" height="1.5" rx="0.75" fill="#059669" fill-opacity="0.75"/>
+              <path d="M3.7,15.7 L24.3,15.7 L24.3,19.1 C19,20 9,18.6 3.7,19.7 Z" fill="url(#cfIconGlassSheen)"/>
+            </symbol>
+          </svg>
+          <button type="button" id="spinsCoverFlowToggleBtn" class="aero-cf-icon-btn" aria-label="Switch to Cover Flow view" aria-pressed="false">
+            <span class="taskbar-tooltip cf-tooltip" id="spinsCfTooltip">Cover Flow</span>
+            <div class="cf-icon-stage">
+              <svg class="cf-icon-main cf-svg-coverflow" viewBox="0 0 28 28" aria-hidden="true"><use href="#cfAeroSymbol"></use></svg>
+              <svg class="cf-icon-main cf-svg-timeline" viewBox="0 0 28 28" aria-hidden="true"><use href="#tlAeroSymbol"></use></svg>
+              <div class="cf-icon-reflection" aria-hidden="true">
+                <svg class="cf-svg-coverflow" width="28" height="28" viewBox="0 0 28 28"><use href="#cfAeroSymbol"></use></svg>
+                <svg class="cf-svg-timeline" width="28" height="28" viewBox="0 0 28 28"><use href="#tlAeroSymbol"></use></svg>
+              </div>
+            </div>
           </button>
         </div>
       </div>

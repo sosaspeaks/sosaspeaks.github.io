@@ -222,6 +222,9 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
   const adminTriggerBtn = document.getElementById("adminTriggerBtn");
 
   // Comment Moderation Queue Controls
+  const spinsAdminDock = document.getElementById("spinsAdminDock");
+  const spinsAdminToggleBtn = document.getElementById("spinsAdminToggleBtn");
+  const adminToggleQueueBadge = document.getElementById("adminToggleQueueBadge");
   const openQueueModalBtn = document.getElementById("openQueueModalBtn");
   const queueCountBadge = document.getElementById("queueCountBadge");
   const commentQueueModal = document.getElementById("commentQueueModal");
@@ -603,7 +606,7 @@ function getDominantColorFromImg(imgUrl) {
     document.querySelectorAll(".admin-only").forEach(el => {
       if (el.id === "spinsAdminBarWrap") {
         el.style.display = isAdmin ? "block" : "none";
-      } else if (el.classList.contains("row-actions") || el.classList.contains("aero-queue-btn") || el.classList.contains("aero-command-btn") || el.classList.contains("modal-clipboard-actions")) {
+      } else if (el.classList.contains("row-actions") || el.classList.contains("aero-queue-btn") || el.classList.contains("aero-command-btn") || el.classList.contains("aero-admin-icon-btn") || el.classList.contains("modal-clipboard-actions")) {
         el.style.display = isAdmin ? "inline-flex" : "none";
       } else {
         el.style.display = isAdmin ? "" : "none";
@@ -628,6 +631,43 @@ function getDominantColorFromImg(imgUrl) {
 
     if (!isAdmin && commentQueueModal) {
       commentQueueModal.style.display = "none";
+    }
+    if (!isAdmin) {
+      setAdminDockOpen(false);
+    }
+  }
+
+  function setAdminDockOpen(open) {
+    if (!spinsAdminDock || !spinsAdminToggleBtn) return;
+    const next = Boolean(open);
+    spinsAdminDock.classList.toggle("is-open", next);
+    spinsAdminToggleBtn.setAttribute("aria-expanded", String(next));
+  }
+
+  if (spinsAdminToggleBtn && spinsAdminDock) {
+    spinsAdminToggleBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setAdminDockOpen(!spinsAdminDock.classList.contains("is-open"));
+    });
+
+    document.addEventListener("click", (e) => {
+      if (spinsAdminDock.classList.contains("is-open") && !spinsAdminDock.contains(e.target)) {
+        setAdminDockOpen(false);
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && spinsAdminDock.classList.contains("is-open")) {
+        setAdminDockOpen(false);
+        spinsAdminToggleBtn.focus();
+      }
+    });
+
+    if (composerPrompt) {
+      composerPrompt.addEventListener("click", () => setAdminDockOpen(false));
+    }
+    if (openQueueModalBtn) {
+      openQueueModalBtn.addEventListener("click", () => setAdminDockOpen(false));
     }
   }
 
@@ -709,6 +749,10 @@ function getDominantColorFromImg(imgUrl) {
     if (queueCountBadge) {
       queueCountBadge.textContent = String(pendingCount);
       queueCountBadge.classList.toggle("has-pending", pendingCount > 0);
+    }
+    if (adminToggleQueueBadge) {
+      adminToggleQueueBadge.textContent = String(pendingCount);
+      adminToggleQueueBadge.style.display = pendingCount > 0 ? "inline-flex" : "none";
     }
     if (openQueueModalBtn) {
       openQueueModalBtn.classList.toggle("has-pending", pendingCount > 0);
@@ -1030,37 +1074,77 @@ function getDominantColorFromImg(imgUrl) {
     return Array.from(set).sort();
   }
 
-  function renderContextPinSingle(kind, items) {
+  function renderContextMetaGroup(kind, items, extraClass = "") {
     if (!items || !items.length) return "";
     const isScene = kind === "scene";
     const kindClass = isScene ? "is-scene" : "is-movement";
-    const iconClass = isScene ? "bx-map-pin" : "bx-planet";
-    const labelText = isScene ? "Scene:" : "Movement:";
-    const titlePrefix = isScene ? "Scene" : "Movement";
-    const titleAttr = escapeHtml(`${titlePrefix}: ${items.join(", ")}`);
+    const labelText = isScene ? "scene:" : "movement:";
+    const cls = extraClass ? ` ${extraClass}` : "";
     const pillsHtml = items.map(val => {
       const escapedJs = val.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-      return `<button type="button" class="context-popover-pill ${kindClass}" onclick="handleContextPillClick('${kind}', '${escapedJs}', event)" title="Filter by ${escapeHtml(val)}">${escapeHtml(val)}</button>`;
+      return `<button type="button" class="context-meta-pill ${kindClass}" onclick="handleContextPillClick('${kind}', '${escapedJs}', event)" title="Filter by ${escapeHtml(val)}">${escapeHtml(val)}</button>`;
     }).join("");
-
-    return `
-      <span class="context-pin-anchor" title="${titleAttr}">
-        <button type="button" class="context-pin-btn ${kindClass}" aria-label="${titleAttr}" aria-expanded="false" onclick="toggleContextPin(this, event)">
-          <i class='bx ${iconClass} context-pin-icon'></i>
-        </button>
-        <div class="context-pin-popover ${kindClass}" role="dialog" aria-label="${titlePrefix}">
-          <span class="context-popover-label ${kindClass}"><i class='bx ${iconClass} context-popover-icon'></i> ${labelText}</span>
-          ${pillsHtml}
-        </div>
-      </span>
-    `;
+    return `<span class="context-meta-group${cls}"><span class="desc-label context-meta-label">${labelText}</span>${pillsHtml}</span>`;
   }
 
-  function renderContextPinsHtml(scenesVal, movementsVal) {
+  function renderContextMetaRowsHtml(scenesVal, movementsVal, extraClass = "") {
     const scenes = safeToArray(scenesVal);
     const movements = safeToArray(movementsVal);
     if (!scenes.length && !movements.length) return "";
-    return `<span class="context-pins-group">${renderContextPinSingle("scene", scenes)}${renderContextPinSingle("movement", movements)}</span>`;
+    const cls = extraClass ? ` ${extraClass}` : "";
+    return `<div class="context-meta-wrapper${cls}">${renderContextMetaGroup("scene", scenes)}${renderContextMetaGroup("movement", movements)}</div>`;
+  }
+
+  function renderDescriptorsAndContextHtml({ boxId, descriptors, initialDesc, remainingDesc, hasManyDesc, scenesVal, movementsVal, isTop100 = false }) {
+    const scenes = safeToArray(scenesVal);
+    const movements = safeToArray(movementsVal);
+    const hasDesc = Array.isArray(descriptors) && descriptors.length > 0;
+
+    let descHtml = "";
+    if (hasDesc) {
+      const pills = initialDesc.map(d => {
+        if (isTop100) {
+          return `<span class="descriptor-pill" style="text-transform: none !important;">${escapeHtml(d)}</span>`;
+        }
+        const escapedD = d.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        return `<span class="descriptor-pill" onclick="setSidebarFilter('descriptor', '${escapedD}')">${escapeHtml(d)}</span>`;
+      }).join("");
+      const extraPills = hasManyDesc ? remainingDesc.map(d => {
+        if (isTop100) {
+          return `<span class="descriptor-pill" style="text-transform: none !important;">${escapeHtml(d)}</span>`;
+        }
+        const escapedD = d.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        return `<span class="descriptor-pill" onclick="setSidebarFilter('descriptor', '${escapedD}')">${escapeHtml(d)}</span>`;
+      }).join("") : "";
+      const btnText = isTop100 ? `... +${remainingDesc.length}` : `▾ +${remainingDesc.length}`;
+      const toggleArg = isTop100 ? "'top100'" : boxId.replace("desc-box-", "");
+
+      descHtml = `
+        <div class="descriptors-wrapper" id="${boxId}">
+          <span class="desc-label">descriptors:</span>
+          ${pills}
+          ${hasManyDesc ? `
+            <span class="remaining-descriptors is-hidden">${extraPills}</span>
+            <button type="button" class="desc-expand-btn" data-count="${remainingDesc.length}" aria-expanded="false" title="Show ${remainingDesc.length} more descriptors" onclick="toggleDescriptors(${toggleArg}, this)">${btnText}</button>
+          ` : ""}
+        </div>
+      `;
+    }
+
+    const sceneHtml = renderContextMetaGroup("scene", scenes, "is-scene-inline");
+    const movementHtml = movements.length
+      ? `<div class="context-meta-wrapper${isTop100 ? " in-top100" : ""}">${renderContextMetaGroup("movement", movements)}</div>`
+      : "";
+
+    const firstRowHtml = (descHtml || sceneHtml)
+      ? `<div class="desc-scene-row${isTop100 ? " in-top100" : ""}">${descHtml}${sceneHtml}</div>`
+      : "";
+
+    return `${firstRowHtml}${movementHtml}`;
+  }
+
+  function renderContextPinsHtml(scenesVal, movementsVal) {
+    return renderContextMetaRowsHtml(scenesVal, movementsVal);
   }
 
   window.toggleContextPin = function(btn, event) {
@@ -2046,6 +2130,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
   // SOSASPINS IPOD / ITUNES COVER FLOW 3D CAROUSEL
   // ============================================================
   const spinsCoverFlowToggleBtn = document.getElementById("spinsCoverFlowToggleBtn");
+  const spinsCfTooltip = document.getElementById("spinsCfTooltip");
   const spinsCoverFlowWrapper = document.getElementById("spinsCoverFlowWrapper");
   const spinsCoverFlowStage = document.getElementById("spinsCoverFlowStage");
   const spinsCoverFlowTrack = document.getElementById("spinsCoverFlowTrack");
@@ -2064,16 +2149,25 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
   let spinsCfIndex = 0;
   let currentCfSpins = [];
 
+  function syncCoverFlowToggleBtn(active) {
+    if (!spinsCoverFlowToggleBtn) return;
+    spinsCoverFlowToggleBtn.classList.toggle("is-coverflow-active", active);
+    spinsCoverFlowToggleBtn.classList.toggle("active-filter", active);
+    spinsCoverFlowToggleBtn.setAttribute("aria-pressed", active ? "true" : "false");
+    spinsCoverFlowToggleBtn.setAttribute(
+      "aria-label",
+      active ? "Switch to Timeline view" : "Switch to Cover Flow view"
+    );
+    const tooltipEl = spinsCfTooltip || spinsCoverFlowToggleBtn.querySelector(".cf-tooltip");
+    if (tooltipEl) {
+      tooltipEl.textContent = active ? "Timeline" : "Cover Flow";
+    }
+  }
+
   function setSpinsCoverFlowMode(active) {
     isSpinsCoverFlow = active;
     document.body.classList.toggle("coverflow-active", isSpinsCoverFlow);
-    if (spinsCoverFlowToggleBtn) {
-      spinsCoverFlowToggleBtn.classList.toggle("active-filter", isSpinsCoverFlow);
-      spinsCoverFlowToggleBtn.setAttribute("aria-pressed", isSpinsCoverFlow ? "true" : "false");
-      spinsCoverFlowToggleBtn.innerHTML = isSpinsCoverFlow
-        ? `<i class='bx bx-list-ul'></i> Timeline`
-        : `<i class='bx bx-carousel'></i> Cover Flow`;
-    }
+    syncCoverFlowToggleBtn(isSpinsCoverFlow);
     if (spinsCoverFlowWrapper) {
       spinsCoverFlowWrapper.style.display = isSpinsCoverFlow ? "flex" : "none";
     }
@@ -2377,7 +2471,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
         rowsHtml.push(`<div class="cf-meta-row cf-meta-info-row">${infoPills.join("")}</div>`);
       }
 
-      // 3. Primary Genres Row + Dual Scene/Movement Pins
+      // 3. Primary Genres Row
       const primGenrePills = [];
       const primList = Array.isArray(item.genres) ? item.genres : (typeof item.genres === "string" ? item.genres.split(",") : []);
       primList.forEach(g => {
@@ -2386,9 +2480,8 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
           primGenrePills.push(`<span class="cf-genre-chip cf-genre-primary" style="cursor: pointer;" onclick="setSidebarFilter('genre', '${cleanG.replace(/'/g, "\\'")}')" title="Primary Genre: ${escapeHtml(cleanG)}">${escapeHtml(cleanG)}</span>`);
         }
       });
-      const cfContextPinsHtml = renderContextPinsHtml(item.scenes, item.movements);
-      if (primGenrePills.length || cfContextPinsHtml) {
-        rowsHtml.push(`<div class="cf-meta-row cf-meta-prim-genres-row">${primGenrePills.join("")}${cfContextPinsHtml}</div>`);
+      if (primGenrePills.length) {
+        rowsHtml.push(`<div class="cf-meta-row cf-meta-prim-genres-row">${primGenrePills.join("")}</div>`);
       }
 
       // 4. Secondary Genres Row (Dedicated row, dotted outline, fade)
@@ -2402,6 +2495,12 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       });
       if (secGenrePills.length) {
         rowsHtml.push(`<div class="cf-meta-row cf-meta-sec-genres-row">${secGenrePills.join("")}</div>`);
+      }
+
+      // 5. Scene & Movement Row
+      const cfContextHtml = renderContextMetaRowsHtml(item.scenes, item.movements, "in-cf");
+      if (cfContextHtml) {
+        rowsHtml.push(`<div class="cf-meta-row cf-meta-context-row">${cfContextHtml}</div>`);
       }
 
       spinsCfMeta.innerHTML = rowsHtml.join("");
@@ -2994,10 +3093,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       spinsCoverFlowWrapper.style.display = "none";
       isSpinsCoverFlow = false;
       document.body.classList.remove("coverflow-active");
-      if (spinsCoverFlowToggleBtn) {
-        spinsCoverFlowToggleBtn.classList.remove("active-filter");
-        spinsCoverFlowToggleBtn.innerHTML = `<i class='bx bx-carousel'></i> Cover Flow`;
-      }
+      syncCoverFlowToggleBtn(false);
     }
 
     if (spinsTop100ToggleBtn) {
@@ -4082,14 +4178,24 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       favTracks = album.fav_tracks.split(",").map(t => t.trim()).filter(Boolean);
     }
 
-    const top100ContextPins = renderContextPinsHtml(album.scenes, album.movements);
-
+    const hasManyDesc = descriptors.length > 3;
+    const initialDesc = descriptors.slice(0, 3);
+    const remainingDesc = descriptors.slice(3);
+    const descHtml = renderDescriptorsAndContextHtml({
+      boxId: "desc-box-top100",
+      descriptors,
+      initialDesc,
+      remainingDesc,
+      hasManyDesc,
+      scenesVal: album.scenes,
+      movementsVal: album.movements,
+      isTop100: true
+    });
     let genresHtml = "";
-    if (primaryGenres.length || secondaryGenres.length || top100ContextPins) {
-      const primaryHtml = (primaryGenres.length || top100ContextPins) ? `
+    if (primaryGenres.length || secondaryGenres.length) {
+      const primaryHtml = primaryGenres.length ? `
         <div class="primary-genres-row" style="display: flex; flex-wrap: wrap; align-items: center; gap: 5px;">
           ${primaryGenres.map(g => `<span class="genre-pill genre-primary">${escapeHtml(g)}</span>`).join("")}
-          ${top100ContextPins}
         </div>
       ` : "";
       const secondaryHtml = secondaryGenres.length ? `
@@ -4102,26 +4208,6 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
         <div class="top100-modal-genres" style="display: flex; flex-direction: column; gap: 6px; margin-top: 0.65rem;">
           ${primaryHtml}
           ${secondaryHtml}
-        </div>
-      `;
-    }
-
-    let descHtml = "";
-    if (descriptors.length) {
-      const hasManyDesc = descriptors.length > 3;
-      const initialDesc = descriptors.slice(0, 3);
-      const remainingDesc = descriptors.slice(3);
-
-      descHtml = `
-        <div class="descriptors-wrapper" id="desc-box-top100" style="margin-top: 0.65rem;">
-          <span class="desc-label">descriptors:</span>
-          ${initialDesc.map(d => `<span class="descriptor-pill" style="text-transform: none !important;">${escapeHtml(d)}</span>`).join("")}
-          ${hasManyDesc ? `
-            <span class="remaining-descriptors is-hidden">
-              ${remainingDesc.map(d => `<span class="descriptor-pill" style="text-transform: none !important;">${escapeHtml(d)}</span>`).join("")}
-            </span>
-            <button type="button" class="desc-expand-btn" data-count="${remainingDesc.length}" aria-expanded="false" title="Show ${remainingDesc.length} more descriptors" onclick="toggleDescriptors('top100', this)">... +${remainingDesc.length}</button>
-          ` : ""}
         </div>
       `;
     }
@@ -4894,46 +4980,33 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
             </div>
           ` : "")}
 
-          <!-- Primary and Secondary Genres + Dual Scene/Movement Pins -->
-          ${(() => {
-            const contextPinsHtml = renderContextPinsHtml(item.scenes, item.movements);
-            if (!hasPrimary && !hasSecondary && !contextPinsHtml) return "";
-            return `
-              <div class="genre-container">
-                ${(hasPrimary || contextPinsHtml) ? `
-                  <div class="primary-genres-wrap">
-                    ${hasPrimary ? item.genres.map(g => `<span class="genre-pill genre-primary" onclick="setSidebarFilter('genre', '${g}')">${g}</span>`).join("") : ""}
-                    ${contextPinsHtml}
-                  </div>
-                ` : ""}
-                ${hasSecondary ? `
-                  <div class="secondary-genres-wrap">
-                    ${item.secondary_genres.map(g => `<span class="genre-pill genre-secondary" onclick="setSidebarFilter('genre', '${g}')">${g}</span>`).join("")}
-                  </div>
-                ` : ""}
-              </div>
-            `;
-          })()}
-
-          <!-- Descriptors Row -->
-          ${descriptors.length ? `
-            <div class="descriptors-wrapper" id="desc-box-${originalIdx}">
-              <span class="desc-label">descriptors:</span>
-              ${initialDesc.map(d => {
-                const escapedD = d.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-                return `<span class="descriptor-pill" onclick="setSidebarFilter('descriptor', '${escapedD}')">${d}</span>`;
-              }).join("")}
-              ${hasManyDesc ? `
-                <span class="remaining-descriptors is-hidden">
-                  ${remainingDesc.map(d => {
-                    const escapedD = d.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-                    return `<span class="descriptor-pill" onclick="setSidebarFilter('descriptor', '${escapedD}')">${d}</span>`;
-                  }).join("")}
-                </span>
-                <button type="button" class="desc-expand-btn" data-count="${remainingDesc.length}" aria-expanded="false" onclick="toggleDescriptors(${originalIdx}, this)">▾ +${remainingDesc.length}</button>
+          <!-- Primary and Secondary Genres -->
+          ${(hasPrimary || hasSecondary) ? `
+            <div class="genre-container">
+              ${hasPrimary ? `
+                <div class="primary-genres-wrap">
+                  ${item.genres.map(g => `<span class="genre-pill genre-primary" onclick="setSidebarFilter('genre', '${g}')">${g}</span>`).join("")}
+                </div>
+              ` : ""}
+              ${hasSecondary ? `
+                <div class="secondary-genres-wrap">
+                  ${item.secondary_genres.map(g => `<span class="genre-pill genre-secondary" onclick="setSidebarFilter('genre', '${g}')">${g}</span>`).join("")}
+                </div>
               ` : ""}
             </div>
           ` : ""}
+
+          <!-- Descriptors + Inline Scene Row & Movement Row Below -->
+          ${renderDescriptorsAndContextHtml({
+            boxId: `desc-box-${originalIdx}`,
+            descriptors,
+            initialDesc,
+            remainingDesc,
+            hasManyDesc,
+            scenesVal: item.scenes,
+            movementsVal: item.movements,
+            isTop100: false
+          })}
 
           </div>
         </div>
@@ -4946,89 +5019,120 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
             </div>
           ` : ""}
 
-          <!-- 1. Favorite Tracks Row (or Single Audio Stream Row) -->
+          <!-- 1. Footer Divider Row: Audio / Fav Tracks + Action Icons -->
           ${(() => {
             const favList = parseFavTracks(item.fav_tracks);
-            if (!favList.length) return "";
-            const isSingle = (item.type || "").trim().toLowerCase() === "single";
-            if (isSingle) {
-              const first = favList[0];
-              const url = first && first.includes("|") ? first.split("|")[1].trim() : (first && first.startsWith("http") ? first.trim() : null);
-              if (!url) return "";
-              const safeTrack = (item.title || "Track").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-              return `
-                <div class="fav-tracks-row single-audio-row">
-                  <span class="fav-label"><img src="assets/icons/aero/audio.png" alt="Audio" class="aero-audio-icon"> Audio:</span>
-                  <div class="fav-tracks-chips">
-                    <span class="fav-track-chip song-embed-link single-play-chip" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')">
-                      <span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(item.title)}
-                    </span>
-                  </div>
-                </div>
-              `;
-            }
-            return `
-              <div class="fav-tracks-row">
-                <span class="fav-label">Fav Tracks:</span>
-                <div class="fav-tracks-chips">
-                  ${favList.map(t => {
-                    if (t.includes("|")) {
-                      const [name, url] = t.split("|").map(s => s.trim());
-                      const safeTrack = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-                      return `<span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${name}</span>`;
-                    }
-                    return `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon">${t}</span>`;
-                  }).join("")}
-                </div>
-              </div>
-            `;
-          })()}
-
-          <!-- 2. Track Ratings (Safe string escaping + Clean nesting) -->
-          ${item.track_ratings && item.track_ratings.length ? `
-            <div class="track-ratings-wrapper">
-              <button type="button" class="track-ratings-toggle-btn" onclick="toggleTrackRatings(${originalIdx}, this)">
-                <span class="track-ratings-label"><i class='bx bx-list-ol'></i> Track Ratings (${item.track_ratings.length})</span>
-                <span class="ratings-arrow">▾</span>
-              </button>
-              <div class="track-ratings-list" id="track-ratings-${originalIdx}" style="display: none;">
-                ${item.track_ratings.map((tr, tIdx) => {
-                  const hasUrl = tr.url && tr.url.trim().length > 0;
-                  const safeTrTitle = (tr.title || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-                  return `
-                    <div class="track-rating-row">
-                      <span class="track-num">${tIdx + 1}.</span>
-                      ${hasUrl ? `
-                        <span class="track-name song-embed-link" onclick="playAudioTrack('${tr.url.trim()}', '${safeTrTitle}', '${safeArtist}', '${safeAlbum}', '${safeCover}')">
-                        ${tr.title}<span class="aero-play-wrap" style="margin-left: 6px; margin-right: 0;"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon track-play-icon"><span class="play-sheen-shine"></span></span></span>
-                      ` : `
-                        <span class="track-name">${tr.title}</span>
-                      `}
-                      <span class="track-stars">${getStarString(tr.rating)}</span>
-                      <small class="track-score">${Number(tr.rating).toFixed(1)}</small>
+            let favHtml = "";
+            if (favList.length) {
+              const isSingle = (item.type || "").trim().toLowerCase() === "single";
+              if (isSingle) {
+                const first = favList[0];
+                const url = first && first.includes("|") ? first.split("|")[1].trim() : (first && first.startsWith("http") ? first.trim() : null);
+                if (url) {
+                  const safeTrack = (item.title || "Track").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+                  favHtml = `
+                    <div class="fav-tracks-row single-audio-row">
+                      <span class="fav-label"><img src="assets/icons/aero/audio.png" alt="Audio" class="aero-audio-icon"> Audio:</span>
+                      <div class="fav-tracks-chips">
+                        <span class="fav-track-chip song-embed-link single-play-chip" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')">
+                          <span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(item.title)}
+                        </span>
+                      </div>
                     </div>
                   `;
-                }).join("")}
-              </div>
-            </div>
-          ` : ""}
+                }
+              } else {
+                favHtml = `
+                  <div class="fav-tracks-row">
+                    <span class="fav-label">Fav Tracks:</span>
+                    <div class="fav-tracks-chips">
+                      ${favList.map(t => {
+                        if (t.includes("|")) {
+                          const [name, url] = t.split("|").map(s => s.trim());
+                          const safeTrack = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+                          return `<span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${name}</span>`;
+                        }
+                        return `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon">${t}</span>`;
+                      }).join("")}
+                    </div>
+                  </div>
+                `;
+              }
+            }
 
-          <!-- Full Review Link Button -->
-          ${item.review_url ? `
-            <div class="review-link-wrap">
-              <a href="${item.review_url}" class="review-action-btn">
-                Read Full Review <i class='bx bx-right-arrow-alt'></i>
-              </a>
-            </div>
-          ` : ""}
-
-          <!-- Per-Spin Expandable Discussion Drawer -->
-          ${(() => {
             const spinId = item.id;
             const approvedCount = getApprovedCommentsForSpin(spinId).length;
             const isOpen = openDiscussSpinIds.has(Number(spinId));
             const safePlaceholderTitle = escapeHtml(item.title || "this spin");
+
             return `
+              <div class="spin-footer-bar">
+                ${favHtml || '<div class="fav-tracks-spacer" aria-hidden="true"></div>'}
+                <div class="row-actions">
+                  <button type="button" class="action-icon-btn edit-btn admin-only" onclick="editSpin(${originalIdx})" aria-label="Edit Spin">
+                    <span class="action-tooltip">Edit Spin</span>
+                    <div class="action-icon-stage edit-icon-stage">
+                      <img src="assets/icons/aero/edit.ico" alt="Edit" class="aero-action-icon edit-icon">
+                      <div class="action-icon-reflection edit-reflection" aria-hidden="true"></div>
+                    </div>
+                  </button>
+                  <button type="button" class="action-icon-btn delete-btn admin-only" onclick="deleteSpin(${originalIdx})" aria-label="Delete Spin" onmouseenter="const img=this.querySelector('.delete-icon'); if(img) img.src='assets/icons/aero/delete-full.ico';" onmouseleave="const img=this.querySelector('.delete-icon'); if(img) img.src='assets/icons/aero/delete-empty.ico';">
+                    <span class="action-tooltip">Delete Spin</span>
+                    <div class="action-icon-stage delete-icon-stage">
+                      <img src="assets/icons/aero/delete-empty.ico" alt="Delete" class="aero-action-icon delete-icon">
+                      <div class="action-icon-reflection delete-reflection" aria-hidden="true"></div>
+                    </div>
+                  </button>
+                  <button type="button" class="spin-discuss-btn ${approvedCount > 0 ? 'has-comments' : ''} ${isOpen ? 'is-open' : ''}" id="spin-discuss-btn-${spinId}" onclick="toggleSpinDiscuss(${spinId}, this)" aria-label="${approvedCount > 0 ? `Leave a comment (${approvedCount} comment${approvedCount === 1 ? '' : 's'})` : 'Leave a comment'}">
+                    <span class="discuss-tooltip" id="spin-discuss-tooltip-${spinId}">${approvedCount > 0 ? `Leave a comment (${approvedCount} comment${approvedCount === 1 ? '' : 's'})` : 'Leave a comment'}</span>
+                    <div class="discuss-icon-stage">
+                      <img src="assets/icons/aero/discuss.png" alt="Discuss" class="discuss-icon">
+                      <div class="discuss-icon-reflection" aria-hidden="true"></div>
+                    </div>
+                    <span class="discuss-count-badge" id="spin-discuss-count-${spinId}" style="${approvedCount > 0 ? '' : 'display: none;'}">${approvedCount > 0 ? approvedCount : ''}</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- 2. Track Ratings (Safe string escaping + Clean nesting) -->
+              ${item.track_ratings && item.track_ratings.length ? `
+                <div class="track-ratings-wrapper">
+                  <button type="button" class="track-ratings-toggle-btn" onclick="toggleTrackRatings(${originalIdx}, this)">
+                    <span class="track-ratings-label"><i class='bx bx-list-ol'></i> Track Ratings (${item.track_ratings.length})</span>
+                    <span class="ratings-arrow">▾</span>
+                  </button>
+                  <div class="track-ratings-list" id="track-ratings-${originalIdx}" style="display: none;">
+                    ${item.track_ratings.map((tr, tIdx) => {
+                      const hasUrl = tr.url && tr.url.trim().length > 0;
+                      const safeTrTitle = (tr.title || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+                      return `
+                        <div class="track-rating-row">
+                          <span class="track-num">${tIdx + 1}.</span>
+                          ${hasUrl ? `
+                            <span class="track-name song-embed-link" onclick="playAudioTrack('${tr.url.trim()}', '${safeTrTitle}', '${safeArtist}', '${safeAlbum}', '${safeCover}')">
+                            ${tr.title}<span class="aero-play-wrap" style="margin-left: 6px; margin-right: 0;"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon track-play-icon"><span class="play-sheen-shine"></span></span></span>
+                          ` : `
+                            <span class="track-name">${tr.title}</span>
+                          `}
+                          <span class="track-stars">${getStarString(tr.rating)}</span>
+                          <small class="track-score">${Number(tr.rating).toFixed(1)}</small>
+                        </div>
+                      `;
+                    }).join("")}
+                  </div>
+                </div>
+              ` : ""}
+
+              <!-- Full Review Link Button -->
+              ${item.review_url ? `
+                <div class="review-link-wrap">
+                  <a href="${item.review_url}" class="review-action-btn">
+                    Read Full Review <i class='bx bx-right-arrow-alt'></i>
+                  </a>
+                </div>
+              ` : ""}
+
+              <!-- Per-Spin Expandable Discussion Drawer -->
               <div class="spin-discuss-drawer" id="spin-discuss-${spinId}" style="display: ${isOpen ? 'flex' : 'none'};">
                 <div class="spin-comments-list" id="spin-comments-list-${spinId}">
                   ${renderApprovedCommentsHtml(spinId)}
@@ -5043,31 +5147,6 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
                   <textarea class="sosa-search-input comment-body-input" placeholder="Leave a comment on ${safePlaceholderTitle}..." rows="2" maxlength="600" required></textarea>
                   <div class="spin-comment-feedback" id="spin-comment-feedback-${spinId}" style="display: none;"></div>
                 </form>
-              </div>
-
-              <div class="row-actions">
-                <button type="button" class="action-icon-btn edit-btn admin-only" onclick="editSpin(${originalIdx})" aria-label="Edit Spin">
-                  <span class="action-tooltip">Edit Spin</span>
-                  <div class="action-icon-stage edit-icon-stage">
-                    <img src="assets/icons/aero/edit.ico" alt="Edit" class="aero-action-icon edit-icon">
-                    <div class="action-icon-reflection edit-reflection" aria-hidden="true"></div>
-                  </div>
-                </button>
-                <button type="button" class="action-icon-btn delete-btn admin-only" onclick="deleteSpin(${originalIdx})" aria-label="Delete Spin" onmouseenter="const img=this.querySelector('.delete-icon'); if(img) img.src='assets/icons/aero/delete-full.ico';" onmouseleave="const img=this.querySelector('.delete-icon'); if(img) img.src='assets/icons/aero/delete-empty.ico';">
-                  <span class="action-tooltip">Delete Spin</span>
-                  <div class="action-icon-stage delete-icon-stage">
-                    <img src="assets/icons/aero/delete-empty.ico" alt="Delete" class="aero-action-icon delete-icon">
-                    <div class="action-icon-reflection delete-reflection" aria-hidden="true"></div>
-                  </div>
-                </button>
-                <button type="button" class="spin-discuss-btn ${approvedCount > 0 ? 'has-comments' : ''} ${isOpen ? 'is-open' : ''}" id="spin-discuss-btn-${spinId}" onclick="toggleSpinDiscuss(${spinId}, this)" aria-label="${approvedCount > 0 ? `Leave a comment (${approvedCount} comment${approvedCount === 1 ? '' : 's'})` : 'Leave a comment'}">
-                  <span class="discuss-tooltip" id="spin-discuss-tooltip-${spinId}">${approvedCount > 0 ? `Leave a comment (${approvedCount} comment${approvedCount === 1 ? '' : 's'})` : 'Leave a comment'}</span>
-                  <div class="discuss-icon-stage">
-                    <img src="assets/icons/aero/discuss.png" alt="Discuss" class="discuss-icon">
-                    <div class="discuss-icon-reflection" aria-hidden="true"></div>
-                  </div>
-                  <span class="discuss-count-badge" id="spin-discuss-count-${spinId}" style="${approvedCount > 0 ? '' : 'display: none;'}">${approvedCount > 0 ? approvedCount : ''}</span>
-                </button>
               </div>
             `;
           })()}
@@ -6782,33 +6861,42 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         return;
       }
 
+      const batchTooltip = document.getElementById("batchFetchTooltip") || batchFetchRuntimesBtn.querySelector(".admin-tooltip");
       batchFetchRuntimesBtn.disabled = true;
+      batchFetchRuntimesBtn.classList.add("is-backfilling");
       let updatedCount = 0;
 
-      for (let i = 0; i < targets.length; i++) {
-        const item = targets[i];
-        batchFetchRuntimesBtn.innerHTML = `<span class="w7-spinner"></span> (${i + 1}/${targets.length}) ${item.title}...`;
-
-        const runtimeStr = await fetchAlbumRuntime(item.artist, item.title);
-
-        if (runtimeStr) {
-          const { error } = await supabaseClient
-            .from("spins")
-            .update({ runtime: runtimeStr })
-            .eq("id", item.id);
-
-          if (!error) {
-            item.runtime = runtimeStr;
-            updatedCount++;
+      try {
+        for (let i = 0; i < targets.length; i++) {
+          const item = targets[i];
+          if (batchTooltip) {
+            batchTooltip.textContent = `Backfilling (${i + 1}/${targets.length})...`;
           }
+
+          const runtimeStr = await fetchAlbumRuntime(item.artist, item.title);
+
+          if (runtimeStr) {
+            const { error } = await supabaseClient
+              .from("spins")
+              .update({ runtime: runtimeStr })
+              .eq("id", item.id);
+
+            if (!error) {
+              item.runtime = runtimeStr;
+              updatedCount++;
+            }
+          }
+
+          // Small delay to prevent rate-limiting
+          await new Promise(r => setTimeout(r, 200));
         }
-
-        // Small delay to prevent rate-limiting
-        await new Promise(r => setTimeout(r, 200));
+      } finally {
+        if (batchTooltip) {
+          batchTooltip.textContent = "Backfill Runtimes";
+        }
+        batchFetchRuntimesBtn.classList.remove("is-backfilling");
+        batchFetchRuntimesBtn.disabled = false;
       }
-
-      batchFetchRuntimesBtn.innerHTML = `<i class='bx bx-time'></i> Backfill Runtimes`;
-      batchFetchRuntimesBtn.disabled = false;
 
       alert(`Backfill finished! Successfully fetched and added runtime for ${updatedCount} of ${targets.length} spins.`);
       applyFilters(false);
