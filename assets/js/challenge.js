@@ -2057,16 +2057,32 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!cleanText) return "";
 
     cleanText = cleanText.replace(
-      /\[["“]([^"”]+)["”]\]\((https?:\/\/[^\s)]+)\)/g,
-      `<a href="$2" target="_blank" rel="noopener noreferrer" class="inline-quoted-track song-embed-link">“$1” ↗</a>`
-    );
-
-    cleanText = cleanText.replace(
       /(?<=^|[\s>(])["“]([^"”\n\r<]+)["”](?=[\s.,!?;:)<]|$)/g,
       `<span class="inline-quoted-track">“$1”</span>`
     );
 
-    return cleanText.replace(/\r?\n/g, "<br>");
+    cleanText = cleanText.replace(
+      /\[(?:<span class="inline-quoted-track">)?["“]?([^"”]+?)["”]?(?:<\/span>)?\]\((https?:\/\/[^\s)]+)\)/g,
+      `<a href="$2" target="_blank" rel="noopener noreferrer" class="inline-quoted-track song-embed-link">“$1” ↗</a>`
+    );
+
+    // Lift data-song / data-track / data-from from child div to parent bilingual or blockquote
+    cleanText = cleanText.replace(/<(bilingual|blockquote)([^>]*)>([\s\S]*?)<\/\1>/gi, (match, tag, attrs, inner) => {
+      if (!/data-(song|track|from)/i.test(attrs)) {
+        const childMatch = inner.match(/data-(song|track|from)=["']([^"']+)["']/i);
+        if (childMatch) {
+          return `<${tag}${attrs} data-song="${childMatch[2]}">${inner}</${tag}>`;
+        }
+      }
+      return match;
+    });
+
+    return cleanText.replace(/\r?\n/g, "<br>")
+      .replace(/<(blockquote|bilingual)([^>]*)>\s*<br\s*\/?>/gi, "<$1$2>")
+      .replace(/<br\s*\/?>\s*<\/(blockquote|bilingual)>/gi, "</$1>")
+      .replace(/<(div|p)([^>]*)>\s*<br\s*\/?>/gi, "<$1$2>")
+      .replace(/<br\s*\/?>\s*<\/(div|p)>/gi, "</$1>")
+      .replace(/<\/div>\s*<br\s*\/?>\s*<div/gi, "</div><div");
   }
 
   function renderSpinHistoryHtml(spins, sectionTitle = "Listening History & Memos") {
@@ -2202,14 +2218,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const primaryGenres = safeToArray(match.genres);
         const secondaryGenres = safeToArray(match.secondary_genres);
+        const matchedScenes = safeToArray((match.scenes && match.scenes.length) ? match.scenes : album.scenes);
+        const matchedMovements = safeToArray((match.movements && match.movements.length) ? match.movements : album.movements);
+        const matchedContextPinsHtml = renderContextPinsHtml(matchedScenes, matchedMovements);
 
         let genresHtml = "";
-        if (primaryGenres.length || secondaryGenres.length) {
+        if (primaryGenres.length || secondaryGenres.length || matchedContextPinsHtml) {
           genresHtml = `
             <div class="genre-container" style="margin-top: 0.35rem;">
-              ${primaryGenres.length ? `
+              ${(primaryGenres.length || matchedContextPinsHtml) ? `
                 <div class="primary-genres-wrap">
                   ${primaryGenres.map(g => `<span class="genre-pill genre-primary">${g}</span>`).join("")}
+                  ${matchedContextPinsHtml}
                 </div>
               ` : ""}
               ${secondaryGenres.length ? `
@@ -2243,10 +2263,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           `;
         }
 
-        const matchedScenes = safeToArray((match.scenes && match.scenes.length) ? match.scenes : album.scenes);
-        const matchedMovements = safeToArray((match.movements && match.movements.length) ? match.movements : album.movements);
-        const matchedContextPinsHtml = renderContextPinsHtml(matchedScenes, matchedMovements);
-
         let starsHtml = "";
         if (match.rating !== null && match.rating !== undefined && match.rating !== "") {
           const rNum = parseFloat(match.rating);
@@ -2254,11 +2270,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             <div class="modal-detail-rating">
               <span class="stars-gold">${getStarString(rNum)}</span>
               <small class="rating-num">(${isNaN(rNum) ? match.rating : rNum.toFixed(1)})</small>
-              ${matchedContextPinsHtml}
             </div>
           `;
-        } else if (matchedContextPinsHtml) {
-          starsHtml = `<div class="modal-detail-rating">${matchedContextPinsHtml}</div>`;
         }
 
         let favTracksHtml = "";
@@ -2348,12 +2361,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         const dispRuntime = album.runtime || (priorSpin ? priorSpin.runtime : "");
 
         let tagsHtml = "";
-        if (primaryGenres.length || secondaryGenres.length) {
+        if (primaryGenres.length || secondaryGenres.length || unloggedContextHtml) {
           tagsHtml += `
             <div class="genre-container unlistened-genre-box" style="margin: 0.85rem 0; width: 100%;">
-              ${primaryGenres.length ? `
+              ${(primaryGenres.length || unloggedContextHtml) ? `
                 <div class="primary-genres-wrap" style="justify-content: center; gap: 6px; margin-bottom: 6px;">
                   ${primaryGenres.map(g => `<span class="genre-pill genre-primary" style="padding: 4px 10px; font-size: 0.8rem;">${g}</span>`).join("")}
+                  ${unloggedContextHtml}
                 </div>
               ` : ""}
               ${secondaryGenres.length ? `
@@ -2394,8 +2408,6 @@ document.addEventListener("DOMContentLoaded", async () => {
               ${dispRuntime ? `<div style="font-weight: 600; font-size: 0.85rem; color: #10b981;"><i class='bx bx-time' style='vertical-align: middle;'></i> Runtime: ${dispRuntime}</div>` : ""}
               ${rymBadge}
             </div>
-
-            ${unloggedContextHtml ? `<div class="unlistened-context-pins">${unloggedContextHtml}</div>` : ""}
 
             ${recalibrateHeroHtml}
 

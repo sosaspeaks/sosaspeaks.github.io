@@ -1939,12 +1939,9 @@ body.dark-mode .rating-shift-box .new-rating i.bx-star {
   padding: 5px 2px 6px 2px;
   margin-top: 0.1rem;
   margin-bottom: 0.1rem;
-  flex-wrap: nowrap !important;
-  overflow-x: auto;
-  overflow-y: hidden;
-  white-space: nowrap;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(16, 185, 129, 0.28) transparent;
+  flex-wrap: wrap !important;
+  overflow: visible !important;
+  white-space: normal !important;
 }
 
 .genre-container::-webkit-scrollbar {
@@ -1967,6 +1964,7 @@ body.dark-mode .rating-shift-box .new-rating i.bx-star {
 .primary-genres-wrap,
 .secondary-genres-wrap {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.35rem;
   flex-shrink: 0;
@@ -6236,7 +6234,7 @@ body.dark-mode .w7-auth-footer {
 .aero-player-dock {
   position: fixed;
   right: 20px;
-  bottom: 52px;
+  bottom: 80px;
   z-index: 99999;
   width: 340px !important;
   max-width: calc(100vw - 32px);
@@ -7582,7 +7580,7 @@ body.top100-view-active .widgets-edge-tab {
   .aero-player-dock {
     left: 10px !important;
     right: 10px !important;
-    bottom: 10px !important;
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
     width: auto !important;
     max-width: none !important;
   }
@@ -11301,6 +11299,12 @@ body.dark-mode .tag-chip.chip-movement {
   vertical-align: middle;
 }
 
+.primary-genres-wrap .context-pins-group,
+.primary-genres-row .context-pins-group,
+.cf-meta-prim-genres-row .context-pins-group {
+  margin-left: 0.05rem;
+}
+
 .context-pin-anchor {
   position: relative;
   display: inline-flex;
@@ -11584,17 +11588,25 @@ body.dark-mode .context-popover-pill.is-movement,
   color: #ddd6fe;
 }
 
-/* Inside modals & Cover Flow & narrow screens: drop downward so popovers stay inside bounds */
+/* Drop downward cleanly when sitting next to primary genres (feed cards, modals, Cover Flow) */
+.primary-genres-wrap .context-pin-popover,
+.primary-genres-row .context-pin-popover,
+.top100-detail-body .context-pin-popover,
 .top100-detail-rating-row .context-pin-popover,
+.cf-meta-prim-genres-row .context-pin-popover,
 .cf-meta-rating-row .context-pin-popover {
   top: calc(100% + 7px);
   left: 50%;
   transform: translateX(-50%) translateY(-4px);
-  max-width: min(280px, 75vw);
+  max-width: min(290px, 76vw);
   white-space: normal;
 }
 
+.primary-genres-wrap .context-pin-popover::before,
+.primary-genres-row .context-pin-popover::before,
+.top100-detail-body .context-pin-popover::before,
 .top100-detail-rating-row .context-pin-popover::before,
+.cf-meta-prim-genres-row .context-pin-popover::before,
 .cf-meta-rating-row .context-pin-popover::before {
   left: -6px;
   right: -6px;
@@ -11603,7 +11615,11 @@ body.dark-mode .context-popover-pill.is-movement,
   width: auto;
 }
 
+.primary-genres-wrap .context-pin-popover::after,
+.primary-genres-row .context-pin-popover::after,
+.top100-detail-body .context-pin-popover::after,
 .top100-detail-rating-row .context-pin-popover::after,
+.cf-meta-prim-genres-row .context-pin-popover::after,
 .cf-meta-rating-row .context-pin-popover::after {
   right: auto;
   left: 50%;
@@ -11612,29 +11628,57 @@ body.dark-mode .context-popover-pill.is-movement,
   transform: translateX(-50%);
 }
 
+.primary-genres-wrap .context-pin-popover.is-scene::after,
+.primary-genres-row .context-pin-popover.is-scene::after,
+.top100-detail-body .context-pin-popover.is-scene::after,
 .top100-detail-rating-row .context-pin-popover.is-scene::after,
+.cf-meta-prim-genres-row .context-pin-popover.is-scene::after,
 .cf-meta-rating-row .context-pin-popover.is-scene::after {
   border-color: transparent transparent rgba(56, 189, 248, 0.72) transparent;
 }
 
+.primary-genres-wrap .context-pin-popover.is-movement::after,
+.primary-genres-row .context-pin-popover.is-movement::after,
+.top100-detail-body .context-pin-popover.is-movement::after,
 .top100-detail-rating-row .context-pin-popover.is-movement::after,
+.cf-meta-prim-genres-row .context-pin-popover.is-movement::after,
 .cf-meta-rating-row .context-pin-popover.is-movement::after {
   border-color: transparent transparent rgba(139, 92, 246, 0.65) transparent;
 }
 
+body.dark-mode .primary-genres-wrap .context-pin-popover.is-scene::after,
+body.dark-mode .primary-genres-row .context-pin-popover.is-scene::after,
+body.dark-mode .top100-detail-body .context-pin-popover.is-scene::after,
 body.dark-mode .top100-detail-rating-row .context-pin-popover.is-scene::after,
+body.dark-mode .cf-meta-prim-genres-row .context-pin-popover.is-scene::after,
 body.dark-mode .cf-meta-rating-row .context-pin-popover.is-scene::after {
   border-color: transparent transparent rgba(56, 189, 248, 0.55) transparent;
 }
 
+body.dark-mode .primary-genres-wrap .context-pin-popover.is-movement::after,
+body.dark-mode .primary-genres-row .context-pin-popover.is-movement::after,
+body.dark-mode .top100-detail-body .context-pin-popover.is-movement::after,
 body.dark-mode .top100-detail-rating-row .context-pin-popover.is-movement::after,
+body.dark-mode .cf-meta-prim-genres-row .context-pin-popover.is-movement::after,
 body.dark-mode .cf-meta-rating-row .context-pin-popover.is-movement::after {
   border-color: transparent transparent rgba(167, 139, 250, 0.55) transparent;
 }
 
+.primary-genres-wrap .context-pin-anchor:hover .context-pin-popover,
+.primary-genres-wrap .context-pin-anchor:focus-within .context-pin-popover,
+.primary-genres-wrap .context-pin-anchor.is-open .context-pin-popover,
+.primary-genres-row .context-pin-anchor:hover .context-pin-popover,
+.primary-genres-row .context-pin-anchor:focus-within .context-pin-popover,
+.primary-genres-row .context-pin-anchor.is-open .context-pin-popover,
+.top100-detail-body .context-pin-anchor:hover .context-pin-popover,
+.top100-detail-body .context-pin-anchor:focus-within .context-pin-popover,
+.top100-detail-body .context-pin-anchor.is-open .context-pin-popover,
 .top100-detail-rating-row .context-pin-anchor:hover .context-pin-popover,
 .top100-detail-rating-row .context-pin-anchor:focus-within .context-pin-popover,
 .top100-detail-rating-row .context-pin-anchor.is-open .context-pin-popover,
+.cf-meta-prim-genres-row .context-pin-anchor:hover .context-pin-popover,
+.cf-meta-prim-genres-row .context-pin-anchor:focus-within .context-pin-popover,
+.cf-meta-prim-genres-row .context-pin-anchor.is-open .context-pin-popover,
 .cf-meta-rating-row .context-pin-anchor:hover .context-pin-popover,
 .cf-meta-rating-row .context-pin-anchor:focus-within .context-pin-popover,
 .cf-meta-rating-row .context-pin-anchor.is-open .context-pin-popover {
@@ -11642,7 +11686,8 @@ body.dark-mode .cf-meta-rating-row .context-pin-popover.is-movement::after {
 }
 
 @media (max-width: 640px) {
-  .spin-star-rating .context-pin-popover {
+  .spin-star-rating .context-pin-popover,
+  .primary-genres-wrap .context-pin-popover {
     top: calc(100% + 7px);
     left: 0;
     transform: translateY(-4px);
@@ -11650,7 +11695,8 @@ body.dark-mode .cf-meta-rating-row .context-pin-popover.is-movement::after {
     white-space: normal;
   }
 
-  .spin-star-rating .context-pin-popover::before {
+  .spin-star-rating .context-pin-popover::before,
+  .primary-genres-wrap .context-pin-popover::before {
     left: -6px;
     right: -6px;
     top: -12px;
@@ -11658,7 +11704,8 @@ body.dark-mode .cf-meta-rating-row .context-pin-popover.is-movement::after {
     width: auto;
   }
 
-  .spin-star-rating .context-pin-popover::after {
+  .spin-star-rating .context-pin-popover::after,
+  .primary-genres-wrap .context-pin-popover::after {
     right: auto;
     left: 10px;
     top: auto;
@@ -11666,25 +11713,32 @@ body.dark-mode .cf-meta-rating-row .context-pin-popover.is-movement::after {
     transform: none;
   }
 
-  .spin-star-rating .context-pin-popover.is-scene::after {
+  .spin-star-rating .context-pin-popover.is-scene::after,
+  .primary-genres-wrap .context-pin-popover.is-scene::after {
     border-color: transparent transparent rgba(56, 189, 248, 0.72) transparent;
   }
 
-  .spin-star-rating .context-pin-popover.is-movement::after {
+  .spin-star-rating .context-pin-popover.is-movement::after,
+  .primary-genres-wrap .context-pin-popover.is-movement::after {
     border-color: transparent transparent rgba(139, 92, 246, 0.65) transparent;
   }
 
-  body.dark-mode .spin-star-rating .context-pin-popover.is-scene::after {
+  body.dark-mode .spin-star-rating .context-pin-popover.is-scene::after,
+  body.dark-mode .primary-genres-wrap .context-pin-popover.is-scene::after {
     border-color: transparent transparent rgba(56, 189, 248, 0.55) transparent;
   }
 
-  body.dark-mode .spin-star-rating .context-pin-popover.is-movement::after {
+  body.dark-mode .spin-star-rating .context-pin-popover.is-movement::after,
+  body.dark-mode .primary-genres-wrap .context-pin-popover.is-movement::after {
     border-color: transparent transparent rgba(167, 139, 250, 0.55) transparent;
   }
 
   .spin-star-rating .context-pin-anchor:hover .context-pin-popover,
   .spin-star-rating .context-pin-anchor:focus-within .context-pin-popover,
-  .spin-star-rating .context-pin-anchor.is-open .context-pin-popover {
+  .spin-star-rating .context-pin-anchor.is-open .context-pin-popover,
+  .primary-genres-wrap .context-pin-anchor:hover .context-pin-popover,
+  .primary-genres-wrap .context-pin-anchor:focus-within .context-pin-popover,
+  .primary-genres-wrap .context-pin-anchor.is-open .context-pin-popover {
     transform: translateY(0);
   }
 }

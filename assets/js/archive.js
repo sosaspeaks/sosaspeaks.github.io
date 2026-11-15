@@ -2342,8 +2342,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     if (spinsCfMeta) {
       const rowsHtml = [];
 
-      // 1. Star Rating Row (Out of badge, dedicated row) + Dual Scene/Movement Pins
-      const cfContextPinsHtml = renderContextPinsHtml(item.scenes, item.movements);
+      // 1. Star Rating Row (Out of badge, dedicated row)
       if (item.rating !== null && item.rating !== undefined && item.rating !== "") {
         const rNum = parseFloat(item.rating);
         if (!isNaN(rNum)) {
@@ -2351,14 +2350,9 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
             <div class="cf-meta-row cf-meta-rating-row" title="Rating: ${rNum.toFixed(1)} / 5.0">
               <span class="cf-rating-stars">${getStarString(rNum)}</span>
               <span class="cf-rating-score">${rNum.toFixed(1)}</span>
-              ${cfContextPinsHtml}
             </div>
           `);
-        } else if (cfContextPinsHtml) {
-          rowsHtml.push(`<div class="cf-meta-row cf-meta-rating-row">${cfContextPinsHtml}</div>`);
         }
-      } else if (cfContextPinsHtml) {
-        rowsHtml.push(`<div class="cf-meta-row cf-meta-rating-row">${cfContextPinsHtml}</div>`);
       }
 
       // 2. Info Row (Release Type, Date, Runtime, Relisten / Recalibrate Queue)
@@ -2383,7 +2377,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
         rowsHtml.push(`<div class="cf-meta-row cf-meta-info-row">${infoPills.join("")}</div>`);
       }
 
-      // 3. Primary Genres Row
+      // 3. Primary Genres Row + Dual Scene/Movement Pins
       const primGenrePills = [];
       const primList = Array.isArray(item.genres) ? item.genres : (typeof item.genres === "string" ? item.genres.split(",") : []);
       primList.forEach(g => {
@@ -2392,8 +2386,9 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
           primGenrePills.push(`<span class="cf-genre-chip cf-genre-primary" style="cursor: pointer;" onclick="setSidebarFilter('genre', '${cleanG.replace(/'/g, "\\'")}')" title="Primary Genre: ${escapeHtml(cleanG)}">${escapeHtml(cleanG)}</span>`);
         }
       });
-      if (primGenrePills.length) {
-        rowsHtml.push(`<div class="cf-meta-row cf-meta-prim-genres-row">${primGenrePills.join("")}</div>`);
+      const cfContextPinsHtml = renderContextPinsHtml(item.scenes, item.movements);
+      if (primGenrePills.length || cfContextPinsHtml) {
+        rowsHtml.push(`<div class="cf-meta-row cf-meta-prim-genres-row">${primGenrePills.join("")}${cfContextPinsHtml}</div>`);
       }
 
       // 4. Secondary Genres Row (Dedicated row, dotted outline, fade)
@@ -4087,11 +4082,14 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       favTracks = album.fav_tracks.split(",").map(t => t.trim()).filter(Boolean);
     }
 
+    const top100ContextPins = renderContextPinsHtml(album.scenes, album.movements);
+
     let genresHtml = "";
-    if (primaryGenres.length || secondaryGenres.length) {
-      const primaryHtml = primaryGenres.length ? `
-        <div class="primary-genres-row" style="display: flex; flex-wrap: wrap; gap: 5px;">
+    if (primaryGenres.length || secondaryGenres.length || top100ContextPins) {
+      const primaryHtml = (primaryGenres.length || top100ContextPins) ? `
+        <div class="primary-genres-row" style="display: flex; flex-wrap: wrap; align-items: center; gap: 5px;">
           ${primaryGenres.map(g => `<span class="genre-pill genre-primary">${escapeHtml(g)}</span>`).join("")}
+          ${top100ContextPins}
         </div>
       ` : "";
       const secondaryHtml = secondaryGenres.length ? `
@@ -4195,19 +4193,12 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
             <div class="top100-detail-title">${escapeHtml(album.title)}${yearStr}</div>
             <div class="top100-detail-artist">${escapeHtml(album.artist)}</div>
             ${(album.rym_rating !== null && album.rym_rating !== undefined && album.rym_rating !== "") ? `<div style="margin-top: 4px;"><span class="category spin-rym-tag"><i class='bx bxs-star' style='color: #38bdf8;'></i> RYM: ${parseFloat(album.rym_rating).toFixed(2)}</span></div>` : ""}
-            ${(() => {
-              const top100ContextPins = renderContextPinsHtml(album.scenes, album.movements);
-              if (ratingVal) {
-                return `
-                  <div class="top100-detail-rating-row">
-                    <span class="top100-detail-stars">${getStarString(album.rating)}</span>
-                    <span class="top100-detail-score">${ratingVal}/5.0</span>
-                    ${top100ContextPins}
-                  </div>
-                `;
-              }
-              return top100ContextPins ? `<div class="top100-detail-rating-row">${top100ContextPins}</div>` : "";
-            })()}
+            ${ratingVal ? `
+              <div class="top100-detail-rating-row">
+                <span class="top100-detail-stars">${getStarString(album.rating)}</span>
+                <span class="top100-detail-score">${ratingVal}/5.0</span>
+              </div>
+            ` : ""}
           </div>
         </div>
         ${genresHtml}
@@ -4879,56 +4870,50 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
             <span class="post-date">${item.log_date || ""}</span>
           </div>
 
-          <!-- Dedicated Spin Star Rating + Dual Scene/Movement Pins -->
+          <!-- Dedicated Spin Star Rating -->
+          ${(item.rating !== null && item.rating !== undefined) ? `
+            <div class="spin-star-rating" ${(item.rym_rating !== null && item.rym_rating !== undefined && item.rym_rating !== "") ? `title="RYM Avg: ${parseFloat(item.rym_rating).toFixed(2)}"` : ""}>
+              ${(item.rym_rating !== null && item.rym_rating !== undefined && item.rym_rating !== "") ? `<span class="rym-rating-tooltip"><i class=\'bx bxs-star\'></i> RYM Avg: ${parseFloat(item.rym_rating).toFixed(2)}</span>` : ""}
+              ${item.rating_shift ? `
+                <div class="rating-shift-box">
+                  <span class="old-rating">${getStarString(item.rating_shift.from)}</span>
+                  <small class="spin-rating-num">(${Number(item.rating_shift.from).toFixed(1)})</small>
+                  <span class="shift-arrow">➔</span>
+                  <span class="new-rating">${getStarString(item.rating_shift.to || item.rating)}</span>
+                  <small class="spin-rating-num">(${Number(item.rating_shift.to || item.rating).toFixed(1)})</small>
+                </div>
+              ` : `
+                <span class="active-spin-stars">${getStarString(item.rating)}</span>
+                <small class="spin-rating-num">(${Number(item.rating).toFixed(1)})</small>
+              `}
+              ${item.relisten ? `<span class="relisten-icon" title="Relisten: This symbol signifies that this spin is a relisten" aria-label="Relisten: This symbol signifies that this spin is a relisten"><i class='bx bx-rotate-left'></i></span>` : ""}
+            </div>
+          ` : (item.relisten ? `
+            <div class="spin-star-rating">
+              <span class="relisten-icon" title="Relisten: This symbol signifies that this spin is a relisten" aria-label="Relisten: This symbol signifies that this spin is a relisten"><i class='bx bx-rotate-left'></i></span>
+            </div>
+          ` : "")}
+
+          <!-- Primary and Secondary Genres + Dual Scene/Movement Pins -->
           ${(() => {
             const contextPinsHtml = renderContextPinsHtml(item.scenes, item.movements);
-            if (item.rating !== null && item.rating !== undefined) {
-              return `
-                <div class="spin-star-rating" ${(item.rym_rating !== null && item.rym_rating !== undefined && item.rym_rating !== "") ? `title="RYM Avg: ${parseFloat(item.rym_rating).toFixed(2)}"` : ""}>
-                  ${(item.rym_rating !== null && item.rym_rating !== undefined && item.rym_rating !== "") ? `<span class="rym-rating-tooltip"><i class=\'bx bxs-star\'></i> RYM Avg: ${parseFloat(item.rym_rating).toFixed(2)}</span>` : ""}
-                  ${item.rating_shift ? `
-                    <div class="rating-shift-box">
-                      <span class="old-rating">${getStarString(item.rating_shift.from)}</span>
-                      <small class="spin-rating-num">(${Number(item.rating_shift.from).toFixed(1)})</small>
-                      <span class="shift-arrow">➔</span>
-                      <span class="new-rating">${getStarString(item.rating_shift.to || item.rating)}</span>
-                      <small class="spin-rating-num">(${Number(item.rating_shift.to || item.rating).toFixed(1)})</small>
-                    </div>
-                  ` : `
-                    <span class="active-spin-stars">${getStarString(item.rating)}</span>
-                    <small class="spin-rating-num">(${Number(item.rating).toFixed(1)})</small>
-                  `}
-                  ${item.relisten ? `<span class="relisten-icon" title="Relisten: This symbol signifies that this spin is a relisten" aria-label="Relisten: This symbol signifies that this spin is a relisten"><i class='bx bx-rotate-left'></i></span>` : ""}
-                  ${contextPinsHtml}
-                </div>
-              `;
-            }
-            if (item.relisten || contextPinsHtml) {
-              return `
-                <div class="spin-star-rating">
-                  ${item.relisten ? `<span class="relisten-icon" title="Relisten: This symbol signifies that this spin is a relisten" aria-label="Relisten: This symbol signifies that this spin is a relisten"><i class='bx bx-rotate-left'></i></span>` : ""}
-                  ${contextPinsHtml}
-                </div>
-              `;
-            }
-            return "";
+            if (!hasPrimary && !hasSecondary && !contextPinsHtml) return "";
+            return `
+              <div class="genre-container">
+                ${(hasPrimary || contextPinsHtml) ? `
+                  <div class="primary-genres-wrap">
+                    ${hasPrimary ? item.genres.map(g => `<span class="genre-pill genre-primary" onclick="setSidebarFilter('genre', '${g}')">${g}</span>`).join("") : ""}
+                    ${contextPinsHtml}
+                  </div>
+                ` : ""}
+                ${hasSecondary ? `
+                  <div class="secondary-genres-wrap">
+                    ${item.secondary_genres.map(g => `<span class="genre-pill genre-secondary" onclick="setSidebarFilter('genre', '${g}')">${g}</span>`).join("")}
+                  </div>
+                ` : ""}
+              </div>
+            `;
           })()}
-
-          <!-- Primary and Secondary Genres -->
-          ${(hasPrimary || hasSecondary) ? `
-            <div class="genre-container">
-              ${hasPrimary ? `
-                <div class="primary-genres-wrap">
-                  ${item.genres.map(g => `<span class="genre-pill genre-primary" onclick="setSidebarFilter('genre', '${g}')">${g}</span>`).join("")}
-                </div>
-              ` : ""}
-              ${hasSecondary ? `
-                <div class="secondary-genres-wrap">
-                  ${item.secondary_genres.map(g => `<span class="genre-pill genre-secondary" onclick="setSidebarFilter('genre', '${g}')">${g}</span>`).join("")}
-                </div>
-              ` : ""}
-            </div>
-          ` : ""}
 
           <!-- Descriptors Row -->
           ${descriptors.length ? `
