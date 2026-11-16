@@ -141,7 +141,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let previewDebounceTimer = null;
   let previewDarkMode = localStorage.getItem("darkMode") === "enabled";
   let previewFrameReady = false;
-  let currentPreviewStylesheet = "assets/css/style.css";
+  let currentPreviewStylesheet = "assets/css/style.css?v=20261115d";
 
   // --- THEME SYNC ---
   function applyStudioDarkMode(enabled) {
@@ -911,7 +911,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (poetryModePill) {
       poetryModePill.style.display = isPoetry ? "inline-flex" : "none";
     }
-    const targetCss = isStudy ? "assets/css/review.css" : "assets/css/style.css";
+    const targetCss = isStudy ? "assets/css/review.css?v=20261115d" : "assets/css/style.css?v=20261115d";
     if (previewStylesheetLabel) {
       previewStylesheetLabel.textContent = isStudy
         ? "review.css"

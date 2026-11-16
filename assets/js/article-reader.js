@@ -653,7 +653,7 @@
     const isPoetry = article.post_type === "poetry";
 
     if (isStudy) {
-      await swapStylesheet("assets/css/review.css");
+      await swapStylesheet("assets/css/review.css?v=20261115d");
       renderSosaStudyHeader(article);
     } else {
       renderStandardHeader(article);
@@ -681,7 +681,7 @@
 
     if (article.post_type === "sosa-study") {
       try {
-        await loadScript("assets/js/sosa-study.js");
+        await loadScript("assets/js/sosa-study.js?v=20261115d");
       } catch (scriptErr) {
         console.warn("Could not load sosa-study.js:", scriptErr);
       }
