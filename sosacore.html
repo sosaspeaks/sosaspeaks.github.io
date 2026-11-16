@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<!--
+                                           _
+                                          | |
+  ___  ___  ___  __ _ ___ _ __   ___  __ _| | _____
+ / __|/ _ \/ __|/ _` / __| '_ \ / _ \/ _` | |/ / __|
+ \__ \ (_) \__ \ (_| \__ \ |_) |  __/ (_| |   <\__ \
+ |___/\___/|___/\__,_|___/ .__/ \___|\__,_|_|\_\___/
+                         | |
+                         |_|
+
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sosa-Core — SosaSpins</title>
+  <meta name="description" content="Sosa-Core — An unranked portrait of the albums that shaped who Sosa is as a person.">
+  <meta property="og:title" content="Sosa-Core — SosaSpins">
+  <meta property="og:description" content="Cornerstones, liner notes, and sonic touchstones wired into Sosa's identity.">
+  <meta property="og:image" content="https://sosaspeaks.org/assets/images/homepics/Sosa-Icon-V3.png">
+  <link rel="icon" type="image/png" href="assets/images/homepics/Sosa-Icon-V3.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/images/homepics/apple-touch-icon.png?v=20260527" />
+  <meta name="apple-mobile-web-app-title" content="SosaSpeaks" />
+  <link rel="manifest" href="assets/images/homepics/site.webmanifest?v=20260527" />
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261116a">
+  <link rel="stylesheet" href="assets/css/sosacore.css?v=20261116a">
+  <link rel="stylesheet" href="assets/css/dock.css?v=20261116a">
+  <!-- Boxicons -->
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+</head>
+<body class="sosacore-view-active">
+  <!-- Header -->
+  <header>
+    <div class="nav container">
+      <a href="index.html" class="nav-logo-link">
+        <img src="assets/images/homepics/Sosa-Icon-V3.png" alt="SosaSpeaks Icon" class="logo-icon">
+      </a>
+      <div class="nav-right-group">
+        <button type="button" id="adminTriggerBtn" class="aero-btn" title="Admin Mode">
+          <img
+            id="adminLockIcon"
+            src="assets/icons/aero/lock_closed.png"
+            alt="Admin Status"
+            class="aero-lock-icon nav-custom-icon"
+          />
+        </button>
+        <a href="sosaspins.html" class="nav-custom-link" title="SosaSpins">
+          <img src="assets/images/homepics/Folder203.ico" class="nav-custom-icon music-icon" alt="SosaSpins">
+        </a>
+        <a href="about.html" class="nav-custom-link" title="About">
+          <img src="assets/images/homepics/msgsres_1.ico" class="nav-custom-icon msngr-icon" alt="About">
+        </a>
+        <i class='bx bx-moon theme-toggle' style="scale: 155%;" title="Theme"></i>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="main-home" id="home">
+    <div class="home-text container">
+      <h2 class="home-title">SosaSpins</h2>
+      <span class="home-subtitle">Sosa-Core</span>
+    </div>
+  </section>
+
+  <!-- Main Content Window -->
+  <main class="container core-main-container">
+    <section class="core-view-container">
+      <div class="window glass w7-window core-window-frame" id="coreWindowFrame">
+        <!-- Title Bar -->
+        <div class="title-bar">
+          <div class="title-bar-text">
+            <i class='bx bxs-heart core-title-heart' aria-hidden="true"></i>
+            <span>Sosa-Core &mdash; Personal Sonic DNA</span>
+          </div>
+          <div class="title-bar-controls"></div>
+        </div>
+
+        <!-- Attached Windows 7 Command & Tag Filter Bar -->
+        <div class="window-command-bar core-command-bar">
+          <div class="core-filter-bar" id="coreTagFilterBar" role="tablist" aria-label="Filter Sosa-Core by tag">
+            <button type="button" class="core-filter-pill active" data-tag="all" aria-pressed="true">
+              <i class='bx bx-grid-alt'></i> All Core
+            </button>
+          </div>
+          <div class="command-group-right core-admin-controls">
+            <button type="button" id="coreManageTagsBtn" class="aero-command-btn admin-only" style="display: none;" title="Manage material tags and descriptions">
+              <i class='bx bx-purchase-tag'></i> Manage Tags
+            </button>
+            <button type="button" id="coreToggleBankBtn" class="aero-command-btn admin-only" style="display: none;" title="Open or tuck away Album Bank">
+              <i class='bx bx-archive-in'></i> <span id="coreToggleBankLabel">Bank</span>
+            </button>
+            <button type="button" id="coreEditModeBtn" class="aero-command-btn admin-only" style="display: none;" title="Edit Sosa-Core grid">
+              <i class='bx bx-edit'></i> Edit Sosa-Core
+            </button>
+            <button type="button" id="coreSaveOrderBtn" class="aero-command-btn save-emerald-btn admin-only" style="display: none;" title="Save Bento Grid order">
+              <i class='bx bx-save'></i> Save Order
+            </button>
+            <button type="button" id="coreCancelEditBtn" class="aero-command-btn admin-only" style="display: none;" title="Cancel unsaved reordering">
+              <i class='bx bx-x'></i> Cancel
+            </button>
+          </div>
+        </div>
+
+        <!-- Active Tag Description Callout Banner -->
+        <div id="coreTagDescriptionBanner" class="core-tag-desc-banner" style="display: none;" aria-live="polite"></div>
+
+        <!-- Window Body -->
+        <div class="window-body core-window-body">
+          <div class="core-hero-header">
+            <h1 class="core-hero-title">SOSA-CORE</h1>
+            <p class="core-hero-manifesto">An unranked portrait of the records wired into who I am &mdash; cornerstones, liner notes, and sonic touchstones.</p>
+          </div>
+
+          <div id="coreBentoGrid" class="core-bento-grid" aria-live="polite">
+            <!-- Populated dynamically by sosacore.js -->
+          </div>
+
+          <div id="coreEmptyState" class="core-empty-state" style="display: none;">
+            <i class='bx bx-disc core-empty-icon' aria-hidden="true"></i>
+            <p class="core-empty-title">No records here yet.</p>
+            <p class="core-empty-sub" id="coreEmptySubtext">Check back soon, or enter Admin Edit Mode to place albums from your archive.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Floating Bank Edge Tab Handle -->
+  <button type="button" id="coreBankEdgeTab" class="bank-edge-tab admin-only" style="display: none;" title="Open or tuck away Album Bank">
+    <i class='bx bxs-chevron-left' id="coreBankEdgeArrow"></i>
+    <span id="coreBankEdgeText">Bank</span>
+  </button>
+
+  <!-- Slide-Out Album Bank Drawer -->
+  <aside id="coreBankDrawer" class="album-bank-drawer admin-only" style="display: none;" aria-label="Sosa-Core Album Bank Drawer">
+    <div class="album-bank-header">
+      <div class="album-bank-title">
+        <i class='bx bx-archive-in'></i>
+        <span>Album Bank</span>
+        <span id="coreBankCountBadge" class="aero-count-badge">0</span>
+      </div>
+      <button type="button" id="coreAddCustomBtn" class="aero-command-btn core-custom-add-btn" title="Add an album not logged in SosaSpins">
+        <i class='bx bx-plus'></i> Custom
+      </button>
+    </div>
+
+    <div class="album-bank-controls">
+      <div class="bank-search-wrap">
+        <i class='bx bx-search search-icon'></i>
+        <input type="text" id="coreBankSearchInput" class="sosa-search-input bank-search-input" placeholder="Filter logged albums...">
+        <button type="button" id="coreBankClearSearchBtn" class="bank-clear-btn" style="display: none;" aria-label="Clear search">&times;</button>
+      </div>
+      <div class="bank-sort-wrap">
+        <label for="coreBankSortSelect" class="bank-sort-label">Sort:</label>
+        <select id="coreBankSortSelect" class="sosa-search-input bank-sort-select">
+          <option value="rating-desc">Rating: High to Low</option>
+          <option value="recent">Recent: Last Logged</option>
+          <option value="artist-asc">Artist (A &rarr; Z)</option>
+          <option value="title-asc">Title (A &rarr; Z)</option>
+          <option value="year-desc">Year: Newest</option>
+        </select>
+      </div>
+      <div class="bank-hint-text">
+        <i class='bx bx-info-circle'></i> Click <strong>+ Add</strong> or drag an album onto the grid. Drag grid tiles to reorder.
+      </div>
+    </div>
+
+    <div class="album-bank-list" id="coreBankList"></div>
+  </aside>
+
+  <!-- DETAIL MODAL -->
+  <div id="coreDetailModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="window glass w7-modal-window top100-detail-window core-detail-window" role="dialog" aria-modal="true" aria-labelledby="coreDetailTitle">
+      <div class="title-bar">
+        <div class="title-bar-text" id="coreDetailTitle">
+          <i class='bx bxs-heart' style="color: #10b981;"></i> Album Details
+        </div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeCoreDetailModal" aria-label="Close" class="is-close"></button>
+        </div>
+      </div>
+      <div class="window-body core-detail-body" id="coreDetailBody"></div>
+    </div>
+  </div>
+
+  <!-- ADMIN: EDIT CORE ITEM MODAL -->
+  <div id="coreItemEditModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="window glass w7-modal-window top100-detail-window core-edit-window" role="dialog" aria-modal="true" aria-labelledby="coreItemEditHeading">
+      <div class="title-bar">
+        <div class="title-bar-text" id="coreItemEditHeading">
+          <i class='bx bx-edit'></i> Edit Sosa-Core Card
+        </div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeCoreItemEditModal" aria-label="Close" class="is-close"></button>
+        </div>
+      </div>
+      <form id="coreItemEditForm" class="window-body core-modal-form">
+        <input type="hidden" id="coreEditItemId">
+        <div class="core-edit-album-banner" id="coreEditAlbumBanner"></div>
+
+        <div class="core-form-group">
+          <label class="core-form-label">Bento Slot Mode</label>
+          <div class="core-slot-radios" id="coreEditSlotRadios">
+            <label class="core-slot-radio-pill">
+              <input type="radio" name="coreSlotType" value="cornerstone">
+              <span><i class='bx bxs-star'></i> Cornerstone (2&times;2)</span>
+            </label>
+            <label class="core-slot-radio-pill">
+              <input type="radio" name="coreSlotType" value="liner_note">
+              <span><i class='bx bx-note'></i> Liner Note (2&times;1)</span>
+            </label>
+            <label class="core-slot-radio-pill">
+              <input type="radio" name="coreSlotType" value="genre">
+              <span><i class='bx bx-purchase-tag-alt'></i> Genres (2&times;1)</span>
+            </label>
+            <label class="core-slot-radio-pill">
+              <input type="radio" name="coreSlotType" value="standard">
+              <span><i class='bx bx-square'></i> Standard (1&times;1)</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="core-form-group">
+          <div class="core-label-row">
+            <label class="core-form-label">Material Tags</label>
+            <button type="button" id="coreQuickManageTagsBtn" class="core-inline-link-btn">
+              <i class='bx bx-plus-circle'></i> Manage / Add Tags
+            </button>
+          </div>
+          <div id="coreEditTagsWrap" class="core-edit-tags-wrap"></div>
+        </div>
+
+        <div class="core-form-group">
+          <label for="coreEditLinerNote" class="core-form-label">Optional Liner Note</label>
+          <textarea id="coreEditLinerNote" class="w7-input-field core-textarea" rows="3" placeholder="Why this record matters to who you are (optional)..."></textarea>
+        </div>
+
+        <div id="coreEditSyncedHint" class="core-synced-hint" style="display: none;">
+          <i class='bx bx-link'></i> Rating, genres, and cover art are synced live from your SosaSpins log.
+        </div>
+
+        <div id="coreEditCustomFieldsWrap" class="core-custom-fields-wrap" style="display: none;">
+          <div class="core-form-grid-2">
+            <div class="core-form-group">
+              <label for="coreEditRating" class="core-form-label">Rating (0.5 &ndash; 5.0)</label>
+              <input type="number" id="coreEditRating" class="w7-input-field" min="0.5" max="5" step="0.5" placeholder="5.0">
+            </div>
+            <div class="core-form-group">
+              <label for="coreEditYear" class="core-form-label">Release Year</label>
+              <input type="number" id="coreEditYear" class="w7-input-field" min="1900" max="2100" placeholder="2001">
+            </div>
+          </div>
+          <div class="core-form-group">
+            <label for="coreEditCoverUrl" class="core-form-label">Cover URL</label>
+            <input type="url" id="coreEditCoverUrl" class="w7-input-field" placeholder="https://...">
+          </div>
+          <div class="core-form-grid-2">
+            <div class="core-form-group">
+              <label for="coreEditGenres" class="core-form-label">Primary Genres (comma-separated)</label>
+              <input type="text" id="coreEditGenres" class="w7-input-field" placeholder="Art Pop, Experimental">
+            </div>
+            <div class="core-form-group">
+              <label for="coreEditSecondaryGenres" class="core-form-label">Secondary Genres</label>
+              <input type="text" id="coreEditSecondaryGenres" class="w7-input-field" placeholder="Progressive Pop">
+            </div>
+          </div>
+        </div>
+
+        <div class="core-modal-footer">
+          <button type="button" id="cancelCoreItemEditBtn" class="aero-command-btn">Cancel</button>
+          <button type="submit" class="aero-command-btn save-emerald-btn"><i class='bx bx-check'></i> Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ADMIN: ADD CUSTOM ALBUM MODAL (Not in Spins) -->
+  <div id="coreCustomAlbumModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="window glass w7-modal-window top100-detail-window core-edit-window" role="dialog" aria-modal="true" aria-labelledby="coreCustomAlbumHeading">
+      <div class="title-bar">
+        <div class="title-bar-text" id="coreCustomAlbumHeading">
+          <i class='bx bx-plus-circle'></i> Add Custom Album to Sosa-Core
+        </div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeCoreCustomAlbumModal" aria-label="Close" class="is-close"></button>
+        </div>
+      </div>
+      <form id="coreCustomAlbumForm" class="window-body core-modal-form">
+        <div class="core-form-grid-2">
+          <div class="core-form-group">
+            <label for="coreCustomArtist" class="core-form-label">Artist *</label>
+            <input type="text" id="coreCustomArtist" class="w7-input-field" required placeholder="Kate Bush">
+          </div>
+          <div class="core-form-group">
+            <label for="coreCustomTitle" class="core-form-label">Album Title *</label>
+            <input type="text" id="coreCustomTitle" class="w7-input-field" required placeholder="The Dreaming">
+          </div>
+        </div>
+        <div class="core-form-grid-2">
+          <div class="core-form-group">
+            <label for="coreCustomYear" class="core-form-label">Release Year</label>
+            <input type="number" id="coreCustomYear" class="w7-input-field" min="1900" max="2100" placeholder="1982">
+          </div>
+          <div class="core-form-group">
+            <label for="coreCustomRating" class="core-form-label">Rating (0.5 &ndash; 5.0)</label>
+            <input type="number" id="coreCustomRating" class="w7-input-field" min="0.5" max="5" step="0.5" placeholder="5.0">
+          </div>
+        </div>
+        <div class="core-form-group">
+          <div class="core-label-row">
+            <label for="coreCustomCoverUrl" class="core-form-label">Cover Art URL</label>
+            <button type="button" id="coreCustomFetchCoverBtn" class="core-inline-link-btn">
+              <i class='bx bx-search'></i> Fetch from iTunes
+            </button>
+          </div>
+          <input type="url" id="coreCustomCoverUrl" class="w7-input-field" placeholder="https://... or assets/images/...">
+        </div>
+        <div class="core-form-grid-2">
+          <div class="core-form-group">
+            <label for="coreCustomGenres" class="core-form-label">Primary Genres</label>
+            <input type="text" id="coreCustomGenres" class="w7-input-field" placeholder="Art Pop, Experimental">
+          </div>
+          <div class="core-form-group">
+            <label for="coreCustomSecondaryGenres" class="core-form-label">Secondary Genres</label>
+            <input type="text" id="coreCustomSecondaryGenres" class="w7-input-field" placeholder="Progressive Pop">
+          </div>
+        </div>
+        <div class="core-modal-footer">
+          <button type="button" id="cancelCoreCustomAlbumBtn" class="aero-command-btn">Cancel</button>
+          <button type="submit" class="aero-command-btn save-emerald-btn"><i class='bx bx-plus'></i> Add to Grid</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ADMIN: TAG MANAGER CONTROLLER MODAL -->
+  <div id="tagManagerModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="window glass w7-modal-window top100-detail-window core-tag-mgr-window" role="dialog" aria-modal="true" aria-labelledby="tagManagerHeading">
+      <div class="title-bar">
+        <div class="title-bar-text" id="tagManagerHeading">
+          <i class='bx bx-purchase-tag'></i> Manage Sosa-Core Tags &amp; Descriptions
+        </div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeTagManagerModal" aria-label="Close" class="is-close"></button>
+        </div>
+      </div>
+      <div class="window-body core-modal-form">
+        <form id="tagManagerAddForm" class="core-tag-add-form">
+          <div class="core-form-group">
+            <label for="newTagNameInput" class="core-form-label">New Material Tag</label>
+            <input type="text" id="newTagNameInput" class="w7-input-field" required placeholder="e.g. Commute Staple">
+          </div>
+          <div class="core-form-group">
+            <label for="newTagDescInput" class="core-form-label">Tag Description</label>
+            <textarea id="newTagDescInput" class="w7-input-field core-textarea" rows="2" placeholder="What this tag means for your life or listening history..."></textarea>
+          </div>
+          <div style="display: flex; justify-content: flex-end;">
+            <button type="submit" class="aero-command-btn save-emerald-btn"><i class='bx bx-plus'></i> Add Tag</button>
+          </div>
+        </form>
+
+        <div class="core-tag-mgr-divider">Existing Tags</div>
+        <div id="tagManagerList" class="core-tag-mgr-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CUSTOM AERO CONFIRM MODAL -->
+  <div id="coreConfirmModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="window glass w7-modal-window top100-detail-window core-confirm-window" role="alertdialog" aria-modal="true" aria-labelledby="coreConfirmTitle">
+      <div class="title-bar">
+        <div class="title-bar-text" id="coreConfirmTitle">Confirm Action</div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeCoreConfirmModal" aria-label="Close" class="is-close"></button>
+        </div>
+      </div>
+      <div class="window-body core-modal-form">
+        <p id="coreConfirmMsg" class="core-confirm-msg"></p>
+        <div class="core-modal-footer">
+          <button type="button" id="coreConfirmNoBtn" class="aero-command-btn">Cancel</button>
+          <button type="button" id="coreConfirmYesBtn" class="aero-command-btn core-danger-btn">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN AUTH MODAL -->
+  <div id="adminAuthModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="modal-dialog w7-window window glass w7-modal-window w7-auth-window">
+      <div class="title-bar">
+        <div class="title-bar-text">
+          <img src="assets/icons/aero/lock_closed.png" alt="" class="w7-title-icon" id="authModalTitleIcon">
+          <span id="authModalTitleText">Windows Security &mdash; SosaSpins Admin</span>
+        </div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeAdminAuthModalBtn" aria-label="Close" class="is-close"></button>
+        </div>
+      </div>
+      <div class="window-body w7-auth-body">
+        <form id="adminAuthForm" class="w7-auth-form" autocomplete="on">
+          <div class="w7-auth-header-row">
+            <img src="assets/icons/aero/lock_closed.png" alt="Security Lock" class="w7-auth-hero-icon" id="authHeroIcon">
+            <div class="w7-auth-copy">
+              <div class="w7-auth-heading">Windows Security</div>
+              <div class="w7-auth-subtext">Enter your administrator credentials to sign in.</div>
+            </div>
+          </div>
+
+          <div class="w7-auth-fields-wrap" style="display: flex; flex-direction: column; gap: 12px; margin: 1rem 1.2rem 1.1rem 1.2rem;">
+            <div class="w7-auth-field-group">
+              <label for="authEmailInput" class="w7-auth-subtext" style="display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.8rem;">Email</label>
+              <input type="email" id="authEmailInput" class="sosa-search-input w7-pass-input" placeholder="admin@sosaspeaks.org" autocomplete="username" required>
+            </div>
+            <div class="w7-auth-field-group" style="position: relative;">
+              <label for="authPasswordInput" class="w7-auth-subtext" style="display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.8rem;">Password</label>
+              <div style="position: relative; display: flex; align-items: center;">
+                <input type="password" id="authPasswordInput" class="sosa-search-input w7-pass-input" placeholder="••••••••" autocomplete="current-password" required>
+                <button type="button" id="togglePassVisibilityBtn" class="w7-pass-eye-btn" title="Show / Hide Password" tabindex="-1">
+                  <i class="bx bx-hide" id="togglePassEyeIcon"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div id="authErrorMessage" class="w7-auth-error" style="display: none;">
+            <i class="bx bx-error-circle"></i>
+            <span class="auth-error-text"></span>
+          </div>
+
+          <div class="w7-auth-footer">
+            <button type="button" id="cancelAuthBtn" class="aero-btn-action w7-auth-btn-secondary">Cancel</button>
+            <button type="submit" id="submitAuthBtn" class="aero-btn-action primary-save-btn w7-auth-btn-primary">Log On</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Aero Toast Notification -->
+  <div id="coreAeroToast" class="top100-aero-toast" style="display: none;" role="status" aria-live="polite">
+    <i class='bx bxs-check-circle toast-icon'></i>
+    <div class="toast-content">
+      <div class="toast-title" id="coreAeroToastTitle">Saved</div>
+      <div class="toast-msg" id="coreAeroToastMsg">Sosa-Core updated.</div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer container" style="margin-top: 4rem;">
+    <p class="footer-copyright">
+      &#169; SosaSpeaks. All non-quoted material is the original writing of SosaSpeaks and its authors.
+    </p>
+    <p class="footer-links">
+      <a href="https://github.com/SosaSpeaks/sosaspeaks.github.io" target="_blank" rel="noopener noreferrer">
+        <i class='bx bxl-github'></i> Source code via GitHub
+      </a>
+      <span class="footer-divider">&middot;</span>
+      <a href="mailto:sosa@sosaspeaks.org">
+        <i class='bx bx-envelope'></i> sosa@sosaspeaks.org
+      </a>
+    </p>
+  </footer>
+
+  <!-- Windows 7 Aero Taskbar ("Superbar") -->
+  <nav class="aero-taskbar-container" id="aeroTaskbar" aria-label="SosaSpins Taskbar">
+    <div class="taskbar-inner">
+      <a href="sosaspins.html" class="taskbar-start-orb" id="taskbarStartOrb" aria-label="Timeline Feed">
+        <span class="taskbar-tooltip">Timeline Feed</span>
+        <div class="start-orb-glass">
+          <div class="start-orb-reflection"></div>
+          <img src="assets/images/homepics/Folder203.ico" alt="Timeline Feed" class="start-orb-icon">
+        </div>
+      </a>
+
+      <div class="taskbar-apps" role="toolbar" aria-label="Running Portals">
+        <a href="challenge.html" class="taskbar-app-btn" data-portal="challenge" aria-label="Challenge Grid">
+          <span class="taskbar-tooltip">Challenge Grid</span>
+          <div class="app-btn-plate">
+            <img src="assets/icons/aero/challenge.ico" alt="Challenge Grid" class="win7-app-icon challenge-icon">
+          </div>
+        </a>
+        <a href="top100.html" class="taskbar-app-btn" data-portal="top100" aria-label="Top 100 Showcase">
+          <span class="taskbar-tooltip">Top 100 Showcase</span>
+          <div class="app-btn-plate">
+            <img src="assets/icons/aero/top100.png" alt="Top 100 Showcase" class="win7-app-icon top100-icon">
+          </div>
+        </a>
+        <a href="sosacore.html" class="taskbar-app-btn" data-portal="sosacore" aria-label="Sosa-Core">
+          <span class="taskbar-tooltip">Sosa-Core</span>
+          <div class="app-btn-plate">
+            <img src="assets/icons/aero/favtrack.png" alt="Sosa-Core" class="win7-app-icon sosacore-icon">
+          </div>
+        </a>
+        <a href="stats.html" class="taskbar-app-btn" data-portal="stats" aria-label="Listening Stats">
+          <span class="taskbar-tooltip">Listening Stats</span>
+          <div class="app-btn-plate">
+            <img src="assets/icons/aero/stats.png" alt="Listening Stats" class="win7-app-icon stats-icon">
+          </div>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/js/sosacore-helpers.js?v=20261116a"></script>
+  <script src="assets/js/sosacore.js?v=20261116a"></script>
+  <script src="assets/js/dock.js?v=20261116a"></script>
+</body>
+</html>

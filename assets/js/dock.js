@@ -20,6 +20,8 @@
 
     if (currentPath.includes("stats")) {
       activePortal = "stats";
+    } else if (currentPath.includes("sosacore")) {
+      activePortal = "sosacore";
     } else if (currentPath.includes("top100")) {
       activePortal = "top100";
     } else if (currentPath.includes("challenge")) {
