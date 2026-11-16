@@ -357,6 +357,58 @@ function getDominantColorFromImg(imgUrl) {
 
 let wmpIsSeeking = false;
 
+  function parseYouTubeStartSeconds(rawUrl) {
+    try {
+      const parsed = new URL(rawUrl, window.location.href);
+      const t = parsed.searchParams.get("t") || parsed.searchParams.get("start") || "";
+      if (!t) return 0;
+      if (/^\d+$/.test(t)) return parseInt(t, 10);
+      let secs = 0;
+      const h = t.match(/(\d+)h/i);
+      const m = t.match(/(\d+)m/i);
+      const s = t.match(/(\d+)s/i);
+      if (h) secs += parseInt(h[1], 10) * 3600;
+      if (m) secs += parseInt(m[1], 10) * 60;
+      if (s) secs += parseInt(s[1], 10);
+      return secs;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  function syncTitlebarYoutubeLink(ytUrl) {
+    const titlebar = document.querySelector("#miniPlayerDock .aero-player-titlebar");
+    if (!titlebar) return;
+    let actions = titlebar.querySelector(".aero-titlebar-actions");
+    const closeBtn = titlebar.querySelector(".aero-player-close");
+    if (!actions && closeBtn) {
+      actions = document.createElement("div");
+      actions.className = "aero-titlebar-actions";
+      titlebar.insertBefore(actions, closeBtn);
+      actions.appendChild(closeBtn);
+    }
+    if (!actions) return;
+    let extBtn = document.getElementById("wmpYtExternalBtn");
+    if (ytUrl) {
+      if (!extBtn) {
+        extBtn = document.createElement("a");
+        extBtn.id = "wmpYtExternalBtn";
+        extBtn.className = "aero-yt-ext-btn";
+        extBtn.target = "_blank";
+        extBtn.rel = "noopener noreferrer";
+        extBtn.title = "Open on YouTube";
+        extBtn.setAttribute("aria-label", "Open on YouTube");
+        extBtn.innerHTML = "<i class='bx bxl-youtube'></i>";
+        actions.insertBefore(extBtn, actions.firstChild);
+      }
+      extBtn.href = ytUrl;
+      extBtn.style.display = "inline-flex";
+    } else if (extBtn) {
+      extBtn.style.display = "none";
+      extBtn.removeAttribute("href");
+    }
+  }
+
   window.formatWmpTime = function(seconds) {
     if (isNaN(seconds) || seconds < 0) return "0:00";
     const mins = Math.floor(seconds / 60);
@@ -539,6 +591,9 @@ let wmpIsSeeking = false;
     const statusEl = document.getElementById("wmpStatusText");
     if (!dock || !wrap) return;
 
+    syncTitlebarYoutubeLink("");
+    dock.classList.remove("is-video", "is-youtube", "is-embed-video");
+
     const cleanTrack = track.replace(/^["“]|["”]$/g, "");
 
     if (trackEl) trackEl.textContent = cleanTrack;
@@ -582,7 +637,7 @@ let wmpIsSeeking = false;
     }
     // 2. Intercept Direct HTML5 Audio (.mp3, .wav, .ogg, .m4a, .aac)
     else if (url.match(/\.(mp3|wav|ogg|m4a|aac)(\?.*)?$/i)) {
-      dock.classList.remove("is-video");
+      dock.classList.remove("is-video", "is-youtube", "is-embed-video");
       if (fsBtn) fsBtn.style.display = "none";
       if (controlsBar) controlsBar.style.display = "flex";
       if (statusEl) statusEl.textContent = "WINDOWS MEDIA PLAYER";
@@ -603,21 +658,35 @@ let wmpIsSeeking = false;
         audio.play().catch(e => console.warn("Audio playback was prevented:", e));
       }
     }
-    // 3. YouTube Match
+    // 3. YouTube Match (Direct 16:9 nocookie embed + customized params)
     else if (url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/)) {
-      dock.classList.remove("is-video");
+      dock.classList.add("is-youtube", "is-embed-video");
       if (fsBtn) fsBtn.style.display = "none";
       if (controlsBar) controlsBar.style.display = "none";
       if (statusEl) statusEl.textContent = "YOUTUBE PLAYER";
 
       const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/);
       const videoId = ytMatch[1];
-      wrap.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+      const startSeconds = parseYouTubeStartSeconds(url);
+      const startParam = startSeconds > 0 ? `&start=${startSeconds}` : "";
+      const watchUrl = `https://www.youtube.com/watch?v=${videoId}${startSeconds ? `&t=${startSeconds}s` : ""}`;
+      syncTitlebarYoutubeLink(watchUrl);
+
+      wrap.innerHTML = `
+        <div class="wmp-video-stage is-youtube-stage">
+          <iframe
+            src="https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&iv_load_policy=3&color=white&playsinline=1${startParam}"
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+            referrerpolicy="strict-origin-when-cross-origin"
+            allowfullscreen>
+          </iframe>
+        </div>
+      `;
       wmpUpdatePlayPauseUI(true);
     }
     // 4. SoundCloud Match with Dynamic Accent Color
     else if (url.includes("soundcloud.com")) {
-      dock.classList.remove("is-video");
+      dock.classList.remove("is-video", "is-youtube", "is-embed-video");
       if (fsBtn) fsBtn.style.display = "none";
       if (controlsBar) controlsBar.style.display = "none";
       if (statusEl) statusEl.textContent = "SOUNDCLOUD PLAYER";
@@ -629,7 +698,7 @@ let wmpIsSeeking = false;
     }
     // 5. Bandcamp Match
     else if (url.includes("bandcamp.com/EmbeddedPlayer") || url.includes("bandcamp.com")) {
-      dock.classList.remove("is-video");
+      dock.classList.remove("is-video", "is-youtube", "is-embed-video");
       if (fsBtn) fsBtn.style.display = "none";
       if (controlsBar) controlsBar.style.display = "none";
       if (statusEl) statusEl.textContent = "BANDCAMP PLAYER";
@@ -652,7 +721,7 @@ let wmpIsSeeking = false;
     }
     // 6. Vimeo Match
     else if (url.includes("vimeo.com")) {
-      dock.classList.remove("is-video");
+      dock.classList.add("is-youtube", "is-embed-video");
       if (fsBtn) fsBtn.style.display = "none";
       if (controlsBar) controlsBar.style.display = "none";
       if (statusEl) statusEl.textContent = "VIMEO PLAYER";
@@ -678,6 +747,7 @@ let wmpIsSeeking = false;
   };
 
   window.closeMiniPlayer = function() {
+    syncTitlebarYoutubeLink("");
     const dock = document.getElementById("miniPlayerDock");
     const wrap = document.getElementById("miniPlayerFrameWrap");
     const media = document.getElementById("wmpActiveMedia");
@@ -689,7 +759,7 @@ let wmpIsSeeking = false;
     }
     if (dock) {
       dock.style.display = "none";
-      dock.classList.remove("is-video");
+      dock.classList.remove("is-video", "is-youtube", "is-embed-video");
     }
     if (wrap) wrap.innerHTML = "";
     wmpUpdatePlayPauseUI(false);

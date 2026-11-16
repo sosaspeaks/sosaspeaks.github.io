@@ -561,6 +561,9 @@ function getDominantColorFromImg(imgUrl) {
     else if (typeof renderFeed === "function") renderFeed(allEntries);
     if (typeof renderGrid === "function") renderGrid();
     if (typeof renderTopArtistsView === "function" && activeTop100Tab === "artists") renderTopArtistsView();
+    if (isAdmin && typeof migrateLegacyArtistImagesToArtistsBucket === "function") {
+      migrateLegacyArtistImagesToArtistsBucket();
+    }
   });
 
   const adminAuthModal = document.getElementById("adminAuthModal");
@@ -1850,6 +1853,9 @@ function getImageExtFromMime(mime, fallbackName = "") {
   return ["gif", "png", "webp", "avif", "jpg", "jpeg"].includes(nameExt) ? nameExt : "jpg";
 }
 
+const COVERS_STORAGE_BUCKET = "covers";
+const ARTIST_STORAGE_BUCKET = "artists";
+
 async function uploadArtistImageBlobToSupabase(blobOrFile, artistName) {
   if (!blobOrFile) throw new Error("No image file provided.");
   const cleanArtist = (artistName || "artist").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "artist";
@@ -1857,7 +1863,7 @@ async function uploadArtistImageBlobToSupabase(blobOrFile, artistName) {
   const filePath = `artist_${cleanArtist}_${Date.now()}.${ext}`;
 
   const { error } = await supabaseClient.storage
-    .from("covers")
+    .from(ARTIST_STORAGE_BUCKET)
     .upload(filePath, blobOrFile, {
       contentType: blobOrFile.type || (ext === "gif" ? "image/gif" : "image/jpeg"),
       upsert: true
@@ -1866,13 +1872,13 @@ async function uploadArtistImageBlobToSupabase(blobOrFile, artistName) {
   if (error) throw error;
 
   const { data: publicData } = supabaseClient.storage
-    .from("covers")
+    .from(ARTIST_STORAGE_BUCKET)
     .getPublicUrl(filePath);
 
   return publicData?.publicUrl || null;
 }
 
-async function uploadCoverToSupabase(imageUrl, artist, title) {
+async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_STORAGE_BUCKET) {
   // If it's already a Supabase URL, a local path, or invalid, keep as-is
   if (!imageUrl || !imageUrl.startsWith("http") || imageUrl.includes("supabase.co")) {
     return imageUrl;
@@ -1889,7 +1895,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     const filePath = `${cleanArtist}_${cleanTitle}_${Date.now()}.${ext}`;
 
     const { data, error } = await supabaseClient.storage
-      .from("covers")
+      .from(bucket)
       .upload(filePath, blob, {
         contentType: blob.type || "image/jpeg",
         upsert: true
@@ -1901,7 +1907,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     }
 
     const { data: publicData } = supabaseClient.storage
-      .from("covers")
+      .from(bucket)
       .getPublicUrl(filePath);
 
     return publicData.publicUrl;
@@ -1932,6 +1938,58 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
   // WINDOWS MEDIA PLAYER AERO GLASS MINIPLAYER CONTROLLER
   // ============================================================
   let wmpIsSeeking = false;
+
+  function parseYouTubeStartSeconds(rawUrl) {
+    try {
+      const parsed = new URL(rawUrl, window.location.href);
+      const t = parsed.searchParams.get("t") || parsed.searchParams.get("start") || "";
+      if (!t) return 0;
+      if (/^\d+$/.test(t)) return parseInt(t, 10);
+      let secs = 0;
+      const h = t.match(/(\d+)h/i);
+      const m = t.match(/(\d+)m/i);
+      const s = t.match(/(\d+)s/i);
+      if (h) secs += parseInt(h[1], 10) * 3600;
+      if (m) secs += parseInt(m[1], 10) * 60;
+      if (s) secs += parseInt(s[1], 10);
+      return secs;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  function syncTitlebarYoutubeLink(ytUrl) {
+    const titlebar = document.querySelector("#miniPlayerDock .aero-player-titlebar");
+    if (!titlebar) return;
+    let actions = titlebar.querySelector(".aero-titlebar-actions");
+    const closeBtn = titlebar.querySelector(".aero-player-close");
+    if (!actions && closeBtn) {
+      actions = document.createElement("div");
+      actions.className = "aero-titlebar-actions";
+      titlebar.insertBefore(actions, closeBtn);
+      actions.appendChild(closeBtn);
+    }
+    if (!actions) return;
+    let extBtn = document.getElementById("wmpYtExternalBtn");
+    if (ytUrl) {
+      if (!extBtn) {
+        extBtn = document.createElement("a");
+        extBtn.id = "wmpYtExternalBtn";
+        extBtn.className = "aero-yt-ext-btn";
+        extBtn.target = "_blank";
+        extBtn.rel = "noopener noreferrer";
+        extBtn.title = "Open on YouTube";
+        extBtn.setAttribute("aria-label", "Open on YouTube");
+        extBtn.innerHTML = "<i class='bx bxl-youtube'></i>";
+        actions.insertBefore(extBtn, actions.firstChild);
+      }
+      extBtn.href = ytUrl;
+      extBtn.style.display = "inline-flex";
+    } else if (extBtn) {
+      extBtn.style.display = "none";
+      extBtn.removeAttribute("href");
+    }
+  }
 
   window.formatWmpTime = function(seconds) {
     if (isNaN(seconds) || seconds < 0) return "0:00";
@@ -2115,6 +2173,9 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     const statusEl = document.getElementById("wmpStatusText");
     if (!dock || !wrap) return;
 
+    syncTitlebarYoutubeLink("");
+    dock.classList.remove("is-video", "is-youtube", "is-embed-video");
+
     const cleanTrack = track.replace(/^["“]|["”]$/g, "");
 
     if (trackEl) trackEl.textContent = cleanTrack;
@@ -2158,7 +2219,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     }
     // 2. Intercept Direct HTML5 Audio (.mp3, .wav, .ogg, .m4a, .aac)
     else if (url.match(/\.(mp3|wav|ogg|m4a|aac)(\?.*)?$/i)) {
-      dock.classList.remove("is-video");
+      dock.classList.remove("is-video", "is-youtube", "is-embed-video");
       if (fsBtn) fsBtn.style.display = "none";
       if (controlsBar) controlsBar.style.display = "flex";
       if (statusEl) statusEl.textContent = "WINDOWS MEDIA PLAYER";
@@ -2179,21 +2240,35 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
         audio.play().catch(e => console.warn("Audio playback was prevented:", e));
       }
     }
-    // 3. YouTube Match
+    // 3. YouTube Match (Direct 16:9 nocookie embed + customized params)
     else if (url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/)) {
-      dock.classList.remove("is-video");
+      dock.classList.add("is-youtube", "is-embed-video");
       if (fsBtn) fsBtn.style.display = "none";
       if (controlsBar) controlsBar.style.display = "none";
       if (statusEl) statusEl.textContent = "YOUTUBE PLAYER";
 
       const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/);
       const videoId = ytMatch[1];
-      wrap.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+      const startSeconds = parseYouTubeStartSeconds(url);
+      const startParam = startSeconds > 0 ? `&start=${startSeconds}` : "";
+      const watchUrl = `https://www.youtube.com/watch?v=${videoId}${startSeconds ? `&t=${startSeconds}s` : ""}`;
+      syncTitlebarYoutubeLink(watchUrl);
+
+      wrap.innerHTML = `
+        <div class="wmp-video-stage is-youtube-stage">
+          <iframe
+            src="https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&iv_load_policy=3&color=white&playsinline=1${startParam}"
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+            referrerpolicy="strict-origin-when-cross-origin"
+            allowfullscreen>
+          </iframe>
+        </div>
+      `;
       wmpUpdatePlayPauseUI(true);
     }
     // 4. SoundCloud Match with Dynamic Accent Color
     else if (url.includes("soundcloud.com")) {
-      dock.classList.remove("is-video");
+      dock.classList.remove("is-video", "is-youtube", "is-embed-video");
       if (fsBtn) fsBtn.style.display = "none";
       if (controlsBar) controlsBar.style.display = "none";
       if (statusEl) statusEl.textContent = "SOUNDCLOUD PLAYER";
@@ -2205,7 +2280,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     }
     // 5. Bandcamp Match
     else if (url.includes("bandcamp.com/EmbeddedPlayer") || url.includes("bandcamp.com")) {
-      dock.classList.remove("is-video");
+      dock.classList.remove("is-video", "is-youtube", "is-embed-video");
       if (fsBtn) fsBtn.style.display = "none";
       if (controlsBar) controlsBar.style.display = "none";
       if (statusEl) statusEl.textContent = "BANDCAMP PLAYER";
@@ -2228,7 +2303,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     }
     // 6. Vimeo Match
     else if (url.includes("vimeo.com")) {
-      dock.classList.remove("is-video");
+      dock.classList.add("is-youtube", "is-embed-video");
       if (fsBtn) fsBtn.style.display = "none";
       if (controlsBar) controlsBar.style.display = "none";
       if (statusEl) statusEl.textContent = "VIMEO PLAYER";
@@ -2254,6 +2329,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
   };
 
   window.closeMiniPlayer = function() {
+    syncTitlebarYoutubeLink("");
     const dock = document.getElementById("miniPlayerDock");
     const wrap = document.getElementById("miniPlayerFrameWrap");
     const media = document.getElementById("wmpActiveMedia");
@@ -2265,7 +2341,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     }
     if (dock) {
       dock.style.display = "none";
-      dock.classList.remove("is-video");
+      dock.classList.remove("is-video", "is-youtube", "is-embed-video");
     }
     if (wrap) wrap.innerHTML = "";
     wmpUpdatePlayPauseUI(false);
@@ -3278,6 +3354,199 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     topArtistsCuratedOriginal = JSON.parse(JSON.stringify(topArtistsCuratedState));
   }
 
+  let topArtistsLoadedFromSupabase = false;
+  let isMigratingArtistBucket = false;
+
+  async function listLegacyArtistPathsInCoversBucket() {
+    const foundPaths = new Set();
+    const prefixes = ["", "artists"];
+    for (const prefix of prefixes) {
+      let offset = 0;
+      const pageSize = 1000;
+      while (true) {
+        const { data, error } = await supabaseClient.storage
+          .from(COVERS_STORAGE_BUCKET)
+          .list(prefix, { limit: pageSize, offset });
+        if (error) {
+          console.warn(`Could not list covers/${prefix}:`, error);
+          break;
+        }
+        if (!Array.isArray(data) || data.length === 0) break;
+        for (const entry of data) {
+          if (!entry || !entry.name || entry.id === null) continue;
+          const fullPath = prefix ? `${prefix}/${entry.name}` : entry.name;
+          if (prefix === "artists" || entry.name.startsWith("artist_")) {
+            foundPaths.add(fullPath);
+          }
+        }
+        if (data.length < pageSize) break;
+        offset += pageSize;
+      }
+    }
+    return Array.from(foundPaths);
+  }
+
+  async function migrateLegacyArtistImagesToArtistsBucket(manualTrigger = false) {
+    if (!isAdmin || isMigratingArtistBucket) return;
+    if (!manualTrigger && (!topArtistsLoadedFromSupabase || isTop100Editing)) return;
+
+    const legacyPrefix = "/storage/v1/object/public/covers/";
+    const migrateBtn = document.getElementById("migrateArtistBucketBtn");
+    const origBtnHtml = migrateBtn ? migrateBtn.innerHTML : "";
+
+    isMigratingArtistBucket = true;
+    if (migrateBtn && manualTrigger) {
+      migrateBtn.disabled = true;
+      migrateBtn.innerHTML = `<i class='bx bx-loader-alt bx-spin'></i> Moving...`;
+    }
+
+    try {
+      // 1. Collect all artist_* files in `covers` bucket + any referenced in top_artists
+      const pathSet = new Set(await listLegacyArtistPathsInCoversBucket());
+      Object.values(topArtistsCuratedState || {}).forEach((item) => {
+        if (!item || !item.custom_image) return;
+        const idx = item.custom_image.indexOf(legacyPrefix);
+        if (idx === -1) return;
+        const objPath = decodeURIComponent(item.custom_image.slice(idx + legacyPrefix.length).split("?")[0]);
+        if (objPath && (objPath.startsWith("artist_") || objPath.startsWith("artists/"))) {
+          pathSet.add(objPath);
+        }
+      });
+
+      const pathsToMove = Array.from(pathSet);
+      if (pathsToMove.length === 0) {
+        if (migrateBtn) migrateBtn.style.display = "none";
+        if (manualTrigger && typeof showTop100Toast === "function") {
+          showTop100Toast("All artist images are already in the artists bucket.");
+        }
+        return;
+      }
+
+      const urlMap = new Map();
+      const uploadedOldPaths = [];
+      let lastErrorMsg = "";
+
+      for (const oldPath of pathsToMove) {
+        const targetPath = oldPath.split("/").pop();
+        let blob = null;
+
+        const { data: dlData, error: dlErr } = await supabaseClient.storage
+          .from(COVERS_STORAGE_BUCKET)
+          .download(oldPath);
+        if (!dlErr && dlData) {
+          blob = dlData;
+        } else {
+          const { data: oldPub } = supabaseClient.storage
+            .from(COVERS_STORAGE_BUCKET)
+            .getPublicUrl(oldPath);
+          if (oldPub?.publicUrl) {
+            const res = await fetch(oldPub.publicUrl);
+            if (res.ok) blob = await res.blob();
+          }
+        }
+
+        if (!blob) {
+          lastErrorMsg = dlErr?.message || `Failed to read covers/${oldPath}`;
+          continue;
+        }
+
+        const ext = getImageExtFromMime(blob.type, targetPath);
+        const { error: uploadErr } = await supabaseClient.storage
+          .from(ARTIST_STORAGE_BUCKET)
+          .upload(targetPath, blob, {
+            contentType: blob.type || (ext === "gif" ? "image/gif" : "image/jpeg"),
+            upsert: true
+          });
+
+        if (uploadErr) {
+          lastErrorMsg = uploadErr.message || String(uploadErr);
+          console.warn(`Artist bucket migration upload failed for ${oldPath}:`, uploadErr);
+          continue;
+        }
+
+        const { data: newPub } = supabaseClient.storage
+          .from(ARTIST_STORAGE_BUCKET)
+          .getPublicUrl(targetPath);
+        const newUrl = newPub?.publicUrl;
+        if (!newUrl) continue;
+
+        urlMap.set(oldPath, newUrl);
+        uploadedOldPaths.push(oldPath);
+      }
+
+      if (uploadedOldPaths.length === 0) {
+        if (migrateBtn) migrateBtn.style.display = "inline-flex";
+        const msg = lastErrorMsg
+          ? `Could not move artist images to the artists bucket: ${lastErrorMsg}`
+          : "Could not move artist images to the artists bucket. Ensure sql/011_artists_bucket.sql has been run in Supabase.";
+        if (manualTrigger) alert(msg);
+        else console.warn(msg);
+        return;
+      }
+
+      // 2. Update matching top_artists rows in state and Supabase before deleting old files
+      const updatedRanks = [];
+      Object.entries(topArtistsCuratedState || {}).forEach(([rankKey, item]) => {
+        if (!item || !item.custom_image) return;
+        const idx = item.custom_image.indexOf(legacyPrefix);
+        if (idx === -1) return;
+        const objPath = decodeURIComponent(item.custom_image.slice(idx + legacyPrefix.length).split("?")[0]);
+        const newUrl = urlMap.get(objPath);
+        if (newUrl) {
+          item.custom_image = newUrl;
+          updatedRanks.push(Number(rankKey));
+        }
+      });
+
+      let dbSynced = true;
+      if (updatedRanks.length > 0) {
+        const syncRes = await persistTopArtistsCuratedToSupabase(updatedRanks);
+        dbSynced = !!(syncRes && syncRes.synced);
+        if (!dbSynced) {
+          const errDetail = syncRes?.error?.message || "Failed to update top_artists table.";
+          if (manualTrigger) alert(errDetail);
+          else console.warn(errDetail);
+          return;
+        }
+      }
+
+      // 3. Delete migrated files from `covers`
+      const { error: removeErr } = await supabaseClient.storage
+        .from(COVERS_STORAGE_BUCKET)
+        .remove(uploadedOldPaths);
+      if (removeErr) {
+        console.warn("Could not remove legacy artist files from covers bucket:", removeErr);
+        if (migrateBtn) migrateBtn.style.display = "inline-flex";
+        if (manualTrigger) {
+          alert(`Copied ${uploadedOldPaths.length} image(s) to artists and updated top_artists, but failed to delete old files from covers: ${removeErr.message}. Run sql/011_artists_bucket.sql and try again.`);
+        }
+      } else if (migrateBtn) {
+        migrateBtn.style.display = "none";
+      }
+
+      topArtistsCuratedOriginal = JSON.parse(JSON.stringify(topArtistsCuratedState));
+      if (typeof renderTopArtistsView === "function" && activeTop100Tab === "artists") {
+        renderTopArtistsView();
+      }
+      if (typeof showTop100Toast === "function") {
+        showTop100Toast(`Moved ${uploadedOldPaths.length} artist image${uploadedOldPaths.length === 1 ? "" : "s"} to the artists bucket.`);
+      }
+    } catch (err) {
+      console.warn("Artist bucket migration error:", err);
+      if (manualTrigger) alert("Artist bucket migration error: " + (err?.message || err));
+    } finally {
+      isMigratingArtistBucket = false;
+      if (migrateBtn) {
+        migrateBtn.disabled = false;
+        if (origBtnHtml) migrateBtn.innerHTML = origBtnHtml;
+      }
+    }
+  }
+
+  window.migrateArtistImagesToArtistsBucket = function() {
+    return migrateLegacyArtistImagesToArtistsBucket(true);
+  };
+
   async function fetchTopArtistsCurated() {
     let loadedFromSupabase = false;
     try {
@@ -3299,6 +3568,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
         } catch (_) {}
         topArtistsCuratedOriginal = JSON.parse(JSON.stringify(topArtistsCuratedState));
         loadedFromSupabase = true;
+        topArtistsLoadedFromSupabase = true;
       }
     } catch (err) {
       console.warn("top_artists table unavailable, falling back to local storage:", err);
@@ -3306,6 +3576,8 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
 
     if (!loadedFromSupabase) {
       loadTopArtistsCurated();
+    } else if (isAdmin) {
+      await migrateLegacyArtistImagesToArtistsBucket();
     }
   }
 
@@ -4298,7 +4570,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
           artistCustomImgUploadStatus.textContent = "Uploading URL to Supabase...";
           artistCustomImgUploadStatus.className = "artist-custom-img-upload-status";
         }
-        url = await uploadCoverToSupabase(url, "artist", item.artist);
+        url = await uploadCoverToSupabase(url, "artist", item.artist, ARTIST_STORAGE_BUCKET);
       }
 
       const stats = getArtistStats(item.artist);

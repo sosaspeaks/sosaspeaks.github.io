@@ -911,7 +911,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (poetryModePill) {
       poetryModePill.style.display = isPoetry ? "inline-flex" : "none";
     }
-    const targetCss = isStudy ? "assets/css/review.css?v=20261115d" : "assets/css/style.css?v=20261115d";
+    const targetCss = isStudy ? "assets/css/review.css?v=20261116a" : "assets/css/style.css?v=20261115d";
     if (previewStylesheetLabel) {
       previewStylesheetLabel.textContent = isStudy
         ? "review.css"
