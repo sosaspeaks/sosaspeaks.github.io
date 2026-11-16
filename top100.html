@@ -117,9 +117,9 @@
                 <label for="topArtistsCountSelect" class="aero-ctrl-label"><i class='bx bx-list-ol'></i> Show:</label>
                 <select id="topArtistsCountSelect" class="aero-select-styled" onchange="changeTopArtistsCount(this.value)">
                   <option value="15">Top 15</option>
-                  <option value="20" selected>Top 20</option>
+                  <option value="20">Top 20</option>
                   <option value="50">Top 50</option>
-                  <option value="all">All</option>
+                  <option value="all" selected>All</option>
                 </select>
               </div>
 
@@ -204,7 +204,7 @@
                 <!-- 3. The Main Field: Artists Ranks 16 to N -->
                 <div class="top100-main-section" id="topArtistsMainSection">
                   <div class="top100-tier-banner">
-                    <span class="tier-banner-pill" id="topArtistsMainGridPill">[ RANKS 16 &ndash; 20 ]</span>
+                    <span class="tier-banner-pill" id="topArtistsMainGridPill">[ RANKS 16 &ndash; 50 ]</span>
                     <div class="tier-banner-line"></div>
                   </div>
                   <div class="top-artists-main-grid" id="topArtistsMainGrid">
@@ -277,7 +277,7 @@
     <div id="top100DetailModal" class="sosa-modal-backdrop" style="display: none;">
       <div class="window glass w7-modal-window top100-detail-window">
         <div class="title-bar">
-          <div class="title-bar-text">
+          <div class="title-bar-text" id="top100DetailTitle">
             <i class='bx bx-disc'></i> Album Details
           </div>
           <div class="title-bar-controls">
@@ -290,7 +290,7 @@
 
     <!-- ARTIST CUSTOM IMAGE / GIF MODAL -->
     <div id="artistCustomImageModal" class="sosa-modal-backdrop" style="display: none;">
-      <div class="window glass w7-modal-window top100-detail-window" style="max-width: 440px; width: 90%;">
+      <div class="window glass w7-modal-window top100-detail-window artist-custom-img-window" style="max-width: 470px; width: 92%;">
         <div class="title-bar">
           <div class="title-bar-text">
             <i class='bx bx-image-alt'></i> Custom Artist Image / GIF
@@ -300,17 +300,29 @@
           </div>
         </div>
         <div class="window-body" style="padding: 16px;">
-          <div style="font-size: 0.88rem; font-weight: 700; margin-bottom: 4px; color: var(--text-color);" id="customImgArtistName">Artist Name</div>
-          <div style="font-size: 0.74rem; color: #64748b; margin-bottom: 12px;">Paste an image or animated GIF URL, or pick from their logged album covers:</div>
+          <div style="font-size: 0.9rem; font-weight: 800; margin-bottom: 4px; color: var(--text-color);" id="customImgArtistName">Artist Name</div>
+          <div style="font-size: 0.74rem; color: #64748b; margin-bottom: 10px;">Upload an image/GIF to Supabase, paste a URL, or pick from logged project covers:</div>
 
-          <input type="url" id="artistCustomImgInput" class="w7-input-field" placeholder="https://example.com/artist.gif" style="margin-bottom: 12px;">
+          <div class="artist-custom-img-upload-row">
+            <img id="artistCustomImgPreview" src="assets/images/spins/placeholder.png" alt="Artist preview" class="artist-custom-img-preview">
+            <div class="artist-custom-img-controls">
+              <input type="file" id="artistCustomImgFileInput" accept="image/*" style="display: none;">
+              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <button type="button" id="artistCustomImgUploadBtn" class="aero-command-btn artist-quick-edit-img-btn" onclick="document.getElementById('artistCustomImgFileInput')?.click()">
+                  <i class='bx bx-cloud-upload'></i> Upload Image / GIF
+                </button>
+                <span id="artistCustomImgUploadStatus" class="artist-custom-img-upload-status"></span>
+              </div>
+              <input type="url" id="artistCustomImgInput" class="w7-input-field" placeholder="https://example.com/artist.gif" oninput="updateArtistCustomImgPreview(this.value)">
+            </div>
+          </div>
 
-          <div style="font-size: 0.72rem; font-weight: 700; color: #475569; margin-bottom: 6px;">Logged Project Covers:</div>
+          <div style="font-size: 0.72rem; font-weight: 700; color: #475569; margin: 12px 0 6px;">Logged Project Covers:</div>
           <div id="artistModalCoversPicker" class="artist-modal-covers-picker"></div>
 
           <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px;">
-            <button type="button" class="w7-auth-btn-secondary" onclick="closeArtistCustomImageModal()">Cancel</button>
-            <button type="button" class="w7-auth-btn-primary" onclick="saveArtistCustomImage()"><i class='bx bx-check'></i> Apply Image</button>
+            <button type="button" class="aero-command-btn" onclick="closeArtistCustomImageModal()">Cancel</button>
+            <button type="button" id="saveArtistCustomImgBtn" class="aero-command-btn artist-quick-primary-btn" onclick="saveArtistCustomImage()"><i class='bx bx-check'></i> Apply Image</button>
           </div>
         </div>
       </div>

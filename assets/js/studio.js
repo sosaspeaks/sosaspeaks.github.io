@@ -1620,6 +1620,20 @@ document.addEventListener("DOMContentLoaded", async () => {
             "Quote text goes here..."
           );
           break;
+        case "blockquote":
+          insertTextAtCursor(
+            `\n<blockquote>\n    <i class='bx bxs-quote-left'></i>\n    <i>`,
+            `</i>\n    <span class="quote-attribution">\n        <span class="quote-author">— Author</span>,\n        <cite class="quote-source">Source</cite>\n    </span>\n</blockquote>\n`,
+            "Quote text goes here..."
+          );
+          break;
+        case "interview-qa":
+          insertTextAtCursor(
+            `\n<div class="interview-qa">\n    <div class="qa-question">\n        <span class="qa-pill is-q">Q</span>\n        <p class="qa-question-text">`,
+            `</p>\n    </div>\n    <div class="qa-answer">\n        <span class="qa-mark" aria-hidden="true">&ldquo;</span>\n        <div class="qa-answer-body">\n            <span class="qa-pill is-a">Speaker</span>\n            <p class="qa-answer-text">Answer quote goes here...</p>\n            <span class="quote-attribution">\n                <span class="quote-author">— Speaker</span>,\n                <cite class="quote-source">Interview / Publication</cite>\n            </span>\n        </div>\n    </div>\n</div>\n`,
+            "Interview question goes here?"
+          );
+          break;
         case "source":
           insertTextAtCursor('\n<p class="source">\n    ', "\n</p>\n", "Source citation or footnote...");
           break;
@@ -1663,6 +1677,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             `\n<bilingual>\n  <div data-lang="Original">\n    `,
             `\n  </div>\n  <div data-lang="English">\n    English translation here\n  </div>\n</bilingual>\n`,
             "Original lyric or quote here"
+          );
+          break;
+        case "video-embed":
+          insertTextAtCursor(
+            `\n<figure class="video-embed">\n    <video controls preload="metadata" playsinline>\n        <source src="`,
+            `" type="video/mp4">\n        Your browser does not support the video tag.\n    </video>\n    <figcaption>\n        Artist — "Title" (Music Video, Date)\n    </figcaption>\n</figure>\n`,
+            "https://"
           );
           break;
         case "image-frame":
@@ -2460,6 +2481,144 @@ document.addEventListener("DOMContentLoaded", async () => {
           <span class="aero-caption-text">${sanitizeInlineRichText(captionHtml)}</span>
         `;
         wrapper.appendChild(bar);
+      }
+    });
+
+    container.querySelectorAll("figure.video-embed").forEach((fig) => {
+      if (fig.dataset.aeroVideo === "1") return;
+      const video = fig.querySelector("video");
+      if (!video) return;
+      fig.dataset.aeroVideo = "1";
+
+      fig.removeAttribute("style");
+      fig.classList.add("aero-media-window", "aero-video-window");
+      video.removeAttribute("style");
+      video.removeAttribute("controls");
+      video.setAttribute("playsinline", "");
+      video.classList.add("aero-video-element");
+
+      const captionEl = fig.querySelector("figcaption");
+      const stage = document.createElement("div");
+      stage.className = "aero-video-stage is-paused";
+
+      const hud = document.createElement("div");
+      hud.className = "aero-video-hud";
+      hud.innerHTML = `
+        <div class="wmp-scrubber-section">
+          <span class="wmp-time-text js-vid-cur">0:00</span>
+          <div class="wmp-scrubber-track js-vid-track" role="slider" aria-label="Video Scrubber" tabindex="0">
+            <div class="wmp-progress-fill js-vid-fill" style="width: 0%;">
+              <span class="wmp-scrubber-knob"></span>
+            </div>
+          </div>
+          <span class="wmp-time-text js-vid-dur">0:00</span>
+        </div>
+        <div class="aero-video-hud-row">
+          <div class="aero-video-hud-left">
+            <div class="wmp-volume-wrap">
+              <button type="button" class="wmp-vol-btn js-vid-mute" title="Mute / Unmute"><i class='bx bx-volume-full js-vid-vol-icon'></i></button>
+              <input type="range" class="wmp-aero-slider aero-vid-vol-slider js-vid-vol-slider" min="0" max="1" step="0.05" value="1" title="Volume">
+            </div>
+          </div>
+          <div class="aero-video-hud-center">
+            <button type="button" class="wmp-ctrl-btn aero-vid-ctrl-sm js-vid-rw" title="Rewind 10s"><i class='bx bx-rewind'></i></button>
+            <button type="button" class="aero-vid-orb-btn js-vid-play-btn" title="Play / Pause">
+              <img src="assets/icons/aero/play.ico" alt="Play" class="js-vid-play-icon">
+              <img src="assets/icons/aero/pause.ico" alt="Pause" class="js-vid-pause-icon" style="display: none;">
+            </button>
+            <button type="button" class="wmp-ctrl-btn aero-vid-ctrl-sm js-vid-ff" title="Forward 10s"><i class='bx bx-fast-forward'></i></button>
+          </div>
+          <div class="aero-video-hud-right">
+            <button type="button" class="wmp-ctrl-btn aero-vid-ctrl-sm js-vid-loop" title="Loop Video"><i class='bx bx-repeat'></i></button>
+            <button type="button" class="wmp-sub-btn js-vid-fs" title="Fullscreen"><i class='bx bx-fullscreen'></i></button>
+          </div>
+        </div>
+      `;
+
+      video.parentNode.insertBefore(stage, video);
+      stage.appendChild(video);
+      stage.appendChild(hud);
+
+      const curEl = hud.querySelector(".js-vid-cur");
+      const durEl = hud.querySelector(".js-vid-dur");
+      const track = hud.querySelector(".js-vid-track");
+      const fill = hud.querySelector(".js-vid-fill");
+      const playBtn = hud.querySelector(".js-vid-play-btn");
+      const playIcon = hud.querySelector(".js-vid-play-icon");
+      const pauseIcon = hud.querySelector(".js-vid-pause-icon");
+      const rwBtn = hud.querySelector(".js-vid-rw");
+      const ffBtn = hud.querySelector(".js-vid-ff");
+      const loopBtn = hud.querySelector(".js-vid-loop");
+      const muteBtn = hud.querySelector(".js-vid-mute");
+      const volIcon = hud.querySelector(".js-vid-vol-icon");
+      const volSlider = hud.querySelector(".js-vid-vol-slider");
+      const fsBtn = hud.querySelector(".js-vid-fs");
+      const fmt = (sec) => {
+        if (isNaN(sec) || sec < 0) return "0:00";
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        return `${m}:${s < 10 ? "0" : ""}${s}`;
+      };
+      const syncPlay = () => {
+        const playing = !video.paused && !video.ended;
+        stage.classList.toggle("is-playing", playing);
+        stage.classList.toggle("is-paused", !playing);
+        if (playIcon) playIcon.style.display = playing ? "none" : "block";
+        if (pauseIcon) pauseIcon.style.display = playing ? "block" : "none";
+      };
+      const togglePlay = () => (video.paused ? video.play().catch(() => {}) : video.pause());
+      hud.addEventListener("click", (e) => e.stopPropagation());
+      video.addEventListener("click", togglePlay);
+      playBtn.addEventListener("click", togglePlay);
+      rwBtn?.addEventListener("click", () => { video.currentTime = Math.max(0, (video.currentTime || 0) - 10); });
+      ffBtn?.addEventListener("click", () => { video.currentTime = Math.min(video.duration || 0, (video.currentTime || 0) + 10); });
+      loopBtn?.addEventListener("click", () => {
+        video.loop = !video.loop;
+        loopBtn.classList.toggle("is-active", video.loop);
+      });
+      const syncVol = () => {
+        if (!volIcon) return;
+        if (video.muted || video.volume === 0) volIcon.className = "bx bx-volume-mute js-vid-vol-icon";
+        else if (video.volume < 0.5) volIcon.className = "bx bx-volume-low js-vid-vol-icon";
+        else volIcon.className = "bx bx-volume-full js-vid-vol-icon";
+      };
+      muteBtn?.addEventListener("click", () => {
+        video.muted = !video.muted;
+        if (volSlider) volSlider.value = video.muted ? 0 : video.volume;
+        syncVol();
+      });
+      volSlider?.addEventListener("input", () => {
+        video.volume = parseFloat(volSlider.value);
+        video.muted = video.volume === 0;
+        syncVol();
+      });
+      fsBtn?.addEventListener("click", () => {
+        if (document.fullscreenElement === stage) document.exitFullscreen().catch(() => {});
+        else if (stage.requestFullscreen) stage.requestFullscreen().catch(() => {});
+      });
+      video.addEventListener("loadedmetadata", () => { if (durEl) durEl.textContent = fmt(video.duration); });
+      video.addEventListener("timeupdate", () => {
+        if (video.duration) {
+          fill.style.width = `${(video.currentTime / video.duration) * 100}%`;
+          if (curEl) curEl.textContent = fmt(video.currentTime);
+        }
+      });
+      video.addEventListener("play", syncPlay);
+      video.addEventListener("pause", syncPlay);
+      video.addEventListener("ended", syncPlay);
+      track.addEventListener("click", (e) => {
+        const r = track.getBoundingClientRect();
+        if (r.width && video.duration) video.currentTime = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * video.duration;
+      });
+
+      if (captionEl) {
+        fig.classList.add("has-caption");
+        captionEl.removeAttribute("style");
+        const capBar = document.createElement("div");
+        capBar.className = "aero-bottom-titlebar aero-video-captionbar";
+        capBar.innerHTML = `<div class="aero-video-cap-left"><span class="aero-caption-icon" aria-hidden="true"><i class='bx bx-film'></i></span></div>`;
+        capBar.querySelector(".aero-video-cap-left").appendChild(captionEl);
+        fig.appendChild(capBar);
       }
     });
   }

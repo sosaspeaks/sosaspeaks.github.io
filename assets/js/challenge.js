@@ -2154,6 +2154,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     `;
   }
 
+  function renderChallengeArtistLinks(artistStr) {
+    const raw = String(artistStr || "").trim();
+    if (!raw) return "";
+    if (/^Tyler,\s*The Creator$/i.test(raw)) {
+      return `<a href="sosaspins.html?artist=${encodeURIComponent(raw)}" class="modal-detail-artist-link">${escapeHtml(raw)}</a>`;
+    }
+    const parts = raw.split(/(\s*(?:,|&|feat\.?|ft\.?|with|x)\s*)/i);
+    return parts.map((part, idx) => {
+      if (idx % 2 === 1) return `<span class="modal-artist-sep">${escapeHtml(part)}</span>`;
+      const trimmed = part.trim();
+      if (!trimmed) return escapeHtml(part);
+      return `<a href="sosaspins.html?artist=${encodeURIComponent(trimmed)}" class="modal-detail-artist-link" title="View ${escapeHtml(trimmed)} spins">${escapeHtml(trimmed)}</a>`;
+    }).join("");
+  }
+
+  function closeChallengeDetailModal() {
+    if (detailModal) detailModal.style.display = "none";
+  }
+  window.closeChallengeDetailModal = closeChallengeDetailModal;
+
   // Detail Modal Logic
   window.openAlbumDetail = function(albumId) {
     if (!detailModal || !modalBody) return;
@@ -2205,11 +2225,20 @@ document.addEventListener("DOMContentLoaded", async () => {
       modalDialog.classList.add("is-unlistened");
     }
 
+    const displayTitle = (match && match.title) ? match.title : (album.title || "Untitled");
+    const displayArtist = (match && match.artist) ? match.artist : (album.artist || "Unknown Artist");
+    const titleBarEl = document.getElementById("detailModalTitleText");
+    if (titleBarEl) {
+      titleBarEl.innerHTML = `<i class='bx bx-disc'></i> Album Details &mdash; ${escapeHtml(displayTitle)}`;
+    }
+
     const releaseYear = (match && match.year) ? match.year : (album.release_year || album.year || (priorSpin ? priorSpin.year : ""));
-    const yearDisplay = releaseYear ? ` (${releaseYear})` : "";
+    const yearHtml = releaseYear ? ` <span class="modal-detail-year">(${escapeHtml(String(releaseYear))})</span>` : "";
 
     const rymScore = album.rym_rating !== null && album.rym_rating !== undefined ? album.rym_rating : (getLocalRymRatings()[album.id] || null);
-    const rymBadge = rymScore ? `<span class="aero-rym-rating-badge" title="Rate Your Music Community Average"><i class='bx bxs-star'></i> RYM: ${parseFloat(rymScore).toFixed(2)}</span>` : "";
+    const rymChipHtml = rymScore
+      ? `<span class="modal-count-chip is-rym" title="Rate Your Music Community Average"><i class='bx bxs-star'></i> RYM ${parseFloat(rymScore).toFixed(2)}</span>`
+      : "";
 
     try {
       if (match) {
@@ -2222,59 +2251,64 @@ document.addEventListener("DOMContentLoaded", async () => {
         const matchedMovements = safeToArray((match.movements && match.movements.length) ? match.movements : album.movements);
         const matchedContextPinsHtml = renderContextPinsHtml(matchedScenes, matchedMovements);
 
-        let genresHtml = "";
+        let genresSectionHtml = "";
         if (primaryGenres.length || secondaryGenres.length || matchedContextPinsHtml) {
-          genresHtml = `
-            <div class="genre-container" style="margin-top: 0.35rem;">
-              ${(primaryGenres.length || matchedContextPinsHtml) ? `
-                <div class="primary-genres-wrap">
-                  ${primaryGenres.map(g => `<span class="genre-pill genre-primary">${g}</span>`).join("")}
-                  ${matchedContextPinsHtml}
-                </div>
-              ` : ""}
-              ${secondaryGenres.length ? `
-                <div class="secondary-genres-wrap">
-                  ${secondaryGenres.map(g => `<span class="genre-pill genre-secondary">${g}</span>`).join("")}
-                </div>
-              ` : ""}
+          genresSectionHtml = `
+            <div class="modal-detail-section">
+              <div class="modal-sec-title"><i class='bx bx-purchase-tag-alt'></i> Genres:</div>
+              <div class="genre-container">
+                ${(primaryGenres.length || matchedContextPinsHtml) ? `
+                  <div class="primary-genres-wrap">
+                    ${primaryGenres.map(g => `<span class="genre-pill genre-primary">${escapeHtml(g)}</span>`).join("")}
+                    ${matchedContextPinsHtml}
+                  </div>
+                ` : ""}
+                ${secondaryGenres.length ? `
+                  <div class="secondary-genres-wrap">
+                    ${secondaryGenres.map(g => `<span class="genre-pill genre-secondary">${escapeHtml(g)}</span>`).join("")}
+                  </div>
+                ` : ""}
+              </div>
             </div>
           `;
         }
 
         const descriptors = safeToArray(match.descriptors);
-        let descriptorsHtml = "";
+        let descriptorsSectionHtml = "";
         if (descriptors.length) {
           const hasManyDesc = descriptors.length > 3;
           const initialDesc = hasManyDesc ? descriptors.slice(0, 3) : descriptors;
           const remainingDesc = hasManyDesc ? descriptors.slice(3) : [];
-          descriptorsHtml = `
-            <div class="descriptors-wrapper" style="margin-top: 0.35rem;">
-              <span class="desc-label">descriptors:</span>
-              ${initialDesc.map(d => `<span class="descriptor-pill">${d}</span>`).join("")}
-              ${hasManyDesc ? `
-                <span class="remaining-descriptors is-hidden">
-                  ${remainingDesc.map(d => `<span class="descriptor-pill">${d}</span>`).join("")}
-                </span>
-                <button type="button" class="desc-expand-btn desc-collapse-toggle" data-count="${remainingDesc.length}" aria-expanded="false" title="Show ${remainingDesc.length} more descriptors" onclick="toggleModalDescriptors(this)">
-                  <i class='bx bx-chevron-down' style="font-size: 0.85rem; vertical-align: middle;"></i> +${remainingDesc.length}
-                </button>
-              ` : ""}
+          descriptorsSectionHtml = `
+            <div class="modal-detail-section">
+              <div class="modal-sec-title"><i class='bx bx-detail'></i> Descriptors:</div>
+              <div class="descriptors-wrapper">
+                ${initialDesc.map(d => `<span class="descriptor-pill">${escapeHtml(d)}</span>`).join("")}
+                ${hasManyDesc ? `
+                  <span class="remaining-descriptors is-hidden">
+                    ${remainingDesc.map(d => `<span class="descriptor-pill">${escapeHtml(d)}</span>`).join("")}
+                  </span>
+                  <button type="button" class="desc-expand-btn desc-collapse-toggle" data-count="${remainingDesc.length}" aria-expanded="false" title="Show ${remainingDesc.length} more descriptors" onclick="toggleModalDescriptors(this)">
+                    <i class='bx bx-chevron-down' style="font-size: 0.85rem; vertical-align: middle;"></i> +${remainingDesc.length}
+                  </button>
+                ` : ""}
+              </div>
             </div>
           `;
         }
 
-        let starsHtml = "";
+        let ratingChipHtml = "";
         if (match.rating !== null && match.rating !== undefined && match.rating !== "") {
           const rNum = parseFloat(match.rating);
-          starsHtml = `
-            <div class="modal-detail-rating">
+          ratingChipHtml = `
+            <span class="modal-rating-chip">
               <span class="stars-gold">${getStarString(rNum)}</span>
-              <small class="rating-num">(${isNaN(rNum) ? match.rating : rNum.toFixed(1)})</small>
-            </div>
+              <span class="modal-avg-num">${isNaN(rNum) ? escapeHtml(String(match.rating)) : rNum.toFixed(1)} / 5.0</span>
+            </span>
           `;
         }
 
-        let favTracksHtml = "";
+        let favTracksSectionHtml = "";
         const favTracksList = parseFavTracks(match.fav_tracks);
         const isMatchSingle = (match.type || album.type || "").trim().toLowerCase() === "single";
         if (favTracksList.length) {
@@ -2284,11 +2318,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             const title = parts[0].trim().replace(/^["“]|["”]$/g, "");
             const link = parts[1] ? parts[1].trim() : (first.startsWith("http") ? first.trim() : null);
             if (link) {
-              favTracksHtml = `
-                <div class="fav-tracks-row single-audio-row" style="margin-top: 0.5rem;">
-                  <span class="fav-label"><img src="assets/icons/aero/audio.png" alt="Audio" class="aero-audio-icon"> Audio:</span>
+              favTracksSectionHtml = `
+                <div class="modal-detail-section">
+                  <div class="modal-sec-title"><img src="assets/icons/aero/audio.png" alt="Audio" class="aero-audio-icon"> Audio:</div>
                   <div class="fav-tracks-chips">
-                    <a href="${link}" target="_blank" rel="noopener noreferrer" class="fav-track-chip single-play-chip song-embed-link"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${title} ↗</a>
+                    <a href="${link}" target="_blank" rel="noopener noreferrer" class="fav-track-chip single-play-chip song-embed-link"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(title)} ↗</a>
                   </div>
                 </div>`;
             }
@@ -2298,13 +2332,13 @@ document.addEventListener("DOMContentLoaded", async () => {
               const title = parts[0].trim().replace(/^["“]|["”]$/g, "");
               const link = parts[1] ? parts[1].trim() : null;
               return link
-                ? `<a href="${link}" target="_blank" rel="noopener noreferrer" class="fav-track-chip song-embed-link"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${title} ↗</a>`
-                : `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon"> ${title}</span>`;
+                ? `<a href="${link}" target="_blank" rel="noopener noreferrer" class="fav-track-chip song-embed-link"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(title)} ↗</a>`
+                : `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon"> ${escapeHtml(title)}</span>`;
             }).join("");
 
-            favTracksHtml = `
-              <div class="fav-tracks-row" style="margin-top: 0.5rem;">
-                <span class="fav-label">Fav Tracks:</span>
+            favTracksSectionHtml = `
+              <div class="modal-detail-section">
+                <div class="modal-sec-title"><i class='bx bxs-music'></i> Favorite Tracks:</div>
                 <div class="fav-tracks-chips">${cleanedTracks}</div>
               </div>`;
           }
@@ -2315,36 +2349,58 @@ document.addEventListener("DOMContentLoaded", async () => {
           allSpins.length > 1 ? "All Spins & Memos" : "Spin Memo & History"
         );
         const loggedDateSummary = allSpins.length > 1
-          ? `Latest: ${match.log_date || "N/A"} • ${allSpins.length} spins`
-          : `Logged on: ${match.log_date || "N/A"}`;
+          ? `${escapeHtml(match.log_date || "N/A")} • ${allSpins.length} spins`
+          : `${escapeHtml(match.log_date || "N/A")}`;
+        const loggedChipHtml = `<span class="modal-count-chip"><i class='bx bx-calendar-check'></i> ${loggedDateSummary}</span>`;
+        const runtimeChipHtml = album.runtime
+          ? `<span class="modal-count-chip"><i class='bx bx-time'></i> ${escapeHtml(album.runtime)}</span>`
+          : "";
+
+        let leftActionsHtml = "";
+        if (match.id) {
+          leftActionsHtml += `
+            <a href="sosaspins.html?highlight=${match.id}" class="aero-command-btn modal-primary-btn" style="text-decoration: none;">
+              <i class='bx bx-search'></i> View in Timeline
+            </a>
+          `;
+        }
+        if (isAdmin && isRecalibrate) {
+          leftActionsHtml += `
+            <button type="button" class="aero-command-btn modal-recal-btn" onclick="importRelistenToSpin('${album.id}')">
+              <i class='bx bx-revision'></i> Log Re-evaluation ➔
+            </button>
+          `;
+        }
 
         modalBody.innerHTML = `
           <div class="modal-detail-wrapper">
             <div class="modal-detail-header">
-              <img class="modal-detail-cover" src="${resolvedCover}" alt="${match.title || album.title}">
+              <img class="modal-detail-cover" src="${resolvedCover}" alt="${escapeHtml(displayTitle)}" decoding="async" onerror="this.onerror=null; this.src='${FALLBACK_PLACEHOLDER}';">
               <div class="modal-detail-meta">
-                <div class="modal-detail-title">${match.artist || album.artist} — ${match.title || album.title}${yearDisplay}</div>
-                <div class="modal-detail-submeta">
-                  ${monthBadgeHtml} • ${loggedDateSummary} ${album.runtime ? `• Runtime: ${album.runtime}` : ""} ${rymBadge}
+                ${monthBadgeHtml}
+                <div class="modal-detail-title">${escapeHtml(displayTitle)}${yearHtml}</div>
+                <div class="modal-detail-artist">${renderChallengeArtistLinks(displayArtist)}</div>
+                <div class="modal-detail-stats-row">
+                  ${ratingChipHtml}
+                  ${loggedChipHtml}
+                  ${runtimeChipHtml}
+                  ${rymChipHtml}
                 </div>
-                ${starsHtml}
               </div>
             </div>
 
             ${recalibrateHeroHtml}
 
             <div class="modal-detail-body">
-              ${genresHtml}
-              ${descriptorsHtml}
-              ${favTracksHtml}
+              ${genresSectionHtml}
+              ${descriptorsSectionHtml}
+              ${favTracksSectionHtml}
               ${spinHistoryHtml}
-              ${isAdmin && isRecalibrate ? `
-                <div style="text-align: center; margin-top: 1rem;">
-                  <button type="button" class="review-action-btn recalibrate-cta-btn" onclick="importRelistenToSpin('${album.id}')" style="border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; font-weight: 700; border-radius: 6px;">
-                    <i class='bx bx-revision'></i> Log Re-evaluation ➔
-                  </button>
-                </div>
-              ` : ""}
+            </div>
+
+            <div class="modal-detail-actions-bar">
+              <div class="modal-detail-actions-left">${leftActionsHtml}</div>
+              <button type="button" class="aero-command-btn modal-close-action-btn" onclick="closeChallengeDetailModal()">Close</button>
             </div>
           </div>
         `;
@@ -2360,82 +2416,96 @@ document.addEventListener("DOMContentLoaded", async () => {
         const unloggedContextHtml = renderContextPinsHtml(unloggedScenes, unloggedMovements);
         const dispRuntime = album.runtime || (priorSpin ? priorSpin.runtime : "");
 
-        let tagsHtml = "";
+        let unloggedGenresHtml = "";
         if (primaryGenres.length || secondaryGenres.length || unloggedContextHtml) {
-          tagsHtml += `
-            <div class="genre-container unlistened-genre-box" style="margin: 0.85rem 0; width: 100%;">
-              ${(primaryGenres.length || unloggedContextHtml) ? `
-                <div class="primary-genres-wrap" style="justify-content: center; gap: 6px; margin-bottom: 6px;">
-                  ${primaryGenres.map(g => `<span class="genre-pill genre-primary" style="padding: 4px 10px; font-size: 0.8rem;">${g}</span>`).join("")}
-                  ${unloggedContextHtml}
-                </div>
-              ` : ""}
-              ${secondaryGenres.length ? `
-                <div class="secondary-genres-wrap" style="justify-content: center; gap: 5px;">
-                  ${secondaryGenres.map(g => `<span class="genre-pill genre-secondary" style="padding: 3px 8px; font-size: 0.74rem;">${g}</span>`).join("")}
-                </div>
-              ` : ""}
+          unloggedGenresHtml = `
+            <div class="modal-detail-section">
+              <div class="modal-sec-title"><i class='bx bx-purchase-tag-alt'></i> Genres:</div>
+              <div class="genre-container">
+                ${(primaryGenres.length || unloggedContextHtml) ? `
+                  <div class="primary-genres-wrap">
+                    ${primaryGenres.map(g => `<span class="genre-pill genre-primary">${escapeHtml(g)}</span>`).join("")}
+                    ${unloggedContextHtml}
+                  </div>
+                ` : ""}
+                ${secondaryGenres.length ? `
+                  <div class="secondary-genres-wrap">
+                    ${secondaryGenres.map(g => `<span class="genre-pill genre-secondary">${escapeHtml(g)}</span>`).join("")}
+                  </div>
+                ` : ""}
+              </div>
             </div>
           `;
         }
 
+        let unloggedDescHtml = "";
         if (descriptors.length) {
           const hasManyDesc = descriptors.length > 3;
           const initialDesc = hasManyDesc ? descriptors.slice(0, 3) : descriptors;
           const remainingDesc = hasManyDesc ? descriptors.slice(3) : [];
-          tagsHtml += `
-            <div class="descriptors-wrapper unlistened-desc-box" style="margin: 0.65rem 0; justify-content: center; gap: 6px; width: 100%;">
-              <span class="desc-label" style="font-size: 0.75rem;">descriptors:</span>
-              ${initialDesc.map(d => `<span class="descriptor-pill" style="padding: 3px 9px; font-size: 0.75rem;">${d}</span>`).join("")}
-              ${hasManyDesc ? `
-                <span class="remaining-descriptors is-hidden">
-                  ${remainingDesc.map(d => `<span class="descriptor-pill" style="padding: 3px 9px; font-size: 0.75rem;">${d}</span>`).join("")}
-                </span>
-                <button type="button" class="desc-expand-btn desc-collapse-toggle" data-count="${remainingDesc.length}" aria-expanded="false" title="Show ${remainingDesc.length} more descriptors" onclick="toggleModalDescriptors(this)">
-                  <i class='bx bx-chevron-down' style="font-size: 0.85rem; vertical-align: middle;"></i> +${remainingDesc.length}
-                </button>
-              ` : ""}
+          unloggedDescHtml = `
+            <div class="modal-detail-section">
+              <div class="modal-sec-title"><i class='bx bx-detail'></i> Descriptors:</div>
+              <div class="descriptors-wrapper">
+                ${initialDesc.map(d => `<span class="descriptor-pill">${escapeHtml(d)}</span>`).join("")}
+                ${hasManyDesc ? `
+                  <span class="remaining-descriptors is-hidden">
+                    ${remainingDesc.map(d => `<span class="descriptor-pill">${escapeHtml(d)}</span>`).join("")}
+                  </span>
+                  <button type="button" class="desc-expand-btn desc-collapse-toggle" data-count="${remainingDesc.length}" aria-expanded="false" title="Show ${remainingDesc.length} more descriptors" onclick="toggleModalDescriptors(this)">
+                    <i class='bx bx-chevron-down' style="font-size: 0.85rem; vertical-align: middle;"></i> +${remainingDesc.length}
+                  </button>
+                ` : ""}
+              </div>
             </div>
           `;
         }
 
+        const statusChipHtml = `<span class="modal-count-chip ${isRecalibrate ? "is-recal-chip" : "is-pending-chip"}"><i class='bx ${isRecalibrate ? "bx-revision" : "bx-hourglass"}'></i> ${isRecalibrate ? "Queued for Relisten" : "Not Logged Yet"}</span>`;
+        const runtimeChipHtml = dispRuntime
+          ? `<span class="modal-count-chip"><i class='bx bx-time'></i> ${escapeHtml(dispRuntime)}</span>`
+          : "";
+
+        let leftActionHtml = "";
+        if (isAdmin) {
+          leftActionHtml = isRecalibrate
+            ? `<button type="button" class="aero-command-btn modal-recal-btn" onclick="importRelistenToSpin('${album.id}')"><i class='bx bx-revision'></i> Log Re-evaluation ➔</button>`
+            : `<button type="button" class="aero-command-btn modal-primary-btn" onclick="importBacklogToSpin(${album.id})"><i class='bx bx-plus-circle'></i> Log this Spin ➔</button>`;
+        }
+
         modalBody.innerHTML = `
-          <div class="modal-detail-wrapper" style="text-align: center; align-items: center; padding: 0.5rem 0.75rem 1.25rem;">
-            <img src="${unloggedCover}" class="modal-detail-cover" style="width: 130px; height: 130px; border-radius: 10px; margin: 0.25rem auto;">
-            <div class="modal-detail-title" style="margin-top: 0.6rem; font-size: 1.1rem; font-weight: 700;">${album.artist} — ${album.title}${yearDisplay}</div>
-            <div style="display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
-              ${monthBadgeHtml}
-              ${dispRuntime ? `<div style="font-weight: 600; font-size: 0.85rem; color: #10b981;"><i class='bx bx-time' style='vertical-align: middle;'></i> Runtime: ${dispRuntime}</div>` : ""}
-              ${rymBadge}
+          <div class="modal-detail-wrapper">
+            <div class="modal-detail-header">
+              <img class="modal-detail-cover" src="${unloggedCover}" alt="${escapeHtml(displayTitle)}" decoding="async" onerror="this.onerror=null; this.src='${FALLBACK_PLACEHOLDER}';">
+              <div class="modal-detail-meta">
+                ${monthBadgeHtml}
+                <div class="modal-detail-title">${escapeHtml(displayTitle)}${yearHtml}</div>
+                <div class="modal-detail-artist">${renderChallengeArtistLinks(displayArtist)}</div>
+                <div class="modal-detail-stats-row">
+                  ${statusChipHtml}
+                  ${runtimeChipHtml}
+                  ${rymChipHtml}
+                </div>
+              </div>
             </div>
 
             ${recalibrateHeroHtml}
 
-            <div class="unlistened-metadata-area" style="width: 100%; max-width: 480px; margin: 0.25rem auto;">
-              ${tagsHtml}
+            <div class="modal-detail-body">
+              ${unloggedGenresHtml}
+              ${unloggedDescHtml}
+              ${allSpins.length ? renderSpinHistoryHtml(allSpins, "Prior Spins & Memos") : ""}
+              <div class="modal-unlistened-note">
+                ${isRecalibrate
+                  ? (isAdmin ? "This album is queued for recalibration. Ready for a fresh spin?" : "This album is in Sosa's recalibration queue for a fresh spin.")
+                  : (isAdmin ? "You haven't logged this album on <strong>SosaSpins</strong> yet." : "Sosa hasn't logged this album on <strong>SosaSpins</strong> yet.")}
+              </div>
             </div>
 
-            ${allSpins.length ? `
-              <div class="modal-detail-body" style="width: 100%; text-align: left; margin-top: 0.35rem;">
-                ${renderSpinHistoryHtml(allSpins, "Prior Spins & Memos")}
-              </div>
-            ` : ""}
-
-            <p style="color: var(--text-color, #334155); opacity: 0.85; margin: 0.75rem 0 0.85rem; font-size: 0.88rem;">
-              ${isRecalibrate
-                ? (isAdmin ? "This album is queued for recalibration. Ready for a fresh spin?" : "This album is in Sosa's recalibration queue for a fresh spin.")
-                : (isAdmin ? "You haven't logged this album on <strong>SosaSpins</strong> yet." : "Sosa hasn't logged this album on <strong>SosaSpins</strong> yet.")}
-            </p>
-
-            ${isAdmin ? (isRecalibrate ? `
-              <button type="button" class="review-action-btn recalibrate-cta-btn" onclick="importRelistenToSpin('${album.id}')" style="border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; font-weight: 700; border-radius: 6px;">
-                <i class='bx bx-revision'></i> Log Re-evaluation ➔
-              </button>
-            ` : `
-              <button type="button" class="review-action-btn" onclick="importBacklogToSpin(${album.id})" style="border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;">
-                <i class='bx bx-plus-circle'></i> Log this Spin ➔
-              </button>
-            `) : ""}
+            <div class="modal-detail-actions-bar">
+              <div class="modal-detail-actions-left">${leftActionHtml}</div>
+              <button type="button" class="aero-command-btn modal-close-action-btn" onclick="closeChallengeDetailModal()">Close</button>
+            </div>
           </div>
         `;
       }
@@ -2444,13 +2514,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       modalBody.innerHTML = `<div style="padding: 1rem; color: #ef4444;">Error loading entry details: ${err.message}</div>`;
     }
 
-    detailModal.style.setProperty("display", "flex", "important");
+    detailModal.style.display = "flex";
   };
 
   if (closeDetailModal) {
-    closeDetailModal.addEventListener("click", () => {
-      detailModal.style.display = "none";
-    });
+    closeDetailModal.addEventListener("click", closeChallengeDetailModal);
   }
 
   // Toggle & Collapse Descriptors in Modal

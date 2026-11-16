@@ -1572,12 +1572,56 @@ body.dark-mode .preview-toolbar {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.34);
+  backdrop-filter: blur(7px) saturate(135%);
+  -webkit-backdrop-filter: blur(7px) saturate(135%);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
+}
+
+.studio-modal-backdrop .w7-window.w7-auth-window {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.56) 0%,
+      rgba(224, 242, 254, 0.42) 48%,
+      rgba(209, 250, 229, 0.38) 100%
+    ) !important;
+  border: 1px solid rgba(255, 255, 255, 0.86) !important;
+  border-radius: 14px !important;
+  box-shadow:
+    0 24px 60px rgba(15, 23, 42, 0.28),
+    0 4px 18px rgba(14, 165, 233, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.96) !important;
+  backdrop-filter: blur(26px) saturate(185%) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(185%) !important;
+  overflow: hidden !important;
+}
+
+.studio-modal-backdrop .w7-window.w7-auth-window .window-body {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0%, rgba(244, 251, 255, 0.34) 100%) !important;
+  border: none !important;
+}
+
+body.dark-mode .studio-modal-backdrop {
+  background: rgba(2, 6, 23, 0.46);
+}
+
+body.dark-mode .studio-modal-backdrop .w7-window.w7-auth-window {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(30, 41, 59, 0.64) 0%,
+      rgba(15, 23, 42, 0.68) 55%,
+      rgba(6, 78, 59, 0.32) 100%
+    ) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+body.dark-mode .studio-modal-backdrop .w7-window.w7-auth-window .window-body {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.38) 0%, rgba(15, 23, 42, 0.46) 100%) !important;
 }
 
 /* Toast */

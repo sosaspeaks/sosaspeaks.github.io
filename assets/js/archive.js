@@ -76,6 +76,24 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
   ];
   let activeArtistAliases = JSON.parse(JSON.stringify(DEFAULT_ARTIST_ALIASES));
 
+  function mergeArtistAliasGroups(extraGroups) {
+    activeArtistAliases = JSON.parse(JSON.stringify(DEFAULT_ARTIST_ALIASES));
+    if (!Array.isArray(extraGroups)) return;
+    extraGroups.forEach(item => {
+      if (!item || !item.primary) return;
+      const cleanAliases = (Array.isArray(item.aliases) ? item.aliases : [])
+        .map(a => String(a).trim())
+        .filter(Boolean);
+      const idx = activeArtistAliases.findIndex(g => g.primary.toLowerCase() === item.primary.trim().toLowerCase());
+      if (idx >= 0) {
+        const merged = new Set([...activeArtistAliases[idx].aliases, ...cleanAliases]);
+        activeArtistAliases[idx] = { primary: item.primary.trim(), aliases: Array.from(merged) };
+      } else {
+        activeArtistAliases.push({ primary: item.primary.trim(), aliases: Array.from(new Set(cleanAliases)) });
+      }
+    });
+  }
+
   async function loadArtistAliases() {
     try {
       if (typeof supabaseClient !== "undefined" && supabaseClient) {
@@ -85,20 +103,28 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
             primary: row.primary_artist,
             aliases: Array.isArray(row.aliases) ? row.aliases : (row.aliases ? String(row.aliases).split(",").map(s => s.trim()) : [])
           }));
-          activeArtistAliases = JSON.parse(JSON.stringify(DEFAULT_ARTIST_ALIASES));
-          loaded.forEach(item => {
-            const idx = activeArtistAliases.findIndex(g => g.primary.toLowerCase() === item.primary.toLowerCase());
-            if (idx >= 0) activeArtistAliases[idx] = item;
-            else activeArtistAliases.push(item);
-          });
+          mergeArtistAliasGroups(loaded);
           return;
         }
       }
     } catch (_) {}
     try {
       const local = localStorage.getItem("sosa_artist_aliases");
-      if (local) activeArtistAliases = JSON.parse(local);
+      if (local) {
+        mergeArtistAliasGroups(JSON.parse(local));
+      }
     } catch (_) {}
+  }
+
+  function splitArtistCredits(rawArtist) {
+    const raw = String(rawArtist || "").trim();
+    if (!raw) return [];
+    const tylerSentinel = "__TYLER_THE_CREATOR__";
+    return raw
+      .replace(/Tyler,\s*The Creator/gi, tylerSentinel)
+      .split(/(?:,|\s+(?:&|feat\.?|ft\.?|with)\s+)/i)
+      .map(a => a.replace(new RegExp(tylerSentinel, "g"), "Tyler, The Creator").trim())
+      .filter(Boolean);
   }
 
   function getCanonicalArtist(rawArtist) {
@@ -130,6 +156,41 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
     return getCanonicalArtist(checkArtist).toLowerCase() === getCanonicalArtist(targetCanonicalOrAlias).toLowerCase();
   }
 
+  /**
+   * Formats project attribution relative to the viewed canonical artist:
+   * collaborators render as "with X", solo aliases render as "as Alias".
+   */
+  function formatArtistProjectAttribution(projectArtist, canonical) {
+    const raw = String(projectArtist || "").trim();
+    if (!raw || !canonical) return "";
+    const rawLower = raw.toLowerCase();
+    if (rawLower === String(canonical).trim().toLowerCase()) return "";
+
+    const targetGroup = getAllArtistGroupNames(canonical).map(n => n.toLowerCase());
+    if (targetGroup.includes(rawLower)) {
+      return `as ${raw}`;
+    }
+
+    const tylerSentinel = "__TYLER_THE_CREATOR__";
+    const parts = raw
+      .replace(/Tyler,\s*The Creator/gi, tylerSentinel)
+      .split(/(?:\s*,\s*|\s+(?:&|feat\.?|ft\.?|with)\s+)/i)
+      .map(part => part.replace(new RegExp(tylerSentinel, "g"), "Tyler, The Creator").trim())
+      .filter(Boolean);
+
+    if (parts.length > 1) {
+      const collabs = parts.filter(part => !targetGroup.includes(part.toLowerCase()));
+      if (collabs.length > 0 && collabs.length < parts.length) {
+        const joined = collabs.length === 1
+          ? collabs[0]
+          : `${collabs.slice(0, -1).join(", ")} & ${collabs[collabs.length - 1]}`;
+        return `with ${joined}`;
+      }
+    }
+
+    return `as ${raw}`;
+  }
+
   window.getCanonicalArtist = getCanonicalArtist;
   window.getArtistAliases = getArtistAliases;
 
@@ -138,6 +199,52 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
     if (t === "single" || t === "music video") return 0.3; // least weight
     if (t === "ep") return 0.6; // middle weight
     return 1.0; // albums, mixtapes, full-length projects: most weight
+  }
+
+  function getProjectFormatTier(type) {
+    const t = String(type || "Album").trim().toLowerCase();
+    if (t === "single" || t === "music video") return 1;
+    if (t === "ep") return 2;
+    return 3; // Albums and Mixtapes always rank above EPs and Singles
+  }
+
+  function getTop100RankForProject(project) {
+    if (!project || typeof topAlbumsState !== "object" || !topAlbumsState) return Infinity;
+    const pId = project.id !== null && project.id !== undefined ? String(project.id) : "";
+    const pTitle = String(project.title || "").trim().toLowerCase();
+    const pArtistRaw = String(project.artist || "").trim().toLowerCase();
+    const pArtistCanon = getCanonicalArtist(project.artist || "").toLowerCase();
+
+    for (let r = 1; r <= 100; r++) {
+      const row = topAlbumsState[r];
+      if (!row || !row.title) continue;
+      if (pId && row.spin_id !== null && row.spin_id !== undefined && String(row.spin_id) === pId) {
+        return r;
+      }
+      const rTitle = String(row.title || "").trim().toLowerCase();
+      if (!pTitle || rTitle !== pTitle) continue;
+      const rArtistRaw = String(row.artist || "").trim().toLowerCase();
+      const rArtistCanon = getCanonicalArtist(row.artist || "").toLowerCase();
+      if (
+        rArtistRaw === pArtistRaw ||
+        (pArtistCanon && rArtistCanon && rArtistCanon === pArtistCanon)
+      ) {
+        return r;
+      }
+    }
+    return Infinity;
+  }
+
+  function compareArtistProjects(a, b) {
+    const rA = parseFloat(a.rating) || 0;
+    const rB = parseFloat(b.rating) || 0;
+    if (rB !== rA) return rB - rA;
+    const tierDiff = getProjectFormatTier(b.type) - getProjectFormatTier(a.type);
+    if (tierDiff !== 0) return tierDiff;
+    const rankA = getTop100RankForProject(a);
+    const rankB = getTop100RankForProject(b);
+    if (rankA !== rankB) return rankA - rankB;
+    return (parseInt(b.year, 10) || 0) - (parseInt(a.year, 10) || 0);
   }
 
   function updateTopArtistsTabUI() {
@@ -453,6 +560,7 @@ function getDominantColorFromImg(imgUrl) {
     if (typeof applyFilters === "function") applyFilters(false);
     else if (typeof renderFeed === "function") renderFeed(allEntries);
     if (typeof renderGrid === "function") renderGrid();
+    if (typeof renderTopArtistsView === "function" && activeTop100Tab === "artists") renderTopArtistsView();
   });
 
   const adminAuthModal = document.getElementById("adminAuthModal");
@@ -1692,6 +1800,7 @@ function getDominantColorFromImg(imgUrl) {
       });
 
       allEntriesById = null;
+      await fetchTopAlbumsData();
       buildActiveRecalibrateMap();
       buildSidebarWidgets(allEntries);
       populatePathSuggestions();
@@ -1729,6 +1838,40 @@ function getDominantColorFromImg(imgUrl) {
     }
   }
 
+function getImageExtFromMime(mime, fallbackName = "") {
+  const m = String(mime || "").toLowerCase();
+  if (m.includes("gif")) return "gif";
+  if (m.includes("png")) return "png";
+  if (m.includes("webp")) return "webp";
+  if (m.includes("avif")) return "avif";
+  if (m.includes("svg")) return "svg";
+  const cleanUrl = String(fallbackName || "").split("?")[0].split("#")[0];
+  const nameExt = (cleanUrl.split(".").pop() || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  return ["gif", "png", "webp", "avif", "jpg", "jpeg"].includes(nameExt) ? nameExt : "jpg";
+}
+
+async function uploadArtistImageBlobToSupabase(blobOrFile, artistName) {
+  if (!blobOrFile) throw new Error("No image file provided.");
+  const cleanArtist = (artistName || "artist").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "artist";
+  const ext = getImageExtFromMime(blobOrFile.type, blobOrFile.name || "");
+  const filePath = `artist_${cleanArtist}_${Date.now()}.${ext}`;
+
+  const { error } = await supabaseClient.storage
+    .from("covers")
+    .upload(filePath, blobOrFile, {
+      contentType: blobOrFile.type || (ext === "gif" ? "image/gif" : "image/jpeg"),
+      upsert: true
+    });
+
+  if (error) throw error;
+
+  const { data: publicData } = supabaseClient.storage
+    .from("covers")
+    .getPublicUrl(filePath);
+
+  return publicData?.publicUrl || null;
+}
+
 async function uploadCoverToSupabase(imageUrl, artist, title) {
   // If it's already a Supabase URL, a local path, or invalid, keep as-is
   if (!imageUrl || !imageUrl.startsWith("http") || imageUrl.includes("supabase.co")) {
@@ -1742,7 +1885,8 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
 
     const cleanArtist = (artist || "unknown").toLowerCase().replace(/[^a-z0-9]/g, "_");
     const cleanTitle = (title || "unknown").toLowerCase().replace(/[^a-z0-9]/g, "_");
-    const filePath = `${cleanArtist}_${cleanTitle}_${Date.now()}.jpg`;
+    const ext = getImageExtFromMime(blob.type, imageUrl);
+    const filePath = `${cleanArtist}_${cleanTitle}_${Date.now()}.${ext}`;
 
     const { data, error } = await supabaseClient.storage
       .from("covers")
@@ -2669,6 +2813,11 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
   const artistCustomImageModal = document.getElementById("artistCustomImageModal");
   const customImgArtistName = document.getElementById("customImgArtistName");
   const artistCustomImgInput = document.getElementById("artistCustomImgInput");
+  const artistCustomImgFileInput = document.getElementById("artistCustomImgFileInput");
+  const artistCustomImgPreview = document.getElementById("artistCustomImgPreview");
+  const artistCustomImgUploadBtn = document.getElementById("artistCustomImgUploadBtn");
+  const artistCustomImgUploadStatus = document.getElementById("artistCustomImgUploadStatus");
+  const saveArtistCustomImgBtn = document.getElementById("saveArtistCustomImgBtn");
   const artistModalCoversPicker = document.getElementById("artistModalCoversPicker");
 
   // Album / Artist Bank Drawer Controls
@@ -2691,7 +2840,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
 
   let activeTop100Tab = "albums";
   let topAlbumsCount = 100;
-  let topArtistsCount = 20;
+  let topArtistsCount = "all";
 
   let topAlbumsState = {}; // Keyed by rank 1..100
   let topAlbumsOriginal = {}; // Snapshot for cancel
@@ -2914,7 +3063,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
         const w = getProjectWeight(p.type);
         weightedSum += w * r;
         weightTotal += w;
-        if (r > topRating) {
+        if (!topProject || compareArtistProjects(p, topProject) < 0) {
           topRating = r;
           topProject = p;
         }
@@ -2946,23 +3095,20 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       const rawArtist = String(s.artist).trim();
       if (!rawArtist) return;
 
-      let individualArtists;
-      if (/^Tyler,\s*The Creator$/i.test(rawArtist)) {
-        individualArtists = ["Tyler, The Creator"];
-      } else {
-        individualArtists = rawArtist
-          .split(/(?:,|\s+(?:&|feat\.?|ft\.?|with)\s+)/i)
-          .map(a => a.trim())
-          .filter(Boolean);
-      }
+      const individualArtists = splitArtistCredits(rawArtist);
 
       const r = parseFloat(s.rating);
       const titleNorm = String(s.title || "").trim().toLowerCase();
       const yearNorm = s.year ? String(s.year).trim() : "";
       const projectKey = titleNorm + (yearNorm ? `::${yearNorm}` : "");
+      const seenSpinCanonicals = new Set();
 
       individualArtists.forEach(a => {
         const canonical = getCanonicalArtist(a);
+        const canonKey = canonical.toLowerCase();
+        if (seenSpinCanonicals.has(canonKey)) return;
+        seenSpinCanonicals.add(canonKey);
+
         if (!artistMap[canonical]) {
           artistMap[canonical] = {
             artist: canonical,
@@ -2992,7 +3138,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
         const r = parseFloat(p.rating);
         if (!isNaN(r)) {
           ratings.push(r);
-          if (r > topRating) {
+          if (!topProject || compareArtistProjects(p, topProject) < 0) {
             topRating = r;
             topProject = p;
           }
@@ -3015,6 +3161,90 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     return eligible;
   }
 
+  /**
+   * Resolves aliases in topArtistsCuratedState to their canonical parent artist
+   * and deduplicates so aliases never appear as standalone ranked entries.
+   */
+  function normalizeCuratedArtistsState() {
+    const rawRanks = Object.keys(topArtistsCuratedState)
+      .map(n => parseInt(n, 10))
+      .filter(n => n >= 1 && n <= 50)
+      .sort((a, b) => a - b);
+
+    if (!rawRanks.length) return;
+
+    const seenByCanonical = new Map();
+    const cleanedEntries = [];
+    let removedDuplicate = false;
+
+    rawRanks.forEach(r => {
+      const item = topArtistsCuratedState[r];
+      if (!item || !item.artist) return;
+      const canonical = getCanonicalArtist(item.artist);
+      const key = canonical.toLowerCase();
+
+      if (seenByCanonical.has(key)) {
+        const parentEntry = seenByCanonical.get(key);
+        if (!parentEntry.custom_image && item.custom_image) {
+          parentEntry.custom_image = item.custom_image;
+        }
+        removedDuplicate = true;
+        return;
+      }
+
+      const stats = getArtistStats(canonical);
+      const normalized = {
+        ...item,
+        rank: r,
+        artist: canonical,
+        top_album_title: (stats.topProject && stats.topProject.title) || item.top_album_title || "",
+        top_album_cover: (stats.topProject && stats.topProject.cover_url) || stats.cover || item.top_album_cover || "",
+        top_album_rating: stats.topRating || item.top_album_rating || "",
+        avg_rating: stats.avg,
+        spins_count: stats.count
+      };
+      seenByCanonical.set(key, normalized);
+      cleanedEntries.push(normalized);
+    });
+
+    if (!removedDuplicate) {
+      cleanedEntries.forEach(entry => {
+        topArtistsCuratedState[entry.rank] = entry;
+      });
+      return;
+    }
+
+    // Re-pack compactly after merging duplicate aliases and backfill remaining slots up to 50
+    const nextState = {};
+    cleanedEntries.forEach((entry, idx) => {
+      const nextRank = idx + 1;
+      entry.rank = nextRank;
+      nextState[nextRank] = entry;
+    });
+
+    const calculated = calculateTopArtists(allEntries, 1);
+    let nextRank = cleanedEntries.length + 1;
+    for (let i = 0; i < calculated.length && nextRank <= 50; i++) {
+      const cand = calculated[i];
+      const key = cand.artist.toLowerCase();
+      if (seenByCanonical.has(key)) continue;
+      seenByCanonical.set(key, true);
+      nextState[nextRank] = {
+        rank: nextRank,
+        artist: cand.artist,
+        custom_image: null,
+        top_album_title: cand.topProject ? cand.topProject.title : "",
+        top_album_cover: (cand.topProject && cand.topProject.cover_url) || cand.cover,
+        top_album_rating: cand.topRating,
+        avg_rating: cand.avg,
+        spins_count: cand.count
+      };
+      nextRank++;
+    }
+
+    topArtistsCuratedState = nextState;
+  }
+
   function loadTopArtistsCurated() {
     try {
       const stored = localStorage.getItem("sosa_top_artists_curated");
@@ -3024,6 +3254,8 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     } catch (e) {
       console.warn("Failed to load top_artists_curated from storage:", e);
     }
+
+    normalizeCuratedArtistsState();
 
     // Auto-populate initial curated artists if state is empty
     if (Object.keys(topArtistsCuratedState).length === 0) {
@@ -3046,37 +3278,126 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     topArtistsCuratedOriginal = JSON.parse(JSON.stringify(topArtistsCuratedState));
   }
 
-  async function fetchTopAlbumsData() {
+  async function fetchTopArtistsCurated() {
+    let loadedFromSupabase = false;
     try {
       const { data, error } = await supabaseClient
-        .from("top_albums")
+        .from("top_artists")
         .select("*")
         .order("rank", { ascending: true });
 
-      if (error) {
-        console.error("Error fetching top_albums:", error);
-        return;
-      }
-
-      topAlbumsState = {};
-      (data || []).forEach(row => {
-        if (row.rank >= 1 && row.rank <= 100) {
-          topAlbumsState[row.rank] = row;
-        }
-      });
-      topAlbumsOriginal = JSON.parse(JSON.stringify(topAlbumsState));
-      isTop100Loaded = true;
-
-      loadTopArtistsCurated();
-
-      if (activeTop100Tab === "albums") {
-        renderTop100View();
-      } else {
-        renderTopArtistsView();
+      if (!error && Array.isArray(data) && data.length > 0) {
+        topArtistsCuratedState = {};
+        data.forEach(row => {
+          if (row.rank >= 1 && row.rank <= 50 && row.artist) {
+            topArtistsCuratedState[row.rank] = row;
+          }
+        });
+        normalizeCuratedArtistsState();
+        try {
+          localStorage.setItem("sosa_top_artists_curated", JSON.stringify(topArtistsCuratedState));
+        } catch (_) {}
+        topArtistsCuratedOriginal = JSON.parse(JSON.stringify(topArtistsCuratedState));
+        loadedFromSupabase = true;
       }
     } catch (err) {
-      console.error("fetchTopAlbumsData exception:", err);
+      console.warn("top_artists table unavailable, falling back to local storage:", err);
     }
+
+    if (!loadedFromSupabase) {
+      loadTopArtistsCurated();
+    }
+  }
+
+  async function persistTopArtistsCuratedToSupabase(ranksToUpsert = null, ranksToDelete = []) {
+    try {
+      localStorage.setItem("sosa_top_artists_curated", JSON.stringify(topArtistsCuratedState));
+    } catch (_) {}
+
+    if (!isAdmin) return { synced: false, reason: "not-admin" };
+
+    const rankKeys = Array.isArray(ranksToUpsert)
+      ? ranksToUpsert
+      : Array.from({ length: 50 }, (_, i) => i + 1);
+
+    const upsertRows = [];
+    rankKeys.forEach(r => {
+      const item = topArtistsCuratedState[r];
+      if (item && item.artist) {
+        const stats = getArtistStats(item.artist);
+        upsertRows.push({
+          rank: Number(r),
+          artist: item.artist,
+          custom_image: item.custom_image || null,
+          top_album_title: (stats.topProject && stats.topProject.title) || item.top_album_title || null,
+          top_album_cover: (stats.topProject && stats.topProject.cover_url) || stats.cover || item.top_album_cover || null,
+          top_album_rating: stats.topRating || item.top_album_rating || null,
+          avg_rating: stats.avg,
+          spins_count: stats.count,
+          updated_at: new Date().toISOString()
+        });
+      }
+    });
+
+    try {
+      if (upsertRows.length > 0) {
+        const { error: upsertErr } = await supabaseClient
+          .from("top_artists")
+          .upsert(upsertRows, { onConflict: "rank" });
+        if (upsertErr) return { synced: false, error: upsertErr };
+      }
+
+      if (ranksToDelete && ranksToDelete.length > 0) {
+        const { error: delErr } = await supabaseClient
+          .from("top_artists")
+          .delete()
+          .in("rank", ranksToDelete);
+        if (delErr) return { synced: false, error: delErr };
+      }
+      return { synced: true };
+    } catch (err) {
+      return { synced: false, error: err };
+    }
+  }
+
+  let top100FetchPromise = null;
+  async function fetchTopAlbumsData(force = false) {
+    if (top100FetchPromise && !force) return top100FetchPromise;
+    top100FetchPromise = (async () => {
+      try {
+        const { data, error } = await supabaseClient
+          .from("top_albums")
+          .select("*")
+          .order("rank", { ascending: true });
+
+        if (error) {
+          console.error("Error fetching top_albums:", error);
+          return;
+        }
+
+        topAlbumsState = {};
+        (data || []).forEach(row => {
+          if (row.rank >= 1 && row.rank <= 100) {
+            topAlbumsState[row.rank] = row;
+          }
+        });
+        topAlbumsOriginal = JSON.parse(JSON.stringify(topAlbumsState));
+        isTop100Loaded = true;
+
+        await fetchTopArtistsCurated();
+
+        if (isTop100View) {
+          if (activeTop100Tab === "albums") {
+            renderTop100View();
+          } else {
+            renderTopArtistsView();
+          }
+        }
+      } catch (err) {
+        console.error("fetchTopAlbumsData exception:", err);
+      }
+    })();
+    return top100FetchPromise;
   }
 
   function setTop100View(active) {
@@ -3522,34 +3843,34 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       const isPopulated = !!(item && item.artist);
 
       if (isPopulated) {
-        const stats = getArtistStats(item.artist);
-        const displayImg = item.custom_image || item.top_album_cover || stats.cover;
-        const topTitle = item.top_album_title || (stats.topProject ? stats.topProject.title : "");
-        const ratingStr = item.avg_rating || stats.avg;
-        const spinsStr = item.spins_count || stats.count;
+        const canonical = getCanonicalArtist(item.artist);
+        const stats = getArtistStats(canonical);
+        const displayImg = item.custom_image || stats.cover || item.top_album_cover;
+        const topTitle = (stats.topProject && stats.topProject.title) || item.top_album_title || "";
+        const ratingStr = stats.avg;
+        const spinsStr = stats.count;
+        const showCustomImgBtn = isTop100Editing || isAdmin;
 
         return `
-          <div class="podium-slot ${p.slotClass} artist-podium-slot" data-rank="${p.rank}" data-artist="${escapeHtml(item.artist)}" draggable="${isTop100Editing}">
+          <div class="podium-slot ${p.slotClass} artist-podium-slot" data-rank="${p.rank}" data-artist="${escapeHtml(canonical)}" draggable="${isTop100Editing}">
             <div class="podium-badge">${p.badgeText}</div>
             <div class="podium-cover-wrap">
-              <img src="${displayImg}" alt="${escapeHtml(item.artist)}" class="podium-cover-img" decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+              <img src="${displayImg}" alt="${escapeHtml(canonical)}" class="podium-cover-img" decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
               ${topTitle ? `<div class="artist-podium-top-badge" title="Top: ${escapeHtml(topTitle)}">Top: ${escapeHtml(topTitle)}</div>` : ""}
-              ${isTop100Editing ? `
-                <button type="button" class="slot-clear-btn" data-rank="${p.rank}" title="Clear slot #${p.rank}">✕</button>
-                <button type="button" class="slot-custom-img-btn" data-rank="${p.rank}" title="Change Custom Image / GIF"><i class='bx bx-image-alt'></i></button>
-              ` : ""}
+              ${isTop100Editing ? `<button type="button" class="slot-clear-btn" data-rank="${p.rank}" title="Clear slot #${p.rank}">✕</button>` : ""}
+              ${showCustomImgBtn ? `<button type="button" class="slot-custom-img-btn" data-rank="${p.rank}" title="Change Custom Image / GIF"><i class='bx bx-image-alt'></i></button>` : ""}
             </div>
             <div class="podium-pedestal">
               <span class="podium-pedestal-num">${p.badgeText}</span>
             </div>
             <div class="podium-info">
-              <div class="podium-artist" title="${escapeHtml(item.artist)}">${escapeHtml(item.artist)}</div>
+              <div class="podium-artist" title="${escapeHtml(canonical)}">${escapeHtml(canonical)}</div>
               <div class="podium-rating-row">
                 <span class="podium-stars">${getStarString(ratingStr)}</span>
                 <span class="podium-score">${ratingStr} ★</span>
               </div>
               <div class="artist-podium-spins-chip">
-                <i class='bx bx-disc'></i> ${spinsStr} spin${spinsStr > 1 ? 's' : ''}
+                <i class='bx bx-disc'></i> ${spinsStr} spin${spinsStr !== 1 ? 's' : ''}
               </div>
             </div>
           </div>
@@ -3575,56 +3896,55 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
 
     attachSlotEvents(topArtistsPodium, true);
 
+    const renderArtistTierCardHtml = (r, item, lazyLoad = false) => {
+      if (item && item.artist) {
+        const canonical = getCanonicalArtist(item.artist);
+        const stats = getArtistStats(canonical);
+        const displayImg = item.custom_image || stats.cover || item.top_album_cover;
+        const topTitle = (stats.topProject && stats.topProject.title) || item.top_album_title || "";
+        const ratingStr = stats.avg;
+        const spinsStr = stats.count;
+        const showCustomImgBtn = isTop100Editing || isAdmin;
+
+        return `
+          <div class="artist-tier-card top10-tier-card" data-rank="${r}" data-artist="${escapeHtml(canonical)}" draggable="${isTop100Editing}" title="${escapeHtml(canonical)}">
+            <div class="artist-tier-cover-wrap tier-card-cover-wrap">
+              <img src="${displayImg}" alt="${escapeHtml(canonical)}" class="artist-tier-cover tier-card-cover" ${lazyLoad ? 'loading="lazy"' : ''} decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+              ${isTop100Editing ? `<button type="button" class="slot-clear-btn" data-rank="${r}" title="Clear slot #${r}">✕</button>` : ""}
+              ${showCustomImgBtn ? `<button type="button" class="slot-custom-img-btn" data-rank="${r}" title="Change Custom Image / GIF"><i class='bx bx-image-alt'></i></button>` : ""}
+            </div>
+            <div class="tier-card-details artist-tier-info">
+              <div class="tier-card-rank">#${r}</div>
+              <div class="tier-card-artist artist-tier-name" title="${escapeHtml(canonical)}">${escapeHtml(canonical)}</div>
+              ${topTitle ? `<div class="tier-card-title artist-tier-top-album" title="Top: ${escapeHtml(topTitle)}">Top: ${escapeHtml(topTitle)}</div>` : ""}
+              <div class="artist-tier-meta">
+                <span class="artist-tier-score"><i class='bx bxs-star'></i> ${ratingStr}</span>
+                <span class="artist-tier-spins">${spinsStr} spin${spinsStr !== 1 ? 's' : ''}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      return `
+        <div class="artist-tier-card top10-tier-card top100-slot-empty top10-tier-empty" data-rank="${r}">
+          <div class="artist-tier-cover-wrap tier-card-cover-wrap tier-card-empty-wrap">
+            <span class="slot-empty-label">Empty</span>
+          </div>
+          <div class="tier-card-details">
+            <div class="tier-card-rank">#${r}</div>
+            <div class="tier-card-artist" style="opacity: 0.4;">— Empty —</div>
+          </div>
+        </div>
+      `;
+    };
+
     // 2. Upper Tier (Ranks 4 - 15)
     if (topArtistsTierGrid && topArtistsTierSection) {
       if (limit >= 4) {
         topArtistsTierSection.style.display = "block";
         let tierHtml = "";
         for (let r = 4; r <= 15; r++) {
-          const item = topArtistsCuratedState[r];
-          const isPopulated = !!(item && item.artist);
-          if (isPopulated) {
-            const stats = getArtistStats(item.artist);
-            const displayImg = item.custom_image || item.top_album_cover || stats.cover;
-            const topTitle = item.top_album_title || (stats.topProject ? stats.topProject.title : "");
-            const ratingStr = item.avg_rating || stats.avg;
-            const spinsStr = item.spins_count || stats.count;
-
-            tierHtml += `
-              <div class="artist-tier-card top10-tier-card" data-rank="${r}" data-artist="${escapeHtml(item.artist)}" draggable="${isTop100Editing}" title="${escapeHtml(item.artist)}">
-                <div class="artist-tier-cover-wrap tier-card-cover-wrap">
-                  <img src="${displayImg}" alt="${escapeHtml(item.artist)}" class="artist-tier-cover tier-card-cover" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
-                  ${isTop100Editing ? `
-                    <button type="button" class="slot-clear-btn" data-rank="${r}" title="Clear slot #${r}">✕</button>
-                    <button type="button" class="slot-custom-img-btn" data-rank="${r}" title="Change Custom Image / GIF"><i class='bx bx-image-alt'></i></button>
-                  ` : ""}
-                </div>
-                <div class="tier-card-details artist-tier-info">
-                  <div class="tier-card-rank">#${r}</div>
-                  <div class="tier-card-artist artist-tier-name" title="${escapeHtml(item.artist)}">${escapeHtml(item.artist)}</div>
-                  ${topTitle ? `<div class="tier-card-title artist-tier-top-album" title="Top: ${escapeHtml(topTitle)}">Top: ${escapeHtml(topTitle)}</div>` : ""}
-                  ${ratingStr ? `
-                    <div class="tier-card-rating">
-                      <span class="tier-card-stars">${getStarString(ratingStr)}</span>
-                      <span class="tier-card-score">${ratingStr}</span>
-                    </div>
-                  ` : ""}
-                </div>
-              </div>
-            `;
-          } else {
-            tierHtml += `
-              <div class="artist-tier-card top10-tier-card top100-slot-empty top10-tier-empty" data-rank="${r}">
-                <div class="artist-tier-cover-wrap tier-card-cover-wrap tier-card-empty-wrap">
-                  <span class="slot-empty-label">Empty</span>
-                </div>
-                <div class="tier-card-details">
-                  <div class="tier-card-rank">#${r}</div>
-                  <div class="tier-card-artist" style="opacity: 0.4;">— Empty —</div>
-                </div>
-              </div>
-            `;
-          }
+          tierHtml += renderArtistTierCardHtml(r, topArtistsCuratedState[r], false);
         }
         topArtistsTierGrid.innerHTML = tierHtml;
         attachSlotEvents(topArtistsTierGrid, true);
@@ -3642,37 +3962,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
         }
         let mainHtml = "";
         for (let r = 16; r <= limit; r++) {
-          const item = topArtistsCuratedState[r];
-          const isPopulated = !!(item && item.artist);
-          if (isPopulated) {
-            const stats = getArtistStats(item.artist);
-            const displayImg = item.custom_image || item.top_album_cover || stats.cover;
-            const spinsStr = item.spins_count || stats.count;
-
-            mainHtml += `
-              <div class="artist-grid-card" data-rank="${r}" data-artist="${escapeHtml(item.artist)}" draggable="${isTop100Editing}" title="${escapeHtml(item.artist)}">
-                <div class="artist-grid-rank">#${r}</div>
-                <img src="${displayImg}" alt="${escapeHtml(item.artist)}" class="artist-grid-avatar" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
-                <div class="artist-grid-body">
-                  <div class="artist-grid-name" title="${escapeHtml(item.artist)}">${escapeHtml(item.artist)}</div>
-                  <div class="artist-grid-meta">
-                    <span class="artist-grid-count">${spinsStr} spin${spinsStr > 1 ? 's' : ''}</span>
-                  </div>
-                </div>
-                ${isTop100Editing ? `
-                  <button type="button" class="slot-clear-btn" data-rank="${r}" title="Clear slot #${r}" style="display:inline-flex; position:static; margin-left:auto;">✕</button>
-                  <button type="button" class="slot-custom-img-btn" data-rank="${r}" title="Change Custom Image / GIF" style="display:inline-flex; position:static; margin-left:4px;"><i class='bx bx-image-alt'></i></button>
-                ` : ""}
-              </div>
-            `;
-          } else {
-            mainHtml += `
-              <div class="top100-slot-empty" data-rank="${r}">
-                <span class="slot-empty-rank">#${r}</span>
-                <span class="slot-empty-label">Empty</span>
-              </div>
-            `;
-          }
+          mainHtml += renderArtistTierCardHtml(r, topArtistsCuratedState[r], true);
         }
         topArtistsMainGrid.innerHTML = mainHtml;
         attachSlotEvents(topArtistsMainGrid, true);
@@ -3822,13 +4112,13 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     } else {
       // Artist drop
       if (payload.type === "artist-bank") {
-        const artistName = payload.artist;
+        const artistName = getCanonicalArtist(payload.artist);
         if (!artistName) return;
 
-        // Duplicate check: ensure this artist is not already assigned anywhere
+        // Duplicate check: ensure neither this artist nor any alias is already assigned
         const existingRank = Object.keys(topArtistsCuratedState).find(r => {
           const a = topArtistsCuratedState[r];
-          return a && a.artist && a.artist.toLowerCase() === artistName.toLowerCase();
+          return a && a.artist && isArtistInGroup(a.artist, artistName);
         });
 
         if (existingRank) {
@@ -3881,15 +4171,88 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     renderAlbumBank();
   }
 
+  window.updateArtistCustomImgPreview = function(url) {
+    if (!artistCustomImgPreview) return;
+    const cleaned = String(url || "").trim();
+    if (cleaned) {
+      artistCustomImgPreview.src = cleaned;
+    } else if (editingArtistRank && topArtistsCuratedState[editingArtistRank]) {
+      const item = topArtistsCuratedState[editingArtistRank];
+      const stats = getArtistStats(item.artist);
+      artistCustomImgPreview.src = stats.cover || "assets/images/spins/placeholder.png";
+    } else {
+      artistCustomImgPreview.src = "assets/images/spins/placeholder.png";
+    }
+  };
+
+  if (artistCustomImgFileInput && !artistCustomImgFileInput.dataset.hasUploadListener) {
+    artistCustomImgFileInput.dataset.hasUploadListener = "true";
+    artistCustomImgFileInput.addEventListener("change", async () => {
+      const file = artistCustomImgFileInput.files?.[0];
+      if (!file || !editingArtistRank || !topArtistsCuratedState[editingArtistRank]) return;
+
+      const item = topArtistsCuratedState[editingArtistRank];
+      const origBtnHtml = artistCustomImgUploadBtn ? artistCustomImgUploadBtn.innerHTML : "";
+      if (artistCustomImgUploadBtn) {
+        artistCustomImgUploadBtn.disabled = true;
+        artistCustomImgUploadBtn.innerHTML = `<i class='bx bx-loader-alt bx-spin'></i> Uploading...`;
+      }
+      if (artistCustomImgUploadStatus) {
+        artistCustomImgUploadStatus.textContent = "Uploading to Supabase...";
+        artistCustomImgUploadStatus.className = "artist-custom-img-upload-status";
+      }
+      if (artistCustomImgPreview) {
+        try {
+          artistCustomImgPreview.src = URL.createObjectURL(file);
+        } catch (_) {}
+      }
+
+      try {
+        const publicUrl = await uploadArtistImageBlobToSupabase(file, item.artist);
+        if (publicUrl && artistCustomImgInput) {
+          artistCustomImgInput.value = publicUrl;
+          window.updateArtistCustomImgPreview(publicUrl);
+        }
+        if (artistModalCoversPicker) {
+          artistModalCoversPicker.querySelectorAll(".artist-modal-thumb").forEach(t => t.classList.remove("is-selected"));
+        }
+        if (artistCustomImgUploadStatus) {
+          artistCustomImgUploadStatus.textContent = "Uploaded to Supabase";
+          artistCustomImgUploadStatus.className = "artist-custom-img-upload-status is-success";
+        }
+        showTop100Toast("Uploaded image to Supabase. Click Apply Image to save.");
+      } catch (err) {
+        console.error("Artist image upload error:", err);
+        if (artistCustomImgUploadStatus) {
+          artistCustomImgUploadStatus.textContent = "Upload failed";
+          artistCustomImgUploadStatus.className = "artist-custom-img-upload-status is-error";
+        }
+        alert("Failed to upload image to Supabase: " + (err?.message || err));
+      } finally {
+        if (artistCustomImgUploadBtn) {
+          artistCustomImgUploadBtn.disabled = false;
+          artistCustomImgUploadBtn.innerHTML = origBtnHtml;
+        }
+        artistCustomImgFileInput.value = "";
+      }
+    });
+  }
+
   window.openArtistCustomImageModal = function(rank) {
     editingArtistRank = rank;
     const item = topArtistsCuratedState[rank];
     if (!item || !item.artist) return;
 
-    if (customImgArtistName) customImgArtistName.textContent = `Rank #${rank}: ${item.artist}`;
-    if (artistCustomImgInput) artistCustomImgInput.value = item.custom_image || "";
-
     const stats = getArtistStats(item.artist);
+    const currentUrl = item.custom_image || "";
+    if (customImgArtistName) customImgArtistName.textContent = `Rank #${rank}: ${item.artist}`;
+    if (artistCustomImgInput) artistCustomImgInput.value = currentUrl;
+    if (artistCustomImgUploadStatus) {
+      artistCustomImgUploadStatus.textContent = "";
+      artistCustomImgUploadStatus.className = "artist-custom-img-upload-status";
+    }
+    window.updateArtistCustomImgPreview(currentUrl || stats.cover);
+
     if (artistModalCoversPicker) {
       if (stats.covers.length) {
         artistModalCoversPicker.innerHTML = stats.covers.map(url => `
@@ -3910,19 +4273,63 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
 
   window.selectArtistCoverThumb = function(url, el) {
     if (artistCustomImgInput) artistCustomImgInput.value = url;
+    window.updateArtistCustomImgPreview(url);
     if (artistModalCoversPicker) {
       artistModalCoversPicker.querySelectorAll(".artist-modal-thumb").forEach(t => t.classList.remove("is-selected"));
       if (el) el.classList.add("is-selected");
     }
   };
 
-  window.saveArtistCustomImage = function() {
+  window.saveArtistCustomImage = async function() {
     if (!editingArtistRank || !topArtistsCuratedState[editingArtistRank]) return;
-    const url = artistCustomImgInput ? artistCustomImgInput.value.trim() : "";
-    topArtistsCuratedState[editingArtistRank].custom_image = url || null;
-    closeArtistCustomImageModal();
-    renderTopArtistsView();
-    showTop100Toast("Artist image updated.");
+    const rankToSave = editingArtistRank;
+    const item = topArtistsCuratedState[rankToSave];
+    let url = artistCustomImgInput ? artistCustomImgInput.value.trim() : "";
+
+    const origSaveHtml = saveArtistCustomImgBtn ? saveArtistCustomImgBtn.innerHTML : "";
+    if (saveArtistCustomImgBtn) {
+      saveArtistCustomImgBtn.disabled = true;
+      saveArtistCustomImgBtn.innerHTML = `<i class='bx bx-loader-alt bx-spin'></i> Saving...`;
+    }
+
+    try {
+      if (url && url.startsWith("http") && !url.includes("supabase.co")) {
+        if (artistCustomImgUploadStatus) {
+          artistCustomImgUploadStatus.textContent = "Uploading URL to Supabase...";
+          artistCustomImgUploadStatus.className = "artist-custom-img-upload-status";
+        }
+        url = await uploadCoverToSupabase(url, "artist", item.artist);
+      }
+
+      const stats = getArtistStats(item.artist);
+      item.custom_image = url || null;
+      item.avg_rating = stats.avg;
+      item.spins_count = stats.count;
+      item.top_album_title = (stats.topProject && stats.topProject.title) || item.top_album_title || "";
+      item.top_album_cover = (stats.topProject && stats.topProject.cover_url) || stats.cover || item.top_album_cover;
+
+      const syncRes = await persistTopArtistsCuratedToSupabase([rankToSave]);
+      topArtistsCuratedOriginal[rankToSave] = JSON.parse(JSON.stringify(item));
+
+      closeArtistCustomImageModal();
+      renderTopArtistsView();
+
+      if (syncRes && syncRes.synced) {
+        showTop100Toast("Artist image saved & synced to Supabase.");
+      } else if (url && url.includes("supabase.co")) {
+        showTop100Toast("Image uploaded to Supabase Storage & updated.");
+      } else {
+        showTop100Toast("Artist image updated.");
+      }
+    } catch (err) {
+      console.error("Failed to save artist custom image:", err);
+      alert("Failed to update artist image: " + (err?.message || err));
+    } finally {
+      if (saveArtistCustomImgBtn) {
+        saveArtistCustomImgBtn.disabled = false;
+        saveArtistCustomImgBtn.innerHTML = origSaveHtml;
+      }
+    }
   };
 
   function renderAlbumBank() {
@@ -4084,7 +4491,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
 
         const assignedRank = Object.keys(topArtistsCuratedState).find(r => {
           const item = topArtistsCuratedState[r];
-          return item && item.artist && item.artist.toLowerCase() === a.artist.toLowerCase();
+          return item && item.artist && isArtistInGroup(item.artist, a.artist);
         });
 
         const isPlaced = !!assignedRank;
@@ -4128,9 +4535,14 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
   function openTop100DetailModal(rank, album) {
     if (!top100DetailModal || !top100ModalBody) return;
 
+    const top100TitleEl = document.getElementById("top100DetailTitle");
+    if (top100TitleEl) {
+      top100TitleEl.innerHTML = `<i class='bx bx-disc'></i> Album Details &mdash; ${escapeHtml(album.title || "Untitled")}`;
+    }
+
     const coverSrc = album.cover_url || "assets/images/spins/placeholder.png";
     const ratingVal = (album.rating !== null && album.rating !== undefined && album.rating !== "") ? parseFloat(album.rating).toFixed(1) : "";
-    const yearStr = album.release_year ? ` (${album.release_year})` : "";
+    const yearHtml = album.release_year ? ` <span class="top100-detail-year">(${album.release_year})</span>` : "";
 
     let primaryGenres = [];
     if (Array.isArray(album.genres)) {
@@ -4191,6 +4603,12 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       movementsVal: album.movements,
       isTop100: true
     });
+    const contextSectionHtml = descHtml ? `
+      <div class="artist-quick-section top100-context-section">
+        <div class="artist-quick-sec-title"><i class='bx bx-detail'></i> Descriptors & Context:</div>
+        ${descHtml}
+      </div>
+    ` : "";
     let genresHtml = "";
     if (primaryGenres.length || secondaryGenres.length) {
       const primaryHtml = primaryGenres.length ? `
@@ -4205,9 +4623,12 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       ` : "";
 
       genresHtml = `
-        <div class="top100-modal-genres" style="display: flex; flex-direction: column; gap: 6px; margin-top: 0.65rem;">
-          ${primaryHtml}
-          ${secondaryHtml}
+        <div class="artist-quick-section">
+          <div class="artist-quick-sec-title"><i class='bx bx-purchase-tag-alt'></i> Genres:</div>
+          <div class="top100-modal-genres">
+            ${primaryHtml}
+            ${secondaryHtml}
+          </div>
         </div>
       `;
     }
@@ -4215,9 +4636,9 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     let favTracksHtml = "";
     if (favTracks.length) {
       favTracksHtml = `
-        <div class="top100-fav-tracks-wrap" style="margin-top: 0.75rem;">
-          <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
-            <span style="font-size: 0.75rem; font-weight: 700; color: #059669; margin-right: 4px;">Favorite Tracks:</span>
+        <div class="artist-quick-section top100-fav-tracks-wrap">
+          <div class="artist-quick-sec-title"><i class='bx bxs-music'></i> Favorite Tracks:</div>
+          <div class="top100-fav-tracks-list">
             ${favTracks.map(t => {
               const parts = t.split("|");
               const name = parts[0].trim();
@@ -4239,8 +4660,9 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     let memoHtml = "";
     if (album.memo) {
       memoHtml = `
-        <div class="top100-memo-box" style="margin-top: 0.85rem; padding: 8px 12px; background: rgba(0, 0, 0, 0.04); border-radius: 6px; font-size: 0.82rem; font-style: italic; line-height: 1.4; border-left: 3px solid #38bdf8; white-space: pre-wrap;">
-          "${escapeHtml(album.memo).replace(/\r?\n/g, "<br>")}"
+        <div class="artist-quick-section">
+          <div class="artist-quick-sec-title"><i class='bx bx-note'></i> Notes:</div>
+          <div class="top100-memo-box">"${escapeHtml(album.memo).replace(/\r?\n/g, "<br>")}"</div>
         </div>
       `;
     }
@@ -4248,50 +4670,59 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     let jumpActionHtml = "";
     if (album.spin_id) {
       jumpActionHtml += `
-        <button type="button" class="aero-command-btn" onclick="closeTop100Modal(); window.jumpToSpinInTimeline(${album.spin_id});">
-          <i class='bx bx-list-ul'></i> View in Timeline
+        <button type="button" class="aero-command-btn artist-quick-primary-btn" onclick="closeTop100Modal(); window.jumpToSpinInTimeline(${album.spin_id});">
+          <i class='bx bx-search'></i> View in Timeline
         </button>
       `;
     }
     if (album.review_url) {
       jumpActionHtml += `
-        <a href="${album.review_url}" target="_blank" rel="noopener noreferrer" class="aero-command-btn export-emerald-btn" style="text-decoration: none;">
+        <a href="${album.review_url}" target="_blank" rel="noopener noreferrer" class="aero-command-btn top100-review-btn" style="text-decoration: none;">
           <i class='bx bx-book-open'></i> Read Review ↗
         </a>
       `;
     }
 
-    let footerHtml = "";
-    if (jumpActionHtml) {
-      footerHtml = `
-        <div class="top100-detail-footer">
-          ${jumpActionHtml}
-        </div>
-      `;
-    }
+    const rymTagHtml = (album.rym_rating !== null && album.rym_rating !== undefined && album.rym_rating !== "")
+      ? `<span class="artist-quick-count-chip top100-rym-chip"><i class='bx bxs-star'></i> RYM ${parseFloat(album.rym_rating).toFixed(2)}</span>`
+      : "";
+    const typeChipHtml = album.type
+      ? `<span class="artist-quick-count-chip top100-type-chip"><i class='bx bx-album'></i> ${escapeHtml(album.type)}</span>`
+      : "";
+    const ratingChipHtml = ratingVal ? `
+      <span class="artist-quick-rating-chip" title="Rating: ${ratingVal}/5.0">
+        <span class="artist-quick-stars">${getStarString(album.rating)}</span>
+        <span class="artist-quick-avg-num">${ratingVal} / 5.0</span>
+      </span>
+    ` : "";
 
     top100ModalBody.innerHTML = `
       <div class="top100-detail-body">
         <div class="top100-detail-header-row">
-          <img src="${coverSrc}" alt="${escapeHtml(album.title)}" class="top100-detail-cover" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+          <img src="${coverSrc}" alt="${escapeHtml(album.title)}" class="top100-detail-cover" decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
           <div class="top100-detail-info">
-            <div class="top100-detail-rank-badge"><i class=\'bx bxs-award\'></i> Rank #${rank}</div>
-            <div class="top100-detail-title">${escapeHtml(album.title)}${yearStr}</div>
-            <div class="top100-detail-artist">${escapeHtml(album.artist)}</div>
-            ${(album.rym_rating !== null && album.rym_rating !== undefined && album.rym_rating !== "") ? `<div style="margin-top: 4px;"><span class="category spin-rym-tag"><i class='bx bxs-star' style='color: #38bdf8;'></i> RYM: ${parseFloat(album.rym_rating).toFixed(2)}</span></div>` : ""}
-            ${ratingVal ? `
-              <div class="top100-detail-rating-row">
-                <span class="top100-detail-stars">${getStarString(album.rating)}</span>
-                <span class="top100-detail-score">${ratingVal}/5.0</span>
+            <div class="top100-detail-rank-badge artist-quick-rank-pill"><i class='bx bxs-award'></i> Rank #${rank}</div>
+            <div class="top100-detail-title">${escapeHtml(album.title)}${yearHtml}</div>
+            <div class="top100-detail-artist">${renderClickableArtists(album.artist || "Unknown Artist")}</div>
+            ${(ratingChipHtml || typeChipHtml || rymTagHtml) ? `
+              <div class="artist-quick-stats-row top100-detail-stats-row">
+                ${ratingChipHtml}
+                ${typeChipHtml}
+                ${rymTagHtml}
               </div>
             ` : ""}
           </div>
         </div>
         ${genresHtml}
-        ${descHtml}
+        ${contextSectionHtml}
         ${favTracksHtml}
         ${memoHtml}
-        ${footerHtml}
+        <div class="artist-quick-actions-bar top100-detail-actions-bar">
+          <div class="top100-detail-actions-left">
+            ${jumpActionHtml}
+          </div>
+          <button type="button" class="aero-command-btn artist-quick-close-btn" onclick="closeTop100Modal()">Close</button>
+        </div>
       </div>
     `;
 
@@ -4299,6 +4730,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
   }
 
   function openArtistQuickModal(artistName, rank = null) {
+    if (typeof closeTop100Modal === "function") closeTop100Modal();
     const modal = document.getElementById("artistQuickModal");
     const body = document.getElementById("artistQuickModalBody");
     const titleEl = document.getElementById("artistQuickTitle");
@@ -4344,24 +4776,31 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       return split.some(a => targetGroup.includes(a)) || targetGroup.includes(raw.toLowerCase());
     });
 
-    const topProjects = Object.values(stats.projectsMap || {}).sort((a, b) => {
-      const rA = parseFloat(a.rating) || 0;
-      const rB = parseFloat(b.rating) || 0;
-      if (rB !== rA) return rB - rA;
-      return (parseInt(b.year, 10) || 0) - (parseInt(a.year, 10) || 0);
-    });
+    const topProjects = Object.values(stats.projectsMap || {}).sort(compareArtistProjects);
 
+    let resolvedRank = rank;
     let curated = {};
-    if (rank && typeof topArtistsCuratedState !== "undefined" && topArtistsCuratedState[rank]) {
-      curated = topArtistsCuratedState[rank];
+    if (typeof topArtistsCuratedState !== "undefined") {
+      if (resolvedRank && topArtistsCuratedState[resolvedRank]) {
+        curated = topArtistsCuratedState[resolvedRank];
+      } else {
+        const matchedRank = Object.keys(topArtistsCuratedState).find(r => {
+          const entry = topArtistsCuratedState[r];
+          return entry && entry.artist && getCanonicalArtist(entry.artist).toLowerCase() === canonical.toLowerCase();
+        });
+        if (matchedRank) {
+          resolvedRank = Number(matchedRank);
+          curated = topArtistsCuratedState[matchedRank] || {};
+        }
+      }
     }
     const displayImg = curated.custom_image || stats.cover;
 
-    const rankBadge = rank ? `<div class="top100-detail-rank-badge" style="font-size: 0.72rem; padding: 2px 7px; margin-bottom: 4px;"><i class='bx bxs-award'></i> Rank #${rank}</div>` : "";
+    const rankBadge = resolvedRank ? `<div class="top100-detail-rank-badge artist-quick-rank-pill"><i class='bx bxs-award'></i> Rank #${resolvedRank}</div>` : "";
 
     const akaHtml = aliases.length ? `
       <div class="artist-quick-aka">
-        <span style="opacity: 0.7; font-weight: 500;">AKA:</span>
+        <span class="artist-quick-aka-label">AKA:</span>
         <span>${escapeHtml(aliases.join(", "))}</span>
       </div>
     ` : "";
@@ -4372,7 +4811,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
         <div class="artist-quick-sec-title"><i class='bx bx-purchase-tag-alt'></i> Top Genres:</div>
         <div class="artist-quick-pills">
           ${top5Genres.map(([g, c]) => `
-            <span class="genre-pill genre-primary" onclick="closeArtistQuickModal(); if (typeof setSidebarFilter === 'function') setSidebarFilter('genre', '${g.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}');" title="Filter by ${escapeHtml(g)}">${escapeHtml(g)} <span style="opacity: 0.7; font-size: 0.65rem;">(${c})</span></span>
+            <span class="genre-pill genre-primary" onclick="closeArtistQuickModal(); if (typeof setSidebarFilter === 'function') setSidebarFilter('genre', '${g.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}');" title="Filter by ${escapeHtml(g)}"><span class="artist-pill-label">${escapeHtml(g)}</span><span class="artist-pill-count">(${c})</span></span>
           `).join("")}
         </div>
       </div>
@@ -4384,7 +4823,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
         <div class="artist-quick-sec-title"><i class='bx bx-detail'></i> Top Descriptors:</div>
         <div class="artist-quick-pills">
           ${top5Descriptors.map(([d, c]) => `
-            <span class="descriptor-pill" onclick="closeArtistQuickModal(); if (typeof setSidebarFilter === 'function') setSidebarFilter('descriptor', '${d.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}');" title="Filter by ${escapeHtml(d)}">${escapeHtml(d)} <span style="opacity: 0.7; font-size: 0.65rem;">(${c})</span></span>
+            <span class="descriptor-pill" onclick="closeArtistQuickModal(); if (typeof setSidebarFilter === 'function') setSidebarFilter('descriptor', '${d.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}');" title="Filter by ${escapeHtml(d)}"><span class="artist-pill-label">${escapeHtml(d)}</span><span class="artist-pill-count">(${c})</span></span>
           `).join("")}
         </div>
       </div>
@@ -4400,23 +4839,23 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
               const r = parseFloat(p.rating);
               const scoreStr = !isNaN(r) ? r.toFixed(1) : "-";
               const yStr = p.year ? `(${p.year})` : "";
-              const typePill = p.type ? `<span class="type-pill" style="font-size: 0.62rem; padding: 1px 5px;">${escapeHtml(p.type)}</span>` : "";
-              const isDiffAlias = p.artist && p.artist.toLowerCase() !== canonical.toLowerCase();
-              const aliasTag = isDiffAlias ? `<span style="font-size: 0.64rem; opacity: 0.7; margin-left: 4px;">as ${escapeHtml(p.artist)}</span>` : "";
+              const typePill = p.type ? `<span class="type-pill artist-project-type-pill">${escapeHtml(p.type)}</span>` : "";
+              const attribution = formatArtistProjectAttribution(p.artist, canonical);
+              const aliasTag = attribution ? `<span class="artist-project-alias">${escapeHtml(attribution)}</span>` : "";
 
               return `
                 <div class="artist-project-row">
                   <div class="artist-project-left">
                     <span class="artist-project-rank">#${idx + 1}</span>
-                    <img src="${p.cover_url || 'assets/images/spins/placeholder.png'}" alt="${escapeHtml(p.title)}" class="artist-project-cover" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+                    <img src="${p.cover_url || 'assets/images/spins/placeholder.png'}" alt="${escapeHtml(p.title)}" class="artist-project-cover" decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
                     <div class="artist-project-info">
-                      <div class="artist-project-title" title="${escapeHtml(p.title)}">${escapeHtml(p.title)} <span style="font-size: 0.72rem; opacity: 0.7;">${yStr}</span>${aliasTag}</div>
+                      <div class="artist-project-title" title="${escapeHtml(p.title)}">${escapeHtml(p.title)} <span class="artist-project-year">${yStr}</span>${aliasTag}</div>
                       ${typePill ? `<div class="artist-project-meta">${typePill}</div>` : ""}
                     </div>
                   </div>
                   <div class="artist-project-right">
-                    <span style="font-size: 0.76rem; font-weight: 800; color: #d97706;"><i class='bx bxs-star'></i> ${scoreStr}</span>
-                    <button type="button" class="aero-command-btn" style="padding: 2px 7px; font-size: 0.72rem;" onclick="closeArtistQuickModal(); window.jumpToSpinInTimeline(${p.id});" title="Jump to spin in timeline">
+                    <span class="artist-project-rating-pill"><i class='bx bxs-star'></i> ${scoreStr}</span>
+                    <button type="button" class="artist-project-jump-btn" onclick="closeArtistQuickModal(); window.jumpToSpinInTimeline(${p.id});" title="Jump to spin in timeline">
                       <i class='bx bx-link-external'></i>
                     </button>
                   </div>
@@ -4446,7 +4885,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
         if (isRecal) {
           groupKey = "recalibrate";
           groupLabel = "Recalibrate Queue";
-          sortVal = 999999;
+          sortVal = -1;
           icon = "bx-rotate-left";
           targetHash = "recalibrate";
         } else {
@@ -4505,64 +4944,103 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
         });
       });
 
-      challengeHtml = `
-        <div class="artist-quick-section">
-          <div class="artist-quick-sec-title"><i class='bx bx-calendar-event'></i> Challenge &amp; Recalibrate (${backlogItems.length}):</div>
-          <div class="artist-challenge-box">
-            ${sortedGroups.map(g => `
-              <div class="artist-challenge-group">
-                <div class="artist-challenge-month-header">
-                  <span class="artist-challenge-month-title">
-                    <i class='bx ${g.icon}' style="${g.isRecal ? 'color: #059669;' : 'color: #0284c7;'}"></i> ${escapeHtml(g.groupLabel)}
-                  </span>
-                  <a href="challenge.html#${encodeURIComponent(g.targetHash)}" class="aero-command-btn" style="padding: 1px 7px; font-size: 0.68rem;" title="Open ${escapeHtml(g.groupLabel)} in Challenge">
-                    View Month <i class='bx bx-chevron-right'></i>
-                  </a>
-                </div>
-                <div class="artist-challenge-items-list">
-                  ${g.items.map(b => {
-                    const yStr = b.release_year ? `<span class="artist-challenge-item-year">(${escapeHtml(String(b.release_year))})</span>` : "";
-                    const reasonBadge = b.relisten_reason ? `<span class="artist-challenge-item-reason">${escapeHtml(b.relisten_reason)}</span>` : "";
-                    const itemIcon = g.isRecal ? "bx-rotate-left" : "bx-disc";
-                    const itemColor = g.isRecal ? "#059669" : "#0284c7";
+      const queueCards = [];
+      sortedGroups.forEach(g => {
+        g.items.forEach(b => {
+          const shortMonthLabel = g.isRecal
+            ? "Relisten"
+            : g.groupLabel.replace(/^([A-Za-z]{3})[a-z]+\s+/, "$1 ");
+          queueCards.push({
+            title: b.title || "Untitled",
+            releaseYear: b.release_year ? String(b.release_year) : "",
+            coverUrl: b.cover_url || "assets/images/spins/placeholder.png",
+            relistenReason: b.relisten_reason || "",
+            prevRating: b.prev_rating !== null && b.prev_rating !== undefined && b.prev_rating !== "" ? parseFloat(b.prev_rating) : null,
+            badgeLabel: shortMonthLabel,
+            fullGroupLabel: g.groupLabel,
+            isRecal: g.isRecal,
+            icon: g.icon,
+            targetHash: g.targetHash
+          });
+        });
+      });
 
-                    return `
-                      <div class="artist-challenge-item">
-                        <div class="artist-challenge-item-left">
-                          <i class='bx ${itemIcon}' style="color: ${itemColor}; font-size: 0.85rem; flex-shrink: 0;"></i>
-                          <span class="artist-challenge-item-title" title="${escapeHtml(b.title)}">${escapeHtml(b.title)}</span>
+      challengeHtml = `
+        <div class="artist-quick-section artist-queue-section">
+          <div class="artist-queue-header-row">
+            <div class="artist-quick-sec-title" style="margin-bottom: 0;">
+              <i class='bx bx-rotate-left'></i> Challenge &amp; Relisten Queue (${queueCards.length}):
+            </div>
+            <div class="artist-queue-controls">
+              <button type="button" class="artist-queue-nav-btn is-prev" id="artistQueuePrevBtn" aria-label="Scroll queue left" title="Previous">
+                <i class='bx bx-chevron-left'></i>
+              </button>
+              <button type="button" class="artist-queue-nav-btn is-next" id="artistQueueNextBtn" aria-label="Scroll queue right" title="Next">
+                <i class='bx bx-chevron-right'></i>
+              </button>
+            </div>
+          </div>
+          <div class="artist-queue-carousel-viewport">
+            <div class="artist-queue-carousel-track" id="artistQueueTrack">
+              ${queueCards.map(c => {
+                const prevStarBadge = (c.prevRating !== null && !isNaN(c.prevRating))
+                  ? `<span class="artist-queue-prev-rating" title="Previous rating"><i class='bx bxs-star'></i> ${c.prevRating.toFixed(1)}</span>`
+                  : "";
+                const yStr = c.releaseYear ? `<span class="artist-queue-card-year">(${escapeHtml(c.releaseYear)})</span>` : "";
+                const reasonBadge = c.relistenReason ? `<span class="artist-challenge-item-reason">${escapeHtml(c.relistenReason)}</span>` : "";
+
+                return `
+                  <a href="challenge.html#${encodeURIComponent(c.targetHash)}" class="artist-queue-card ${c.isRecal ? 'is-relisten' : 'is-challenge'}" title="Open ${escapeHtml(c.fullGroupLabel)} in Challenge">
+                    <div class="artist-queue-card-top">
+                      <span class="artist-queue-badge ${c.isRecal ? 'is-relisten' : 'is-challenge'}">
+                        <i class='bx ${c.icon}'></i> ${escapeHtml(c.badgeLabel)}
+                      </span>
+                      ${prevStarBadge}
+                    </div>
+                    <div class="artist-queue-card-main">
+                      <img src="${c.coverUrl}" alt="${escapeHtml(c.title)}" class="artist-queue-card-cover" decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+                      <div class="artist-queue-card-meta">
+                        <div class="artist-queue-card-title">${escapeHtml(c.title)}</div>
+                        <div class="artist-queue-card-sub">
                           ${yStr}
                           ${reasonBadge}
                         </div>
-                        <a href="challenge.html#${encodeURIComponent(g.targetHash)}" class="aero-command-btn" style="padding: 1px 6px; font-size: 0.68rem;" title="View in Challenge">View</a>
                       </div>
-                    `;
-                  }).join("")}
-                </div>
-              </div>
-            `).join("")}
+                    </div>
+                  </a>
+                `;
+              }).join("")}
+            </div>
           </div>
         </div>
       `;
     }
 
-    const editCustomImgBtn = (isAdmin && rank && typeof openArtistCustomImageModal === "function") ? `
-      <button type="button" class="aero-command-btn" style="margin-top: 6px; font-size: 0.72rem; padding: 2px 7px;" onclick="closeArtistQuickModal(); openArtistCustomImageModal(${rank});">
+    const canOpenCustomImgModal = !!(isAdmin && resolvedRank && typeof openArtistCustomImageModal === "function" && document.getElementById("artistCustomImageModal"));
+    const editCustomImgBtn = canOpenCustomImgModal ? `
+      <button type="button" class="aero-command-btn artist-quick-edit-img-btn" onclick="closeArtistQuickModal(); openArtistCustomImageModal(${resolvedRank});">
         <i class='bx bx-image-alt'></i> Change Image / GIF
       </button>
     ` : "";
 
+    const avgNumeric = parseFloat(stats.avg) || 0;
+
     body.innerHTML = `
       <div class="artist-quick-header">
-        <img src="${displayImg}" alt="${escapeHtml(canonical)}" class="artist-quick-avatar" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+        <img src="${displayImg}" alt="${escapeHtml(canonical)}" class="artist-quick-avatar" decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
         <div class="artist-quick-meta">
           ${rankBadge}
           <div class="artist-quick-name">${escapeHtml(canonical)}</div>
           ${akaHtml}
+          <div class="artist-quick-counts-row">
+            <span class="artist-quick-count-chip"><i class='bx bx-disc'></i> ${stats.count} spin${stats.count !== 1 ? 's' : ''}</span>
+            <span class="artist-quick-count-chip"><i class='bx bx-collection'></i> ${topProjects.length} project${topProjects.length !== 1 ? 's' : ''}</span>
+          </div>
           <div class="artist-quick-stats-row">
-            <span class="leaderboard-score-chip" style="font-weight: 800; font-size: 0.8rem;"><i class='bx bxs-star'></i> ${stats.avg} Avg</span>
-            <span class="leaderboard-count-chip" style="font-size: 0.75rem;"><i class='bx bx-disc'></i> ${stats.count} spin${stats.count !== 1 ? 's' : ''}</span>
-            <span class="leaderboard-count-chip" style="font-size: 0.75rem;"><i class='bx bx-collection'></i> ${topProjects.length} project${topProjects.length !== 1 ? 's' : ''}</span>
+            <span class="artist-quick-rating-chip" title="Average rating across ${stats.ratingsCount} rated project${stats.ratingsCount !== 1 ? 's' : ''}">
+              <span class="artist-quick-stars">${getStarString(avgNumeric)}</span>
+              <span class="artist-quick-avg-num">${stats.avg} Avg</span>
+            </span>
           </div>
           ${editCustomImgBtn}
         </div>
@@ -4572,12 +5050,33 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
       ${projectsHtml}
       ${challengeHtml}
       <div class="artist-quick-actions-bar">
-        <button type="button" class="aero-command-btn" style="padding: 5px 12px; font-weight: 700;" onclick="closeArtistQuickModal(); if (typeof setSidebarFilter === 'function') setSidebarFilter('artist', '${canonical.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'); else window.location.href='sosaspins.html?artist=${encodeURIComponent(canonical)}';">
+        <button type="button" class="aero-command-btn artist-quick-primary-btn" onclick="closeArtistQuickModal(); if (typeof setSidebarFilter === 'function') setSidebarFilter('artist', '${canonical.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'); else window.location.href='sosaspins.html?artist=${encodeURIComponent(canonical)}';">
           <i class='bx bx-search'></i> View All Spins in Timeline
         </button>
-        <button type="button" class="w7-auth-btn-secondary" onclick="closeArtistQuickModal()">Close</button>
+        <button type="button" class="aero-command-btn artist-quick-close-btn" onclick="closeArtistQuickModal()">Close</button>
       </div>
     `;
+
+    // Wire Relisten / Challenge horizontal carousel controls
+    const queueTrack = document.getElementById("artistQueueTrack");
+    const queuePrevBtn = document.getElementById("artistQueuePrevBtn");
+    const queueNextBtn = document.getElementById("artistQueueNextBtn");
+    if (queueTrack && queuePrevBtn && queueNextBtn) {
+      const updateQueueNavState = () => {
+        const maxScroll = Math.max(0, queueTrack.scrollWidth - queueTrack.clientWidth);
+        const cur = queueTrack.scrollLeft;
+        queuePrevBtn.disabled = cur <= 2;
+        queueNextBtn.disabled = maxScroll <= 2 || cur >= maxScroll - 2;
+      };
+      queuePrevBtn.addEventListener("click", () => {
+        queueTrack.scrollBy({ left: -210, behavior: "smooth" });
+      });
+      queueNextBtn.addEventListener("click", () => {
+        queueTrack.scrollBy({ left: 210, behavior: "smooth" });
+      });
+      queueTrack.addEventListener("scroll", updateQueueNavState, { passive: true });
+      requestAnimationFrame(updateQueueNavState);
+    }
 
     modal.style.display = "flex";
   }
@@ -4655,9 +5154,19 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
         showTop100Toast("Top 100 Albums saved successfully.");
       } else {
         // SAVE ARTISTS CURATED ORDER
-        localStorage.setItem("sosa_top_artists_curated", JSON.stringify(topArtistsCuratedState));
+        const deleteRanks = [];
+        for (let r = 1; r <= 50; r++) {
+          if (!topArtistsCuratedState[r] && topArtistsCuratedOriginal[r]) {
+            deleteRanks.push(r);
+          }
+        }
+        const syncRes = await persistTopArtistsCuratedToSupabase(null, deleteRanks);
         topArtistsCuratedOriginal = JSON.parse(JSON.stringify(topArtistsCuratedState));
-        showTop100Toast("Top Artists Showcase saved successfully.");
+        showTop100Toast(
+          syncRes && syncRes.synced
+            ? "Top Artists Showcase saved & synced to Supabase."
+            : "Top Artists Showcase saved."
+        );
       }
 
       setTop100EditMode(false);
@@ -4847,6 +5356,8 @@ async function uploadCoverToSupabase(imageUrl, artist, title) {
     // Check if loaded with #top100 or on top100.html
     if (window.location.hash === "#top100" || document.getElementById("top100DedicatedPage")) {
       setTop100View(true);
+    } else if (!isTop100Loaded) {
+      fetchTopAlbumsData();
     }
   }
 

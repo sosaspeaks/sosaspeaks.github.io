@@ -663,7 +663,7 @@
     mountPoemPrefaceAndBody(bodySection, article.body_html || "", isPoetry, { doc: document });
     enhancePoetryStanzas(bodySection);
     setupPoetryAnnotations(bodySection);
-    enhanceAeroArticleMedia(bodySection);
+    enhanceAeroArticleMedia(bodySection, { isStudy });
 
     if (article.hero_tint_enabled) {
       if (article.hero_tint_color) {
@@ -1012,7 +1012,7 @@
     }
   }
 
-  function enhanceAeroArticleMedia(container) {
+  function enhanceAeroArticleMedia(container, { isStudy = false } = {}) {
     if (!container) return;
     container.querySelectorAll(".post-image-wrapper").forEach((wrapper) => {
       if (wrapper.dataset.aeroEnhanced === "1") return;
@@ -1055,6 +1055,280 @@
           <span class="aero-caption-text">${sanitizeInlineRichText(captionHtml)}</span>
         `;
         wrapper.appendChild(bar);
+      }
+    });
+
+    if (!isStudy) return;
+
+    container.querySelectorAll("figure.video-embed").forEach((fig) => {
+      if (fig.dataset.aeroVideo === "1") return;
+      const video = fig.querySelector("video");
+      if (!video) return;
+      fig.dataset.aeroVideo = "1";
+
+      fig.removeAttribute("style");
+      fig.classList.add("aero-media-window", "aero-video-window");
+      video.removeAttribute("style");
+      video.removeAttribute("controls");
+      video.setAttribute("playsinline", "");
+      video.classList.add("aero-video-element");
+
+      const captionEl = fig.querySelector("figcaption");
+      const captionText = captionEl ? captionEl.textContent.trim() : "";
+
+      const stage = document.createElement("div");
+      stage.className = "aero-video-stage is-paused";
+
+      const hud = document.createElement("div");
+      hud.className = "aero-video-hud";
+      hud.innerHTML = `
+        <div class="wmp-scrubber-section">
+          <span class="wmp-time-text js-vid-cur">0:00</span>
+          <div class="wmp-scrubber-track js-vid-track" role="slider" aria-label="Video Scrubber" tabindex="0">
+            <div class="wmp-progress-fill js-vid-fill" style="width: 0%;">
+              <span class="wmp-scrubber-knob"></span>
+            </div>
+          </div>
+          <span class="wmp-time-text js-vid-dur">0:00</span>
+        </div>
+        <div class="aero-video-hud-row">
+          <div class="aero-video-hud-left">
+            <div class="wmp-volume-wrap">
+              <button type="button" class="wmp-vol-btn js-vid-mute" title="Mute / Unmute" aria-label="Mute or Unmute">
+                <i class='bx bx-volume-full js-vid-vol-icon'></i>
+              </button>
+              <input type="range" class="wmp-aero-slider aero-vid-vol-slider js-vid-vol-slider" min="0" max="1" step="0.05" value="1" title="Volume" aria-label="Volume">
+            </div>
+          </div>
+          <div class="aero-video-hud-center">
+            <button type="button" class="wmp-ctrl-btn aero-vid-ctrl-sm js-vid-rw" title="Rewind 10s" aria-label="Rewind 10 seconds">
+              <i class='bx bx-rewind'></i>
+            </button>
+            <button type="button" class="aero-vid-orb-btn js-vid-play-btn" title="Play / Pause" aria-label="Play or Pause">
+              <img src="assets/icons/aero/play.ico" alt="Play" class="js-vid-play-icon">
+              <img src="assets/icons/aero/pause.ico" alt="Pause" class="js-vid-pause-icon" style="display: none;">
+            </button>
+            <button type="button" class="wmp-ctrl-btn aero-vid-ctrl-sm js-vid-ff" title="Forward 10s" aria-label="Forward 10 seconds">
+              <i class='bx bx-fast-forward'></i>
+            </button>
+          </div>
+          <div class="aero-video-hud-right">
+            <button type="button" class="wmp-ctrl-btn aero-vid-ctrl-sm js-vid-loop" title="Loop Video" aria-label="Loop Video">
+              <i class='bx bx-repeat'></i>
+            </button>
+            <button type="button" class="wmp-sub-btn js-vid-fs" title="Fullscreen" aria-label="Fullscreen">
+              <i class='bx bx-fullscreen js-vid-fs-icon'></i>
+            </button>
+          </div>
+        </div>
+      `;
+
+      video.parentNode.insertBefore(stage, video);
+      stage.appendChild(video);
+      stage.appendChild(hud);
+
+      const curEl = hud.querySelector(".js-vid-cur");
+      const durEl = hud.querySelector(".js-vid-dur");
+      const track = hud.querySelector(".js-vid-track");
+      const fill = hud.querySelector(".js-vid-fill");
+      const playBtn = hud.querySelector(".js-vid-play-btn");
+      const playIcon = hud.querySelector(".js-vid-play-icon");
+      const pauseIcon = hud.querySelector(".js-vid-pause-icon");
+      const rwBtn = hud.querySelector(".js-vid-rw");
+      const ffBtn = hud.querySelector(".js-vid-ff");
+      const loopBtn = hud.querySelector(".js-vid-loop");
+      const muteBtn = hud.querySelector(".js-vid-mute");
+      const volIcon = hud.querySelector(".js-vid-vol-icon");
+      const volSlider = hud.querySelector(".js-vid-vol-slider");
+      const fsBtn = hud.querySelector(".js-vid-fs");
+      const fsIcon = hud.querySelector(".js-vid-fs-icon");
+
+      const fmt = (sec) => {
+        if (isNaN(sec) || sec < 0) return "0:00";
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        return `${m}:${s < 10 ? "0" : ""}${s}`;
+      };
+
+      let hudHideTimer = null;
+      let isSeeking = false;
+
+      const bumpHud = () => {
+        stage.classList.add("is-hud-active");
+        clearTimeout(hudHideTimer);
+        if (!video.paused) {
+          hudHideTimer = setTimeout(() => stage.classList.remove("is-hud-active"), 2200);
+        }
+      };
+
+      const syncPlayState = () => {
+        const playing = !video.paused && !video.ended;
+        stage.classList.toggle("is-playing", playing);
+        stage.classList.toggle("is-paused", !playing);
+        if (playIcon) playIcon.style.display = playing ? "none" : "block";
+        if (pauseIcon) pauseIcon.style.display = playing ? "block" : "none";
+        if (playing) bumpHud();
+        else {
+          clearTimeout(hudHideTimer);
+          stage.classList.add("is-hud-active");
+        }
+      };
+
+      const togglePlay = () => {
+        if (video.paused) {
+          container.querySelectorAll(".aero-video-stage video").forEach((other) => {
+            if (other !== video && !other.paused) other.pause();
+          });
+          video.play().catch(() => {});
+        } else {
+          video.pause();
+        }
+      };
+
+      const toggleFullscreen = () => {
+        if (document.fullscreenElement === stage) {
+          document.exitFullscreen().catch(() => {});
+        } else if (stage.requestFullscreen) {
+          stage.requestFullscreen().catch(() => {});
+        } else if (video.webkitEnterFullscreen) {
+          video.webkitEnterFullscreen();
+        }
+      };
+
+      hud.addEventListener("click", (e) => e.stopPropagation());
+      video.addEventListener("click", togglePlay);
+      video.addEventListener("dblclick", toggleFullscreen);
+      playBtn.addEventListener("click", togglePlay);
+      rwBtn.addEventListener("click", () => {
+        video.currentTime = Math.max(0, (video.currentTime || 0) - 10);
+        bumpHud();
+      });
+      ffBtn.addEventListener("click", () => {
+        video.currentTime = Math.min(video.duration || 0, (video.currentTime || 0) + 10);
+        bumpHud();
+      });
+      loopBtn.addEventListener("click", () => {
+        video.loop = !video.loop;
+        loopBtn.classList.toggle("is-active", video.loop);
+      });
+
+      const syncVolIcon = () => {
+        if (!volIcon) return;
+        if (video.muted || video.volume === 0) volIcon.className = "bx bx-volume-mute js-vid-vol-icon";
+        else if (video.volume < 0.5) volIcon.className = "bx bx-volume-low js-vid-vol-icon";
+        else volIcon.className = "bx bx-volume-full js-vid-vol-icon";
+      };
+
+      muteBtn.addEventListener("click", () => {
+        video.muted = !video.muted;
+        if (volSlider) volSlider.value = video.muted ? 0 : video.volume;
+        syncVolIcon();
+      });
+      volSlider.addEventListener("input", () => {
+        video.volume = parseFloat(volSlider.value);
+        video.muted = video.volume === 0;
+        syncVolIcon();
+      });
+      fsBtn.addEventListener("click", toggleFullscreen);
+      document.addEventListener("fullscreenchange", () => {
+        if (fsIcon) {
+          fsIcon.className = document.fullscreenElement === stage
+            ? "bx bx-exit-fullscreen js-vid-fs-icon"
+            : "bx bx-fullscreen js-vid-fs-icon";
+        }
+      });
+
+      const seekAtClientX = (clientX) => {
+        const rect = track.getBoundingClientRect();
+        if (!rect.width || !video.duration) return;
+        const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        video.currentTime = pct * video.duration;
+        fill.style.width = `${pct * 100}%`;
+        curEl.textContent = fmt(video.currentTime);
+      };
+
+      track.addEventListener("mousedown", (e) => {
+        isSeeking = true;
+        seekAtClientX(e.clientX);
+        const onMove = (ev) => { if (isSeeking) seekAtClientX(ev.clientX); };
+        const onUp = () => {
+          isSeeking = false;
+          window.removeEventListener("mousemove", onMove);
+          window.removeEventListener("mouseup", onUp);
+        };
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp);
+      });
+      track.addEventListener("touchstart", (e) => {
+        if (!e.touches.length) return;
+        isSeeking = true;
+        seekAtClientX(e.touches[0].clientX);
+      }, { passive: true });
+      track.addEventListener("touchmove", (e) => {
+        if (isSeeking && e.touches.length) seekAtClientX(e.touches[0].clientX);
+      }, { passive: true });
+      track.addEventListener("touchend", () => { isSeeking = false; });
+      track.addEventListener("keydown", (e) => {
+        if (!video.duration) return;
+        if (e.key === "ArrowLeft") video.currentTime = Math.max(0, video.currentTime - 5);
+        else if (e.key === "ArrowRight") video.currentTime = Math.min(video.duration, video.currentTime + 5);
+      });
+
+      stage.addEventListener("mousemove", bumpHud, { passive: true });
+      stage.addEventListener("touchstart", bumpHud, { passive: true });
+
+      video.addEventListener("loadedmetadata", () => { if (durEl) durEl.textContent = fmt(video.duration); });
+      video.addEventListener("durationchange", () => { if (durEl) durEl.textContent = fmt(video.duration); });
+      video.addEventListener("timeupdate", () => {
+        if (!isSeeking && video.duration) {
+          fill.style.width = `${(video.currentTime / video.duration) * 100}%`;
+          if (curEl) curEl.textContent = fmt(video.currentTime);
+        }
+      });
+      video.addEventListener("play", syncPlayState);
+      video.addEventListener("pause", syncPlayState);
+      video.addEventListener("ended", syncPlayState);
+
+      const sourceEl = video.querySelector("source");
+      const rawSrc = video.currentSrc || video.getAttribute("src") || (sourceEl && sourceEl.getAttribute("src")) || "";
+      const canDock = !!(rawSrc && (isStudy || typeof window.playAudioTrack === "function"));
+
+      if (captionEl || canDock) {
+        fig.classList.add("has-caption");
+        const capBar = document.createElement("div");
+        capBar.className = "aero-bottom-titlebar aero-video-captionbar";
+
+        const capLeft = document.createElement("div");
+        capLeft.className = "aero-video-cap-left";
+        if (captionEl) {
+          captionEl.removeAttribute("style");
+          capLeft.innerHTML = `<span class="aero-caption-icon" aria-hidden="true"><i class='bx bx-film'></i></span>`;
+          capLeft.appendChild(captionEl);
+        }
+        capBar.appendChild(capLeft);
+
+        if (canDock) {
+          const dockBtn = document.createElement("button");
+          dockBtn.type = "button";
+          dockBtn.className = "aero-video-dock-btn";
+          dockBtn.title = "Pop out into floating Aero Miniplayer";
+          dockBtn.innerHTML = `<i class='bx bx-window-open'></i> Miniplayer`;
+          dockBtn.addEventListener("click", () => {
+            if (typeof window.playAudioTrack !== "function") return;
+            const resumeAt = video.currentTime || 0;
+            if (!video.paused) video.pause();
+            window.playAudioTrack(rawSrc, captionText || "Embedded Video", "Sosa Study", "");
+            const activeMedia = document.getElementById("wmpActiveMedia");
+            if (activeMedia && resumeAt > 0) {
+              activeMedia.addEventListener("loadedmetadata", () => {
+                try { activeMedia.currentTime = resumeAt; } catch (_) {}
+              }, { once: true });
+            }
+          });
+          capBar.appendChild(dockBtn);
+        }
+
+        fig.appendChild(capBar);
       }
     });
   }
