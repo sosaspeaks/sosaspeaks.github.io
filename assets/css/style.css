@@ -7853,3 +7853,55 @@ body.dark-mode.has-hero-tint .post-content .interview-qa .quote-attribution {
     font-size: 2rem;
   }
 }
+
+/* ============================================================================
+   SUBTLE SECTION DIVIDER (<hr>)
+   ============================================================================ */
+.post-content hr {
+  border: 0;
+  height: 1px;
+  width: min(52%, 280px);
+  margin: 2.75rem auto;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(16, 185, 129, 0.24) 28%,
+    rgba(5, 150, 105, 0.4) 50%,
+    rgba(16, 185, 129, 0.24) 72%,
+    transparent 100%
+  );
+  border-radius: 999px;
+}
+
+body.dark-mode .post-content hr {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(52, 211, 153, 0.2) 28%,
+    rgba(110, 231, 183, 0.34) 50%,
+    rgba(52, 211, 153, 0.2) 72%,
+    transparent 100%
+  );
+}
+
+body.has-hero-tint .post-content hr {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(var(--hero-tint-rgb, 16, 185, 129), 0.24) 28%,
+    rgba(var(--hero-tint-rgb, 16, 185, 129), 0.42) 50%,
+    rgba(var(--hero-tint-rgb, 16, 185, 129), 0.24) 72%,
+    transparent 100%
+  );
+}
+
+body.dark-mode.has-hero-tint .post-content hr {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(var(--hero-tint-rgb, 52, 211, 153), 0.22) 28%,
+    rgba(var(--hero-tint-rgb, 52, 211, 153), 0.38) 50%,
+    rgba(var(--hero-tint-rgb, 52, 211, 153), 0.22) 72%,
+    transparent 100%
+  );
+}

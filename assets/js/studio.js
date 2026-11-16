@@ -1696,6 +1696,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         case "list":
           insertTextAtCursor('\n<ul>\n    <li>', "</li>\n    <li>Second item</li>\n</ul>\n", "First item");
           break;
+        case "hr":
+          insertTextAtCursor("\n<hr>\n", "", "");
+          break;
         case "bold":
           insertTextAtCursor("<b>", "</b>", "bold text");
           break;
