@@ -356,6 +356,17 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
   const exportJsonBtn = document.getElementById("exportJsonBtn");
   const trackRatingsList = document.getElementById("trackRatingsList");
   const addTrackRatingRowBtn = document.getElementById("addTrackRatingRowBtn");
+  const logMemo = document.getElementById("logMemo");
+  const memoRibbonToolbar = document.getElementById("memoRibbonToolbar");
+  const memoEmbedSpinBtn = document.getElementById("memoEmbedSpinBtn");
+  const memoEmbedSpinPopover = document.getElementById("memoEmbedSpinPopover");
+  const memoEmbedSearchInput = document.getElementById("memoEmbedSearchInput");
+  const memoEmbedCloseBtn = document.getElementById("memoEmbedCloseBtn");
+  const memoEmbedResults = document.getElementById("memoEmbedResults");
+  const recordHistoryModal = document.getElementById("recordHistoryModal");
+  const closeRecordHistoryModalBtn = document.getElementById("closeRecordHistoryModalBtn");
+  const recordHistoryModalTitleText = document.getElementById("recordHistoryModalTitleText");
+  const recordHistoryModalBody = document.getElementById("recordHistoryModalBody");
 
   function openAeroModal(backdrop) {
     if (!backdrop) return;
@@ -2049,6 +2060,7 @@ function getDominantColorFromImg(imgUrl) {
       syncTrackRatingIndices();
       pendingModalTracklist = [];
       populateFavTrackSuggestions([]);
+      closeMemoEmbedPopover();
       updateSingleModeFields();
     }
     openAeroModal(modalOverlay);
@@ -2114,13 +2126,664 @@ function getDominantColorFromImg(imgUrl) {
     if (logSingleAudioUrl) logSingleAudioUrl.value = "";
     pendingModalTracklist = [];
     populateFavTrackSuggestions([]);
+    closeMemoEmbedPopover();
     updateSingleModeFields();
   }
 
   function closeModal() {
+    closeMemoEmbedPopover();
     closeAeroModal(modalOverlay, resetSpinModalFields);
   }
   window.closeModal = closeModal;
+
+  // ============================================================
+  // MEMO FORMATTING RIBBON, EMBED SPIN PICKER & RECORD HISTORY MODAL
+  // ============================================================
+  let savedMemoSelection = null;
+
+  function insertMemoTextAtCursor(before, after, defaultPlaceholder = "", rangeOverride = null) {
+    if (!logMemo) return;
+    const start = rangeOverride ? rangeOverride.start : (logMemo.selectionStart || 0);
+    const end = rangeOverride ? rangeOverride.end : (logMemo.selectionEnd || 0);
+    const text = logMemo.value || "";
+    const selected = text.slice(start, end);
+    const inner = selected || defaultPlaceholder;
+    const insertion = `${before}${inner}${after}`;
+
+    logMemo.value = text.slice(0, start) + insertion + text.slice(end);
+    logMemo.focus();
+
+    if (selected) {
+      const caret = start + insertion.length;
+      logMemo.setSelectionRange(caret, caret);
+    } else if (defaultPlaceholder) {
+      logMemo.setSelectionRange(start + before.length, start + before.length + inner.length);
+    } else {
+      const caret = start + before.length;
+      logMemo.setSelectionRange(caret, caret);
+    }
+    savedMemoSelection = null;
+  }
+
+  function insertMemoSnippet(kind) {
+    if (!logMemo || !kind) return;
+    switch (kind) {
+      case "bold":
+        insertMemoTextAtCursor("<b>", "</b>", "bold text");
+        break;
+      case "italic":
+        insertMemoTextAtCursor("<i>", "</i>", "italic text");
+        break;
+      case "link":
+        insertMemoTextAtCursor('<a href="https://" target="_blank" rel="noopener noreferrer">', "</a>", "link text");
+        break;
+      case "blockquote":
+        insertMemoTextAtCursor("\n<blockquote>\n  ", "\n</blockquote>\n", "Quote text goes here...");
+        break;
+      case "bilingual":
+        insertMemoTextAtCursor(
+          '\n<bilingual>\n  <div data-lang="Original">\n    ',
+          '\n  </div>\n  <div data-lang="English">\n    English translation here\n  </div>\n</bilingual>\n',
+          "Original lyric or quote here"
+        );
+        break;
+    }
+  }
+
+  function collectUniqueSpinRecordsForEmbed() {
+    const map = new Map();
+    const list = Array.isArray(allEntries) ? allEntries : [];
+    list.forEach(entry => {
+      const artist = String(entry.artist || "").trim();
+      const title = String(entry.title || "").trim();
+      if (!artist && !title) return;
+      const key = `${artist.toLowerCase()}:::${title.toLowerCase()}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          artist,
+          title,
+          year: entry.year || "",
+          rating: entry.rating,
+          cover_url: entry.cover_url || "assets/images/spins/placeholder.png",
+          spinCount: 1,
+          latestDate: entry.log_date || ""
+        });
+      } else {
+        map.get(key).spinCount += 1;
+      }
+    });
+    return Array.from(map.values());
+  }
+
+  function renderMemoEmbedResults(query = "") {
+    if (!memoEmbedResults) return;
+    const records = collectUniqueSpinRecordsForEmbed();
+    const q = String(query || "").trim().toLowerCase();
+    const filtered = q
+      ? records.filter(r =>
+          r.artist.toLowerCase().includes(q) ||
+          r.title.toLowerCase().includes(q)
+        )
+      : records;
+
+    const topMatches = filtered.slice(0, 30);
+    if (!topMatches.length) {
+      memoEmbedResults.innerHTML = `<div class="memo-embed-empty">No matching logged records found.</div>`;
+      return;
+    }
+
+    memoEmbedResults.innerHTML = topMatches.map(rec => {
+      const ratingBadge = (rec.rating !== null && rec.rating !== undefined && rec.rating !== "")
+        ? `<span class="memo-embed-stars">${Number(rec.rating).toFixed(1)} ★</span>`
+        : "";
+      const spinCountLabel = `${rec.spinCount} ${rec.spinCount === 1 ? "spin" : "spins"}`;
+      const metaParts = [rec.artist, rec.year ? String(rec.year) : "", spinCountLabel].filter(Boolean).join(" • ");
+      return `
+        <button type="button" class="memo-embed-item" data-artist="${escapeHtml(rec.artist)}" data-title="${escapeHtml(rec.title)}">
+          <img class="memo-embed-thumb" src="${escapeHtml(rec.cover_url)}" alt="" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+          <span class="memo-embed-meta">
+            <span class="memo-embed-title">${escapeHtml(rec.title)}</span>
+            <span class="memo-embed-sub">${escapeHtml(metaParts)}</span>
+          </span>
+          ${ratingBadge}
+        </button>
+      `;
+    }).join("");
+  }
+
+  function closeMemoEmbedPopover() {
+    if (memoEmbedSpinPopover) memoEmbedSpinPopover.style.display = "none";
+    if (memoEmbedSpinBtn) memoEmbedSpinBtn.classList.remove("is-active");
+    savedMemoSelection = null;
+  }
+
+  function openMemoEmbedPopover() {
+    if (!memoEmbedSpinPopover) return;
+    if (logMemo) {
+      savedMemoSelection = {
+        start: logMemo.selectionStart || 0,
+        end: logMemo.selectionEnd || 0
+      };
+    }
+    if (memoEmbedSearchInput) memoEmbedSearchInput.value = "";
+    renderMemoEmbedResults("");
+    const fieldWrap = memoEmbedSpinPopover.closest(".spin-memo-field-wrap");
+    const editorBox = fieldWrap ? fieldWrap.querySelector(".spin-memo-editor-box") : null;
+    if (memoRibbonToolbar && fieldWrap) {
+      const topOffset = (editorBox ? editorBox.offsetTop : 22) + memoRibbonToolbar.offsetHeight + 4;
+      memoEmbedSpinPopover.style.top = `${topOffset}px`;
+    }
+    memoEmbedSpinPopover.style.display = "block";
+    if (memoEmbedSpinBtn) memoEmbedSpinBtn.classList.add("is-active");
+    if (memoEmbedSearchInput) {
+      setTimeout(() => memoEmbedSearchInput.focus(), 20);
+    }
+  }
+
+  function insertSpinEmbedToken(artist, title) {
+    const cleanArtist = String(artist || "").trim();
+    const cleanTitle = String(title || "").trim();
+    const recordSpec = cleanArtist && cleanTitle
+      ? `${cleanArtist} — ${cleanTitle}`
+      : (cleanTitle || cleanArtist);
+
+    const range = savedMemoSelection || (logMemo
+      ? { start: logMemo.selectionStart || 0, end: logMemo.selectionEnd || 0 }
+      : { start: 0, end: 0 });
+    const selectedLabel = logMemo ? String(logMemo.value || "").slice(range.start, range.end).trim() : "";
+    const token = selectedLabel
+      ? `[[spin:${recordSpec}|${selectedLabel}]]`
+      : `[[spin:${recordSpec}]]`;
+
+    closeMemoEmbedPopover();
+    insertMemoTextAtCursor(token, "", "", range);
+  }
+
+  function parseEmbeddedSpinToken(rawPayload) {
+    const raw = String(rawPayload || "").trim();
+    if (!raw) return { artist: "", title: "", label: "" };
+
+    const pipeIdx = raw.indexOf("|");
+    const recordSpec = (pipeIdx >= 0 ? raw.slice(0, pipeIdx) : raw).trim();
+    const customLabel = (pipeIdx >= 0 ? raw.slice(pipeIdx + 1) : "").trim();
+
+    let artist = "";
+    let title = recordSpec;
+    const sepMatch = recordSpec.match(/^(.+?)\s*(?:—|–|--|::)\s*(.+)$/);
+    if (sepMatch) {
+      artist = sepMatch[1].trim();
+      title = sepMatch[2].trim();
+    }
+
+    const label = customLabel || title || artist;
+    return { artist, title, label };
+  }
+
+  /**
+   * Formats raw spin memo markup into safe, enriched HTML with clickable embedded spin pills,
+   * highlighted track quotes, playable audio links, and normalized blockquote/bilingual blocks.
+   */
+  function formatSpinMemoHtml(rawMemo, { safeArtist = "", safeAlbum = "", safeCover = "" } = {}) {
+    if (!rawMemo) return "";
+    let cleanText = String(rawMemo)
+      .replace(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}(?:\s*relistened)?(?:\s*<br\s*\/?>)*/i, "")
+      .trim();
+
+    if (!cleanText) return "";
+
+    // Replace [[spin:...]] embed tokens with placeholders before quote-wrapping
+    // so album/artist quotes inside record titles aren't split into track badges.
+    const spinPlaceholders = [];
+    cleanText = cleanText.replace(/\[\[spin:([^\]\r\n]+?)\]\]/gi, (_, payload) => {
+      const parsed = parseEmbeddedSpinToken(payload);
+      if (!parsed.label) return "";
+      const marker = `__SOSA_SPIN_EMBED_${spinPlaceholders.length}__`;
+      const tooltipTarget = parsed.artist && parsed.title
+        ? `${parsed.artist} — ${parsed.title}`
+        : parsed.label;
+      spinPlaceholders.push(
+        `<button type="button" class="inline-spin-embed-link" data-spin-artist="${escapeHtml(parsed.artist)}" data-spin-title="${escapeHtml(parsed.title)}" onclick="event.stopPropagation(); window.openEmbeddedRecordModal(this.dataset.spinArtist, this.dataset.spinTitle);" title="View all spins for ${escapeHtml(tooltipTarget)}"><i class='bx bx-disc'></i>${escapeHtml(parsed.label)}<span class="spin-embed-arr" aria-hidden="true">↗</span></button>`
+      );
+      return marker;
+    });
+
+    cleanText = cleanText.replace(
+      /(?<=^|[\s>(])["“]([^"”\n\r<]+)["”](?=[\s.,!?;:)<]|$)/g,
+      `<span class="inline-quoted-track">“$1”</span>`
+    );
+
+    cleanText = cleanText.replace(
+      /\[(?:<span class="inline-quoted-track">)?["“]?([^"”]+?)["”]?(?:<\/span>)?\]\((https?:\/\/[^\s)]+)\)/g,
+      `<a class="inline-quoted-track song-embed-link" onclick="playAudioTrack('$2', '$1', '${safeArtist}', '${safeAlbum}', '${safeCover}')">“$1”</a>`
+    );
+
+    cleanText = cleanText.replace(/<(bilingual|blockquote)([^>]*)>([\s\S]*?)<\/\1>/gi, (match, tag, attrs, inner) => {
+      if (!/data-(song|track|from)/i.test(attrs)) {
+        const childMatch = inner.match(/data-(song|track|from)=["']([^"']+)["']/i);
+        if (childMatch) {
+          return `<${tag}${attrs} data-song="${childMatch[2]}">${inner}</${tag}>`;
+        }
+      }
+      return match;
+    });
+
+    let formatted = cleanText.replace(/\r?\n/g, "<br>")
+      .replace(/<(blockquote|bilingual)([^>]*)>\s*<br\s*\/?>/gi, "<$1$2>")
+      .replace(/<br\s*\/?>\s*<\/(blockquote|bilingual)>/gi, "</$1>")
+      .replace(/<(div|p)([^>]*)>\s*<br\s*\/?>/gi, "<$1$2>")
+      .replace(/<br\s*\/?>\s*<\/(div|p)>/gi, "</$1>")
+      .replace(/<\/div>\s*<br\s*\/?>\s*<div/gi, "</div><div");
+
+    spinPlaceholders.forEach((html, idx) => {
+      formatted = formatted.replace(`__SOSA_SPIN_EMBED_${idx}__`, html);
+    });
+
+    return formatted;
+  }
+
+  function closeRecordHistoryModal() {
+    if (!recordHistoryModal) return;
+    closeAeroModal(recordHistoryModal);
+  }
+  window.closeRecordHistoryModal = closeRecordHistoryModal;
+
+  window.toggleModalDescriptors = function(btn) {
+    if (!btn) return;
+    const wrapper = btn.closest(".descriptors-wrapper");
+    const extra = wrapper ? wrapper.querySelector(".remaining-descriptors") : null;
+    if (!extra) return;
+    const isHidden = extra.classList.contains("is-hidden");
+    const count = btn.getAttribute("data-count") || "";
+    if (isHidden) {
+      extra.classList.remove("is-hidden");
+      btn.setAttribute("aria-expanded", "true");
+      btn.setAttribute("title", "Collapse descriptors");
+      btn.innerHTML = `<i class='bx bx-chevron-up' style="font-size: 0.85rem; vertical-align: middle;"></i> Less`;
+    } else {
+      extra.classList.add("is-hidden");
+      btn.setAttribute("aria-expanded", "false");
+      btn.setAttribute("title", count ? `Show ${count} more descriptors` : "Expand descriptors");
+      btn.innerHTML = `<i class='bx bx-chevron-down' style="font-size: 0.85rem; vertical-align: middle;"></i> +${count}`;
+    }
+  };
+
+  function sortSpinsNewestFirst(spins) {
+    return [...spins].sort((a, b) => {
+      const ta = parseLogDate(a.log_date);
+      const tb = parseLogDate(b.log_date);
+      if (tb !== ta) return tb - ta;
+      return (Number(b.id) || 0) - (Number(a.id) || 0);
+    });
+  }
+
+  /**
+   * Opens a Challenge-style Aero Glass modal displaying every logged spin, rating shift,
+   * and listening memo for the referenced album record.
+   */
+  window.openEmbeddedRecordModal = function(artistName, albumTitle) {
+    if (!recordHistoryModal || !recordHistoryModalBody) return;
+    const cleanArtist = String(artistName || "").trim();
+    const cleanTitle = String(albumTitle || "").trim();
+    const aNorm = cleanArtist.toLowerCase();
+    const tNorm = cleanTitle.toLowerCase();
+
+    const list = Array.isArray(allEntries) ? allEntries : [];
+    let matchingSpins = list.filter(entry => {
+      const ea = String(entry.artist || "").trim().toLowerCase();
+      const et = String(entry.title || "").trim().toLowerCase();
+      if (aNorm && tNorm) return ea === aNorm && et === tNorm;
+      if (tNorm) return et === tNorm;
+      return ea === aNorm;
+    });
+
+    matchingSpins = sortSpinsNewestFirst(matchingSpins);
+
+    const displayTitle = cleanTitle || (matchingSpins[0] ? matchingSpins[0].title : "") || "Record History";
+    const displayArtist = cleanArtist || (matchingSpins[0] ? matchingSpins[0].artist : "");
+
+    if (recordHistoryModalTitleText) {
+      recordHistoryModalTitleText.textContent = displayArtist
+        ? `${displayArtist} — ${displayTitle}`
+        : displayTitle;
+    }
+
+    if (!matchingSpins.length) {
+      recordHistoryModalBody.innerHTML = `
+        <div class="modal-detail-wrapper">
+          <div class="modal-spin-entry">
+            <div class="modal-spin-no-memo" style="margin-top: 0;">
+              No logged spins were found for <b>${escapeHtml(displayArtist ? `${displayArtist} — ${displayTitle}` : displayTitle)}</b>.
+            </div>
+          </div>
+          <div class="modal-detail-actions-bar">
+            <div class="modal-detail-actions-left"></div>
+            <button type="button" class="aero-command-btn" onclick="closeRecordHistoryModal()">Close</button>
+          </div>
+        </div>
+      `;
+      openAeroModal(recordHistoryModal);
+      return;
+    }
+
+    const latest = matchingSpins[0];
+    const resolvedCover = latest.cover_url || "assets/images/spins/placeholder.png";
+    const safeArtist = (latest.artist || displayArtist || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const safeAlbum = (latest.title || displayTitle || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const safeCover = resolvedCover.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+
+    const ratedSpins = matchingSpins.filter(s => s.rating !== null && s.rating !== undefined && s.rating !== "");
+    const primarySpin = ratedSpins.length ? ratedSpins[0] : latest;
+
+    const rymHoverText = (latest.rym_rating !== null && latest.rym_rating !== undefined && latest.rym_rating !== "")
+      ? `RYM Avg: ${parseFloat(latest.rym_rating).toFixed(2)}`
+      : "";
+
+    let ratingInlineHtml = "";
+    if (primarySpin.rating !== null && primarySpin.rating !== undefined && primarySpin.rating !== "") {
+      const rNum = parseFloat(primarySpin.rating);
+      const rStr = Number.isNaN(rNum) ? escapeHtml(String(primarySpin.rating)) : rNum.toFixed(1);
+      ratingInlineHtml = `
+        <div class="modal-rating-inline" ${rymHoverText ? `title="${escapeHtml(rymHoverText)}"` : ""}>
+          ${rymHoverText ? `<span class="rym-rating-tooltip rym-side-tip"><i class='bx bxs-star'></i> ${escapeHtml(rymHoverText)}</span>` : ""}
+          <span class="stars-gold">${getStarString(rNum)}</span>
+          <span class="modal-rating-paren">(${rStr})</span>
+        </div>
+      `;
+    } else if (rymHoverText) {
+      ratingInlineHtml = `<div class="modal-runtime-favfont">${escapeHtml(rymHoverText)}</div>`;
+    }
+
+    const topDateHtml = latest.log_date
+      ? `<span class="modal-top-date" title="Most recent spin"><i class='bx bx-calendar'></i> ${escapeHtml(latest.log_date)}</span>`
+      : "";
+    const runtimeInlineHtml = latest.runtime
+      ? `<span class="modal-runtime-favfont" title="Runtime: ${escapeHtml(latest.runtime)}">• ${escapeHtml(latest.runtime)}</span>`
+      : "";
+
+    const primaryGenres = Array.isArray(latest.genres) ? latest.genres : [];
+    const secondaryGenres = Array.isArray(latest.secondary_genres) ? latest.secondary_genres : [];
+    const descriptors = Array.isArray(latest.descriptors) ? latest.descriptors : [];
+    const contextPinsHtml = renderContextPinsHtml(latest.scenes, latest.movements);
+
+    let genresSectionHtml = "";
+    if (primaryGenres.length || secondaryGenres.length || contextPinsHtml) {
+      genresSectionHtml = `
+        <div class="genre-container modal-header-genres">
+          ${primaryGenres.length ? `
+            <div class="primary-genres-wrap">
+              ${primaryGenres.map(g => `<span class="genre-pill genre-primary" onclick="closeRecordHistoryModal(); setSidebarFilter('genre', '${String(g).replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')">${escapeHtml(g)}</span>`).join("")}
+            </div>
+          ` : ""}
+          ${secondaryGenres.length ? `
+            <div class="secondary-genres-wrap">
+              ${secondaryGenres.map(g => `<span class="genre-pill genre-secondary" onclick="closeRecordHistoryModal(); setSidebarFilter('genre', '${String(g).replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')">${escapeHtml(g)}</span>`).join("")}
+            </div>
+          ` : ""}
+          ${contextPinsHtml}
+        </div>
+      `;
+    }
+
+    let descriptorsSectionHtml = "";
+    if (descriptors.length) {
+      const hasManyDesc = descriptors.length > 4;
+      const initialDesc = descriptors.slice(0, 4);
+      const remainingDesc = descriptors.slice(4);
+      descriptorsSectionHtml = `
+        <div class="modal-detail-section">
+          <div class="descriptors-wrapper">
+            <span class="desc-label">Descriptors:</span>
+            ${initialDesc.map(d => `<span class="descriptor-pill" onclick="closeRecordHistoryModal(); setSidebarFilter('descriptor', '${String(d).replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')">${escapeHtml(d)}</span>`).join("")}
+            ${hasManyDesc ? `
+              <span class="remaining-descriptors is-hidden">
+                ${remainingDesc.map(d => `<span class="descriptor-pill" onclick="closeRecordHistoryModal(); setSidebarFilter('descriptor', '${String(d).replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')">${escapeHtml(d)}</span>`).join("")}
+              </span>
+              <button type="button" class="desc-expand-btn" data-count="${remainingDesc.length}" aria-expanded="false" title="Show ${remainingDesc.length} more descriptors" onclick="toggleModalDescriptors(this)">
+                <i class='bx bx-chevron-down' style="font-size: 0.85rem; vertical-align: middle;"></i> +${remainingDesc.length}
+              </button>
+            ` : ""}
+          </div>
+        </div>
+      `;
+    }
+
+    let favTracksSectionHtml = "";
+    const favTracksList = parseFavTracks(latest.fav_tracks);
+    if (favTracksList.length) {
+      const chipsHtml = favTracksList.map(t => {
+        if (t.includes("|")) {
+          const [name, url] = t.split("|").map(s => s.trim());
+          const safeTrack = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+          return `<span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(name)}</span>`;
+        }
+        return `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon"> ${escapeHtml(t)}</span>`;
+      }).join("");
+      favTracksSectionHtml = `
+        <div class="modal-detail-section">
+          <div class="modal-sec-title"><i class='bx bxs-music'></i> Favorite Tracks</div>
+          <div class="fav-tracks-chips">${chipsHtml}</div>
+        </div>
+      `;
+    }
+
+    const total = matchingSpins.length;
+    const entriesHtml = matchingSpins.map((spin, idx) => {
+      const spinNumber = total - idx;
+      const isLatest = idx === 0;
+      const rNum = (spin.rating !== null && spin.rating !== undefined && spin.rating !== "") ? parseFloat(spin.rating) : NaN;
+
+      let shiftStr = "";
+      if (spin.rating_shift && spin.rating_shift.from !== undefined && spin.rating_shift.to !== undefined) {
+        const fNum = parseFloat(spin.rating_shift.from);
+        const tNum = parseFloat(spin.rating_shift.to);
+        if (!Number.isNaN(fNum) && !Number.isNaN(tNum)) {
+          shiftStr = `<span class="modal-spin-shift-pill" title="Rating recalibration">${fNum.toFixed(1)} ➔ ${tNum.toFixed(1)} ★</span>`;
+        }
+      }
+
+      const ratingPillHtml = !Number.isNaN(rNum)
+        ? `<span class="modal-spin-stars-plain"><span class="stars-gold">${getStarString(rNum)}</span> <span class="modal-rating-paren">(${rNum.toFixed(1)})</span></span>`
+        : "";
+
+      const numLabel = total === 1
+        ? "Spin #1"
+        : (isLatest ? `Latest • Spin #${spinNumber}` : `Spin #${spinNumber}`);
+
+      const relistenBadgeHtml = spin.relisten
+        ? `<span class="modal-spin-relisten-badge"><i class='bx bx-revision'></i> Relisten</span>`
+        : "";
+
+      const spinJumpHtml = spin.id
+        ? `<button type="button" class="modal-spin-jump-btn" onclick="closeRecordHistoryModal(); if (window.jumpToSpinInTimeline) window.jumpToSpinInTimeline(${spin.id});" title="Jump to this spin in timeline"><i class='bx bx-right-top-arrow-circle'></i> Jump</button>`
+        : "";
+
+      const spinSafeArtist = (spin.artist || displayArtist || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+      const spinSafeAlbum = (spin.title || displayTitle || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+      const spinSafeCover = (spin.cover_url || resolvedCover).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+      const memoHtml = formatSpinMemoHtml(spin.memo, {
+        safeArtist: spinSafeArtist,
+        safeAlbum: spinSafeAlbum,
+        safeCover: spinSafeCover
+      });
+
+      return `
+        <div class="modal-spin-entry ${isLatest ? "is-latest" : ""}">
+          <div class="modal-spin-entry-header">
+            <div class="modal-spin-entry-left">
+              <span class="modal-spin-num-badge ${isLatest ? "is-latest" : ""}">${numLabel}</span>
+              <span class="modal-spin-date"><i class='bx bx-calendar'></i> ${escapeHtml(spin.log_date || "Date N/A")}</span>
+              ${relistenBadgeHtml}
+            </div>
+            <div class="modal-spin-entry-right">
+              ${shiftStr}
+              ${ratingPillHtml}
+              ${spinJumpHtml}
+            </div>
+          </div>
+          ${memoHtml
+            ? `<div class="spin-memo-entry" style="margin-top: 0.45rem;">${memoHtml}</div>`
+            : `<div class="modal-spin-no-memo">No memo written for this listen.</div>`}
+        </div>
+      `;
+    }).join("");
+
+    const sectionTitle = "SPINS";
+    const yearHtml = latest.year ? `<span class="modal-detail-year">(${escapeHtml(String(latest.year))})</span>` : "";
+
+    recordHistoryModalBody.innerHTML = `
+      <div class="modal-detail-wrapper">
+        <div class="modal-detail-header">
+          <div class="modal-cover-wrap">
+            <img class="modal-detail-cover" src="${escapeHtml(resolvedCover)}" alt="${escapeHtml(displayTitle)}" decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png'; if (this.nextElementSibling) this.nextElementSibling.style.backgroundImage='url(assets/images/spins/placeholder.png)';">
+            <div class="modal-cover-reflection" style="background-image: url('${escapeHtml(resolvedCover)}');" aria-hidden="true"></div>
+          </div>
+          <div class="modal-detail-meta">
+            <div class="modal-header-top-row">
+              <div class="modal-title-line">
+                <span class="modal-detail-title">${escapeHtml(displayTitle)}</span>${yearHtml}${runtimeInlineHtml}
+              </div>
+              ${topDateHtml}
+            </div>
+            <div class="modal-detail-artist">${renderClickableArtists(displayArtist)}</div>
+            ${ratingInlineHtml}
+            ${genresSectionHtml}
+          </div>
+        </div>
+
+        <div class="modal-detail-body">
+          ${descriptorsSectionHtml}
+          ${favTracksSectionHtml}
+          <div class="modal-spin-history">
+            <div class="modal-spin-history-header">
+              <div class="modal-spin-history-title">
+                <i class='bx bx-history'></i> ${escapeHtml(sectionTitle)}
+              </div>
+              <span class="modal-spin-count-pill">${total} ${total === 1 ? "spin" : "spins"}</span>
+            </div>
+            <div class="modal-spin-history-list">${entriesHtml}</div>
+          </div>
+        </div>
+
+        <div class="modal-detail-actions-bar">
+          <div class="modal-detail-actions-left">
+            ${latest.id ? `
+              <button type="button" class="aero-command-btn artist-quick-primary-btn" onclick="closeRecordHistoryModal(); if (window.jumpToSpinInTimeline) window.jumpToSpinInTimeline(${latest.id});">
+                <i class='bx bx-search'></i> View Latest in Timeline
+              </button>
+            ` : ""}
+          </div>
+          <button type="button" class="aero-command-btn" onclick="closeRecordHistoryModal()">Close</button>
+        </div>
+      </div>
+    `;
+
+    openAeroModal(recordHistoryModal);
+  };
+
+  if (memoRibbonToolbar) {
+    memoRibbonToolbar.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-memo-snippet]");
+      if (!btn) return;
+      e.preventDefault();
+      insertMemoSnippet(btn.getAttribute("data-memo-snippet"));
+    });
+  }
+
+  if (logMemo) {
+    logMemo.addEventListener("keydown", (e) => {
+      if (e.ctrlKey && !e.shiftKey && !e.altKey) {
+        const key = e.key.toLowerCase();
+        if (key === "b") {
+          e.preventDefault();
+          insertMemoSnippet("bold");
+        } else if (key === "i") {
+          e.preventDefault();
+          insertMemoSnippet("italic");
+        }
+      }
+    });
+  }
+
+  if (memoEmbedSpinBtn) {
+    memoEmbedSpinBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (memoEmbedSpinPopover && memoEmbedSpinPopover.style.display !== "none") {
+        closeMemoEmbedPopover();
+      } else {
+        openMemoEmbedPopover();
+      }
+    });
+  }
+
+  if (memoEmbedCloseBtn) {
+    memoEmbedCloseBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      closeMemoEmbedPopover();
+      if (logMemo) logMemo.focus();
+    });
+  }
+
+  if (memoEmbedSearchInput) {
+    memoEmbedSearchInput.addEventListener("input", (e) => {
+      renderMemoEmbedResults(e.target.value);
+    });
+    memoEmbedSearchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        closeMemoEmbedPopover();
+        if (logMemo) logMemo.focus();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        const firstBtn = memoEmbedResults ? memoEmbedResults.querySelector(".memo-embed-item") : null;
+        if (firstBtn) {
+          insertSpinEmbedToken(firstBtn.dataset.artist || "", firstBtn.dataset.title || "");
+        }
+      }
+    });
+  }
+
+  if (memoEmbedResults) {
+    memoEmbedResults.addEventListener("click", (e) => {
+      const itemBtn = e.target.closest(".memo-embed-item");
+      if (!itemBtn) return;
+      e.preventDefault();
+      insertSpinEmbedToken(itemBtn.dataset.artist || "", itemBtn.dataset.title || "");
+    });
+  }
+
+  if (closeRecordHistoryModalBtn) {
+    closeRecordHistoryModalBtn.addEventListener("click", closeRecordHistoryModal);
+  }
+  if (recordHistoryModal) {
+    recordHistoryModal.addEventListener("click", (e) => {
+      if (e.target === recordHistoryModal) closeRecordHistoryModal();
+    });
+  }
+
+  document.addEventListener("click", (e) => {
+    if (
+      memoEmbedSpinPopover &&
+      memoEmbedSpinPopover.style.display !== "none" &&
+      !e.target.closest("#memoEmbedSpinPopover") &&
+      !e.target.closest("#memoEmbedSpinBtn")
+    ) {
+      closeMemoEmbedPopover();
+    }
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      if (recordHistoryModal && recordHistoryModal.style.display !== "none") {
+        closeRecordHistoryModal();
+        return;
+      }
+      if (memoEmbedSpinPopover && memoEmbedSpinPopover.style.display !== "none") {
+        closeMemoEmbedPopover();
+      }
+    }
+  });
 
   if (composerPrompt) composerPrompt.addEventListener("click", () => openModal(false));
   if (closeModalBtn) closeModalBtn.addEventListener("click", closeModal);
@@ -2295,6 +2958,12 @@ function getDominantColorFromImg(imgUrl) {
         const artistParam = urlParams.get("artist");
         const sceneParam = urlParams.get("scene");
         const movementParam = urlParams.get("movement");
+        const recordArtistParam = urlParams.get("recordArtist");
+        const recordTitleParam = urlParams.get("recordTitle");
+        const searchParam = urlParams.get("search");
+        if (searchParam && searchInput) {
+          searchInput.value = searchParam;
+        }
         if (artistParam) {
           setSidebarFilter("artist", artistParam);
         } else if (sceneParam) {
@@ -2303,6 +2972,11 @@ function getDominantColorFromImg(imgUrl) {
           setSidebarFilter("movement", movementParam);
         } else {
           applyFilters(false);
+        }
+        if ((recordArtistParam || recordTitleParam) && typeof window.openEmbeddedRecordModal === "function") {
+          setTimeout(() => {
+            window.openEmbeddedRecordModal(recordArtistParam || "", recordTitleParam || "");
+          }, 120);
         }
         if (window.location.hash && window.location.hash.startsWith("#spin-row-")) {
           const targetId = window.location.hash.replace("#spin-row-", "");
@@ -3502,34 +4176,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
 
     if (spinsCfMemo) {
       if (item.memo && item.memo.trim()) {
-        let cleanText = item.memo
-          .replace(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}(?:\s*relistened)?(?:\s*<br\s*\/?>)*/i, "")
-          .trim();
-        cleanText = cleanText.replace(
-          /(?<=^|[\s>(])["“]([^"”\n\r<]+)["”](?=[\s.,!?;:)<]|$)/g,
-          `<span class="inline-quoted-track">“$1”</span>`
-        );
-        cleanText = cleanText.replace(
-          /\[(?:<span class="inline-quoted-track">)?["“]?([^"”]+?)["”]?(?:<\/span>)?\]\((https?:\/\/[^\s)]+)\)/g,
-          `<a class="inline-quoted-track song-embed-link" onclick="playAudioTrack('$2', '$1', '${safeArtist}', '${safeAlbum}', '${safeCover}')">“$1”</a>`
-        );
-        // Lift data-song / data-track from child div to parent bilingual or blockquote if not present on parent
-        cleanText = cleanText.replace(/<(bilingual|blockquote)([^>]*)>([\s\S]*?)<\/\1>/gi, (match, tag, attrs, inner) => {
-          if (!/data-(song|track|from)/i.test(attrs)) {
-            const childMatch = inner.match(/data-(song|track|from)=["']([^"']+)["']/i);
-            if (childMatch) {
-              return `<${tag}${attrs} data-song="${childMatch[2]}">${inner}</${tag}>`;
-            }
-          }
-          return match;
-        });
-
-        let cfMemoHtml = cleanText.replace(/\r?\n/g, "<br>")
-          .replace(/<(blockquote|bilingual)([^>]*)>\s*<br\s*\/?>/gi, "<$1$2>")
-          .replace(/<br\s*\/?>\s*<\/(blockquote|bilingual)>/gi, "</$1>")
-          .replace(/<(div|p)([^>]*)>\s*<br\s*\/?>/gi, "<$1$2>")
-          .replace(/<br\s*\/?>\s*<\/(div|p)>/gi, "</$1>")
-          .replace(/<\/div>\s*<br\s*\/?>\s*<div/gi, "</div><div");
+        const cfMemoHtml = formatSpinMemoHtml(item.memo, { safeArtist, safeAlbum, safeCover });
         spinsCfMemo.style.display = "block";
         spinsCfMemo.innerHTML = cfMemoHtml;
       } else {
@@ -6460,44 +7107,8 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
     const safeAlbum = (item.title || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
     const safeCover = (item.cover_url || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 
-    // Memo formatting with track/artist/album pass-through
-    let formattedMemo = "";
-    if (item.memo) {
-      let cleanText = item.memo
-        .replace(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}(?:\s*relistened)?(?:\s*<br\s*\/?>)*/i, "")
-        .trim();
-
-      // 1. First wrap quoted titles into the pill badge
-      cleanText = cleanText.replace(
-        /(?<=^|[\s>(])["“]([^"”\n\r<]+)["”](?=[\s.,!?;:)<]|$)/g,
-        `<span class="inline-quoted-track">“$1”</span>`
-      );
-
-      // 2. Turn hyperlinked tracks [<span class="...">“Track”</span>](url) or ["Track"](url) into clickable player links
-      cleanText = cleanText.replace(
-      /\[(?:<span class="inline-quoted-track">)?["“]?([^"”]+?)["”]?(?:<\/span>)?\]\((https?:\/\/[^\s)]+)\)/g,
-      `<a class="inline-quoted-track song-embed-link" onclick="playAudioTrack('$2', '$1', '${safeArtist}', '${safeAlbum}', '${safeCover}')">“$1”</a>`
-      );
-
-      // Lift data-song / data-track from child div to parent bilingual or blockquote if not present on parent
-      cleanText = cleanText.replace(/<(bilingual|blockquote)([^>]*)>([\s\S]*?)<\/\1>/gi, (match, tag, attrs, inner) => {
-        if (!/data-(song|track|from)/i.test(attrs)) {
-          const childMatch = inner.match(/data-(song|track|from)=["']([^"']+)["']/i);
-          if (childMatch) {
-            return `<${tag}${attrs} data-song="${childMatch[2]}">${inner}</${tag}>`;
-          }
-        }
-        return match;
-      });
-
-      // 3. Line breaks & clean redundant breaks touching blockquote boundaries
-      formattedMemo = cleanText.replace(/\r?\n/g, "<br>")
-        .replace(/<(blockquote|bilingual)([^>]*)>\s*<br\s*\/?>/gi, "<$1$2>")
-        .replace(/<br\s*\/?>\s*<\/(blockquote|bilingual)>/gi, "</$1>")
-        .replace(/<(div|p)([^>]*)>\s*<br\s*\/?>/gi, "<$1$2>")
-        .replace(/<br\s*\/?>\s*<\/(div|p)>/gi, "</$1>")
-        .replace(/<\/div>\s*<br\s*\/?>\s*<div/gi, "</div><div");
-    }
+    // Memo formatting with track/artist/album/spin-embed pass-through
+    const formattedMemo = formatSpinMemoHtml(item.memo, { safeArtist, safeAlbum, safeCover });
 
     const reflectCoverUrl = safeCover || 'assets/images/spins/placeholder.png';
 

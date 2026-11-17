@@ -25,7 +25,7 @@
     <meta name="apple-mobile-web-app-title" content="SosaSpeaks" />
     <link rel="manifest" href="assets/images/homepics/site.webmanifest?v=20260527" />
     <!-- Link to CSS -->
-    <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261116s">
+    <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261116u">
     <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
     <!-- Box icons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
@@ -499,7 +499,29 @@
 
             <div class="spin-memo-field-wrap">
               <label for="logMemo" class="spin-modal-section-label">Listening Notes &amp; Memo</label>
-              <textarea id="logMemo" placeholder="Notes &amp; Thoughts..." rows="9" class="sosa-search-input spin-memo-textarea"></textarea>
+              <div class="spin-memo-editor-box">
+                <div class="memo-aero-ribbon" id="memoRibbonToolbar" role="toolbar" aria-label="Memo Formatting">
+                  <div class="memo-ribbon-group">
+                    <button type="button" class="memo-ribbon-btn is-icon-only" data-memo-snippet="bold" title="Bold (&lt;b&gt;...&lt;/b&gt;, Ctrl+B)"><b>B</b></button>
+                    <button type="button" class="memo-ribbon-btn is-icon-only" data-memo-snippet="italic" title="Italic (&lt;i&gt;...&lt;/i&gt;, Ctrl+I)"><i>I</i></button>
+                    <button type="button" class="memo-ribbon-btn" data-memo-snippet="link" title="Insert Hyperlink"><i class="bx bx-link"></i><span>Link</span></button>
+                  </div>
+                  <div class="memo-ribbon-group">
+                    <button type="button" class="memo-ribbon-btn" data-memo-snippet="blockquote" title="Insert Blockquote"><i class="bx bxs-quote-left"></i><span>Quote</span></button>
+                    <button type="button" class="memo-ribbon-btn" data-memo-snippet="bilingual" title="Insert Side-by-Side Bilingual Block"><i class="bx bx-globe"></i><span>Bilingual</span></button>
+                    <button type="button" class="memo-ribbon-btn is-embed-spin" id="memoEmbedSpinBtn" title="Hyperlink &amp; Embed an Album Spin"><i class="bx bx-disc"></i><span>Embed Spin</span></button>
+                  </div>
+                </div>
+                <textarea id="logMemo" placeholder="Notes &amp; Thoughts..." rows="6" class="sosa-search-input spin-memo-textarea"></textarea>
+              </div>
+              <div class="memo-embed-popover" id="memoEmbedSpinPopover" style="display: none;">
+                <div class="memo-embed-search-row">
+                  <i class="bx bx-search"></i>
+                  <input type="text" id="memoEmbedSearchInput" class="sosa-search-input memo-embed-search-input" placeholder="Search artist or album to embed..." autocomplete="off">
+                  <button type="button" id="memoEmbedCloseBtn" class="fav-track-link-clear" title="Close">&times;</button>
+                </div>
+                <div class="memo-embed-results" id="memoEmbedResults"></div>
+              </div>
             </div>
 
             <!-- Track Ratings Manager -->
@@ -544,6 +566,22 @@
       <div id="queueModalBody" class="aero-queue-modal-body">
         <div class="queue-empty-state">No pending comments in queue.</div>
       </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Embedded Record Spin History Popup -->
+  <div id="recordHistoryModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="window glass w7-modal-window record-detail-window" role="dialog" aria-modal="true" aria-labelledby="recordHistoryModalTitleText">
+      <div class="title-bar">
+        <div class="title-bar-text" id="recordHistoryModalTitle">
+          <i class='bx bx-disc' style="color: #10b981; vertical-align: middle; margin-right: 4px;"></i>
+          <span id="recordHistoryModalTitleText">Album Spins</span>
+        </div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeRecordHistoryModalBtn" aria-label="Close" class="is-close"></button>
+        </div>
+      </div>
+      <div class="window-body record-history-modal-body" id="recordHistoryModalBody"></div>
     </div>
   </div>
 
@@ -776,7 +814,7 @@
   </nav>
 
   <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
-  <script src="assets/js/sosaspins.js?v=20261116s"></script>
+  <script src="assets/js/sosaspins.js?v=20261116u"></script>
   <script src="assets/js/dock.js?v=20261115c"></script>
   <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>
 </body>

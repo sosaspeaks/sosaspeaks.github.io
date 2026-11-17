@@ -2082,6 +2082,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  function parseEmbeddedSpinToken(rawPayload) {
+    const raw = String(rawPayload || "").trim();
+    if (!raw) return { artist: "", title: "", label: "" };
+
+    const pipeIdx = raw.indexOf("|");
+    const recordSpec = (pipeIdx >= 0 ? raw.slice(0, pipeIdx) : raw).trim();
+    const customLabel = (pipeIdx >= 0 ? raw.slice(pipeIdx + 1) : "").trim();
+
+    let artist = "";
+    let title = recordSpec;
+    const sepMatch = recordSpec.match(/^(.+?)\s*(?:—|–|--|::)\s*(.+)$/);
+    if (sepMatch) {
+      artist = sepMatch[1].trim();
+      title = sepMatch[2].trim();
+    }
+
+    const label = customLabel || title || artist;
+    return { artist, title, label };
+  }
+
   function formatSpinMemoHtml(rawMemo) {
     if (!rawMemo) return "";
     let cleanText = String(rawMemo)
@@ -2089,6 +2109,21 @@ document.addEventListener("DOMContentLoaded", async () => {
       .trim();
 
     if (!cleanText) return "";
+
+    const spinPlaceholders = [];
+    cleanText = cleanText.replace(/\[\[spin:([^\]\r\n]+?)\]\]/gi, (_, payload) => {
+      const parsed = parseEmbeddedSpinToken(payload);
+      if (!parsed.label) return "";
+      const marker = `__CHALLENGE_SPIN_EMBED_${spinPlaceholders.length}__`;
+      const spinHref = `sosaspins.html?recordArtist=${encodeURIComponent(parsed.artist)}&recordTitle=${encodeURIComponent(parsed.title)}`;
+      const tooltipTarget = parsed.artist && parsed.title
+        ? `${parsed.artist} — ${parsed.title}`
+        : parsed.label;
+      spinPlaceholders.push(
+        `<a href="${spinHref}" class="inline-spin-embed-link" title="View spins for ${escapeHtml(tooltipTarget)}"><i class='bx bx-disc'></i>${escapeHtml(parsed.label)}<span class="spin-embed-arr" aria-hidden="true">↗</span></a>`
+      );
+      return marker;
+    });
 
     cleanText = cleanText.replace(
       /(?<=^|[\s>(])["“]([^"”\n\r<]+)["”](?=[\s.,!?;:)<]|$)/g,
@@ -2111,15 +2146,21 @@ document.addEventListener("DOMContentLoaded", async () => {
       return match;
     });
 
-    return cleanText.replace(/\r?\n/g, "<br>")
+    let formatted = cleanText.replace(/\r?\n/g, "<br>")
       .replace(/<(blockquote|bilingual)([^>]*)>\s*<br\s*\/?>/gi, "<$1$2>")
       .replace(/<br\s*\/?>\s*<\/(blockquote|bilingual)>/gi, "</$1>")
       .replace(/<(div|p)([^>]*)>\s*<br\s*\/?>/gi, "<$1$2>")
       .replace(/<br\s*\/?>\s*<\/(div|p)>/gi, "</$1>")
       .replace(/<\/div>\s*<br\s*\/?>\s*<div/gi, "</div><div");
+
+    spinPlaceholders.forEach((html, idx) => {
+      formatted = formatted.replace(`__CHALLENGE_SPIN_EMBED_${idx}__`, html);
+    });
+
+    return formatted;
   }
 
-  function renderSpinHistoryHtml(spins, sectionTitle = "Listening History & Memos") {
+  function renderSpinHistoryHtml(spins, sectionTitle = "SPINS") {
     if (!Array.isArray(spins) || !spins.length) return "";
 
     const total = spins.length;
@@ -2139,7 +2180,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
 
       const ratingPillHtml = !isNaN(rNum)
-        ? `<span class="modal-spin-rating-pill"><span class="stars-gold">${getStarString(rNum)}</span> <span class="rating-val">${rNum.toFixed(1)}</span></span>`
+        ? `<span class="modal-spin-stars-plain"><span class="stars-gold">${getStarString(rNum)}</span> <span class="modal-rating-paren">(${rNum.toFixed(1)})</span></span>`
         : "";
 
       const numLabel = total === 1
@@ -2270,8 +2311,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const yearHtml = releaseYear ? ` <span class="modal-detail-year">(${escapeHtml(String(releaseYear))})</span>` : "";
 
     const rymScore = album.rym_rating !== null && album.rym_rating !== undefined ? album.rym_rating : (getLocalRymRatings()[album.id] || null);
-    const rymChipHtml = rymScore
-      ? `<span class="modal-count-chip is-rym" title="Rate Your Music Community Average"><i class='bx bxs-star'></i> RYM ${parseFloat(rymScore).toFixed(2)}</span>`
+    const rymHoverText = (rymScore !== null && rymScore !== undefined && rymScore !== "")
+      ? `RYM Avg: ${parseFloat(rymScore).toFixed(2)}`
       : "";
 
     try {
@@ -2288,21 +2329,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         let genresSectionHtml = "";
         if (primaryGenres.length || secondaryGenres.length || matchedContextPinsHtml) {
           genresSectionHtml = `
-            <div class="modal-detail-section">
-              <div class="modal-sec-title"><i class='bx bx-purchase-tag-alt'></i> Genres:</div>
-              <div class="genre-container">
-                ${(primaryGenres.length || matchedContextPinsHtml) ? `
-                  <div class="primary-genres-wrap">
-                    ${primaryGenres.map(g => `<span class="genre-pill genre-primary">${escapeHtml(g)}</span>`).join("")}
-                    ${matchedContextPinsHtml}
-                  </div>
-                ` : ""}
-                ${secondaryGenres.length ? `
-                  <div class="secondary-genres-wrap">
-                    ${secondaryGenres.map(g => `<span class="genre-pill genre-secondary">${escapeHtml(g)}</span>`).join("")}
-                  </div>
-                ` : ""}
-              </div>
+            <div class="genre-container modal-header-genres">
+              ${(primaryGenres.length || matchedContextPinsHtml) ? `
+                <div class="primary-genres-wrap">
+                  ${primaryGenres.map(g => `<span class="genre-pill genre-primary">${escapeHtml(g)}</span>`).join("")}
+                  ${matchedContextPinsHtml}
+                </div>
+              ` : ""}
+              ${secondaryGenres.length ? `
+                <div class="secondary-genres-wrap">
+                  ${secondaryGenres.map(g => `<span class="genre-pill genre-secondary">${escapeHtml(g)}</span>`).join("")}
+                </div>
+              ` : ""}
             </div>
           `;
         }
@@ -2331,15 +2369,19 @@ document.addEventListener("DOMContentLoaded", async () => {
           `;
         }
 
-        let ratingChipHtml = "";
+        let ratingInlineHtml = "";
         if (match.rating !== null && match.rating !== undefined && match.rating !== "") {
           const rNum = parseFloat(match.rating);
-          ratingChipHtml = `
-            <span class="modal-rating-chip">
+          const rStr = isNaN(rNum) ? escapeHtml(String(match.rating)) : rNum.toFixed(1);
+          ratingInlineHtml = `
+            <div class="modal-rating-inline" ${rymHoverText ? `title="${escapeHtml(rymHoverText)}"` : ""}>
+              ${rymHoverText ? `<span class="rym-rating-tooltip rym-side-tip"><i class='bx bxs-star'></i> ${escapeHtml(rymHoverText)}</span>` : ""}
               <span class="stars-gold">${getStarString(rNum)}</span>
-              <span class="modal-avg-num">${isNaN(rNum) ? escapeHtml(String(match.rating)) : rNum.toFixed(1)} / 5.0</span>
-            </span>
+              <span class="modal-rating-paren">(${rStr})</span>
+            </div>
           `;
+        } else if (rymHoverText) {
+          ratingInlineHtml = `<div class="modal-runtime-favfont">${escapeHtml(rymHoverText)}</div>`;
         }
 
         let favTracksSectionHtml = "";
@@ -2380,14 +2422,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const spinHistoryHtml = renderSpinHistoryHtml(
           allSpins.length ? allSpins : [match],
-          allSpins.length > 1 ? "All Spins & Memos" : "Spin Memo & History"
+          "SPINS"
         );
-        const loggedDateSummary = allSpins.length > 1
-          ? `${escapeHtml(match.log_date || "N/A")} • ${allSpins.length} spins`
-          : `${escapeHtml(match.log_date || "N/A")}`;
-        const loggedChipHtml = `<span class="modal-count-chip"><i class='bx bx-calendar-check'></i> ${loggedDateSummary}</span>`;
-        const runtimeChipHtml = album.runtime
-          ? `<span class="modal-count-chip"><i class='bx bx-time'></i> ${escapeHtml(album.runtime)}</span>`
+        const topDateHtml = match.log_date
+          ? `<span class="modal-top-date" title="Most recent spin"><i class='bx bx-calendar'></i> ${escapeHtml(match.log_date)}</span>`
+          : "";
+        const runtimeInlineHtml = album.runtime
+          ? `<span class="modal-runtime-favfont" title="Runtime: ${escapeHtml(album.runtime)}">• ${escapeHtml(album.runtime)}</span>`
           : "";
 
         let leftActionsHtml = "";
@@ -2409,24 +2450,29 @@ document.addEventListener("DOMContentLoaded", async () => {
         modalBody.innerHTML = `
           <div class="modal-detail-wrapper">
             <div class="modal-detail-header">
-              <img class="modal-detail-cover" src="${resolvedCover}" alt="${escapeHtml(displayTitle)}" decoding="async" onerror="this.onerror=null; this.src='${FALLBACK_PLACEHOLDER}';">
+              <div class="modal-cover-wrap">
+                <img class="modal-detail-cover" src="${resolvedCover}" alt="${escapeHtml(displayTitle)}" decoding="async" onerror="this.onerror=null; this.src='${FALLBACK_PLACEHOLDER}'; if (this.nextElementSibling) this.nextElementSibling.style.backgroundImage='url(${FALLBACK_PLACEHOLDER})';">
+                <div class="modal-cover-reflection" style="background-image: url('${resolvedCover}');" aria-hidden="true"></div>
+              </div>
               <div class="modal-detail-meta">
-                ${monthBadgeHtml}
-                <div class="modal-detail-title">${escapeHtml(displayTitle)}${yearHtml}</div>
-                <div class="modal-detail-artist">${renderChallengeArtistLinks(displayArtist)}</div>
-                <div class="modal-detail-stats-row">
-                  ${ratingChipHtml}
-                  ${loggedChipHtml}
-                  ${runtimeChipHtml}
-                  ${rymChipHtml}
+                <div class="modal-header-top-row">
+                  <div class="modal-title-line">
+                    <span class="modal-detail-title">${escapeHtml(displayTitle)}</span>${yearHtml}${runtimeInlineHtml}
+                  </div>
+                  ${topDateHtml}
                 </div>
+                <div class="modal-detail-artist-row">
+                  <span class="modal-detail-artist">${renderChallengeArtistLinks(displayArtist)}</span>
+                  ${monthBadgeHtml}
+                </div>
+                ${ratingInlineHtml}
+                ${genresSectionHtml}
               </div>
             </div>
 
             ${recalibrateHeroHtml}
 
             <div class="modal-detail-body">
-              ${genresSectionHtml}
               ${descriptorsSectionHtml}
               ${favTracksSectionHtml}
               ${spinHistoryHtml}
@@ -2453,21 +2499,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         let unloggedGenresHtml = "";
         if (primaryGenres.length || secondaryGenres.length || unloggedContextHtml) {
           unloggedGenresHtml = `
-            <div class="modal-detail-section">
-              <div class="modal-sec-title"><i class='bx bx-purchase-tag-alt'></i> Genres:</div>
-              <div class="genre-container">
-                ${(primaryGenres.length || unloggedContextHtml) ? `
-                  <div class="primary-genres-wrap">
-                    ${primaryGenres.map(g => `<span class="genre-pill genre-primary">${escapeHtml(g)}</span>`).join("")}
-                    ${unloggedContextHtml}
-                  </div>
-                ` : ""}
-                ${secondaryGenres.length ? `
-                  <div class="secondary-genres-wrap">
-                    ${secondaryGenres.map(g => `<span class="genre-pill genre-secondary">${escapeHtml(g)}</span>`).join("")}
-                  </div>
-                ` : ""}
-              </div>
+            <div class="genre-container modal-header-genres">
+              ${(primaryGenres.length || unloggedContextHtml) ? `
+                <div class="primary-genres-wrap">
+                  ${primaryGenres.map(g => `<span class="genre-pill genre-primary">${escapeHtml(g)}</span>`).join("")}
+                  ${unloggedContextHtml}
+                </div>
+              ` : ""}
+              ${secondaryGenres.length ? `
+                <div class="secondary-genres-wrap">
+                  ${secondaryGenres.map(g => `<span class="genre-pill genre-secondary">${escapeHtml(g)}</span>`).join("")}
+                </div>
+              ` : ""}
             </div>
           `;
         }
@@ -2495,9 +2538,12 @@ document.addEventListener("DOMContentLoaded", async () => {
           `;
         }
 
-        const statusChipHtml = `<span class="modal-count-chip ${isRecalibrate ? "is-recal-chip" : "is-pending-chip"}"><i class='bx ${isRecalibrate ? "bx-revision" : "bx-hourglass"}'></i> ${isRecalibrate ? "Queued for Relisten" : "Not Logged Yet"}</span>`;
-        const runtimeChipHtml = dispRuntime
-          ? `<span class="modal-count-chip"><i class='bx bx-time'></i> ${escapeHtml(dispRuntime)}</span>`
+        const statusChipHtml = `<span class="modal-count-chip ${isRecalibrate ? "is-recal-chip" : "is-pending-chip"}" ${rymHoverText ? `title="${escapeHtml(rymHoverText)}"` : ""}><i class='bx ${isRecalibrate ? "bx-revision" : "bx-hourglass"}'></i> ${isRecalibrate ? "Queued for Relisten" : "Not Logged Yet"}</span>`;
+        const unloggedRuntimeHtml = dispRuntime
+          ? `<span class="modal-runtime-favfont" title="Runtime: ${escapeHtml(dispRuntime)}">• ${escapeHtml(dispRuntime)}</span>`
+          : "";
+        const unloggedTopDateHtml = (allSpins.length && allSpins[0].log_date)
+          ? `<span class="modal-top-date" title="Most recent prior spin"><i class='bx bx-calendar'></i> ${escapeHtml(allSpins[0].log_date)}</span>`
           : "";
 
         let leftActionHtml = "";
@@ -2510,25 +2556,33 @@ document.addEventListener("DOMContentLoaded", async () => {
         modalBody.innerHTML = `
           <div class="modal-detail-wrapper">
             <div class="modal-detail-header">
-              <img class="modal-detail-cover" src="${unloggedCover}" alt="${escapeHtml(displayTitle)}" decoding="async" onerror="this.onerror=null; this.src='${FALLBACK_PLACEHOLDER}';">
+              <div class="modal-cover-wrap">
+                <img class="modal-detail-cover" src="${unloggedCover}" alt="${escapeHtml(displayTitle)}" decoding="async" onerror="this.onerror=null; this.src='${FALLBACK_PLACEHOLDER}'; if (this.nextElementSibling) this.nextElementSibling.style.backgroundImage='url(${FALLBACK_PLACEHOLDER})';">
+                <div class="modal-cover-reflection" style="background-image: url('${unloggedCover}');" aria-hidden="true"></div>
+              </div>
               <div class="modal-detail-meta">
-                ${monthBadgeHtml}
-                <div class="modal-detail-title">${escapeHtml(displayTitle)}${yearHtml}</div>
-                <div class="modal-detail-artist">${renderChallengeArtistLinks(displayArtist)}</div>
+                <div class="modal-header-top-row">
+                  <div class="modal-title-line">
+                    <span class="modal-detail-title">${escapeHtml(displayTitle)}</span>${yearHtml}${unloggedRuntimeHtml}
+                  </div>
+                  ${unloggedTopDateHtml}
+                </div>
+                <div class="modal-detail-artist-row">
+                  <span class="modal-detail-artist">${renderChallengeArtistLinks(displayArtist)}</span>
+                  ${monthBadgeHtml}
+                </div>
                 <div class="modal-detail-stats-row">
                   ${statusChipHtml}
-                  ${runtimeChipHtml}
-                  ${rymChipHtml}
                 </div>
+                ${unloggedGenresHtml}
               </div>
             </div>
 
             ${recalibrateHeroHtml}
 
             <div class="modal-detail-body">
-              ${unloggedGenresHtml}
               ${unloggedDescHtml}
-              ${allSpins.length ? renderSpinHistoryHtml(allSpins, "Prior Spins & Memos") : ""}
+              ${allSpins.length ? renderSpinHistoryHtml(allSpins, "SPINS") : ""}
               <div class="modal-unlistened-note">
                 ${isRecalibrate
                   ? (isAdmin ? "This album is queued for recalibration. Ready for a fresh spin?" : "This album is in Sosa's recalibration queue for a fresh spin.")
