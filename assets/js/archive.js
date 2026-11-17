@@ -354,6 +354,8 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
   const logType = document.getElementById("logType");
   const downloadArtBtn = document.getElementById("downloadArtBtn");
   const exportJsonBtn = document.getElementById("exportJsonBtn");
+  const trackRatingsList = document.getElementById("trackRatingsList");
+  const addTrackRatingRowBtn = document.getElementById("addTrackRatingRowBtn");
 
   function openAeroModal(backdrop) {
     if (!backdrop) return;
@@ -713,6 +715,8 @@ function getDominantColorFromImg(imgUrl) {
             winEl.classList.add("w7-shake");
           }
         } else {
+          isAdmin = !!(data && data.session);
+          updateAdminVisibility();
           if (adminAuthForm) adminAuthForm.reset();
           closeAuthDialog(true);
         }
@@ -6980,9 +6984,6 @@ window.toggleTrackRatings = function(idx, btn) {
   if (arrow) arrow.textContent = isHidden ? "▴" : "▾";
   if (btn) btn.classList.toggle("is-open", isHidden);
 };
-
-const trackRatingsList = document.getElementById("trackRatingsList");
-const addTrackRatingRowBtn = document.getElementById("addTrackRatingRowBtn");
 
 /**
  * Normalizes a numeric or string track rating to a half-star step ("0.5".."5.0"),

@@ -1471,7 +1471,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   window.importBacklogToSpin = function(albumId) {
-    const album = backlogEntries.find(a => a.id === albumId);
+    const album = backlogEntries.find(a => String(a.id) === String(albumId)) ||
+                  (typeof getRelistenEntries === "function" ? getRelistenEntries().find(a => String(a.id) === String(albumId)) : null);
     if (!album) return;
 
     let targetCover = album.cover_url || "";
@@ -1480,14 +1481,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     sessionStorage.setItem("sosaspins_prefill_spin", JSON.stringify({
       artist: album.artist || "",
       title: album.title || "",
-      year: album.release_year || "",
+      year: album.release_year || album.year || "",
       cover_url: targetCover,
       genres: safeToArray(album.genres).join(", "),
       secondary_genres: safeToArray(album.secondary_genres).join(", "),
       descriptors: safeToArray(album.descriptors).join(", "),
       scenes: safeToArray(album.scenes).join(", "),
       movements: safeToArray(album.movements).join(", "),
-      runtime: album.runtime || ""
+      runtime: album.runtime || "",
+      rym_rating: (album.rym_rating !== undefined && album.rym_rating !== null) ? album.rym_rating : ""
     }));
 
     window.location.href = "sosaspins.html?action=logSpin";
@@ -2501,8 +2503,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         let leftActionHtml = "";
         if (isAdmin) {
           leftActionHtml = isRecalibrate
-            ? `<button type="button" class="aero-command-btn modal-recal-btn" onclick="importRelistenToSpin('${album.id}')"><i class='bx bx-revision'></i> Log Re-evaluation ➔</button>`
-            : `<button type="button" class="aero-command-btn modal-primary-btn" onclick="importBacklogToSpin(${album.id})"><i class='bx bx-plus-circle'></i> Log this Spin ➔</button>`;
+            ? `<button type="button" class="aero-command-btn modal-recal-btn" onclick="importRelistenToSpin('${String(album.id).replace(/'/g, "\\'")}')"><i class='bx bx-revision'></i> Log Re-evaluation ➔</button>`
+            : `<button type="button" class="aero-command-btn modal-primary-btn" onclick="importBacklogToSpin('${String(album.id).replace(/'/g, "\\'")}')"><i class='bx bx-plus-circle'></i> Log this Spin ➔</button>`;
         }
 
         modalBody.innerHTML = `
