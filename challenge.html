@@ -21,7 +21,7 @@
   <meta property="og:description" content="Explore Sosa's 7×7 monthly album listening challenge backlog and completed spins.">
   <meta property="og:image" content="https://sosaspeaks.org/assets/images/homepics/Sosa-Icon-V3.png">
   <link rel="icon" type="image/png" href="assets/images/homepics/Sosa-Icon-V3.png">
-  <link rel="stylesheet" href="assets/css/challenge.css?v=20261116a">
+  <link rel="stylesheet" href="assets/css/challenge.css?v=20261116m">
   <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
   <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
 </head>
@@ -48,7 +48,11 @@
                 <a href="about.html" class="nav-custom-link" title="About">
                     <img src="assets/images/homepics/msgsres_1.ico" class="nav-custom-icon msngr-icon" alt="About">
                 </a>
-                <i class='bx bx-moon theme-toggle' style="scale: 155%;" title="Theme"></i>
+                <button type="button" class="aero-theme-switch theme-toggle" aria-label="Toggle Light/Dark Theme" title="Theme">
+                    <span class="aero-theme-glider" aria-hidden="true"></span>
+                    <span class="aero-theme-opt is-sun" aria-hidden="true"><i class='bx bxs-sun'></i></span>
+                    <span class="aero-theme-opt is-moon" aria-hidden="true"><i class='bx bxs-moon'></i></span>
+                </button>
             </div>
         </div>
   </header>
@@ -113,9 +117,14 @@
       <!-- Attached Vista Command Bar / Controls Bar -->
       <div class="window-command-bar">
         <div class="command-group-left">
-          <button type="button" id="viewModeToggleBtn" class="aero-command-btn view-toggle-btn" title="Switch between 7×7 Grid and iPod Cover Flow" aria-pressed="false">
-            <i class='bx bx-carousel'></i> <span class="cmd-text-full">Cover Flow</span><span class="cmd-text-short">Flow</span>
-          </button>
+          <div class="aero-filter-capsule is-compact challenge-view-capsule" id="challengeViewModeCapsule" role="group" aria-label="Challenge view mode">
+            <button type="button" id="gridViewBtn" class="filter-item active" aria-pressed="true" title="7×7 Grid View">
+              <i class='bx bx-grid-alt'></i> <span class="cmd-text-full">Grid</span><span class="cmd-text-short">Grid</span>
+            </button>
+            <button type="button" id="coverFlowViewBtn" class="filter-item" aria-pressed="false" title="iPod Cover Flow">
+              <i class='bx bx-carousel'></i> <span class="cmd-text-full">Cover Flow</span><span class="cmd-text-short">Flow</span>
+            </button>
+          </div>
           <button type="button" id="gridSizeBtn" class="aero-command-btn" title="Cycle grid layout size">
             <i class='bx bx-grid-alt'></i> <span class="cmd-prefix">Size: </span><span id="gridSizeBtnLabel">Standard</span>
           </button>
@@ -208,7 +217,7 @@
       <!-- Recalibrate Category Filter Bar (Only visible on Recalibrate tab) -->
       <div id="recalibrateFilterBar" class="aero-recalibrate-filter-bar" style="display: none;">
         <span class="recalibrate-filter-label"><i class='bx bx-revision'></i> Slices:</span>
-        <div class="recalibrate-filter-chips">
+        <div class="recalibrate-filter-chips aero-filter-capsule is-compact">
           <button type="button" class="recalibrate-chip active" data-reason="all">All (<span id="countReasonAll">0</span>)</button>
           <button type="button" class="recalibrate-chip" data-reason="Memory Fog">Memory Fog (<span id="countReasonMemoryFog">0</span>)</button>
           <button type="button" class="recalibrate-chip" data-reason="Perspective Shift">Perspective Shift (<span id="countReasonPerspectiveShift">0</span>)</button>
@@ -647,7 +656,8 @@
   </nav>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="assets/js/challenge.js?v=20261115d"></script></script>
+  <script src="assets/js/challenge.js?v=20261116i"></script>
   <script src="assets/js/dock.js?v=20261115c"></script>
+  <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>
 </body>
 </html>

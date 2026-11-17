@@ -20,7 +20,7 @@
     <link rel="icon" type="favicon" href="assets/images/homepics/Sosa-Icon-V3.png">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Mono:wght@400..700&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/studio.css?v=20261115d">
+    <link rel="stylesheet" href="assets/css/studio.css?v=20261116j">
 </head>
 <body class="studio-body">
 
@@ -45,7 +45,11 @@
                 <a href="sosaspins.html" title="SosaSpins" style="display:inline-flex;align-items:center;">
                     <img src="assets/images/homepics/Folder203.ico" class="nav-custom-icon" alt="SosaSpins">
                 </a>
-                <i class="bx bx-moon theme-toggle" id="studioThemeToggle" title="Toggle Studio Theme"></i>
+                <button type="button" class="aero-theme-switch theme-toggle" id="studioThemeToggle" aria-label="Toggle Studio Theme" title="Toggle Studio Theme">
+                    <span class="aero-theme-glider" aria-hidden="true"></span>
+                    <span class="aero-theme-opt is-sun" aria-hidden="true"><i class='bx bxs-sun'></i></span>
+                    <span class="aero-theme-opt is-moon" aria-hidden="true"><i class='bx bxs-moon'></i></span>
+                </button>
             </div>
         </div>
     </header>
@@ -162,10 +166,10 @@
                         <i class="bx bx-cloud"></i>
                         <span id="saveStatusText">Ready</span>
                     </span>
-                    <div class="studio-cmd-group" style="gap:3px;">
-                        <button type="button" class="aero-command-btn is-active" data-view-mode="split">Split</button>
-                        <button type="button" class="aero-command-btn" data-view-mode="editor">Editor</button>
-                        <button type="button" class="aero-command-btn" data-view-mode="preview">Preview</button>
+                    <div class="aero-filter-capsule is-compact studio-view-capsule" role="group" aria-label="Editor layout mode">
+                        <button type="button" class="filter-item is-active" data-view-mode="split">Split</button>
+                        <button type="button" class="filter-item" data-view-mode="editor">Editor</button>
+                        <button type="button" class="filter-item" data-view-mode="preview">Preview</button>
                     </div>
                 </div>
             </div>
@@ -617,6 +621,7 @@
     <div id="studioToast" class="studio-toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="assets/js/studio.js?v=20261115d"></script>
+    <script src="assets/js/studio.js?v=20261116i"></script>
+    <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>
 </body>
 </html>

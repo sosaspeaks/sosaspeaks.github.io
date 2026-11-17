@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const feed = document.getElementById("timelineFeed");
   const searchInput = document.getElementById("searchInput");
-  const filterPills = document.querySelectorAll(".filter-item");
+  const filterPills = document.querySelectorAll("#formatFilters .filter-item");
   const feedFilterLabel = document.getElementById("feedFilterLabel");
   const clearFilterBtn = document.getElementById("clearFilterBtn");
   const SUPABASE_URL = "https://gxgfuomkjrhixcjfvhvj.supabase.co";
@@ -349,14 +349,48 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
   const logPrevRating = document.getElementById("logPrevRating");
   const logReviewUrl = document.getElementById("logReviewUrl");
   const logFavTracks = document.getElementById("logFavTracks");
+  const favTracksFieldWrap = document.getElementById("favTracksFieldWrap");
   const logSingleAudioUrl = document.getElementById("logSingleAudioUrl");
   const logType = document.getElementById("logType");
   const downloadArtBtn = document.getElementById("downloadArtBtn");
   const exportJsonBtn = document.getElementById("exportJsonBtn");
 
+  function openAeroModal(backdrop) {
+    if (!backdrop) return;
+    if (backdrop._closeTimer) {
+      clearTimeout(backdrop._closeTimer);
+      backdrop._closeTimer = null;
+    }
+    backdrop.classList.remove("is-closing");
+    backdrop.style.display = "flex";
+  }
+
+  function closeAeroModal(backdrop, onClosed) {
+    if (!backdrop || backdrop.style.display === "none") {
+      if (typeof onClosed === "function") onClosed();
+      return;
+    }
+    if (backdrop._closeTimer) return;
+    backdrop.classList.add("is-closing");
+    const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const finish = () => {
+      backdrop._closeTimer = null;
+      backdrop.classList.remove("is-closing");
+      backdrop.style.display = "none";
+      if (typeof onClosed === "function") onClosed();
+    };
+    if (reduced) {
+      finish();
+    } else {
+      backdrop._closeTimer = setTimeout(finish, 200);
+    }
+  }
+
   function updateSingleModeFields() {
     const isSingle = (logType && logType.value.trim().toLowerCase() === "single");
-    if (logFavTracks) {
+    if (favTracksFieldWrap) {
+      favTracksFieldWrap.style.display = isSingle ? "none" : "";
+    } else if (logFavTracks) {
       logFavTracks.style.display = isSingle ? "none" : "";
     }
     if (logSingleAudioUrl) {
@@ -582,8 +616,9 @@ function getDominantColorFromImg(imgUrl) {
   let authModalResolver = null;
 
   function closeAuthDialog(result = false) {
-    if (adminAuthModal) adminAuthModal.style.display = "none";
-    if (authErrorMessage) authErrorMessage.style.display = "none";
+    closeAeroModal(adminAuthModal, () => {
+      if (authErrorMessage) authErrorMessage.style.display = "none";
+    });
     if (authModalResolver) {
       const resolve = authModalResolver;
       authModalResolver = null;
@@ -596,7 +631,7 @@ function getDominantColorFromImg(imgUrl) {
     if (authErrorMessage) authErrorMessage.style.display = "none";
     if (authModalTitleIcon) authModalTitleIcon.src = ICON_LOCKED;
     if (authHeroIcon) authHeroIcon.src = ICON_LOCKED;
-    adminAuthModal.style.display = "flex";
+    openAeroModal(adminAuthModal);
     setTimeout(() => {
       if (authEmailInput) authEmailInput.focus();
     }, 40);
@@ -1010,11 +1045,11 @@ function getDominantColorFromImg(imgUrl) {
     }
     if (!commentQueueModal) return;
     renderQueueModal();
-    commentQueueModal.style.display = "flex";
+    openAeroModal(commentQueueModal);
   }
 
   function closeQueueModal() {
-    if (commentQueueModal) commentQueueModal.style.display = "none";
+    closeAeroModal(commentQueueModal);
   }
 
   function renderQueueModal() {
@@ -1557,6 +1592,257 @@ function getDominantColorFromImg(imgUrl) {
     getPool: getLiveMovementPool
   });
 
+  // ============================================================
+  // FAVORITE TRACKS CHIP + INLINE LINK POPOVER MANAGER
+  // ============================================================
+  class FavTracksTagManager {
+    constructor() {
+      this.container = document.getElementById("favTracksTagBox");
+      this.input = document.getElementById("logFavTracksInput");
+      this.hiddenInput = document.getElementById("logFavTracks");
+      this.popover = document.getElementById("favTrackLinkPopover");
+      this.linkInput = document.getElementById("favTrackLinkInput");
+      this.linkBadge = document.getElementById("favTrackLinkTargetName");
+      this.linkSaveBtn = document.getElementById("favTrackLinkSaveBtn");
+      this.linkClearBtn = document.getElementById("favTrackLinkClearBtn");
+      this.tracks = [];
+      this.editingTrackIdx = -1;
+      if (this.container && this.input) {
+        this.bindEvents();
+      }
+    }
+
+    parseSingleEntry(raw) {
+      const str = String(raw || "").trim();
+      if (!str) return null;
+      if (str.includes("|")) {
+        const pipeIdx = str.indexOf("|");
+        const title = str.slice(0, pipeIdx).trim();
+        const url = str.slice(pipeIdx + 1).trim();
+        if (!title) return null;
+        return { title, url };
+      }
+      return { title: str, url: "" };
+    }
+
+    syncHidden() {
+      if (!this.hiddenInput) return;
+      this.hiddenInput.value = this.tracks
+        .map((t) => (t.url ? `${t.title} | ${t.url}` : t.title))
+        .join("; ");
+    }
+
+    renderChips() {
+      if (!this.container || !this.input) return;
+      this.container.querySelectorAll(".tag-chip.chip-fav-track").forEach((el) => el.remove());
+
+      this.tracks.forEach((tr, idx) => {
+        const chip = document.createElement("span");
+        chip.className = `tag-chip chip-fav-track${tr.url ? " has-link" : ""}`;
+        chip.title = tr.url
+          ? `${tr.title} — ${tr.url} (click to edit link)`
+          : `${tr.title} (click to attach link)`;
+
+        const textSpan = document.createElement("span");
+        textSpan.textContent = tr.title;
+
+        const linkBtn = document.createElement("button");
+        linkBtn.type = "button";
+        linkBtn.className = "fav-chip-link-btn";
+        linkBtn.setAttribute("aria-label", tr.url ? `Edit link for ${tr.title}` : `Add link for ${tr.title}`);
+        linkBtn.innerHTML = "<i class='bx bx-link-alt'></i>";
+        linkBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.openLinkPopover(idx);
+        });
+
+        const removeBtn = document.createElement("span");
+        removeBtn.className = "tag-chip-remove";
+        removeBtn.innerHTML = "&times;";
+        removeBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.removeTrack(idx);
+        });
+
+        chip.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.openLinkPopover(idx);
+        });
+
+        chip.appendChild(textSpan);
+        chip.appendChild(linkBtn);
+        chip.appendChild(removeBtn);
+        this.container.insertBefore(chip, this.input);
+      });
+
+      this.syncHidden();
+    }
+
+    addTrack(rawEntry, promptLink = false) {
+      const parts = String(rawEntry || "").split(/\s*;\s*/).map((s) => s.trim()).filter(Boolean);
+      let lastAddedIdx = -1;
+      let lastAddedHasUrl = false;
+
+      parts.forEach((part) => {
+        const parsed = this.parseSingleEntry(part);
+        if (!parsed) return;
+        const existingIdx = this.tracks.findIndex(
+          (t) => t.title.toLowerCase() === parsed.title.toLowerCase()
+        );
+        if (existingIdx !== -1) {
+          if (parsed.url) this.tracks[existingIdx].url = parsed.url;
+          lastAddedIdx = existingIdx;
+          lastAddedHasUrl = !!this.tracks[existingIdx].url;
+        } else {
+          this.tracks.push(parsed);
+          lastAddedIdx = this.tracks.length - 1;
+          lastAddedHasUrl = !!parsed.url;
+        }
+      });
+
+      if (this.input) this.input.value = "";
+      this.renderChips();
+
+      if (promptLink && lastAddedIdx !== -1 && !lastAddedHasUrl) {
+        this.openLinkPopover(lastAddedIdx);
+      }
+    }
+
+    removeTrack(idx) {
+      if (this.editingTrackIdx === idx) {
+        this.closeLinkPopover(false);
+      } else if (this.editingTrackIdx > idx) {
+        this.editingTrackIdx -= 1;
+      }
+      this.tracks.splice(idx, 1);
+      this.renderChips();
+    }
+
+    setTracks(list) {
+      this.closeLinkPopover(false);
+      this.tracks = [];
+      (Array.isArray(list) ? list : parseFavTracks(list)).forEach((entry) => {
+        const parsed = this.parseSingleEntry(entry);
+        if (parsed) this.tracks.push(parsed);
+      });
+      if (this.input) this.input.value = "";
+      this.renderChips();
+    }
+
+    commitPendingInput() {
+      if (this.popover && this.popover.style.display !== "none" && this.editingTrackIdx !== -1) {
+        this.saveCurrentLink(false);
+      }
+      if (this.input && this.input.value.trim()) {
+        this.addTrack(this.input.value, false);
+      }
+    }
+
+    openLinkPopover(idx) {
+      const tr = this.tracks[idx];
+      if (!tr || !this.popover || !this.linkInput) return;
+      this.editingTrackIdx = idx;
+      if (this.linkBadge) {
+        this.linkBadge.textContent = tr.title;
+        this.linkBadge.title = tr.title;
+      }
+      this.linkInput.value = tr.url || "";
+      this.popover.style.display = "flex";
+      setTimeout(() => {
+        if (this.linkInput) {
+          this.linkInput.focus();
+          this.linkInput.select();
+        }
+      }, 15);
+    }
+
+    saveCurrentLink(refocusMainInput = true) {
+      if (this.editingTrackIdx >= 0 && this.tracks[this.editingTrackIdx] && this.linkInput) {
+        this.tracks[this.editingTrackIdx].url = this.linkInput.value.trim();
+        this.renderChips();
+      }
+      this.closeLinkPopover(refocusMainInput);
+    }
+
+    closeLinkPopover(refocusMainInput = true) {
+      this.editingTrackIdx = -1;
+      if (this.popover) this.popover.style.display = "none";
+      if (refocusMainInput && this.input) {
+        this.input.focus();
+      }
+    }
+
+    bindEvents() {
+      this.container.addEventListener("click", (e) => {
+        if (e.target === this.container) {
+          this.input.focus();
+        }
+      });
+
+      this.input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === ";") {
+          const val = this.input.value.trim();
+          if (val) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.addTrack(val, e.key === "Enter");
+          } else if (e.key === "Enter") {
+            e.preventDefault();
+          }
+        } else if (e.key === "Backspace" && !this.input.value && this.tracks.length > 0) {
+          this.removeTrack(this.tracks.length - 1);
+        }
+      });
+
+      if (this.linkInput) {
+        this.linkInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            e.stopPropagation();
+            this.saveCurrentLink(true);
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            e.stopPropagation();
+            this.closeLinkPopover(true);
+          }
+        });
+      }
+
+      if (this.linkSaveBtn) {
+        this.linkSaveBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.saveCurrentLink(true);
+        });
+      }
+
+      if (this.linkClearBtn) {
+        this.linkClearBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (this.editingTrackIdx >= 0 && this.tracks[this.editingTrackIdx]) {
+            this.tracks[this.editingTrackIdx].url = "";
+            this.renderChips();
+          }
+          this.closeLinkPopover(true);
+        });
+      }
+
+      document.addEventListener("click", (e) => {
+        if (
+          this.popover &&
+          this.popover.style.display !== "none" &&
+          favTracksFieldWrap &&
+          !favTracksFieldWrap.contains(e.target)
+        ) {
+          this.saveCurrentLink(false);
+        }
+      });
+    }
+  }
+
+  window.logFavTracksManager = new FavTracksTagManager();
+
 
 
 
@@ -1574,11 +1860,12 @@ function getDominantColorFromImg(imgUrl) {
       if (window.logDescriptorsManager) window.logDescriptorsManager.setTags([]);
       if (window.logScenesManager) window.logScenesManager.setTags([]);
       if (window.logMovementsManager) window.logMovementsManager.setTags([]);
+      if (window.logFavTracksManager) window.logFavTracksManager.setTracks([]);
       if (logFavTracks) logFavTracks.value = "";
       if (logSingleAudioUrl) logSingleAudioUrl.value = "";
       updateSingleModeFields();
     }
-    if (modalOverlay) modalOverlay.style.display = "flex";
+    openAeroModal(modalOverlay);
     if (modalTitle) modalTitle.textContent = isEdit ? "Edit Spin" : "Log a Spin";
     if (modalSubmitBtn) modalSubmitBtn.textContent = isEdit ? "Update Spin" : "Save Spin";
   }
@@ -1600,8 +1887,7 @@ function getDominantColorFromImg(imgUrl) {
     return result;
   }
 
-  function closeModal() {
-    if (modalOverlay) modalOverlay.style.display = "none";
+  function resetSpinModalFields() {
     if (spinForm) spinForm.reset();
     editingIndex = null;
     if (previewImg) previewImg.src = "assets/images/spins/placeholder.png";
@@ -1628,6 +1914,9 @@ function getDominantColorFromImg(imgUrl) {
       window.logMovementsManager.setTags([]);
       window.logMovementsManager.closeDropdown();
     }
+    if (window.logFavTracksManager) {
+      window.logFavTracksManager.setTracks([]);
+    }
     if (artThumbnailsRow) artThumbnailsRow.innerHTML = "";
     if (logPrevRating) logPrevRating.style.display = "none";
     if (logReviewUrl) logReviewUrl.value = "";
@@ -1637,6 +1926,10 @@ function getDominantColorFromImg(imgUrl) {
     if (logRymRating) logRymRating.value = "";
     if (logSingleAudioUrl) logSingleAudioUrl.value = "";
     updateSingleModeFields();
+  }
+
+  function closeModal() {
+    closeAeroModal(modalOverlay, resetSpinModalFields);
   }
 
   if (composerPrompt) composerPrompt.addEventListener("click", () => openModal(false));
@@ -2350,6 +2643,8 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
   // SOSASPINS IPOD / ITUNES COVER FLOW 3D CAROUSEL
   // ============================================================
   const spinsCoverFlowToggleBtn = document.getElementById("spinsCoverFlowToggleBtn");
+  const spinsTimelineViewBtn = document.getElementById("spinsTimelineViewBtn");
+  const spinsCoverFlowViewBtn = document.getElementById("spinsCoverFlowViewBtn");
   const spinsCfTooltip = document.getElementById("spinsCfTooltip");
   const spinsCoverFlowWrapper = document.getElementById("spinsCoverFlowWrapper");
   const spinsCoverFlowStage = document.getElementById("spinsCoverFlowStage");
@@ -2365,11 +2660,41 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
   const spinsCfScrubber = document.getElementById("spinsCfScrubber");
   const spinsCfPositionReadout = document.getElementById("spinsCfPositionReadout");
 
+  const CF_WINDOW_RADIUS = 10; // Match Timeline's RAM-saving lazy approach: render only nearby covers (~21 DOM cards max)
   let isSpinsCoverFlow = false;
   let spinsCfIndex = 0;
   let currentCfSpins = [];
+  const cfRenderedCards = new Map();
+  let cfDirtyCards = true;
+  let cfScrubRafId = null;
+  let cfDetailsTimer = null;
+  let cfLastRenderedDetailsIdx = -1;
+
+  function clearSpinsCoverFlowDom() {
+    if (cfScrubRafId) {
+      cancelAnimationFrame(cfScrubRafId);
+      cfScrubRafId = null;
+    }
+    if (cfDetailsTimer) {
+      clearTimeout(cfDetailsTimer);
+      cfDetailsTimer = null;
+    }
+    cfLastRenderedDetailsIdx = -1;
+    cfRenderedCards.clear();
+    if (spinsCoverFlowTrack) {
+      spinsCoverFlowTrack.innerHTML = "";
+    }
+  }
 
   function syncCoverFlowToggleBtn(active) {
+    if (spinsTimelineViewBtn) {
+      spinsTimelineViewBtn.classList.toggle("active", !active);
+      spinsTimelineViewBtn.setAttribute("aria-pressed", !active ? "true" : "false");
+    }
+    if (spinsCoverFlowViewBtn) {
+      spinsCoverFlowViewBtn.classList.toggle("active", active);
+      spinsCoverFlowViewBtn.setAttribute("aria-pressed", active ? "true" : "false");
+    }
     if (!spinsCoverFlowToggleBtn) return;
     spinsCoverFlowToggleBtn.classList.toggle("is-coverflow-active", active);
     spinsCoverFlowToggleBtn.classList.toggle("active-filter", active);
@@ -2384,20 +2709,96 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
     }
   }
 
+  let cfModeTransitionTimer = null;
+
   function setSpinsCoverFlowMode(active) {
+    if (cfModeTransitionTimer) {
+      clearTimeout(cfModeTransitionTimer);
+      cfModeTransitionTimer = null;
+    }
+
     isSpinsCoverFlow = active;
     document.body.classList.toggle("coverflow-active", isSpinsCoverFlow);
     syncCoverFlowToggleBtn(isSpinsCoverFlow);
-    if (spinsCoverFlowWrapper) {
-      spinsCoverFlowWrapper.style.display = isSpinsCoverFlow ? "flex" : "none";
-    }
-    if (feed) {
-      feed.style.display = isSpinsCoverFlow ? "none" : "";
-    }
+
+    const reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
     if (isSpinsCoverFlow) {
-      updateSpinsCoverFlowPositions();
-      if (spinsCoverFlowStage) spinsCoverFlowStage.focus({ preventScroll: true });
+      const revealCoverFlow = () => {
+        if (feed) {
+          feed.classList.remove("feed-switching-out");
+          feed.style.display = "none";
+        }
+        if (spinsCoverFlowWrapper) {
+          spinsCoverFlowWrapper.classList.remove("cf-leaving");
+          if (!reducedMotion) {
+            spinsCoverFlowWrapper.classList.add("cf-entering");
+          }
+          spinsCoverFlowWrapper.style.display = "flex";
+        }
+        cfDirtyCards = cfRenderedCards.size === 0 || cfDirtyCards;
+        cfLastRenderedDetailsIdx = -1;
+        renderSpinsCoverFlow(currentCfSpins);
+        if (spinsCoverFlowWrapper && !reducedMotion) {
+          void spinsCoverFlowWrapper.offsetWidth;
+          spinsCoverFlowWrapper.classList.remove("cf-entering");
+        }
+        if (spinsCoverFlowStage) spinsCoverFlowStage.focus({ preventScroll: true });
+      };
+
+      if (feed && feed.style.display !== "none" && !reducedMotion) {
+        feed.classList.add("feed-switching-out");
+        cfModeTransitionTimer = setTimeout(() => {
+          cfModeTransitionTimer = null;
+          revealCoverFlow();
+        }, 150);
+      } else {
+        revealCoverFlow();
+      }
+    } else {
+      const revealTimeline = () => {
+        if (spinsCoverFlowWrapper) {
+          spinsCoverFlowWrapper.classList.remove("cf-leaving", "cf-entering");
+          spinsCoverFlowWrapper.style.display = "none";
+        }
+        clearSpinsCoverFlowDom();
+        cfDirtyCards = true;
+        if (feed) {
+          feed.classList.remove("feed-switching-out", "feed-fade-in", "feed-fading-in", "feed-fading-out");
+          feed.style.display = "";
+          if (!reducedMotion) {
+            void feed.offsetWidth;
+            feed.classList.add("feed-fading-in");
+          }
+        }
+      };
+
+      if (spinsCoverFlowWrapper && spinsCoverFlowWrapper.style.display !== "none" && !reducedMotion) {
+        spinsCoverFlowWrapper.classList.remove("cf-entering");
+        spinsCoverFlowWrapper.classList.add("cf-leaving");
+        cfModeTransitionTimer = setTimeout(() => {
+          cfModeTransitionTimer = null;
+          revealTimeline();
+        }, 165);
+      } else {
+        revealTimeline();
+      }
     }
+  }
+
+  if (spinsTimelineViewBtn) {
+    spinsTimelineViewBtn.addEventListener("click", () => {
+      if (isSpinsCoverFlow) setSpinsCoverFlowMode(false);
+    });
+  }
+
+  if (spinsCoverFlowViewBtn) {
+    spinsCoverFlowViewBtn.addEventListener("click", () => {
+      if (!isSpinsCoverFlow) {
+        spinsCfIndex = 0;
+        setSpinsCoverFlowMode(true);
+      }
+    });
   }
 
   if (spinsCoverFlowToggleBtn) {
@@ -2409,11 +2810,50 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
     });
   }
 
-  function setSpinsCfIndex(nextIdx) {
+  if (spinsCoverFlowTrack) {
+    spinsCoverFlowTrack.addEventListener("click", (e) => {
+      const card = e.target.closest(".cf-card");
+      if (!card) return;
+      e.stopPropagation();
+      const clickedIdx = parseInt(card.getAttribute("data-cf-index"), 10);
+      const spinId = parseInt(card.getAttribute("data-id"), 10);
+      if (clickedIdx === spinsCfIndex) {
+        if (spinId) window.jumpToSpinInTimeline(spinId);
+      } else {
+        setSpinsCfIndex(clickedIdx);
+      }
+    });
+  }
+
+  function setSpinsCfIndex(nextIdx, deferDetails = false) {
     if (!currentCfSpins.length) return;
     const clamped = Math.max(0, Math.min(currentCfSpins.length - 1, nextIdx));
     spinsCfIndex = clamped;
-    updateSpinsCoverFlowPositions();
+    if (deferDetails) {
+      if (!cfScrubRafId) {
+        cfScrubRafId = requestAnimationFrame(() => {
+          cfScrubRafId = null;
+          updateSpinsCoverFlowPositions(true);
+        });
+      }
+      if (cfDetailsTimer) clearTimeout(cfDetailsTimer);
+      cfDetailsTimer = setTimeout(() => {
+        cfDetailsTimer = null;
+        if (isSpinsCoverFlow && currentCfSpins.length) {
+          renderSpinsCoverFlowInfoDetails(currentCfSpins[spinsCfIndex]);
+        }
+      }, 45);
+    } else {
+      if (cfScrubRafId) {
+        cancelAnimationFrame(cfScrubRafId);
+        cfScrubRafId = null;
+      }
+      if (cfDetailsTimer) {
+        clearTimeout(cfDetailsTimer);
+        cfDetailsTimer = null;
+      }
+      updateSpinsCoverFlowPositions(false);
+    }
   }
 
   window.jumpToSpinInTimeline = function(spinId) {
@@ -2430,7 +2870,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
         row.classList.add("cf-jump-highlight");
         setTimeout(() => row.classList.remove("cf-jump-highlight"), 1800);
       }
-    }, 60);
+    }, 220);
   };
 
   if (spinsCfPrevBtn) {
@@ -2441,7 +2881,10 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
   }
   if (spinsCfScrubber) {
     spinsCfScrubber.addEventListener("input", (e) => {
-      setSpinsCfIndex(parseInt(e.target.value, 10) || 0);
+      setSpinsCfIndex(parseInt(e.target.value, 10) || 0, true);
+    });
+    spinsCfScrubber.addEventListener("change", (e) => {
+      setSpinsCfIndex(parseInt(e.target.value, 10) || 0, false);
     });
   }
 
@@ -2532,12 +2975,138 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
     }).join("");
   }
 
+  function computeCfCardPlacement(offset, metrics) {
+    const absOffset = Math.abs(offset);
+    let tx = 0;
+    let tz = 0;
+    let ry = 0;
+    let scale = 1;
+    let opacity = 1;
+
+    if (offset === 0) {
+      tx = 0;
+      tz = metrics.centerZ;
+      ry = 0;
+      scale = 1.05;
+      opacity = 1;
+    } else if (offset < 0) {
+      tx = -metrics.baseOffset + (offset + 1) * metrics.stepX;
+      tz = -45 - absOffset * 20;
+      ry = 60;
+      scale = Math.max(0.72, 0.94 - absOffset * 0.025);
+      opacity = absOffset > 8 ? 0 : Math.max(0.16, 1 - (absOffset - 1) * 0.11);
+    } else {
+      tx = metrics.baseOffset + (offset - 1) * metrics.stepX;
+      tz = -45 - absOffset * 20;
+      ry = -60;
+      scale = Math.max(0.72, 0.94 - absOffset * 0.025);
+      opacity = absOffset > 8 ? 0 : Math.max(0.16, 1 - (absOffset - 1) * 0.11);
+    }
+
+    return {
+      transform: `translate3d(${tx}px, 0px, ${tz}px) rotateY(${ry}deg) scale(${scale})`,
+      zIndex: String(100 - absOffset),
+      opacity: String(opacity),
+      pointerEvents: absOffset > 8 ? "none" : "auto",
+      isActive: offset === 0,
+    };
+  }
+
+  function applyCfCardPlacement(card, placement) {
+    if (card._cfIsActive !== placement.isActive) {
+      card._cfIsActive = placement.isActive;
+      card.classList.toggle("is-active-card", placement.isActive);
+    }
+    if (card._cfTransform !== placement.transform) {
+      card._cfTransform = placement.transform;
+      card.style.transform = placement.transform;
+    }
+    if (card._cfZIndex !== placement.zIndex) {
+      card._cfZIndex = placement.zIndex;
+      card.style.zIndex = placement.zIndex;
+    }
+    if (card._cfOpacity !== placement.opacity) {
+      card._cfOpacity = placement.opacity;
+      card.style.opacity = placement.opacity;
+    }
+    if (card._cfPointer !== placement.pointerEvents) {
+      card._cfPointer = placement.pointerEvents;
+      card.style.pointerEvents = placement.pointerEvents;
+    }
+  }
+
+  function createCoverFlowCardElement(item, idx) {
+    const coverSrc = item.cover_url || "assets/images/spins/placeholder.png";
+    const safeReflectUrl = coverSrc.replace(/'/g, "\\'");
+    const card = document.createElement("div");
+    card.className = "cf-card";
+    card.setAttribute("data-cf-index", String(idx));
+    card.setAttribute("data-id", String(item.id || ""));
+    card.title = `${item.artist || ""} — ${item.title || ""}`;
+    card.innerHTML = `
+      <div class="cf-card-sleeve">
+        <img src="${coverSrc}" alt="${escapeHtml(item.title || "")}" class="cf-card-art" decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+        <div class="cf-card-gloss"></div>
+      </div>
+      <div class="cf-card-reflection" style="background-image: url('${safeReflectUrl}');"></div>
+    `;
+    return card;
+  }
+
+  function syncCoverFlowCardWindow(metrics) {
+    if (!spinsCoverFlowTrack || !currentCfSpins.length) return;
+
+    if (cfDirtyCards) {
+      clearSpinsCoverFlowDom();
+      cfDirtyCards = false;
+    }
+
+    const winStart = Math.max(0, spinsCfIndex - CF_WINDOW_RADIUS);
+    const winEnd = Math.min(currentCfSpins.length - 1, spinsCfIndex + CF_WINDOW_RADIUS);
+
+    for (const [idx, card] of cfRenderedCards.entries()) {
+      if (idx < winStart || idx > winEnd) {
+        card.remove();
+        cfRenderedCards.delete(idx);
+      }
+    }
+
+    const newlyInserted = [];
+    const frag = document.createDocumentFragment();
+    for (let idx = winStart; idx <= winEnd; idx++) {
+      let card = cfRenderedCards.get(idx);
+      if (!card) {
+        card = createCoverFlowCardElement(currentCfSpins[idx], idx);
+        card.style.transition = "none";
+        applyCfCardPlacement(card, computeCfCardPlacement(idx - spinsCfIndex, metrics));
+        cfRenderedCards.set(idx, card);
+        frag.appendChild(card);
+        newlyInserted.push(card);
+      } else {
+        applyCfCardPlacement(card, computeCfCardPlacement(idx - spinsCfIndex, metrics));
+      }
+    }
+
+    if (newlyInserted.length > 0) {
+      spinsCoverFlowTrack.appendChild(frag);
+      // Commit initial placement before re-enabling transitions so entering edge cards don't jump from (0,0)
+      void spinsCoverFlowTrack.offsetWidth;
+      for (const card of newlyInserted) {
+        card.style.transition = "";
+      }
+    }
+  }
+
   function renderSpinsCoverFlow(entries) {
-    if (!spinsCoverFlowTrack) return;
     currentCfSpins = entries || [];
+    cfDirtyCards = true;
+    cfLastRenderedDetailsIdx = -1;
 
     if (currentCfSpins.length === 0) {
-      spinsCoverFlowTrack.innerHTML = `<div class="cf-empty-state">No spins match your filter.</div>`;
+      clearSpinsCoverFlowDom();
+      if (spinsCoverFlowTrack) {
+        spinsCoverFlowTrack.innerHTML = `<div class="cf-empty-state">No spins match your filter.</div>`;
+      }
       if (spinsCfTitle) spinsCfTitle.textContent = "No Matching Spins";
       if (spinsCfArtist) spinsCfArtist.textContent = "";
       if (spinsCfMeta) spinsCfMeta.innerHTML = "";
@@ -2558,92 +3127,42 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
       spinsCfIndex = 0;
     }
 
-    spinsCoverFlowTrack.innerHTML = currentCfSpins.map((item, idx) => {
-      const coverSrc = item.cover_url || "assets/images/spins/placeholder.png";
-      const safeReflectUrl = coverSrc.replace(/'/g, "\\'");
+    if (spinsCfScrubber) {
+      spinsCfScrubber.disabled = currentCfSpins.length <= 1;
+      spinsCfScrubber.min = 0;
+      spinsCfScrubber.max = Math.max(0, currentCfSpins.length - 1);
+      spinsCfScrubber.value = spinsCfIndex;
+    }
+    if (spinsCfPositionReadout) {
+      spinsCfPositionReadout.textContent = `${spinsCfIndex + 1} / ${currentCfSpins.length}`;
+    }
 
-      return `
-        <div class="cf-card"
-             data-cf-index="${idx}"
-             data-id="${item.id}"
-             title="${escapeHtml(item.artist || '')} — ${escapeHtml(item.title || '')}">
-          <div class="cf-card-sleeve">
-            <img src="${coverSrc}" alt="${escapeHtml(item.title || '')}" class="cf-card-art" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
-            <div class="cf-card-gloss"></div>
-          </div>
-          <div class="cf-card-reflection" style="background-image: url('${safeReflectUrl}');"></div>
-        </div>
-      `;
-    }).join("");
+    if (!isSpinsCoverFlow || !spinsCoverFlowTrack) {
+      // Lazy RAM saving: never allocate Cover Flow DOM cards or cover bitmaps until Cover Flow view is active
+      clearSpinsCoverFlowDom();
+      return;
+    }
 
-    spinsCoverFlowTrack.querySelectorAll(".cf-card").forEach(card => {
-      card.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const clickedIdx = parseInt(card.getAttribute("data-cf-index"), 10);
-        const spinId = parseInt(card.getAttribute("data-id"), 10);
-        if (clickedIdx === spinsCfIndex) {
-          if (spinId) window.jumpToSpinInTimeline(spinId);
-        } else {
-          setSpinsCfIndex(clickedIdx);
-        }
-      });
-    });
-
-    updateSpinsCoverFlowPositions();
+    updateSpinsCoverFlowPositions(false);
   }
 
-  function updateSpinsCoverFlowPositions() {
-    if (!spinsCoverFlowTrack || !currentCfSpins.length) return;
+  function updateSpinsCoverFlowPositions(deferDetails = false) {
+    if (!spinsCoverFlowTrack || !currentCfSpins.length || !isSpinsCoverFlow) return;
 
-    const cards = spinsCoverFlowTrack.querySelectorAll(".cf-card");
     const isMobile = window.innerWidth <= 640;
-    const baseOffset = isMobile ? 88 : 135;
-    const stepX = isMobile ? 30 : 44;
+    const stageWidth = spinsCoverFlowStage ? spinsCoverFlowStage.clientWidth : window.innerWidth;
+    const isFeedColStage = !isMobile && stageWidth > 0 && stageWidth < 760;
+    const metrics = {
+      isMobile,
+      baseOffset: isMobile ? 88 : (isFeedColStage ? 118 : 135),
+      stepX: isMobile ? 30 : (isFeedColStage ? 36 : 44),
+      centerZ: isMobile ? 75 : (isFeedColStage ? 105 : 115),
+    };
 
-    cards.forEach((card, idx) => {
-      const offset = idx - spinsCfIndex;
-      const absOffset = Math.abs(offset);
-
-      card.classList.toggle("is-active-card", offset === 0);
-
-      let tx = 0;
-      let tz = 0;
-      let ry = 0;
-      let scale = 1;
-      let opacity = 1;
-
-      if (offset === 0) {
-        tx = 0;
-        tz = isMobile ? 75 : 115;
-        ry = 0;
-        scale = 1.05;
-        opacity = 1;
-      } else if (offset < 0) {
-        tx = -baseOffset + (offset + 1) * stepX;
-        tz = -45 - absOffset * 20;
-        ry = 60;
-        scale = Math.max(0.72, 0.94 - absOffset * 0.025);
-        opacity = absOffset > 8 ? 0 : Math.max(0.16, 1 - (absOffset - 1) * 0.11);
-      } else {
-        tx = baseOffset + (offset - 1) * stepX;
-        tz = -45 - absOffset * 20;
-        ry = -60;
-        scale = Math.max(0.72, 0.94 - absOffset * 0.025);
-        opacity = absOffset > 8 ? 0 : Math.max(0.16, 1 - (absOffset - 1) * 0.11);
-      }
-
-      card.style.transform = `translate3d(${tx}px, 0px, ${tz}px) rotateY(${ry}deg) scale(${scale})`;
-      card.style.zIndex = String(100 - absOffset);
-      card.style.opacity = String(opacity);
-      card.style.pointerEvents = absOffset > 8 ? "none" : "auto";
-    });
+    syncCoverFlowCardWindow(metrics);
 
     const item = currentCfSpins[spinsCfIndex];
     if (!item) return;
-
-    const originalIdx = allEntries.indexOf(item);
-    let displayType = item.type || "Album";
-    if (displayType.toLowerCase() === "ep") displayType = "EP";
 
     const yearSuffix = item.year ? ` <span class="cf-year">(${item.year})</span>` : "";
     if (spinsCfTitle) {
@@ -2652,6 +3171,31 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
     if (spinsCfArtist) {
       spinsCfArtist.innerHTML = renderClickableArtists(item.artist || "");
     }
+
+    if (spinsCfScrubber) {
+      spinsCfScrubber.disabled = currentCfSpins.length <= 1;
+      spinsCfScrubber.min = 0;
+      spinsCfScrubber.max = Math.max(0, currentCfSpins.length - 1);
+      spinsCfScrubber.value = spinsCfIndex;
+    }
+    if (spinsCfPrevBtn) spinsCfPrevBtn.disabled = spinsCfIndex <= 0;
+    if (spinsCfNextBtn) spinsCfNextBtn.disabled = spinsCfIndex >= currentCfSpins.length - 1;
+    if (spinsCfPositionReadout) {
+      spinsCfPositionReadout.textContent = `${spinsCfIndex + 1} / ${currentCfSpins.length}`;
+    }
+
+    if (!deferDetails) {
+      renderSpinsCoverFlowInfoDetails(item);
+    }
+  }
+
+  function renderSpinsCoverFlowInfoDetails(item) {
+    if (!item || cfLastRenderedDetailsIdx === spinsCfIndex) return;
+    cfLastRenderedDetailsIdx = spinsCfIndex;
+
+    const originalIdx = allEntries.indexOf(item);
+    let displayType = item.type || "Album";
+    if (displayType.toLowerCase() === "ep") displayType = "EP";
 
     if (spinsCfMeta) {
       const rowsHtml = [];
@@ -2826,18 +3370,6 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
         `;
       }
       spinsCfActions.innerHTML = actionsHtml;
-    }
-
-    if (spinsCfScrubber) {
-      spinsCfScrubber.disabled = currentCfSpins.length <= 1;
-      spinsCfScrubber.min = 0;
-      spinsCfScrubber.max = Math.max(0, currentCfSpins.length - 1);
-      spinsCfScrubber.value = spinsCfIndex;
-    }
-    if (spinsCfPrevBtn) spinsCfPrevBtn.disabled = spinsCfIndex <= 0;
-    if (spinsCfNextBtn) spinsCfNextBtn.disabled = spinsCfIndex >= currentCfSpins.length - 1;
-    if (spinsCfPositionReadout) {
-      spinsCfPositionReadout.textContent = `${spinsCfIndex + 1} / ${currentCfSpins.length}`;
     }
   }
 
@@ -3683,6 +4215,8 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
       feed.style.display = isTop100View ? "none" : "";
     }
     if (spinsCoverFlowWrapper && isTop100View) {
+      clearSpinsCoverFlowDom();
+      cfDirtyCards = true;
       spinsCoverFlowWrapper.style.display = "none";
       isSpinsCoverFlow = false;
       document.body.classList.remove("coverflow-active");
@@ -3873,6 +4407,12 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
 
   window.changeTopAlbumsCount = function(val) {
     topAlbumsCount = val === "all" ? "all" : parseInt(val, 10);
+    const albumsCap = document.getElementById("topAlbumsCountCapsule");
+    if (albumsCap) {
+      albumsCap.querySelectorAll("[data-count]").forEach((btn) => {
+        btn.classList.toggle("active", btn.getAttribute("data-count") === String(val));
+      });
+    }
     if (top100HeaderTitle) {
       top100HeaderTitle.textContent = topAlbumsCount === "all" ? "Sosa's All-Time Top Albums" : `Sosa's All-Time Top ${topAlbumsCount} Albums`;
     }
@@ -3884,6 +4424,12 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
 
   window.changeTopArtistsCount = function(val) {
     topArtistsCount = val === "all" ? "all" : parseInt(val, 10);
+    const artistsCap = document.getElementById("topArtistsCountCapsule");
+    if (artistsCap) {
+      artistsCap.querySelectorAll("[data-count]").forEach((btn) => {
+        btn.classList.toggle("active", btn.getAttribute("data-count") === String(val));
+      });
+    }
     if (top100HeaderTitle) {
       top100HeaderTitle.textContent = topArtistsCount === "all" ? "Sosa's All-Time Top Artists" : `Sosa's All-Time Top ${topArtistsCount} Artists`;
     }
@@ -4535,12 +5081,13 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
       }
     }
 
-    if (artistCustomImageModal) artistCustomImageModal.style.display = "flex";
+    openAeroModal(artistCustomImageModal);
   };
 
   window.closeArtistCustomImageModal = function() {
-    if (artistCustomImageModal) artistCustomImageModal.style.display = "none";
-    editingArtistRank = null;
+    closeAeroModal(artistCustomImageModal, () => {
+      editingArtistRank = null;
+    });
   };
 
   window.selectArtistCoverThumb = function(url, el) {
@@ -4998,7 +5545,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
       </div>
     `;
 
-    top100DetailModal.style.display = "flex";
+    openAeroModal(top100DetailModal);
   }
 
   function openArtistQuickModal(artistName, rank = null) {
@@ -5350,13 +5897,13 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
       requestAnimationFrame(updateQueueNavState);
     }
 
-    modal.style.display = "flex";
+    openAeroModal(modal);
   }
   window.openArtistQuickModal = openArtistQuickModal;
 
   function closeArtistQuickModal() {
     const modal = document.getElementById("artistQuickModal");
-    if (modal) modal.style.display = "none";
+    closeAeroModal(modal);
   }
   window.closeArtistQuickModal = closeArtistQuickModal;
 
@@ -5366,7 +5913,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
   window.openArtistDetailModal = openArtistDetailModal;
 
   function closeTop100Modal() {
-    if (top100DetailModal) top100DetailModal.style.display = "none";
+    closeAeroModal(top100DetailModal);
   }
   window.closeTop100Modal = closeTop100Modal;
 
@@ -5988,7 +6535,17 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
 
     const prefersReducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    if (animateFade && feed.children.length > 0 && !prefersReducedMotion) {
+    if (isSpinsCoverFlow && animateFade && spinsCoverFlowTrack && !prefersReducedMotion) {
+      spinsCoverFlowTrack.classList.add("cf-track-fading");
+      feedFadeTimer = setTimeout(() => {
+        feedFadeTimer = null;
+        performUpdate();
+        if (spinsCoverFlowTrack) {
+          void spinsCoverFlowTrack.offsetWidth;
+          spinsCoverFlowTrack.classList.remove("cf-track-fading");
+        }
+      }, 140);
+    } else if (animateFade && feed.children.length > 0 && !prefersReducedMotion) {
       // Preserve current height to prevent sudden layout jumping during transition
       feed.style.minHeight = `${feed.offsetHeight}px`;
       feed.classList.remove("feed-fade-in");
@@ -6773,9 +7330,12 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         audioUrl = first.includes("|") ? first.split("|")[1].trim() : (first.startsWith("http") ? first.trim() : "");
       }
       if (logSingleAudioUrl) logSingleAudioUrl.value = audioUrl;
+      if (window.logFavTracksManager) window.logFavTracksManager.setTracks([]);
       if (logFavTracks) logFavTracks.value = "";
     } else {
-      if (logFavTracks) logFavTracks.value = parseFavTracks(item.fav_tracks).join("; ");
+      const parsedTracks = parseFavTracks(item.fav_tracks);
+      if (window.logFavTracksManager) window.logFavTracksManager.setTracks(parsedTracks);
+      if (logFavTracks) logFavTracks.value = parsedTracks.join("; ");
       if (logSingleAudioUrl) logSingleAudioUrl.value = "";
     }
     updateSingleModeFields();
@@ -6831,6 +7391,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     const reviewUrl = logReviewUrl ? logReviewUrl.value.trim() : "";
     const rymRating = logRymRating ? logRymRating.value : "";
     const singleAudioUrl = logSingleAudioUrl ? logSingleAudioUrl.value.trim() : "";
+    if (window.logFavTracksManager) window.logFavTracksManager.commitPendingInput();
     const favTracks = logFavTracks ? logFavTracks.value.trim() : "";
 
     let genres = [];
@@ -6999,8 +7560,10 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     const isSingle = (spinData.type || "").trim().toLowerCase() === "single";
     if (isSingle) {
       if (logSingleAudioUrl) logSingleAudioUrl.value = spinData.single_audio_url || "";
+      if (window.logFavTracksManager) window.logFavTracksManager.setTracks([]);
       if (logFavTracks) logFavTracks.value = "";
     } else {
+      if (window.logFavTracksManager) window.logFavTracksManager.setTracks(spinData.fav_tracks || "");
       if (logFavTracks) logFavTracks.value = spinData.fav_tracks || "";
       if (logSingleAudioUrl) logSingleAudioUrl.value = "";
     }
@@ -7108,6 +7671,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
             : [`${titleVal} | ${singleAudio}`];
         }
       } else {
+        if (window.logFavTracksManager) window.logFavTracksManager.commitPendingInput();
         favTracksPayload = parseFavTracks(document.getElementById("logFavTracks").value || "");
       }
 

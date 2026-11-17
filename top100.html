@@ -25,7 +25,7 @@
     <meta name="apple-mobile-web-app-title" content="SosaSpeaks" />
     <link rel="manifest" href="assets/images/homepics/site.webmanifest?v=20260527" />
     <!-- Link to CSS -->
-    <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261116a">
+    <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261116l">
     <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
     <!-- Box icons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
@@ -55,7 +55,11 @@
                 <a href="about.html" class="nav-custom-link" title="About">
                     <img src="assets/images/homepics/msgsres_1.ico" class="nav-custom-icon msngr-icon" alt="About">
                 </a>
-                <i class='bx bx-moon theme-toggle' style="scale: 155%;" title="Theme"></i>
+                <button type="button" class="aero-theme-switch theme-toggle" aria-label="Toggle Light/Dark Theme" title="Theme">
+                    <span class="aero-theme-glider" aria-hidden="true"></span>
+                    <span class="aero-theme-opt is-sun" aria-hidden="true"><i class='bx bxs-sun'></i></span>
+                    <span class="aero-theme-opt is-moon" aria-hidden="true"><i class='bx bxs-moon'></i></span>
+                </button>
             </div>
         </div>
     </header>
@@ -82,13 +86,15 @@
           </div>
 
           <!-- Windows 7 Aero Tab Bar -->
-          <div class="top100-tabs-bar" role="tablist">
-            <button type="button" class="w7-tab-btn active" id="tabTopAlbums" role="tab" aria-selected="true" onclick="switchTop100Tab('albums')">
-              <i class='bx bx-disc'></i> Top Albums
-            </button>
-            <button type="button" class="w7-tab-btn" id="tabTopArtists" role="tab" aria-selected="false" onclick="switchTop100Tab('artists')">
-              <i class='bx bx-user-voice'></i> Top Artists
-            </button>
+          <div class="top100-tabs-bar">
+            <div class="aero-filter-capsule is-compact top100-tabs-capsule" role="tablist" aria-label="Showcase View">
+              <button type="button" class="filter-item active" id="tabTopAlbums" role="tab" aria-selected="true" onclick="switchTop100Tab('albums')">
+                <i class='bx bx-disc'></i> Top Albums
+              </button>
+              <button type="button" class="filter-item" id="tabTopArtists" role="tab" aria-selected="false" onclick="switchTop100Tab('artists')">
+                <i class='bx bx-user-voice'></i> Top Artists
+              </button>
+            </div>
           </div>
 
           <!-- Attached Windows 7 Command Bar -->
@@ -101,26 +107,24 @@
                 <i class='bx bx-image'></i> Export Image
               </button>
 
-              <!-- Albums Count Dropdown -->
+              <!-- Albums Count Switcher -->
               <div class="top100-count-wrap" id="topAlbumsCountWrap">
-                <label for="topAlbumsCountSelect" class="aero-ctrl-label"><i class='bx bx-list-ol'></i> Show:</label>
-                <select id="topAlbumsCountSelect" class="aero-select-styled" onchange="changeTopAlbumsCount(this.value)">
-                  <option value="20">Top 20</option>
-                  <option value="50">Top 50</option>
-                  <option value="100" selected>Top 100</option>
-                  <option value="all">All</option>
-                </select>
+                <div class="aero-filter-capsule is-compact" id="topAlbumsCountCapsule" role="group" aria-label="Show Top Albums Count">
+                  <button type="button" class="filter-item" data-count="20" onclick="changeTopAlbumsCount('20')">Top 20</button>
+                  <button type="button" class="filter-item" data-count="50" onclick="changeTopAlbumsCount('50')">Top 50</button>
+                  <button type="button" class="filter-item active" data-count="100" onclick="changeTopAlbumsCount('100')">Top 100</button>
+                  <button type="button" class="filter-item" data-count="all" onclick="changeTopAlbumsCount('all')">All</button>
+                </div>
               </div>
 
-              <!-- Artists Count Dropdown & Min Spins Toggle -->
+              <!-- Artists Count Switcher -->
               <div class="top100-count-wrap" id="topArtistsCountWrap" style="display: none;">
-                <label for="topArtistsCountSelect" class="aero-ctrl-label"><i class='bx bx-list-ol'></i> Show:</label>
-                <select id="topArtistsCountSelect" class="aero-select-styled" onchange="changeTopArtistsCount(this.value)">
-                  <option value="15">Top 15</option>
-                  <option value="20">Top 20</option>
-                  <option value="50">Top 50</option>
-                  <option value="all" selected>All</option>
-                </select>
+                <div class="aero-filter-capsule is-compact" id="topArtistsCountCapsule" role="group" aria-label="Show Top Artists Count">
+                  <button type="button" class="filter-item" data-count="15" onclick="changeTopArtistsCount('15')">Top 15</button>
+                  <button type="button" class="filter-item" data-count="20" onclick="changeTopArtistsCount('20')">Top 20</button>
+                  <button type="button" class="filter-item" data-count="50" onclick="changeTopArtistsCount('50')">Top 50</button>
+                  <button type="button" class="filter-item active" data-count="all" onclick="changeTopArtistsCount('all')">All</button>
+                </div>
               </div>
 
               <!-- Open/Close Bank Toggle Button -->
@@ -564,7 +568,8 @@
     <script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
-    <script src="assets/js/sosaspins.js?v=20261116b"></script>
+    <script src="assets/js/sosaspins.js?v=20261116l"></script>
     <script src="assets/js/dock.js?v=20261115c"></script>
+    <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>
 </body>
 </html>

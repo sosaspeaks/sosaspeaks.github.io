@@ -1545,9 +1545,41 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let authModalResolver = null;
 
+  function openAeroModal(backdrop) {
+    if (!backdrop) return;
+    if (backdrop._closeTimer) {
+      clearTimeout(backdrop._closeTimer);
+      backdrop._closeTimer = null;
+    }
+    backdrop.classList.remove("is-closing");
+    backdrop.style.display = "flex";
+  }
+
+  function closeAeroModal(backdrop, onClosed) {
+    if (!backdrop || backdrop.style.display === "none") {
+      if (typeof onClosed === "function") onClosed();
+      return;
+    }
+    if (backdrop._closeTimer) return;
+    backdrop.classList.add("is-closing");
+    const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const finish = () => {
+      backdrop._closeTimer = null;
+      backdrop.classList.remove("is-closing");
+      backdrop.style.display = "none";
+      if (typeof onClosed === "function") onClosed();
+    };
+    if (reduced) {
+      finish();
+    } else {
+      backdrop._closeTimer = setTimeout(finish, 200);
+    }
+  }
+
   function closeAuthDialog(result = false) {
-    if (adminAuthModal) adminAuthModal.style.display = "none";
-    if (authErrorMessage) authErrorMessage.style.display = "none";
+    closeAeroModal(adminAuthModal, () => {
+      if (authErrorMessage) authErrorMessage.style.display = "none";
+    });
     if (authModalResolver) {
       const resolve = authModalResolver;
       authModalResolver = null;
@@ -1560,7 +1592,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (authErrorMessage) authErrorMessage.style.display = "none";
     if (authModalTitleIcon) authModalTitleIcon.src = ICON_LOCKED;
     if (authHeroIcon) authHeroIcon.src = ICON_LOCKED;
-    adminAuthModal.style.display = "flex";
+    openAeroModal(adminAuthModal);
     setTimeout(() => {
       if (authEmailInput) authEmailInput.focus();
     }, 40);
@@ -2170,7 +2202,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function closeChallengeDetailModal() {
-    if (detailModal) detailModal.style.display = "none";
+    closeAeroModal(detailModal);
   }
   window.closeChallengeDetailModal = closeChallengeDetailModal;
 
@@ -2514,7 +2546,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       modalBody.innerHTML = `<div style="padding: 1rem; color: #ef4444;">Error loading entry details: ${err.message}</div>`;
     }
 
-    detailModal.style.display = "flex";
+    openAeroModal(detailModal);
   };
 
   if (closeDetailModal) {
@@ -2588,20 +2620,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  window.addEventListener("click", (e) => {
-    if (e.target === detailModal) detailModal.style.display = "none";
-    if (e.target === addModal) {
-      addModal.style.display = "none";
+  function closeAddChallengeModal() {
+    closeAeroModal(addModal, () => {
       if (artCandidatesContainer) {
         artCandidatesContainer.style.display = "none";
         artCandidatesContainer.classList.add("is-hidden");
       }
       if (artThumbnailsRow) artThumbnailsRow.innerHTML = "";
       closeCustomMonthMenu();
+    });
+  }
+
+  window.addEventListener("click", (e) => {
+    if (e.target === detailModal) closeChallengeDetailModal();
+    if (e.target === addModal) {
+      closeAddChallengeModal();
     }
   });
 
   // View Mode Toggle (7x7 Grid vs iPod Cover Flow)
+  const gridViewBtn = document.getElementById("gridViewBtn");
+  const coverFlowViewBtn = document.getElementById("coverFlowViewBtn");
   const viewModeToggleBtn = document.getElementById("viewModeToggleBtn");
   const coverFlowWrapper = document.getElementById("coverFlowWrapper");
   const coverFlowStage = document.getElementById("coverFlowStage");
@@ -2619,31 +2658,53 @@ document.addEventListener("DOMContentLoaded", async () => {
   let coverFlowIndex = 0;
   let currentMonthItems = [];
 
-  if (viewModeToggleBtn) {
-    viewModeToggleBtn.addEventListener("click", () => {
-      isCoverFlowView = !isCoverFlowView;
+  function setChallengeViewMode(coverFlowActive) {
+    isCoverFlowView = !!coverFlowActive;
+    if (gridViewBtn) {
+      gridViewBtn.classList.toggle("active", !isCoverFlowView);
+      gridViewBtn.setAttribute("aria-pressed", !isCoverFlowView ? "true" : "false");
+    }
+    if (coverFlowViewBtn) {
+      coverFlowViewBtn.classList.toggle("active", isCoverFlowView);
+      coverFlowViewBtn.setAttribute("aria-pressed", isCoverFlowView ? "true" : "false");
+    }
+    if (viewModeToggleBtn) {
       viewModeToggleBtn.classList.toggle("active-view-toggle", isCoverFlowView);
       viewModeToggleBtn.setAttribute("aria-pressed", isCoverFlowView ? "true" : "false");
+    }
 
-      if (isCoverFlowView) {
-        viewModeToggleBtn.innerHTML = `<i class='bx bx-grid-alt'></i> <span class="cmd-text-full">Grid View</span><span class="cmd-text-short">Grid</span>`;
-        if (exportWrapper) exportWrapper.style.setProperty("display", "none", "important");
-        if (gridSizeBtn) gridSizeBtn.style.display = "none";
-        if (coverFlowWrapper) coverFlowWrapper.style.display = "flex";
-        updateCoverFlowPositions();
-        if (coverFlowStage) coverFlowStage.focus({ preventScroll: true });
-      } else {
-        viewModeToggleBtn.innerHTML = `<i class='bx bx-carousel'></i> <span class="cmd-text-full">Cover Flow</span><span class="cmd-text-short">Flow</span>`;
-        if (coverFlowWrapper) coverFlowWrapper.style.display = "none";
-        if (exportWrapper) exportWrapper.style.removeProperty("display");
-        if (gridSizeBtn) gridSizeBtn.style.display = "";
-        if (statusBarStatus) {
-          const isRel = (activeMonth === "recalibrate" || activeMonth === "relisten");
-          statusBarStatus.textContent = isRel
-            ? (currentMonthItems.length === 0 ? "Queue Empty" : "Ready")
-            : (currentMonthItems.length === 36 ? "Month Full" : "Ready");
-        }
+    if (isCoverFlowView) {
+      if (exportWrapper) exportWrapper.style.setProperty("display", "none", "important");
+      if (gridSizeBtn) gridSizeBtn.style.display = "none";
+      if (coverFlowWrapper) coverFlowWrapper.style.display = "flex";
+      updateCoverFlowPositions();
+      if (coverFlowStage) coverFlowStage.focus({ preventScroll: true });
+    } else {
+      if (coverFlowWrapper) coverFlowWrapper.style.display = "none";
+      if (exportWrapper) exportWrapper.style.removeProperty("display");
+      if (gridSizeBtn) gridSizeBtn.style.display = "";
+      if (statusBarStatus) {
+        const isRel = (activeMonth === "recalibrate" || activeMonth === "relisten");
+        statusBarStatus.textContent = isRel
+          ? (currentMonthItems.length === 0 ? "Queue Empty" : "Ready")
+          : (currentMonthItems.length === 36 ? "Month Full" : "Ready");
       }
+    }
+  }
+
+  if (gridViewBtn) {
+    gridViewBtn.addEventListener("click", () => {
+      if (isCoverFlowView) setChallengeViewMode(false);
+    });
+  }
+  if (coverFlowViewBtn) {
+    coverFlowViewBtn.addEventListener("click", () => {
+      if (!isCoverFlowView) setChallengeViewMode(true);
+    });
+  }
+  if (viewModeToggleBtn) {
+    viewModeToggleBtn.addEventListener("click", () => {
+      setChallengeViewMode(!isCoverFlowView);
     });
   }
 
@@ -3816,7 +3877,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       syncCustomMonthDropdownUI();
 
       if (submitAddAlbumBtn) submitAddAlbumBtn.textContent = "Save to Backlog";
-      if (addModal) addModal.style.display = "flex";
+      openAeroModal(addModal);
     });
   }
 
@@ -3830,13 +3891,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   if (closeAddModal) {
     closeAddModal.addEventListener("click", () => {
-      addModal.style.display = "none";
-      if (artCandidatesContainer) {
-        artCandidatesContainer.style.display = "none";
-        artCandidatesContainer.classList.add("is-hidden");
-      }
-      if (artThumbnailsRow) artThumbnailsRow.innerHTML = "";
-      closeCustomMonthMenu();
+      closeAddChallengeModal();
     });
   }
 
@@ -4044,13 +4099,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           }
         }
 
-        if (addModal) addModal.style.display = "none";
-        if (artCandidatesContainer) {
-          artCandidatesContainer.style.display = "none";
-          artCandidatesContainer.classList.add("is-hidden");
-        }
-        if (artThumbnailsRow) artThumbnailsRow.innerHTML = "";
-        closeCustomMonthMenu();
+        closeAddChallengeModal();
         addAlbumForm.reset();
         editEntryId.value = "";
         if (addRymRating) addRymRating.value = "";

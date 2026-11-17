@@ -634,36 +634,106 @@ body.dark-mode .desc-matrix-count {
    Aero Segmented Control & Min Spins Toggle
    ============================================================ */
 .aero-segmented-control {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  background: rgba(0, 0, 0, 0.06);
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 5px;
-  padding: 2px;
+  justify-content: center;
   gap: 2px;
+  padding: 3px;
+  border-radius: 9999px;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.88) 0%,
+    rgba(240, 247, 255, 0.74) 48%,
+    rgba(226, 238, 249, 0.68) 52%,
+    rgba(242, 248, 255, 0.84) 100%
+  );
+  border: 1px solid rgba(140, 175, 210, 0.55);
+  box-shadow:
+    0 4px 12px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(148, 163, 184, 0.18);
+  backdrop-filter: blur(16px) saturate(155%);
+  -webkit-backdrop-filter: blur(16px) saturate(155%);
+}
+
+.aero-segmented-control .aero-capsule-glider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  pointer-events: none;
+  box-sizing: border-box;
+  border-radius: 9999px;
+  opacity: 0;
+  background: linear-gradient(
+    180deg,
+    #34d399 0%,
+    #10b981 48%,
+    #059669 52%,
+    #047857 100%
+  );
+  border: 1px solid #047857;
+  box-shadow:
+    0 2px 8px rgba(16, 185, 129, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  will-change: transform, width, height;
+}
+
+.aero-segmented-control .aero-capsule-glider.is-ready {
+  transition:
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.16s ease;
+}
+
+body.dark-mode .aero-segmented-control .aero-capsule-glider {
+  border-color: rgba(110, 231, 183, 0.65);
+  box-shadow:
+    0 2px 10px rgba(16, 185, 129, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 body.dark-mode .aero-segmented-control {
-  background: rgba(15, 23, 42, 0.6);
-  border-color: rgba(255, 255, 255, 0.12);
+  background: linear-gradient(
+    180deg,
+    rgba(35, 48, 70, 0.86) 0%,
+    rgba(22, 32, 48, 0.8) 48%,
+    rgba(15, 23, 38, 0.88) 52%,
+    rgba(25, 36, 54, 0.88) 100%
+  );
+  border-color: rgba(148, 195, 255, 0.22);
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.35);
 }
 
 .segmented-btn {
-  border: none;
+  position: relative;
+  z-index: 1;
+  border: 1px solid transparent;
   background: transparent;
-  padding: 2px 8px;
+  padding: 3px 10px;
   font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 0.70rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  border-radius: 3px;
+  line-height: 1.25;
+  white-space: nowrap;
+  border-radius: 9999px;
   cursor: pointer;
-  color: #64748b;
-  transition: all 0.15s ease;
+  color: #334155;
+  transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
   outline: none;
 }
 
 .segmented-btn:hover {
-  color: #1e293b;
+  color: #065f46;
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(140, 175, 210, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 body.dark-mode .segmented-btn {
@@ -671,19 +741,67 @@ body.dark-mode .segmented-btn {
 }
 
 body.dark-mode .segmented-btn:hover {
-  color: #f1f5f9;
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(148, 195, 255, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 .segmented-btn.active {
-  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
-  color: #0f172a;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), inset 0 1px 0 #ffffff;
+  color: #ffffff;
+  font-weight: 700;
+  background: linear-gradient(
+    180deg,
+    #34d399 0%,
+    #10b981 48%,
+    #059669 52%,
+    #047857 100%
+  );
+  border: 1px solid #047857;
+  box-shadow:
+    0 2px 8px rgba(16, 185, 129, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.22);
 }
 
 body.dark-mode .segmented-btn.active {
-  background: linear-gradient(180deg, rgba(71, 85, 105, 0.9) 0%, rgba(51, 65, 85, 0.95) 100%);
-  color: #f8fafc;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  background: linear-gradient(
+    180deg,
+    #34d399 0%,
+    #10b981 48%,
+    #059669 52%,
+    #047857 100%
+  );
+  border: 1px solid rgba(110, 231, 183, 0.65);
+  box-shadow:
+    0 2px 10px rgba(16, 185, 129, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+}
+
+.aero-segmented-control.has-aero-glider .segmented-btn.active,
+.aero-segmented-control.has-aero-glider .segmented-btn.active:hover,
+body.dark-mode .aero-segmented-control.has-aero-glider .segmented-btn.active,
+body.dark-mode .aero-segmented-control.has-aero-glider .segmented-btn.active:hover {
+  color: #ffffff;
+  font-weight: 700;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.22);
+  transform: none;
+}
+
+body.dark-mode .aero-segmented-control.has-aero-glider .segmented-btn.active,
+body.dark-mode .aero-segmented-control.has-aero-glider .segmented-btn.active:hover {
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aero-segmented-control .aero-capsule-glider.is-ready {
+    transition: none !important;
+  }
 }
 
 .aero-min-spins-btn {
@@ -1142,13 +1260,13 @@ body.dark-mode .stats-loading-text {
   }
 
   .aero-segmented-control {
-    padding: 1.5px;
-    gap: 1.5px;
+    padding: 2.5px;
+    gap: 2px;
   }
 
   .segmented-btn {
-    padding: 2px 6px;
-    font-size: 0.66rem;
+    padding: 2.5px 8px;
+    font-size: 0.68rem;
   }
 
   .aero-min-spins-btn {
