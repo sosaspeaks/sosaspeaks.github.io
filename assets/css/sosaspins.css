@@ -3245,79 +3245,77 @@ body.dark-mode .single-play-chip i,
   font-size: 0.73rem;
   font-weight: 700;
   letter-spacing: -0.01em;
-  color: #1e3a8a;
+  color: #1e293b;
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(240, 246, 255, 0.85) 48%,
-    rgba(225, 238, 252, 0.78) 52%,
-    rgba(238, 246, 255, 0.92) 100%
+    rgba(255, 255, 255, 0.97) 0%,
+    rgba(248, 252, 251, 0.9) 55%,
+    rgba(241, 248, 246, 0.86) 100%
   );
-  border: 1px solid rgba(147, 197, 253, 0.85);
-  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.42);
+  border-radius: 6px;
   box-shadow:
-    0 1px 3px rgba(30, 58, 138, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    inset 0 -1px 0 rgba(191, 219, 254, 0.5);
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.98);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
   user-select: none;
 }
 
 .track-ratings-toggle-btn:hover {
-  color: #0369a1;
+  color: #064e3b;
   background: linear-gradient(
     180deg,
     rgba(255, 255, 255, 1) 0%,
-    rgba(224, 242, 254, 0.92) 48%,
-    rgba(186, 230, 253, 0.85) 52%,
-    rgba(224, 242, 254, 0.98) 100%
+    rgba(243, 251, 248, 0.95) 55%,
+    rgba(232, 247, 242, 0.92) 100%
   );
-  border-color: rgba(56, 189, 248, 0.95);
+  border-color: rgba(16, 185, 129, 0.45);
   box-shadow:
-    0 0 10px rgba(56, 189, 248, 0.35),
-    0 2px 5px rgba(30, 58, 138, 0.12),
+    0 0 8px rgba(16, 185, 129, 0.14),
+    0 2px 4px rgba(15, 23, 42, 0.06),
     inset 0 1px 0 #ffffff;
   transform: translateY(-1px);
 }
 
 .track-ratings-toggle-btn:active,
 .track-ratings-toggle-btn.is-open {
+  color: #064e3b;
   background: linear-gradient(
     180deg,
-    rgba(219, 234, 254, 0.95) 0%,
-    rgba(191, 219, 254, 0.85) 50%,
-    rgba(224, 242, 254, 0.95) 100%
+    rgba(245, 251, 249, 0.96) 0%,
+    rgba(236, 249, 244, 0.9) 55%,
+    rgba(248, 253, 251, 0.98) 100%
   );
-  border-color: rgba(56, 189, 248, 0.95);
+  border-color: rgba(16, 185, 129, 0.48);
   box-shadow:
-    inset 0 1px 3px rgba(30, 58, 138, 0.2),
-    0 1px 2px rgba(30, 58, 138, 0.08);
+    inset 0 1px 2px rgba(6, 95, 70, 0.1),
+    0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .dark-mode .track-ratings-toggle-btn {
-  color: #bfdbfe;
+  color: #a7f3d0;
   background: linear-gradient(
     180deg,
-    rgba(30, 41, 59, 0.75) 0%,
-    rgba(15, 23, 42, 0.85) 100%
+    rgba(15, 34, 34, 0.78) 0%,
+    rgba(12, 24, 26, 0.88) 100%
   );
-  border: 1px solid rgba(96, 165, 250, 0.4);
+  border: 1px solid rgba(52, 211, 153, 0.36);
   box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .dark-mode .track-ratings-toggle-btn:hover {
-  color: #e0f2fe;
+  color: #d1fae5;
   background: linear-gradient(
     180deg,
-    rgba(30, 58, 138, 0.55) 0%,
-    rgba(15, 23, 42, 0.9) 100%
+    rgba(6, 95, 70, 0.5) 0%,
+    rgba(12, 24, 26, 0.92) 100%
   );
-  border-color: rgba(96, 165, 250, 0.75);
+  border-color: rgba(52, 211, 153, 0.68);
   box-shadow:
-    0 0 12px rgba(56, 189, 248, 0.35),
+    0 0 12px rgba(16, 185, 129, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
   transform: translateY(-1px);
 }
@@ -3326,13 +3324,13 @@ body.dark-mode .single-play-chip i,
 .dark-mode .track-ratings-toggle-btn.is-open {
   background: linear-gradient(
     180deg,
-    rgba(30, 58, 138, 0.7) 0%,
-    rgba(15, 23, 42, 0.95) 100%
+    rgba(6, 78, 59, 0.65) 0%,
+    rgba(12, 24, 26, 0.95) 100%
   );
-  border-color: rgba(96, 165, 250, 0.85);
+  border-color: rgba(52, 211, 153, 0.78);
   box-shadow:
     inset 0 1px 3px rgba(0, 0, 0, 0.6),
-    0 0 8px rgba(56, 189, 248, 0.25);
+    0 0 8px rgba(16, 185, 129, 0.22);
 }
 
 .track-ratings-label {
@@ -3343,19 +3341,19 @@ body.dark-mode .single-play-chip i,
 
 .track-ratings-label i {
   font-size: 0.9rem;
-  color: #2563eb;
-  filter: drop-shadow(0 1px 1px rgba(37, 99, 235, 0.35));
+  color: #059669;
+  filter: drop-shadow(0 1px 1px rgba(16, 185, 129, 0.28));
   transition: transform 0.2s ease, filter 0.2s ease;
 }
 
 .dark-mode .track-ratings-label i {
-  color: #60a5fa;
-  filter: drop-shadow(0 0 4px rgba(96, 165, 250, 0.5));
+  color: #34d399;
+  filter: drop-shadow(0 0 4px rgba(52, 211, 153, 0.45));
 }
 
 .track-ratings-toggle-btn:hover .track-ratings-label i {
   transform: scale(1.1);
-  filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.8));
+  filter: drop-shadow(0 0 5px rgba(16, 185, 129, 0.65));
 }
 
 .ratings-arrow {
@@ -3364,43 +3362,43 @@ body.dark-mode .single-play-chip i,
   justify-content: center;
   width: 15px;
   height: 15px;
-  border-radius: 50%;
+  border-radius: 4px;
   font-size: 0.66rem;
   line-height: 1;
-  background: rgba(37, 99, 235, 0.1);
-  color: #2563eb;
-  border: 1px solid rgba(59, 130, 246, 0.25);
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.28);
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease, color 0.2s ease;
 }
 
 .dark-mode .ratings-arrow {
-  background: rgba(96, 165, 250, 0.16);
-  color: #93c5fd;
-  border-color: rgba(96, 165, 250, 0.3);
+  background: rgba(52, 211, 153, 0.14);
+  color: #6ee7b7;
+  border-color: rgba(52, 211, 153, 0.3);
 }
 
 .track-ratings-toggle-btn:hover .ratings-arrow {
-  background: rgba(56, 189, 248, 0.22);
-  border-color: rgba(56, 189, 248, 0.5);
-  color: #0284c7;
+  background: rgba(16, 185, 129, 0.22);
+  border-color: rgba(16, 185, 129, 0.5);
+  color: #047857;
 }
 
 .dark-mode .track-ratings-toggle-btn:hover .ratings-arrow {
-  background: rgba(56, 189, 248, 0.25);
-  border-color: rgba(56, 189, 248, 0.55);
-  color: #e0f2fe;
+  background: rgba(52, 211, 153, 0.24);
+  border-color: rgba(52, 211, 153, 0.55);
+  color: #d1fae5;
 }
 
 .track-ratings-toggle-btn.is-open .ratings-arrow {
-  background: rgba(37, 99, 235, 0.2);
-  border-color: rgba(37, 99, 235, 0.45);
-  color: #1d4ed8;
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.45);
+  color: #065f46;
 }
 
 .dark-mode .track-ratings-toggle-btn.is-open .ratings-arrow {
-  background: rgba(96, 165, 250, 0.28);
-  border-color: rgba(96, 165, 250, 0.5);
-  color: #bfdbfe;
+  background: rgba(52, 211, 153, 0.26);
+  border-color: rgba(52, 211, 153, 0.5);
+  color: #a7f3d0;
 }
 
 .track-ratings-list {
@@ -3413,17 +3411,19 @@ body.dark-mode .single-play-chip i,
   margin-bottom: 0.25rem;
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.85) 0%,
-    rgba(240, 247, 255, 0.72) 100%
+    rgba(255, 255, 255, 0.88) 0%,
+    rgba(240, 253, 249, 0.78) 55%,
+    rgba(232, 248, 245, 0.72) 100%
   );
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(147, 197, 253, 0.65);
-  border-radius: 8px;
+  border: 1px solid rgba(52, 211, 153, 0.42);
+  border-top-color: rgba(16, 185, 129, 0.55);
+  border-radius: 4px;
   box-shadow:
-    inset 0 1px 3px rgba(30, 58, 138, 0.05),
-    0 2px 10px rgba(0, 0, 0, 0.04),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.85);
+    inset 0 2px 0 rgba(16, 185, 129, 0.14),
+    inset 0 1px 3px rgba(6, 95, 70, 0.05),
+    0 2px 10px rgba(6, 95, 70, 0.05);
   animation: aeroTrackRatingsReveal 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   box-sizing: border-box;
 }
@@ -3442,14 +3442,15 @@ body.dark-mode .single-play-chip i,
 .dark-mode .track-ratings-list {
   background: linear-gradient(
     180deg,
-    rgba(15, 23, 42, 0.75) 0%,
-    rgba(10, 16, 30, 0.88) 100%
+    rgba(11, 27, 29, 0.78) 0%,
+    rgba(10, 18, 22, 0.9) 100%
   );
-  border: 1px solid rgba(96, 165, 250, 0.22);
+  border: 1px solid rgba(52, 211, 153, 0.24);
+  border-top-color: rgba(52, 211, 153, 0.38);
   box-shadow:
+    inset 0 1px 0 rgba(52, 211, 153, 0.14),
     inset 0 1px 4px rgba(0, 0, 0, 0.55),
-    0 2px 10px rgba(0, 0, 0, 0.3),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+    0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 .track-rating-row {
@@ -3458,7 +3459,7 @@ body.dark-mode .single-play-chip i,
   gap: 8px;
   padding: 3px 8px;
   font-size: 0.76rem;
-  border-radius: 5px;
+  border-radius: 2px;
   border: 1px solid transparent;
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   box-sizing: border-box;
@@ -3468,22 +3469,22 @@ body.dark-mode .single-play-chip i,
   background: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0.95) 0%,
-    rgba(224, 242, 254, 0.75) 50%,
-    rgba(186, 230, 253, 0.6) 100%
+    rgba(220, 252, 238, 0.65) 50%,
+    rgba(209, 250, 229, 0.5) 100%
   );
-  border-color: rgba(125, 211, 252, 0.8);
+  border-color: rgba(52, 211, 153, 0.45);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    0 1px 3px rgba(56, 189, 248, 0.15);
+    0 1px 3px rgba(16, 185, 129, 0.12);
 }
 
 .dark-mode .track-rating-row:hover {
   background: linear-gradient(
     180deg,
-    rgba(30, 58, 138, 0.38) 0%,
+    rgba(6, 95, 70, 0.34) 0%,
     rgba(15, 23, 42, 0.6) 100%
   );
-  border-color: rgba(96, 165, 250, 0.38);
+  border-color: rgba(52, 211, 153, 0.35);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
     0 1px 4px rgba(0, 0, 0, 0.3);
@@ -3587,35 +3588,28 @@ body.dark-mode .single-play-chip i,
 .track-score {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  min-width: 32px;
-  padding: 1px 6px;
+  justify-content: flex-end;
+  min-width: 24px;
+  padding: 0;
   font-family: "Noto Sans Mono", monospace;
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 700;
   line-height: 1.35;
-  border-radius: 9px;
-  background: linear-gradient(180deg, #fef3c7 0%, #fde68a 100%);
-  color: #92400e;
-  border: 1px solid rgba(245, 158, 11, 0.45);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    0 1px 2px rgba(245, 158, 11, 0.12);
+  background: transparent;
+  color: #d97706;
+  border: none;
+  box-shadow: none;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
   letter-spacing: -0.01em;
   user-select: none;
 }
 
 .dark-mode .track-score {
-  background: linear-gradient(
-    180deg,
-    rgba(180, 83, 9, 0.38) 0%,
-    rgba(120, 53, 15, 0.48) 100%
-  );
-  color: #fde68a;
-  border-color: rgba(245, 158, 11, 0.42);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    0 1px 2px rgba(0, 0, 0, 0.3);
+  background: transparent;
+  color: #fbbf24;
+  border: none;
+  box-shadow: none;
+  text-shadow: 0 0 6px rgba(251, 191, 36, 0.32);
 }
 
 .track-duration {
@@ -3632,17 +3626,14 @@ body.dark-mode .single-play-chip i,
 }
 
 .track-score.is-unrated {
-  background: rgba(148, 163, 184, 0.14);
   color: #64748b;
-  border-color: rgba(148, 163, 184, 0.32);
-  box-shadow: none;
   font-weight: 500;
+  text-shadow: none;
 }
 
 .dark-mode .track-score.is-unrated {
-  background: rgba(148, 163, 184, 0.12);
   color: #94a3b8;
-  border-color: rgba(148, 163, 184, 0.25);
+  text-shadow: none;
 }
 
 /* ============================================================
