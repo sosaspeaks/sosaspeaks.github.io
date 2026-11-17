@@ -413,6 +413,7 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
   const LOCAL_COMMENTS_KEY = "sosaspins_comments_fallback";
   const openDiscussSpinIds = new Set();
   let editingIndex = null;
+  let pendingModalTracklist = [];
   let activeFilter = { type: null, value: null };
   let currentFormat = "all";
   let isTop100Editing = false;
@@ -1593,12 +1594,58 @@ function getDominantColorFromImg(imgUrl) {
   });
 
   // ============================================================
-  // FAVORITE TRACKS CHIP + INLINE LINK POPOVER MANAGER
+  // FAVORITE TRACKS CHIP + CUSTOM DROPDOWN + LINK POPOVER MANAGER
   // ============================================================
+  function collectLiveModalTrackPool() {
+    const merged = [];
+    const seen = new Set();
+
+    const pushTrack = (raw) => {
+      const title = String(raw && raw.title ? raw.title : "").trim();
+      if (!title) return;
+      const key = title.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      merged.push({
+        num: raw.num ? String(raw.num).trim() : String(merged.length + 1),
+        title,
+        duration: raw.duration ? String(raw.duration).trim() : "",
+        rating: raw.rating !== null && raw.rating !== undefined && raw.rating !== "" && !isNaN(parseFloat(raw.rating))
+          ? Number(raw.rating).toFixed(1)
+          : "",
+        url: raw.url ? String(raw.url).trim() : ""
+      });
+    };
+
+    const trList = document.getElementById("trackRatingsList");
+    if (trList) {
+      trList.querySelectorAll(".track-rating-input-row").forEach((row, idx) => {
+        const title = row.querySelector(".tr-title-input")?.value?.trim() || "";
+        const duration = row.querySelector(".tr-duration-input")?.value?.trim() || "";
+        const url = row.querySelector(".tr-url-input")?.value?.trim() || "";
+        const rating = row.querySelector(".tr-rating-select")?.value || "";
+        pushTrack({ num: String(idx + 1), title, duration, rating, url });
+      });
+    }
+
+    (Array.isArray(pendingModalTracklist) ? pendingModalTracklist : []).forEach((t, idx) => {
+      pushTrack({
+        num: t && t.num ? t.num : String(idx + 1),
+        title: t && t.title ? t.title : "",
+        duration: t && t.duration ? t.duration : "",
+        rating: t && t.rating !== null && t.rating !== undefined ? t.rating : "",
+        url: t && t.url ? t.url : ""
+      });
+    });
+
+    return merged;
+  }
+
   class FavTracksTagManager {
     constructor() {
       this.container = document.getElementById("favTracksTagBox");
       this.input = document.getElementById("logFavTracksInput");
+      this.dropdown = document.getElementById("favTracksDropdown");
       this.hiddenInput = document.getElementById("logFavTracks");
       this.popover = document.getElementById("favTrackLinkPopover");
       this.linkInput = document.getElementById("favTrackLinkInput");
@@ -1607,6 +1654,7 @@ function getDominantColorFromImg(imgUrl) {
       this.linkClearBtn = document.getElementById("favTrackLinkClearBtn");
       this.tracks = [];
       this.editingTrackIdx = -1;
+      this.highlightIdx = -1;
       if (this.container && this.input) {
         this.bindEvents();
       }
@@ -1719,6 +1767,7 @@ function getDominantColorFromImg(imgUrl) {
     }
 
     setTracks(list) {
+      this.closeDropdown();
       this.closeLinkPopover(false);
       this.tracks = [];
       (Array.isArray(list) ? list : parseFavTracks(list)).forEach((entry) => {
@@ -1730,6 +1779,7 @@ function getDominantColorFromImg(imgUrl) {
     }
 
     commitPendingInput() {
+      this.closeDropdown();
       if (this.popover && this.popover.style.display !== "none" && this.editingTrackIdx !== -1) {
         this.saveCurrentLink(false);
       }
@@ -1739,6 +1789,7 @@ function getDominantColorFromImg(imgUrl) {
     }
 
     openLinkPopover(idx) {
+      this.closeDropdown();
       const tr = this.tracks[idx];
       if (!tr || !this.popover || !this.linkInput) return;
       this.editingTrackIdx = idx;
@@ -1772,25 +1823,144 @@ function getDominantColorFromImg(imgUrl) {
       }
     }
 
+    handleAutocomplete() {
+      if (!this.dropdown || !this.input) return;
+      if (this.popover && this.popover.style.display !== "none") {
+        this.closeDropdown();
+        return;
+      }
+
+      const pool = collectLiveModalTrackPool();
+      if (pool.length === 0) {
+        this.closeDropdown();
+        return;
+      }
+
+      const addedKeys = new Set(this.tracks.map(t => t.title.toLowerCase()));
+      const query = this.input.value.trim().toLowerCase();
+      const matches = pool
+        .filter(item => !addedKeys.has(item.title.toLowerCase()))
+        .filter(item => !query || item.title.toLowerCase().includes(query))
+        .slice(0, 12);
+
+      if (matches.length === 0) {
+        this.closeDropdown();
+        return;
+      }
+
+      this.highlightIdx = -1;
+      this.dropdown.innerHTML = matches.map(item => {
+        const metaParts = [];
+        if (item.duration) metaParts.push(`<span>${escapeHtml(item.duration)}</span>`);
+        if (item.rating) metaParts.push(`<span class="fav-track-ac-star">\u2605 ${escapeHtml(item.rating)}</span>`);
+        return `
+          <div class="aero-autocomplete-item fav-track-ac-item" data-title="${escapeHtml(item.title)}" data-url="${escapeHtml(item.url)}">
+            <span class="fav-track-ac-left">
+              <span class="fav-track-ac-num">${escapeHtml(item.num)}.</span>
+              <span class="fav-track-ac-title">${escapeHtml(item.title)}</span>
+            </span>
+            ${metaParts.length ? `<span class="fav-track-ac-meta">${metaParts.join("")}</span>` : ""}
+          </div>
+        `;
+      }).join("");
+
+      this.dropdown.style.display = "block";
+
+      this.dropdown.querySelectorAll(".fav-track-ac-item").forEach(el => {
+        el.onmousedown = (e) => {
+          e.preventDefault();
+          const chosenTitle = el.getAttribute("data-title") || "";
+          const chosenUrl = el.getAttribute("data-url") || "";
+          const rawEntry = chosenUrl ? `${chosenTitle} | ${chosenUrl}` : chosenTitle;
+          this.addTrack(rawEntry, !chosenUrl);
+          this.closeDropdown();
+        };
+      });
+    }
+
+    renderHighlight(items) {
+      items.forEach((el, idx) => {
+        el.classList.toggle("active", idx === this.highlightIdx);
+        if (idx === this.highlightIdx) {
+          el.scrollIntoView({ block: "nearest" });
+        }
+      });
+    }
+
+    closeDropdown() {
+      if (this.dropdown) {
+        this.dropdown.style.display = "none";
+        this.highlightIdx = -1;
+      }
+    }
+
     bindEvents() {
       this.container.addEventListener("click", (e) => {
         if (e.target === this.container) {
           this.input.focus();
+          this.handleAutocomplete();
         }
       });
 
+      this.input.addEventListener("focus", () => this.handleAutocomplete());
+      this.input.addEventListener("click", () => this.handleAutocomplete());
+      this.input.addEventListener("input", () => this.handleAutocomplete());
+
       this.input.addEventListener("keydown", (e) => {
+        const items = this.dropdown ? Array.from(this.dropdown.querySelectorAll(".fav-track-ac-item")) : [];
+        const isDropdownOpen = this.dropdown && this.dropdown.style.display !== "none" && items.length > 0;
+
+        if (isDropdownOpen) {
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            this.highlightIdx = (this.highlightIdx + 1) % items.length;
+            this.renderHighlight(items);
+            return;
+          }
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            this.highlightIdx = (this.highlightIdx - 1 + items.length) % items.length;
+            this.renderHighlight(items);
+            return;
+          }
+          if (e.key === "Escape") {
+            e.preventDefault();
+            e.stopPropagation();
+            this.closeDropdown();
+            return;
+          }
+          if (e.key === "Enter" && this.highlightIdx >= 0 && items[this.highlightIdx]) {
+            e.preventDefault();
+            e.stopPropagation();
+            const chosenEl = items[this.highlightIdx];
+            const chosenTitle = chosenEl.getAttribute("data-title") || "";
+            const chosenUrl = chosenEl.getAttribute("data-url") || "";
+            const rawEntry = chosenUrl ? `${chosenTitle} | ${chosenUrl}` : chosenTitle;
+            this.addTrack(rawEntry, !chosenUrl);
+            this.closeDropdown();
+            return;
+          }
+        }
+
         if (e.key === "Enter" || e.key === ";") {
           const val = this.input.value.trim();
           if (val) {
             e.preventDefault();
             e.stopPropagation();
-            this.addTrack(val, e.key === "Enter");
+            const matchFromPool = collectLiveModalTrackPool().find(
+              item => item.title.toLowerCase() === val.toLowerCase()
+            );
+            const rawEntry = (matchFromPool && matchFromPool.url && !val.includes("|"))
+              ? `${val} | ${matchFromPool.url}`
+              : val;
+            this.closeDropdown();
+            this.addTrack(rawEntry, e.key === "Enter" && !(matchFromPool && matchFromPool.url));
           } else if (e.key === "Enter") {
             e.preventDefault();
           }
         } else if (e.key === "Backspace" && !this.input.value && this.tracks.length > 0) {
           this.removeTrack(this.tracks.length - 1);
+          this.handleAutocomplete();
         }
       });
 
@@ -1830,6 +2000,14 @@ function getDominantColorFromImg(imgUrl) {
 
       document.addEventListener("click", (e) => {
         if (
+          this.dropdown &&
+          this.dropdown.style.display !== "none" &&
+          favTracksFieldWrap &&
+          !favTracksFieldWrap.contains(e.target)
+        ) {
+          this.closeDropdown();
+        }
+        if (
           this.popover &&
           this.popover.style.display !== "none" &&
           favTracksFieldWrap &&
@@ -1863,6 +2041,10 @@ function getDominantColorFromImg(imgUrl) {
       if (window.logFavTracksManager) window.logFavTracksManager.setTracks([]);
       if (logFavTracks) logFavTracks.value = "";
       if (logSingleAudioUrl) logSingleAudioUrl.value = "";
+      if (trackRatingsList) trackRatingsList.innerHTML = "";
+      syncTrackRatingIndices();
+      pendingModalTracklist = [];
+      populateFavTrackSuggestions([]);
       updateSingleModeFields();
     }
     openAeroModal(modalOverlay);
@@ -1922,15 +2104,19 @@ function getDominantColorFromImg(imgUrl) {
     if (logReviewUrl) logReviewUrl.value = "";
     if (dateInput) dateInput.value = todayFormatted;
     if (trackRatingsList) trackRatingsList.innerHTML = "";
+    syncTrackRatingIndices();
     if (logRuntime) logRuntime.value = "";
     if (logRymRating) logRymRating.value = "";
     if (logSingleAudioUrl) logSingleAudioUrl.value = "";
+    pendingModalTracklist = [];
+    populateFavTrackSuggestions([]);
     updateSingleModeFields();
   }
 
   function closeModal() {
     closeAeroModal(modalOverlay, resetSpinModalFields);
   }
+  window.closeModal = closeModal;
 
   if (composerPrompt) composerPrompt.addEventListener("click", () => openModal(false));
   if (closeModalBtn) closeModalBtn.addEventListener("click", closeModal);
@@ -3462,6 +3648,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
   let albumBankSpins = [];
   let albumBankSearchTerm = "";
   let albumBankSortMode = "rating-desc";
+  let artistBankSortMode = "rating-desc";
   let editingArtistRank = null;
 
   function showTop100Toast(msg, title = "SosaSpins Notice") {
@@ -4400,6 +4587,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
       renderTopArtistsView();
     }
 
+    syncBankSortOptions(tab);
     if (isBankOpen) {
       renderAlbumBank();
     }
@@ -5151,8 +5339,48 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
     }
   };
 
+  const BANK_SORT_OPTIONS_MAP = {
+    albums: [
+      { value: "rating-desc", label: "Rating: High to Low" },
+      { value: "rating-asc", label: "Rating: Low to High" },
+      { value: "artist-asc", label: "Artist (A \u2192 Z)" },
+      { value: "title-asc", label: "Title (A \u2192 Z)" },
+      { value: "year-desc", label: "Year: Newest" },
+      { value: "year-asc", label: "Year: Oldest" },
+      { value: "recent", label: "Recent: Last Logged" }
+    ],
+    artists: [
+      { value: "rating-desc", label: "Rating: High to Low" },
+      { value: "rating-asc", label: "Rating: Low to High" },
+      { value: "spins-desc", label: "Spins: Most to Least" },
+      { value: "spins-asc", label: "Spins: Least to Most" },
+      { value: "artist-asc", label: "Artist (A \u2192 Z)" }
+    ]
+  };
+
+  function syncBankSortOptions(tabMode = activeTop100Tab) {
+    if (!albumBankSortSelect) return;
+    const mode = tabMode === "artists" ? "artists" : "albums";
+    const options = BANK_SORT_OPTIONS_MAP[mode];
+    if (albumBankSortSelect.dataset.bankMode !== mode) {
+      albumBankSortSelect.dataset.bankMode = mode;
+      albumBankSortSelect.innerHTML = "";
+      options.forEach(opt => {
+        const optionEl = document.createElement("option");
+        optionEl.value = opt.value;
+        optionEl.textContent = opt.label;
+        albumBankSortSelect.appendChild(optionEl);
+      });
+    }
+    const targetValue = mode === "artists" ? artistBankSortMode : albumBankSortMode;
+    if (options.some(opt => opt.value === targetValue)) {
+      albumBankSortSelect.value = targetValue;
+    }
+  }
+
   function renderAlbumBank() {
     if (!albumBankList) return;
+    syncBankSortOptions(activeTop100Tab);
 
     if (activeTop100Tab === "albums") {
       if (albumBankTitleText) albumBankTitleText.textContent = "Album Bank";
@@ -5284,17 +5512,20 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
       }
 
       filtered.sort((a, b) => {
-        if (albumBankSortMode === "rating-desc") {
-          return parseFloat(b.avg) - parseFloat(a.avg) || b.count - a.count;
+        if (artistBankSortMode === "rating-desc") {
+          return parseFloat(b.avg) - parseFloat(a.avg) || b.count - a.count || a.artist.localeCompare(b.artist);
         }
-        if (albumBankSortMode === "rating-asc") {
-          return parseFloat(a.avg) - parseFloat(b.avg) || a.count - b.count;
+        if (artistBankSortMode === "rating-asc") {
+          return parseFloat(a.avg) - parseFloat(b.avg) || a.count - b.count || a.artist.localeCompare(b.artist);
         }
-        if (albumBankSortMode === "artist-asc") return a.artist.localeCompare(b.artist);
-        if (albumBankSortMode === "recent" || albumBankSortMode === "year-desc") {
-          return b.count - a.count || parseFloat(b.avg) - parseFloat(a.avg);
+        if (artistBankSortMode === "spins-desc") {
+          return b.count - a.count || parseFloat(b.avg) - parseFloat(a.avg) || a.artist.localeCompare(b.artist);
         }
-        return b.count - a.count;
+        if (artistBankSortMode === "spins-asc") {
+          return a.count - b.count || parseFloat(b.avg) - parseFloat(a.avg) || a.artist.localeCompare(b.artist);
+        }
+        if (artistBankSortMode === "artist-asc") return a.artist.localeCompare(b.artist);
+        return b.count - a.count || parseFloat(b.avg) - parseFloat(a.avg);
       });
 
       if (albumBankCountBadge) albumBankCountBadge.textContent = filtered.length;
@@ -6114,7 +6345,11 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
 
     if (albumBankSortSelect) {
       albumBankSortSelect.addEventListener("change", (e) => {
-        albumBankSortMode = e.target.value;
+        if (activeTop100Tab === "artists") {
+          artistBankSortMode = e.target.value;
+        } else {
+          albumBankSortMode = e.target.value;
+        }
         renderAlbumBank();
       });
     }
@@ -6435,17 +6670,24 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
                     ${item.track_ratings.map((tr, tIdx) => {
                       const hasUrl = tr.url && tr.url.trim().length > 0;
                       const safeTrTitle = (tr.title || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+                      const hasTrRating = tr.rating !== null && tr.rating !== undefined && tr.rating !== "" && !isNaN(parseFloat(tr.rating));
+                      const durHtml = tr.duration ? `<span class="track-duration">${escapeHtml(tr.duration)}</span>` : "";
                       return `
                         <div class="track-rating-row">
                           <span class="track-num">${tIdx + 1}.</span>
                           ${hasUrl ? `
                             <span class="track-name song-embed-link" onclick="playAudioTrack('${tr.url.trim()}', '${safeTrTitle}', '${safeArtist}', '${safeAlbum}', '${safeCover}')">
-                            ${tr.title}<span class="aero-play-wrap" style="margin-left: 6px; margin-right: 0;"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon track-play-icon"><span class="play-sheen-shine"></span></span></span>
+                            ${escapeHtml(tr.title || "")}<span class="aero-play-wrap" style="margin-left: 6px; margin-right: 0;"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon track-play-icon"><span class="play-sheen-shine"></span></span></span>
                           ` : `
-                            <span class="track-name">${tr.title}</span>
+                            <span class="track-name">${escapeHtml(tr.title || "")}</span>
                           `}
-                          <span class="track-stars">${getStarString(tr.rating)}</span>
-                          <small class="track-score">${Number(tr.rating).toFixed(1)}</small>
+                          ${durHtml}
+                          ${hasTrRating ? `
+                            <span class="track-stars">${getStarString(tr.rating)}</span>
+                            <small class="track-score">${Number(tr.rating).toFixed(1)}</small>
+                          ` : `
+                            <small class="track-score is-unrated">—</small>
+                          `}
                         </div>
                       `;
                     }).join("")}
@@ -6742,32 +6984,351 @@ window.toggleTrackRatings = function(idx, btn) {
 const trackRatingsList = document.getElementById("trackRatingsList");
 const addTrackRatingRowBtn = document.getElementById("addTrackRatingRowBtn");
 
-function createTrackRatingRow(title = "", rating = "5.0", url = "") {
+/**
+ * Normalizes a numeric or string track rating to a half-star step ("0.5".."5.0"),
+ * returning an empty string when unset or invalid.
+ */
+function normalizeTrackStarRating(raw) {
+  if (raw === null || raw === undefined || raw === "") return "";
+  const num = parseFloat(raw);
+  if (!Number.isFinite(num) || num <= 0) return "";
+  const snapped = Math.min(5.0, Math.max(0.5, Math.round(num * 2) / 2));
+  return snapped.toFixed(1);
+}
+
+/**
+ * Sanitizes an RYM Exporter tracklist array into normalized track objects.
+ */
+function normalizeImportedTracklist(rawTracklist) {
+  if (!Array.isArray(rawTracklist)) return [];
+  return rawTracklist
+    .map(item => {
+      if (!item || typeof item !== "object") return null;
+      const title = String(item.title || "").trim();
+      if (!title) return null;
+      const num = item.num !== null && item.num !== undefined ? String(item.num).trim() : "";
+      const duration = item.duration !== null && item.duration !== undefined ? String(item.duration).trim() : "";
+      const sec = Number(item.duration_sec);
+      const duration_sec = Number.isFinite(sec) && sec >= 0 ? Math.round(sec) : null;
+      const normRating = normalizeTrackStarRating(item.rating);
+      const url = item.url ? String(item.url).trim() : "";
+      return {
+        num,
+        title,
+        duration,
+        duration_sec,
+        rating: normRating ? parseFloat(normRating) : null,
+        url
+      };
+    })
+    .filter(Boolean);
+}
+
+/**
+ * Formats total seconds into RYM-style duration text (e.g. "45m 02s" or "1h 12m 05s").
+ */
+function formatDurationFromSeconds(totalSec) {
+  const cleanSec = Math.round(Number(totalSec) || 0);
+  if (cleanSec <= 0) return "";
+  const hrs = Math.floor(cleanSec / 3600);
+  const mins = Math.floor((cleanSec % 3600) / 60);
+  const secs = cleanSec % 60;
+  if (hrs > 0) {
+    return `${hrs}h ${String(mins).padStart(2, "0")}m ${String(secs).padStart(2, "0")}s`;
+  }
+  return `${mins}m ${String(secs).padStart(2, "0")}s`;
+}
+
+/**
+ * Refreshes custom favorite track dropdown state when tracklist data changes.
+ */
+function populateFavTrackSuggestions(tracklist) {
+  if (!window.logFavTracksManager) return;
+  const hasItems = Array.isArray(tracklist) && tracklist.length > 0;
+  if (!hasItems && typeof window.logFavTracksManager.closeDropdown === "function") {
+    window.logFavTracksManager.closeDropdown();
+  } else if (
+    document.activeElement === window.logFavTracksManager.input &&
+    typeof window.logFavTracksManager.handleAutocomplete === "function"
+  ) {
+    window.logFavTracksManager.handleAutocomplete();
+  }
+}
+
+/**
+ * Parses a track duration string ("3:45", "1:05:40", "45s") into seconds, or 0 if invalid.
+ */
+function parseTrackDurationToSeconds(raw) {
+  const str = String(raw || "").trim();
+  if (!str) return 0;
+  const hms = str.match(/^(\d+):(\d{1,2}):(\d{2})$/);
+  if (hms) return parseInt(hms[1], 10) * 3600 + parseInt(hms[2], 10) * 60 + parseInt(hms[3], 10);
+  const ms = str.match(/^(\d+):(\d{2})$/);
+  if (ms) return parseInt(ms[1], 10) * 60 + parseInt(ms[2], 10);
+  const secOnly = str.match(/^(\d+)\s*s$/i);
+  if (secOnly) return parseInt(secOnly[1], 10);
+  return 0;
+}
+
+/**
+ * Combines tracklist order/durations with explicit track_ratings so both rated
+ * (expanded on RYM) and unrated (collapsed on RYM) tracks import into the modal.
+ */
+function mergeImportedTrackRatings(trackRatingsArr, tracklistArr) {
+  const ratingByTitle = new Map();
+  (Array.isArray(trackRatingsArr) ? trackRatingsArr : []).forEach(tr => {
+    if (!tr || typeof tr !== "object") return;
+    const title = String(tr.title || "").trim();
+    if (!title) return;
+    const key = title.toLowerCase();
+    const existing = ratingByTitle.get(key) || {};
+    const normRating = normalizeTrackStarRating(tr.rating);
+    const url = tr.url ? String(tr.url).trim() : (existing.url || "");
+    const duration = tr.duration ? String(tr.duration).trim() : (existing.duration || "");
+    const rawSec = Number(tr.duration_sec);
+    const duration_sec = Number.isFinite(rawSec) && rawSec > 0
+      ? Math.round(rawSec)
+      : (existing.duration_sec || parseTrackDurationToSeconds(duration) || null);
+    ratingByTitle.set(key, {
+      title: existing.title || title,
+      rating: normRating || existing.rating || "",
+      url,
+      duration,
+      duration_sec
+    });
+  });
+
+  const merged = [];
+  const seen = new Set();
+
+  if (Array.isArray(tracklistArr) && tracklistArr.length > 0) {
+    tracklistArr.forEach(t => {
+      if (!t || typeof t !== "object") return;
+      const title = String(t.title || "").trim();
+      if (!title) return;
+      const key = title.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+
+      const matched = ratingByTitle.get(key);
+      const normRating = (matched && matched.rating) || normalizeTrackStarRating(t.rating) || "";
+      const url = (matched && matched.url) || (t.url ? String(t.url).trim() : "") || "";
+      const duration = (t.duration ? String(t.duration).trim() : "") || (matched && matched.duration) || "";
+      const rawSec = Number(t.duration_sec);
+      const duration_sec = Number.isFinite(rawSec) && rawSec > 0
+        ? Math.round(rawSec)
+        : ((matched && matched.duration_sec) || parseTrackDurationToSeconds(duration) || null);
+
+      merged.push({ title, rating: normRating, url, duration, duration_sec });
+    });
+  }
+
+  ratingByTitle.forEach((entry, key) => {
+    if (seen.has(key)) return;
+    seen.add(key);
+    merged.push({
+      title: entry.title,
+      rating: entry.rating || "",
+      url: entry.url || "",
+      duration: entry.duration || "",
+      duration_sec: entry.duration_sec || null
+    });
+  });
+
+  return merged;
+}
+
+/**
+ * Applies imported tracklist, computed runtime fallback, single audio fallback,
+ * datalist suggestions, and merged track ratings to the spin modal fields.
+ */
+function applyImportedTracksToModal(payload, { isSingle = false, overwriteExistingTrackRatings = true } = {}) {
+  const importedTracklist = normalizeImportedTracklist(payload && payload.tracklist);
+  const importedRatings = mergeImportedTrackRatings(payload && payload.track_ratings, importedTracklist);
+
+  const suggestionSource = importedTracklist.length > 0
+    ? importedTracklist
+    : importedRatings.map(tr => ({ title: tr.title }));
+  if (suggestionSource.length > 0 || (payload && Array.isArray(payload.tracklist))) {
+    pendingModalTracklist = importedTracklist;
+    populateFavTrackSuggestions(suggestionSource);
+  }
+
+  const logRuntimeEl = document.getElementById("logRuntime");
+  const durSource = importedTracklist.length > 0 ? importedTracklist : importedRatings;
+  if (logRuntimeEl && !String(payload && payload.runtime ? payload.runtime : "").trim() && durSource.length > 0) {
+    const totalSec = durSource.reduce((sum, t) => sum + (Number.isFinite(t.duration_sec) ? t.duration_sec : 0), 0);
+    const computedRuntime = formatDurationFromSeconds(totalSec);
+    if (computedRuntime) {
+      logRuntimeEl.value = computedRuntime;
+    }
+  }
+
+  if (trackRatingsList && (importedRatings.length > 0 || overwriteExistingTrackRatings)) {
+    trackRatingsList.innerHTML = "";
+    importedRatings.forEach(tr => {
+      trackRatingsList.appendChild(createTrackRatingRow(tr.title, tr.rating, tr.url || "", tr.duration || "", tr.duration_sec));
+    });
+    syncTrackRatingIndices();
+  }
+
+  if (isSingle && logSingleAudioUrl && !logSingleAudioUrl.value.trim()) {
+    const firstUrl =
+      (payload && payload.single_audio_url ? String(payload.single_audio_url).trim() : "") ||
+      (importedRatings.find(t => t.url) || {}).url ||
+      (importedTracklist.find(t => t.url) || {}).url ||
+      "";
+    if (firstUrl) {
+      logSingleAudioUrl.value = firstUrl;
+    }
+  }
+}
+
+/**
+ * Reads all track rows currently entered in the modal into Supabase track_ratings objects.
+ */
+function collectTrackRatingRows() {
+  const rows = [];
+  if (!trackRatingsList) return rows;
+  trackRatingsList.querySelectorAll(".track-rating-input-row").forEach(row => {
+    const tInput = row.querySelector(".tr-title-input");
+    const dInput = row.querySelector(".tr-duration-input");
+    const uInput = row.querySelector(".tr-url-input");
+    const rSelect = row.querySelector(".tr-rating-select");
+    const title = tInput ? tInput.value.trim() : "";
+    if (!title) return;
+
+    const duration = dInput ? dInput.value.trim() : "";
+    const parsedSec = parseTrackDurationToSeconds(duration);
+    const storedSec = row.dataset.durationSec ? parseInt(row.dataset.durationSec, 10) : 0;
+    const durationSec = parsedSec > 0 ? parsedSec : (duration && storedSec > 0 ? storedSec : 0);
+    const url = uInput ? uInput.value.trim() : "";
+    const rawRating = rSelect ? rSelect.value : "";
+    const rating = rawRating !== "" && !isNaN(parseFloat(rawRating)) ? parseFloat(rawRating) : null;
+
+    const entry = {
+      title,
+      rating,
+      url: url || null
+    };
+    if (duration) entry.duration = duration;
+    if (durationSec > 0) entry.duration_sec = durationSec;
+    rows.push(entry);
+  });
+  return rows;
+}
+
+/**
+ * Re-numbers all track rows in the modal ("1.", "2.", ...) and toggles header/badge state.
+ */
+function syncTrackRatingIndices() {
+  if (!trackRatingsList) return;
+  const rows = Array.from(trackRatingsList.querySelectorAll(".track-rating-input-row"));
+  rows.forEach((row, idx) => {
+    const numEl = row.querySelector(".tr-row-num");
+    if (numEl) numEl.textContent = `${idx + 1}.`;
+  });
+  const headerEl = document.getElementById("trListHeader");
+  if (headerEl) headerEl.style.display = rows.length > 0 ? "grid" : "none";
+  const badgeEl = document.getElementById("trackRatingsCountBadge");
+  if (badgeEl) {
+    badgeEl.textContent = String(rows.length);
+    badgeEl.style.display = rows.length > 0 ? "inline-flex" : "none";
+  }
+}
+
+/**
+ * Wires sequential Enter navigation: Track Title -> Time -> URL -> Rating -> Next Track.
+ */
+function bindTrackRowKeyboardFlow(row) {
+  const titleEl = row.querySelector(".tr-title-input");
+  const durEl = row.querySelector(".tr-duration-input");
+  const urlEl = row.querySelector(".tr-url-input");
+  const rateEl = row.querySelector(".tr-rating-select");
+  const removeBtn = row.querySelector(".tr-remove-btn");
+
+  const focusStep = (el) => {
+    if (!el) return;
+    el.focus();
+    if (typeof el.select === "function" && el.tagName === "INPUT") {
+      el.select();
+    }
+  };
+
+  const stepOnEnter = (el, nextFn) => {
+    if (!el) return;
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        e.stopPropagation();
+        nextFn();
+      }
+    });
+  };
+
+  stepOnEnter(titleEl, () => focusStep(durEl));
+  stepOnEnter(durEl, () => focusStep(urlEl));
+  stepOnEnter(urlEl, () => focusStep(rateEl));
+  stepOnEnter(rateEl, () => {
+    const nextRow = row.nextElementSibling;
+    if (nextRow && nextRow.classList.contains("track-rating-input-row")) {
+      focusStep(nextRow.querySelector(".tr-title-input"));
+      return;
+    }
+    if (trackRatingsList) {
+      const freshRow = createTrackRatingRow("", "");
+      trackRatingsList.appendChild(freshRow);
+      syncTrackRatingIndices();
+      focusStep(freshRow.querySelector(".tr-title-input"));
+    }
+  });
+
+  if (removeBtn) {
+    removeBtn.addEventListener("click", () => {
+      row.remove();
+      syncTrackRatingIndices();
+    });
+  }
+}
+
+function createTrackRatingRow(title = "", rating = "5.0", url = "", duration = "", durationSec = null) {
   const row = document.createElement("div");
   row.className = "track-rating-input-row";
+  if (Number.isFinite(Number(durationSec)) && Number(durationSec) > 0) {
+    row.dataset.durationSec = String(Math.round(Number(durationSec)));
+  }
+  const normRating = normalizeTrackStarRating(rating);
   row.innerHTML = `
-    <input type="text" class="tr-title-input" placeholder="Track title" value="${title}" required>
-    <input type="text" class="tr-url-input" placeholder="Audio link (opt)" value="${url}">
+    <span class="tr-row-num">1.</span>
+    <input type="text" class="tr-title-input" placeholder="Track title" value="${escapeHtml(title)}" required>
+    <input type="text" class="tr-duration-input" placeholder="0:00" value="${escapeHtml(duration)}" title="Track duration (e.g. 3:45)">
+    <input type="text" class="tr-url-input" placeholder="URL (opt)" value="${escapeHtml(url)}">
     <select class="tr-rating-select">
-      <option value="5.0" ${rating == 5.0 ? 'selected' : ''}>★★★★★ (5.0)</option>
-      <option value="4.5" ${rating == 4.5 ? 'selected' : ''}>★★★★½ (4.5)</option>
-      <option value="4.0" ${rating == 4.0 ? 'selected' : ''}>★★★★☆ (4.0)</option>
-      <option value="3.5" ${rating == 3.5 ? 'selected' : ''}>★★★½☆ (3.5)</option>
-      <option value="3.0" ${rating == 3.0 ? 'selected' : ''}>★★★☆☆ (3.0)</option>
-      <option value="2.5" ${rating == 2.5 ? 'selected' : ''}>★★½☆☆ (2.5)</option>
-      <option value="2.0" ${rating == 2.0 ? 'selected' : ''}>★★☆☆☆ (2.0)</option>
-      <option value="1.5" ${rating == 1.5 ? 'selected' : ''}>★½☆☆☆ (1.5)</option>
-      <option value="1.0" ${rating == 1.0 ? 'selected' : ''}>★☆☆☆☆ (1.0)</option>
-      <option value="0.5" ${rating == 0.5 ? 'selected' : ''}>½☆☆☆☆ (0.5)</option>
+      <option value="" ${!normRating ? 'selected' : ''}>— Unrated</option>
+      <option value="5.0" ${normRating === "5.0" ? 'selected' : ''}>★★★★★ 5.0</option>
+      <option value="4.5" ${normRating === "4.5" ? 'selected' : ''}>★★★★½ 4.5</option>
+      <option value="4.0" ${normRating === "4.0" ? 'selected' : ''}>★★★★☆ 4.0</option>
+      <option value="3.5" ${normRating === "3.5" ? 'selected' : ''}>★★★½☆ 3.5</option>
+      <option value="3.0" ${normRating === "3.0" ? 'selected' : ''}>★★★☆☆ 3.0</option>
+      <option value="2.5" ${normRating === "2.5" ? 'selected' : ''}>★★½☆☆ 2.5</option>
+      <option value="2.0" ${normRating === "2.0" ? 'selected' : ''}>★★☆☆☆ 2.0</option>
+      <option value="1.5" ${normRating === "1.5" ? 'selected' : ''}>★½☆☆☆ 1.5</option>
+      <option value="1.0" ${normRating === "1.0" ? 'selected' : ''}>★☆☆☆☆ 1.0</option>
+      <option value="0.5" ${normRating === "0.5" ? 'selected' : ''}>½☆☆☆☆ 0.5</option>
     </select>
-    <button type="button" class="tr-remove-btn" onclick="this.parentElement.remove()">✕</button>
+    <button type="button" class="tr-remove-btn" title="Remove track">&times;</button>
   `;
+  bindTrackRowKeyboardFlow(row);
   return row;
 }
 
 if (addTrackRatingRowBtn && trackRatingsList) {
   addTrackRatingRowBtn.addEventListener("click", () => {
-    trackRatingsList.appendChild(createTrackRatingRow());
+    const newRow = createTrackRatingRow("", "");
+    trackRatingsList.appendChild(newRow);
+    syncTrackRatingIndices();
+    const tInput = newRow.querySelector(".tr-title-input");
+    if (tInput) tInput.focus();
   });
 }
 
@@ -7342,11 +7903,15 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     document.getElementById("logMemo").value = item.memo || "";
     if (logRuntime) logRuntime.value = item.runtime || "";
     if (logRymRating) logRymRating.value = (item.rym_rating !== null && item.rym_rating !== undefined && item.rym_rating !== "") ? item.rym_rating : "";
+    const editTrackRows = Array.isArray(item.track_ratings) ? item.track_ratings : [];
+    pendingModalTracklist = normalizeImportedTracklist(item.tracklist);
+    populateFavTrackSuggestions(pendingModalTracklist.length > 0 ? pendingModalTracklist : editTrackRows);
     if (trackRatingsList) {
-    trackRatingsList.innerHTML = "";
-    (item.track_ratings || []).forEach(tr => {
-        trackRatingsList.appendChild(createTrackRatingRow(tr.title, tr.rating, tr.url || ""));
-    });
+      trackRatingsList.innerHTML = "";
+      editTrackRows.forEach(tr => {
+        trackRatingsList.appendChild(createTrackRatingRow(tr.title, tr.rating, tr.url || "", tr.duration || "", tr.duration_sec));
+      });
+      syncTrackRatingIndices();
     }
   };
 
@@ -7434,21 +7999,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       movements = rawMv ? rawMv.split(",").map(s => s.trim()).filter(Boolean) : [];
     }
 
-    const trackRatings = [];
-    if (trackRatingsList) {
-      trackRatingsList.querySelectorAll(".track-rating-input-row").forEach(row => {
-        const tInput = row.querySelector(".tr-title-input");
-        const uInput = row.querySelector(".tr-url-input");
-        const rSelect = row.querySelector(".tr-rating-select");
-        if (tInput && tInput.value.trim()) {
-          trackRatings.push({
-            title: tInput.value.trim(),
-            rating: rSelect ? parseFloat(rSelect.value) : 5.0,
-            url: uInput ? uInput.value.trim() : ""
-          });
-        }
-      });
-    }
+    const trackRatings = collectTrackRatingRows();
 
     if (!artist && !title) {
       flashClipboardFeedback("modalCopySpinBtn", "modalCopyTooltip", "modalCopySpinIcon", "No spin info to copy!", false);
@@ -7472,7 +8023,8 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       single_audio_url: singleAudioUrl,
       review_url: reviewUrl,
       rym_rating: rymRating,
-      track_ratings: trackRatings
+      track_ratings: trackRatings,
+      tracklist: pendingModalTracklist
     };
 
     try {
@@ -7571,12 +8123,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     if (logReviewUrl) logReviewUrl.value = spinData.review_url || "";
     if (logRymRating) logRymRating.value = (spinData.rym_rating !== null && spinData.rym_rating !== undefined && spinData.rym_rating !== "") ? spinData.rym_rating : "";
 
-    if (Array.isArray(spinData.track_ratings) && trackRatingsList) {
-      trackRatingsList.innerHTML = "";
-      spinData.track_ratings.forEach(tr => {
-        trackRatingsList.appendChild(createTrackRatingRow(tr.title, tr.rating, tr.url || ""));
-      });
-    }
+    applyImportedTracksToModal(spinData, { isSingle, overwriteExistingTrackRatings: Array.isArray(spinData.track_ratings) });
 
     // Auto-setup for Relisten when logging a new spin
     if (editingIndex === null) {
@@ -7640,15 +8187,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       const currentRatingVal = parseFloat(document.getElementById("logRating").value) || null;
       const prevRatingVal = logPrevRating && logPrevRating.value ? parseFloat(logPrevRating.value) : null;
       const isRelistenChecked = logRelisten ? logRelisten.checked : false;
-      const trackRatings = [];
-      document.querySelectorAll(".track-rating-input-row").forEach(row => {
-        const title = row.querySelector(".tr-title-input").value.trim();
-        const url = row.querySelector(".tr-url-input").value.trim();
-        const rating = parseFloat(row.querySelector(".tr-rating-select").value);
-        if (title) {
-            trackRatings.push({ title, rating, url: url || null });
-        }
-        });
+      const trackRatings = collectTrackRatingRows();
       let finalCoverUrl = logCoverUrl.value.trim() || "assets/images/spins/placeholder.png";
       if (finalCoverUrl.startsWith("http") && !finalCoverUrl.includes("supabase.co")) {
         if (modalSubmitBtn) modalSubmitBtn.textContent = "Uploading Art...";
@@ -8066,6 +8605,13 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       if (window.logMovementsManager && data.movements) {
         window.logMovementsManager.setTags(data.movements);
       }
+
+      const importedTypeVal = document.getElementById("logType") ? document.getElementById("logType").value : (data.type || "");
+      const isImportedSingle = importedTypeVal.trim().toLowerCase() === "single";
+      applyImportedTracksToModal(data, {
+        isSingle: isImportedSingle,
+        overwriteExistingTrackRatings: Array.isArray(data.track_ratings) && data.track_ratings.length > 0
+      });
 
       // Visual success confirmation on button
       const origHtml = rymImportBtn.innerHTML;

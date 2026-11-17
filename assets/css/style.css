@@ -5772,7 +5772,7 @@ body.top100-view-active .widgets-edge-tab {
 
   .spin-top-section {
     display: grid !important;
-    grid-template-columns: auto 1fr !important;
+    grid-template-columns: 105px minmax(0, 1fr) !important;
     align-items: start !important;
     column-gap: 0.85rem !important;
     row-gap: 0.35rem !important;
@@ -5793,12 +5793,24 @@ body.top100-view-active .widgets-edge-tab {
   .spin-header {
     grid-column: 2 !important;
     grid-row: 1 !important;
+    width: 100% !important;
     min-width: 0 !important;
+    box-sizing: border-box !important;
     position: relative !important;
     padding-right: 4.5rem !important;
     flex-direction: column !important;
     align-items: flex-start !important;
     gap: 0.25rem !important;
+  }
+
+  .title-meta-group {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .spin-title {
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
   }
 
   .spin-header .post-date {
@@ -6145,6 +6157,11 @@ body.top100-view-active .widgets-edge-tab {
   .timeline-row {
     gap: 0.75rem !important;
     padding: 0.85rem 0.45rem !important;
+  }
+
+  .spin-top-section {
+    grid-template-columns: 86px minmax(0, 1fr) !important;
+    column-gap: 0.75rem !important;
   }
 
   .spin-cover-wrap {
