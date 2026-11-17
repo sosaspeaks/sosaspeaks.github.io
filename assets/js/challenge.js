@@ -2309,6 +2309,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const releaseYear = (match && match.year) ? match.year : (album.release_year || album.year || (priorSpin ? priorSpin.year : ""));
     const yearHtml = releaseYear ? ` <span class="modal-detail-year">(${escapeHtml(String(releaseYear))})</span>` : "";
+    let rawReleaseType = (match && match.type) ? match.type : (album.type || (priorSpin ? priorSpin.type : "") || "Album");
+    rawReleaseType = String(rawReleaseType).trim() || "Album";
+    if (rawReleaseType.toLowerCase() === "ep") rawReleaseType = "EP";
+    const formatInlineHtml = `<span class="spin-format-text"><span class="format-bullet">•</span> ${escapeHtml(rawReleaseType)}</span>`;
 
     const rymScore = album.rym_rating !== null && album.rym_rating !== undefined ? album.rym_rating : (getLocalRymRatings()[album.id] || null);
     const rymHoverText = (rymScore !== null && rymScore !== undefined && rymScore !== "")
@@ -2457,7 +2461,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               <div class="modal-detail-meta">
                 <div class="modal-header-top-row">
                   <div class="modal-title-line">
-                    <span class="modal-detail-title">${escapeHtml(displayTitle)}</span>${yearHtml}${runtimeInlineHtml}
+                    <span class="modal-detail-title">${escapeHtml(displayTitle)}</span>${yearHtml}${formatInlineHtml}${runtimeInlineHtml}
                   </div>
                   ${topDateHtml}
                 </div>
@@ -2563,7 +2567,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               <div class="modal-detail-meta">
                 <div class="modal-header-top-row">
                   <div class="modal-title-line">
-                    <span class="modal-detail-title">${escapeHtml(displayTitle)}</span>${yearHtml}${unloggedRuntimeHtml}
+                    <span class="modal-detail-title">${escapeHtml(displayTitle)}</span>${yearHtml}${formatInlineHtml}${unloggedRuntimeHtml}
                   </div>
                   ${unloggedTopDateHtml}
                 </div>

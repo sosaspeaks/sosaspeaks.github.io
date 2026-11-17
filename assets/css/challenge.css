@@ -2036,6 +2036,28 @@ body.dark-mode .modal-cover-reflection {
   line-height: 1.22;
 }
 
+.spin-format-text {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #475569;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.spin-format-text .format-bullet {
+  opacity: 0.55;
+  font-weight: 500;
+}
+
+body.dark-mode .spin-format-text {
+  color: #cbd5e1;
+}
+
 .modal-runtime-favfont {
   font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 0.74rem;

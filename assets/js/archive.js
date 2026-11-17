@@ -2416,6 +2416,12 @@ function getDominantColorFromImg(imgUrl) {
     });
   }
 
+  function normalizeSpinDisplayType(rawType) {
+    let displayType = String(rawType || "Album").trim() || "Album";
+    if (displayType.toLowerCase() === "ep") displayType = "EP";
+    return displayType;
+  }
+
   /**
    * Opens a Challenge-style Aero Glass modal displaying every logged spin, rating shift,
    * and listening memo for the referenced album record.
@@ -2496,6 +2502,8 @@ function getDominantColorFromImg(imgUrl) {
     const topDateHtml = latest.log_date
       ? `<span class="modal-top-date" title="Most recent spin"><i class='bx bx-calendar'></i> ${escapeHtml(latest.log_date)}</span>`
       : "";
+    const latestDisplayType = normalizeSpinDisplayType(latest.type);
+    const formatInlineHtml = `<span class="spin-format-text"><span class="format-bullet">•</span> ${escapeHtml(latestDisplayType)}</span>`;
     const runtimeInlineHtml = latest.runtime
       ? `<span class="modal-runtime-favfont" title="Runtime: ${escapeHtml(latest.runtime)}">• ${escapeHtml(latest.runtime)}</span>`
       : "";
@@ -2640,7 +2648,7 @@ function getDominantColorFromImg(imgUrl) {
           <div class="modal-detail-meta">
             <div class="modal-header-top-row">
               <div class="modal-title-line">
-                <span class="modal-detail-title">${escapeHtml(displayTitle)}</span>${yearHtml}${runtimeInlineHtml}
+                <span class="modal-detail-title">${escapeHtml(displayTitle)}</span>${yearHtml}${formatInlineHtml}${runtimeInlineHtml}
               </div>
               ${topDateHtml}
             </div>
@@ -4079,7 +4087,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
 
       // 2. Info Row (Release Type, Date, Runtime, Relisten / Recalibrate Queue)
       const infoPills = [];
-      infoPills.push(`<span class="cf-status-badge cf-type-badge">${escapeHtml(displayType)}</span>`);
+      infoPills.push(`<span class="spin-format-text cf-format-text">${escapeHtml(displayType)}</span>`);
       if (item.log_date) {
         infoPills.push(`<span class="cf-status-badge unlistened"><i class='bx bx-calendar'></i> ${escapeHtml(item.log_date)}</span>`);
       }
@@ -4436,6 +4444,9 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
         resolved.movements = (match.movements && match.movements.length) ? match.movements : (album.movements || []);
         resolved.fav_tracks = match.fav_tracks || "";
         resolved.rym_rating = (match.rym_rating !== null && match.rym_rating !== undefined && match.rym_rating !== "") ? match.rym_rating : (album.rym_rating || null);
+        resolved.type = match.type || album.type || "Album";
+        resolved.runtime = match.runtime || album.runtime || "";
+        resolved.log_date = match.log_date || album.log_date || "";
       }
     }
     return resolved;
@@ -6244,6 +6255,14 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
     const coverSrc = album.cover_url || "assets/images/spins/placeholder.png";
     const ratingVal = (album.rating !== null && album.rating !== undefined && album.rating !== "") ? parseFloat(album.rating).toFixed(1) : "";
     const yearHtml = album.release_year ? ` <span class="top100-detail-year">(${album.release_year})</span>` : "";
+    const top100DisplayType = normalizeSpinDisplayType(album.type);
+    const top100FormatHtml = `<span class="spin-format-text"><span class="format-bullet">•</span> ${escapeHtml(top100DisplayType)}</span>`;
+    const top100RuntimeHtml = album.runtime
+      ? `<span class="modal-runtime-favfont" title="Runtime: ${escapeHtml(album.runtime)}">• ${escapeHtml(album.runtime)}</span>`
+      : "";
+    const top100TopDateHtml = album.log_date
+      ? `<span class="modal-top-date" title="Most recent spin"><i class='bx bx-calendar'></i> ${escapeHtml(album.log_date)}</span>`
+      : "";
 
     let primaryGenres = [];
     if (Array.isArray(album.genres)) {
@@ -6312,24 +6331,18 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
     ` : "";
     let genresHtml = "";
     if (primaryGenres.length || secondaryGenres.length) {
-      const primaryHtml = primaryGenres.length ? `
-        <div class="primary-genres-row" style="display: flex; flex-wrap: wrap; align-items: center; gap: 5px;">
-          ${primaryGenres.map(g => `<span class="genre-pill genre-primary">${escapeHtml(g)}</span>`).join("")}
-        </div>
-      ` : "";
-      const secondaryHtml = secondaryGenres.length ? `
-        <div class="secondary-genres-row" style="display: flex; flex-wrap: wrap; gap: 5px;">
-          ${secondaryGenres.map(g => `<span class="genre-pill genre-secondary">${escapeHtml(g)}</span>`).join("")}
-        </div>
-      ` : "";
-
       genresHtml = `
-        <div class="artist-quick-section">
-          <div class="artist-quick-sec-title"><i class='bx bx-purchase-tag-alt'></i> Genres:</div>
-          <div class="top100-modal-genres">
-            ${primaryHtml}
-            ${secondaryHtml}
-          </div>
+        <div class="genre-container modal-header-genres">
+          ${primaryGenres.length ? `
+            <div class="primary-genres-wrap">
+              ${primaryGenres.map(g => `<span class="genre-pill genre-primary">${escapeHtml(g)}</span>`).join("")}
+            </div>
+          ` : ""}
+          ${secondaryGenres.length ? `
+            <div class="secondary-genres-wrap">
+              ${secondaryGenres.map(g => `<span class="genre-pill genre-secondary">${escapeHtml(g)}</span>`).join("")}
+            </div>
+          ` : ""}
         </div>
       `;
     }
@@ -6384,37 +6397,37 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
       `;
     }
 
-    const rymTagHtml = (album.rym_rating !== null && album.rym_rating !== undefined && album.rym_rating !== "")
-      ? `<span class="artist-quick-count-chip top100-rym-chip"><i class='bx bxs-star'></i> RYM ${parseFloat(album.rym_rating).toFixed(2)}</span>`
+    const rymHoverText = (album.rym_rating !== null && album.rym_rating !== undefined && album.rym_rating !== "")
+      ? `RYM Avg: ${parseFloat(album.rym_rating).toFixed(2)}`
       : "";
-    const typeChipHtml = album.type
-      ? `<span class="artist-quick-count-chip top100-type-chip"><i class='bx bx-album'></i> ${escapeHtml(album.type)}</span>`
-      : "";
-    const ratingChipHtml = ratingVal ? `
-      <span class="artist-quick-rating-chip" title="Rating: ${ratingVal}/5.0">
-        <span class="artist-quick-stars">${getStarString(album.rating)}</span>
-        <span class="artist-quick-avg-num">${ratingVal} / 5.0</span>
-      </span>
-    ` : "";
+    const ratingInlineHtml = ratingVal ? `
+      <div class="modal-rating-inline" ${rymHoverText ? `title="${escapeHtml(rymHoverText)}"` : ""}>
+        ${rymHoverText ? `<span class="rym-rating-tooltip rym-side-tip"><i class='bx bxs-star'></i> ${escapeHtml(rymHoverText)}</span>` : ""}
+        <span class="stars-gold">${getStarString(album.rating)}</span>
+        <span class="modal-rating-paren">(${ratingVal})</span>
+      </div>
+    ` : (rymHoverText ? `<div class="modal-runtime-favfont">${escapeHtml(rymHoverText)}</div>` : "");
 
     top100ModalBody.innerHTML = `
       <div class="top100-detail-body">
         <div class="top100-detail-header-row">
-          <img src="${coverSrc}" alt="${escapeHtml(album.title)}" class="top100-detail-cover" decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+          <div class="modal-cover-wrap">
+            <img src="${coverSrc}" alt="${escapeHtml(album.title)}" class="top100-detail-cover modal-detail-cover" decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png'; if (this.nextElementSibling) this.nextElementSibling.style.backgroundImage='url(assets/images/spins/placeholder.png)';">
+            <div class="modal-cover-reflection" style="background-image: url('${coverSrc}');" aria-hidden="true"></div>
+          </div>
           <div class="top100-detail-info">
-            <div class="top100-detail-rank-badge artist-quick-rank-pill"><i class='bx bxs-award'></i> Rank #${rank}</div>
-            <div class="top100-detail-title">${escapeHtml(album.title)}${yearHtml}</div>
+            <div class="modal-header-top-row">
+              <div class="top100-detail-rank-badge artist-quick-rank-pill"><i class='bx bxs-award'></i> Rank #${rank}</div>
+              ${top100TopDateHtml}
+            </div>
+            <div class="modal-title-line">
+              <span class="top100-detail-title">${escapeHtml(album.title)}</span>${yearHtml}${top100FormatHtml}${top100RuntimeHtml}
+            </div>
             <div class="top100-detail-artist">${renderClickableArtists(album.artist || "Unknown Artist")}</div>
-            ${(ratingChipHtml || typeChipHtml || rymTagHtml) ? `
-              <div class="artist-quick-stats-row top100-detail-stats-row">
-                ${ratingChipHtml}
-                ${typeChipHtml}
-                ${rymTagHtml}
-              </div>
-            ` : ""}
+            ${ratingInlineHtml}
+            ${genresHtml}
           </div>
         </div>
-        ${genresHtml}
         ${contextSectionHtml}
         ${favTracksHtml}
         ${memoHtml}
@@ -6540,7 +6553,8 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
               const r = parseFloat(p.rating);
               const scoreStr = !isNaN(r) ? r.toFixed(1) : "-";
               const yStr = p.year ? `(${p.year})` : "";
-              const typePill = p.type ? `<span class="type-pill artist-project-type-pill">${escapeHtml(p.type)}</span>` : "";
+              const projType = p.type ? normalizeSpinDisplayType(p.type) : "";
+              const typeInline = projType ? ` <span class="spin-format-text"><span class="format-bullet">•</span> ${escapeHtml(projType)}</span>` : "";
               const attribution = formatArtistProjectAttribution(p.artist, canonical);
               const aliasTag = attribution ? `<span class="artist-project-alias">${escapeHtml(attribution)}</span>` : "";
 
@@ -6550,8 +6564,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
                     <span class="artist-project-rank">#${idx + 1}</span>
                     <img src="${p.cover_url || 'assets/images/spins/placeholder.png'}" alt="${escapeHtml(p.title)}" class="artist-project-cover" decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
                     <div class="artist-project-info">
-                      <div class="artist-project-title" title="${escapeHtml(p.title)}">${escapeHtml(p.title)} <span class="artist-project-year">${yStr}</span>${aliasTag}</div>
-                      ${typePill ? `<div class="artist-project-meta">${typePill}</div>` : ""}
+                      <div class="artist-project-title" title="${escapeHtml(p.title)}">${escapeHtml(p.title)} <span class="artist-project-year">${yStr}</span>${typeInline}${aliasTag}</div>
                     </div>
                   </div>
                   <div class="artist-project-right">
@@ -7125,7 +7138,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
             <div class="title-meta-group">
               <span class="spin-title">${renderClickableArtists(item.artist)} <span class="spin-title-dash">—</span> <span class="spin-album-title">${escapeHtml(item.title)}</span></span>
               <span class="spin-year">${item.year ? `(${item.year})` : ''}</span>
-              <span class="category spin-format-tag">${displayType}</span>${item.runtime ? `<span class="spin-runtime-text" title="Runtime: ${escapeHtml(item.runtime)}"><span class="runtime-bullet">•</span> ${escapeHtml(item.runtime)}</span>` : ""}
+              <span class="spin-format-text"><span class="format-bullet">•</span> ${escapeHtml(displayType)}</span>${item.runtime ? `<span class="spin-runtime-text" title="Runtime: ${escapeHtml(item.runtime)}"><span class="runtime-bullet">•</span> ${escapeHtml(item.runtime)}</span>` : ""}
               ${(() => {
                 const recalMeta = getActiveRecalibrateMeta(item);
                 if (!recalMeta) return "";
