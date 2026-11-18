@@ -1,9 +1,3 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/sosaspeaks/sosaspeaks/blob/main/sosaspeaks-logo-wht.png" />
-  <source media="(prefers-color-scheme: light)" srcset="https://github.com/sosaspeaks/sosaspeaks/blob/main/sosaspeaks-logo-blk.png" />
-  <img alt="sosaspeaks" src="https://github.com/sosaspeaks/sosaspeaks/blob/main/sosaspeaks-logo-blk.png" />
-</picture>
-
 <pre> _____                 _____                  __
   / ___/____  ________ _/ ___/____  ___  ____ _/ /_______
   \__ \/ __ \/ ___/ __ `/\__ \/ __ \/ _ \/ __ `/ //_/ ___/
@@ -82,5 +76,10 @@ sosaspeaks.github.io/
 * **Site Loader:** [Afif13](https://github.com/Afif13/).
 
 ---
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/sosaspeaks/sosaspeaks/blob/main/sosaspeaks-logo-wht.png" />
+  <source media="(prefers-color-scheme: light)" srcset="https://github.com/sosaspeaks/sosaspeaks/blob/main/sosaspeaks-logo-blk.png" />
+  <img alt="sosaspeaks" src="https://github.com/sosaspeaks/sosaspeaks/blob/main/sosaspeaks-logo-blk.png" />
+</picture>
 
 © 2026 [SosaSpeaks](https://sosaspeaks.org). All rights reserved.
