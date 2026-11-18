@@ -6586,7 +6586,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
     if (!modal.dataset.hasOutsideClickListener) {
       modal.dataset.hasOutsideClickListener = "true";
       modal.addEventListener("click", (e) => {
-        if (e.target === modal || !e.target.closest(".artist-quick-window")) {
+        if (e.target === modal) {
           closeArtistQuickModal();
         }
       });
@@ -6662,20 +6662,34 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
       }
     });
     const membersList = Array.from(membersSet);
+    const subunitsList = [];
+    const regularMembersList = [];
+    membersList.forEach(m => {
+      const childProf = getArtistProfile(m);
+      if (String(childProf?.artist_kind || "").trim().toLowerCase() === "subunit") {
+        subunitsList.push(m);
+      } else {
+        regularMembersList.push(m);
+      }
+    });
     const isSubunitArtist = String(profile.artist_kind || "").trim().toLowerCase() === "subunit";
     const parentRelPrefix = isSubunitArtist ? "Subunit of:" : "Member of:";
 
-    const relationsHtml = (memberOfList.length || membersList.length) ? `
-      <div class="artist-quick-meta-row">
-        ${memberOfList.map(g => `<button type="button" class="artist-quick-meta-chip artist-quick-rel-chip" onclick="openArtistQuickModal('${g.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')">${parentRelPrefix} ${escapeHtml(g)}</button>`).join("")}
-        ${membersList.map(m => {
-          const childProf = getArtistProfile(m);
-          const childIsSubunit = String(childProf?.artist_kind || "").trim().toLowerCase() === "subunit";
-          const childPrefix = childIsSubunit ? "Subunit:" : "Member:";
-          return `<button type="button" class="artist-quick-meta-chip artist-quick-rel-chip" onclick="openArtistQuickModal('${m.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')">${childPrefix} ${escapeHtml(m)}</button>`;
-        }).join("")}
-      </div>
-    ` : "";
+    const renderRelLine = (label, names) => {
+      if (!names || !names.length) return "";
+      const links = names
+        .map(n => `<a href="#" class="artist-quick-rel-link" onclick="event.preventDefault(); openArtistQuickModal('${n.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')">${escapeHtml(n)}</a>`)
+        .join(", ");
+      return `<div class="artist-quick-rel-line"><span class="artist-quick-rel-label">${escapeHtml(label)}</span> <span class="artist-quick-rel-links">${links}</span></div>`;
+    };
+
+    const relLinesHtml = [
+      renderRelLine(parentRelPrefix, memberOfList),
+      renderRelLine("Subunits:", subunitsList),
+      renderRelLine("Members:", regularMembersList)
+    ].filter(Boolean).join("");
+
+    const relationsHtml = relLinesHtml ? `<div class="artist-quick-relations-wrap">${relLinesHtml}</div>` : "";
 
     const quickMetaRowHtml = metaChips.length ? `<div class="artist-quick-meta-row">${metaChips.join("")}</div>` : "";
 
@@ -7209,7 +7223,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
     if (artistQuickModalEl && !artistQuickModalEl.dataset.hasOutsideClickListener) {
       artistQuickModalEl.dataset.hasOutsideClickListener = "true";
       artistQuickModalEl.addEventListener("click", (e) => {
-        if (e.target === artistQuickModalEl || !e.target.closest(".artist-quick-window")) {
+        if (e.target === artistQuickModalEl) {
           closeArtistQuickModal();
         }
       });
@@ -10612,6 +10626,75 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       });
     });
 
+    async function syncBidirectionalArtistLinks(canonName, prevProfile, nextMemberOf, nextMembers, syncRemote) {
+      const idx = buildArtistDirectoryIndex();
+      const existingByLower = {};
+      idx.forEach(r => { existingByLower[r.canonical.toLowerCase()] = r; });
+
+      const ops = [];
+      const queueLinkUpdate = (rawTarget, fieldName, shouldInclude) => {
+        const resolved = getCanonicalArtist(rawTarget) || String(rawTarget || "").trim();
+        if (!resolved || resolved.toLowerCase() === canonName.toLowerCase()) return;
+        const dirRec = existingByLower[resolved.toLowerCase()];
+        if (!dirRec) return; // Only populate existing artists in catalog/DB
+
+        const curProf = getArtistProfile(dirRec.canonical) || {
+          canonical_artist: dirRec.canonical,
+          native_name: dirRec.native_name || "",
+          aliases: Array.isArray(dirRec.aliases) ? [...dirRec.aliases] : [],
+          member_of: [],
+          members: [],
+          artist_kind: dirRec.artist_kind || "",
+          active_years: dirRec.active_years || "",
+          country: dirRec.country || "",
+          state_province: dirRec.state_province || "",
+          city: dirRec.city || "",
+          portrait_url: dirRec.portrait_url || ""
+        };
+        const curList = Array.isArray(curProf[fieldName]) ? [...curProf[fieldName]] : [];
+        const hasLink = curList.some(x => x.toLowerCase() === canonName.toLowerCase());
+        let nextList = null;
+        if (shouldInclude && !hasLink) {
+          nextList = [...curList, canonName];
+        } else if (!shouldInclude && hasLink) {
+          nextList = curList.filter(x => x.toLowerCase() !== canonName.toLowerCase());
+        }
+        if (!nextList) return;
+
+        const updatedRec = {
+          ...curProf,
+          canonical_artist: dirRec.canonical,
+          [fieldName]: nextList
+        };
+        ops.push(
+          syncRemote
+            ? persistArtistProfileRecord(updatedRec).then(r => (r && r.synced ? 1 : 0))
+            : (() => {
+                artistProfilesMap[dirRec.canonical.toLowerCase()] = updatedRec;
+                return Promise.resolve(1);
+              })()
+        );
+      };
+
+      const prevMembers = Array.isArray(prevProfile?.members) ? prevProfile.members : [];
+      const prevMemberOf = Array.isArray(prevProfile?.member_of) ? prevProfile.member_of : [];
+      const nextMembersLower = new Set((nextMembers || []).map(x => String(x).trim().toLowerCase()));
+      const nextMemberOfLower = new Set((nextMemberOf || []).map(x => String(x).trim().toLowerCase()));
+
+      (nextMembers || []).forEach(m => queueLinkUpdate(m, "member_of", true));
+      prevMembers.forEach(m => {
+        if (!nextMembersLower.has(String(m).trim().toLowerCase())) queueLinkUpdate(m, "member_of", false);
+      });
+      (nextMemberOf || []).forEach(g => queueLinkUpdate(g, "members", true));
+      prevMemberOf.forEach(g => {
+        if (!nextMemberOfLower.has(String(g).trim().toLowerCase())) queueLinkUpdate(g, "members", false);
+      });
+
+      if (!ops.length) return 0;
+      const counts = await Promise.all(ops);
+      return counts.reduce((sum, n) => sum + (Number(n) || 0), 0);
+    }
+
     if (saveBtn) {
       saveBtn.addEventListener("click", async () => {
         const canonName = canonicalInput ? canonicalInput.value.trim() : "";
@@ -10625,6 +10708,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
 
         try {
           syncParentGroupIntoMemberOf(false);
+          const prevProfile = getArtistProfile(canonName) || null;
           let portraitUrl = portraitUrlInput ? portraitUrlInput.value.trim() : "";
           if (portraitUrl && portraitUrl.startsWith("http") && !isHostedAssetUrl(portraitUrl)) {
             portraitUrl = await uploadCoverToSupabase(portraitUrl, "artist", canonName, ARTIST_STORAGE_BUCKET);
@@ -10646,6 +10730,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
           });
 
           const syncedTop100 = await syncPortraitToTopArtists(canonName, portraitUrl || null);
+          const linkedCount = await syncBidirectionalArtistLinks(canonName, prevProfile, draftMemberOf, draftMembers, !!res.synced);
           selectedCanonical = canonName;
 
           if (typeof updateSidebar === "function") updateSidebar();
@@ -10653,10 +10738,11 @@ if (addTrackRatingRowBtn && trackRatingsList) {
           renderArtistDirectoryList();
 
           if (saveStatusEl) {
+            const linkTail = linkedCount > 0 ? ` • ${linkedCount} linked` : "";
             if (res.synced && res.partialCityMissing) {
-              saveStatusEl.textContent = "Saved (run SQL 014 for City)";
+              saveStatusEl.textContent = `Saved (run SQL 014 for City)${linkTail}`;
             } else if (res.synced) {
-              saveStatusEl.textContent = syncedTop100 ? "Saved & Synced (Top 100)" : "Saved to Supabase";
+              saveStatusEl.textContent = `${syncedTop100 ? "Saved & Synced (Top 100)" : "Saved to Supabase"}${linkTail}`;
             } else {
               saveStatusEl.textContent = `Save failed (${res.error || "local only"})`;
             }
