@@ -21,8 +21,46 @@ document.addEventListener("DOMContentLoaded", async () => {
   const ICON_LOCKED = "assets/icons/aero/lock_closed.png";
   const ICON_UNLOCKED = "assets/icons/aero/lock_open.png";
 
+  // Apply Dark Mode immediately before awaiting Supabase auth session
+  const themeToggleBtn = document.querySelector(".theme-toggle");
+  if (themeToggleBtn) {
+    let darkMode = localStorage.getItem("darkMode");
+
+    const enableDarkMode = () => {
+      document.body.classList.add("dark-mode");
+      themeToggleBtn.classList.remove("bx-moon");
+      themeToggleBtn.classList.add("bx-sun");
+      themeToggleBtn.setAttribute("aria-pressed", "true");
+      localStorage.setItem("darkMode", "enabled");
+    };
+
+    const disableDarkMode = () => {
+      document.body.classList.remove("dark-mode");
+      themeToggleBtn.classList.remove("bx-sun");
+      themeToggleBtn.classList.add("bx-moon");
+      themeToggleBtn.setAttribute("aria-pressed", "false");
+      localStorage.setItem("darkMode", null);
+    };
+
+    if (darkMode === "enabled") {
+      enableDarkMode();
+    } else {
+      themeToggleBtn.setAttribute("aria-pressed", "false");
+    }
+
+    themeToggleBtn.addEventListener("click", () => {
+      darkMode = localStorage.getItem("darkMode");
+      if (darkMode !== "enabled") {
+        enableDarkMode();
+      } else {
+        disableDarkMode();
+      }
+    });
+  }
+
   // Native Supabase Authentication State
   let isAdmin = false;
+  let isDataLoaded = false;
   if (sb && sb.auth) {
     try {
       const { data: { session } } = await sb.auth.getSession();
@@ -35,7 +73,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     sb.auth.onAuthStateChange((_event, newSession) => {
       isAdmin = !!newSession;
       updateAdminVisibility();
-      if (typeof renderGrid === "function") renderGrid();
+      if (isDataLoaded && typeof renderGrid === "function") renderGrid();
     });
   }
   const gridSizeBtn = document.getElementById("gridSizeBtn");
@@ -323,6 +361,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     "July", "August", "September", "October", "November", "December"
   ];
 
+  function resolveChallengeMonthYear(monthStr, fallbackYear = null) {
+    if (!monthStr) return fallbackYear ? parseInt(fallbackYear, 10) : 2026;
+    const clean = String(monthStr).trim().toLowerCase();
+    const matchWithYear = clean.match(/^([a-z]+)[-_ ](?:'|20)?(\d{2,4})$/);
+    if (matchWithYear) {
+      const yParsed = parseInt(matchWithYear[2], 10);
+      return yParsed < 100 ? 2000 + yParsed : yParsed;
+    }
+    const mIdx = MONTH_NAMES.findIndex(x => x.toLowerCase() === clean);
+    if (mIdx !== -1) {
+      return mIdx >= 9 ? 2026 : 2027;
+    }
+    return fallbackYear ? parseInt(fallbackYear, 10) : 2026;
+  }
+
   function getInitialChallengeMonth() {
     const urlParams = new URLSearchParams(window.location.search);
     const urlTab = (urlParams.get("tab") || urlParams.get("month") || "").toLowerCase().trim();
@@ -374,9 +427,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const itemsHtml = monthlyTabs.map(btn => {
       const m = (btn.getAttribute("data-month") || "").toLowerCase();
-      const yr = btn.getAttribute("data-year") || (MONTH_NAMES.findIndex(x => x.toLowerCase() === m) >= 9 ? "2026" : "2027");
+      const yr = resolveChallengeMonthYear(m, btn.getAttribute("data-year"));
       const shortYr = String(yr).slice(-2);
-      const baseMonth = m.charAt(0).toUpperCase() + m.slice(1);
+      const rawBase = m.replace(/[-_ ](?:'|20)?\d{2,4}$/, "");
+      const baseMonth = rawBase.charAt(0).toUpperCase() + rawBase.slice(1);
       const popLabel = `${baseMonth} '${shortYr}`;
       const count = backlogEntries.filter(e => (e.month || "").toLowerCase() === m).length;
       const pillText = isAdmin ? `${count}/36` : `${count}`;
@@ -646,36 +700,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       } else if (hash && MONTH_NAMES.some(m => m.toLowerCase() === hash)) {
         setActiveMonthTab(hash);
         renderGrid();
-      }
-    });
-  }
-
-  const themeToggleBtn = document.querySelector(".theme-toggle");
-  if (themeToggleBtn) {
-    let darkMode = localStorage.getItem("darkMode");
-
-    const enableDarkMode = () => {
-      document.body.classList.add("dark-mode");
-      themeToggleBtn.classList.remove("bx-moon");
-      themeToggleBtn.classList.add("bx-sun");
-      localStorage.setItem("darkMode", "enabled");
-    };
-
-    const disableDarkMode = () => {
-      document.body.classList.remove("dark-mode");
-      themeToggleBtn.classList.remove("bx-sun");
-      themeToggleBtn.classList.add("bx-moon");
-      localStorage.setItem("darkMode", null);
-    };
-
-    if (darkMode === "enabled") enableDarkMode();
-
-    themeToggleBtn.addEventListener("click", () => {
-      darkMode = localStorage.getItem("darkMode");
-      if (darkMode !== "enabled") {
-        enableDarkMode();
-      } else {
-        disableDarkMode();
       }
     });
   }
@@ -1158,7 +1182,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       ? document.querySelector(`menu.w7-month-tabs button[data-month="${rawMonth}"]`)
       : null;
     const tabYear = tabBtn ? tabBtn.getAttribute("data-year") : null;
-    const effectiveYear = (album && album.year) || tabYear || null;
+    const effectiveYear = rawMonth ? resolveChallengeMonthYear(rawMonth, tabYear || (album && album.year)) : null;
     const fullLabel = rawMonth ? formatMonthDisplay(rawMonth, effectiveYear) : "Unassigned";
 
     return {
@@ -1456,26 +1480,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const clean = String(monthStr).trim().toLowerCase();
     if (clean === "recalibrate" || clean === "relisten") return 999999;
 
-    let y = yearVal ? parseInt(yearVal, 10) : null;
-    let mName = clean;
-
     const matchWithYear = clean.match(/^([a-z]+)[-_ ](?:'|20)?(\d{2,4})$/);
-    if (matchWithYear) {
-      mName = matchWithYear[1];
-      const yParsed = parseInt(matchWithYear[2], 10);
-      y = yParsed < 100 ? 2000 + yParsed : yParsed;
-    }
-
+    const mName = matchWithYear ? matchWithYear[1] : clean;
     const monthIdx = MONTH_NAMES.findIndex(m => m.toLowerCase() === mName);
     if (monthIdx === -1) return 999990;
 
-    if (!y) {
-      // Challenge started in Oct 2026:
-      // Oct (9), Nov (10), Dec (11) -> 2026
-      // Jan (0) through Sep (8) -> 2027
-      y = (monthIdx >= 9) ? 2026 : 2027;
-    }
-
+    const y = resolveChallengeMonthYear(clean, yearVal);
     return (y * 100) + monthIdx;
   }
 
@@ -1503,8 +1513,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         newTabBtn.setAttribute("role", "tab");
         newTabBtn.setAttribute("data-month", m);
         const entryWithYear = backlogEntries.find(e => (e.month || "").toLowerCase().trim() === m && e.year);
-        const mIdx = MONTH_NAMES.findIndex(x => x.toLowerCase() === m.replace(/[-_ ](?:'|20)?\d{2,4}$/, ""));
-        const yr = entryWithYear ? entryWithYear.year : (mIdx >= 9 ? 2026 : 2027);
+        const yr = resolveChallengeMonthYear(m, entryWithYear ? entryWithYear.year : null);
         newTabBtn.setAttribute("data-year", yr);
         newTabBtn.setAttribute("aria-selected", m === activeMonth ? "true" : "false");
         if (m === activeMonth) newTabBtn.classList.add("active");
@@ -1523,8 +1532,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         newTabBtn.type = "button";
         newTabBtn.setAttribute("role", "tab");
         newTabBtn.setAttribute("data-month", m);
-        const mIdx = MONTH_NAMES.findIndex(x => x.toLowerCase() === m.replace(/[-_ ](?:'|20)?\d{2,4}$/, ""));
-        const yr = item.year || (mIdx >= 9 ? 2026 : 2027);
+        const yr = resolveChallengeMonthYear(m, item.year);
         newTabBtn.setAttribute("data-year", yr);
         newTabBtn.setAttribute("aria-selected", m === activeMonth ? "true" : "false");
         if (m === activeMonth) newTabBtn.classList.add("active");
@@ -1534,15 +1542,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
 
-    // Ensure data-year on existing tabs
+    // Ensure canonical data-year on all existing monthly tabs
     tabMap.forEach((btn, m) => {
       if (m === "recalibrate" || m === "relisten") return;
-      if (!btn.getAttribute("data-year")) {
-        const entryWithYear = backlogEntries.find(e => (e.month || "").toLowerCase().trim() === m && e.year);
-        const mIdx = MONTH_NAMES.findIndex(x => x.toLowerCase() === m.replace(/[-_ ](?:'|20)?\d{2,4}$/, ""));
-        const yr = entryWithYear ? entryWithYear.year : (mIdx >= 9 ? 2026 : 2027);
-        btn.setAttribute("data-year", yr);
-      }
+      const entryWithYear = backlogEntries.find(e => (e.month || "").toLowerCase().trim() === m && e.year);
+      const yr = resolveChallengeMonthYear(m, entryWithYear ? entryWithYear.year : btn.getAttribute("data-year"));
+      btn.setAttribute("data-year", yr);
     });
 
     // Re-order all tab buttons chronologically (with recalibrate always at the end)
@@ -1974,13 +1979,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!isAdmin && swapModalEl) {
       swapModalEl.style.setProperty("display", "none", "important");
     }
-    if (isAdmin) {
+    if (isAdmin && isDataLoaded) {
       migrateLegacyReasonsInDatabase();
     }
-    if (typeof updateCoverFlowPositions === "function") {
-      updateCoverFlowPositions();
+    if (isDataLoaded) {
+      if (typeof updateCoverFlowPositions === "function") {
+        updateCoverFlowPositions();
+      }
+      updateMonthPillCounts();
     }
-    updateMonthPillCounts();
   }
 
   // Admin Trigger Button (#adminTriggerBtn) & Hotkey (Ctrl + Shift + A)
@@ -3301,14 +3308,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         return (Number(b.id) || 0) - (Number(a.id) || 0);
       });
 
+      isDataLoaded = true;
       syncMonthTabs();
 
       const targetMonth = getInitialChallengeMonth();
       setActiveMonthTab(targetMonth);
 
-      updateMonthPillCounts();
-      renderGrid();
       updateAdminVisibility();
+      renderGrid();
 
       if (isAdmin) {
         migrateLegacyReasonsInDatabase();
@@ -4513,7 +4520,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       window.addDescriptorsManager.setTags([]);
       if (window.addScenesManager) window.addScenesManager.setTags([]);
       if (window.addMovementsManager) window.addMovementsManager.setTags([]);
-  
+
       if (artCandidatesContainer) {
         artCandidatesContainer.style.display = "none";
         artCandidatesContainer.classList.add("is-hidden");
