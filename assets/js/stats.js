@@ -278,6 +278,7 @@
     let albumCount = 0;
     let singleCount = 0;
     let epCount = 0;
+    let extraCount = 0;
     let totalSeconds = 0;
     let totalRatingSum = 0;
     let ratedCount = 0;
@@ -292,6 +293,7 @@
       if (type === "album") albumCount++;
       else if (type === "single") singleCount++;
       else if (type === "ep") epCount++;
+      else if (type === "extra") extraCount++;
 
       const sec = parseRuntimeToSeconds(s.runtime);
       totalSeconds += sec;
@@ -608,6 +610,7 @@
       "Albums": { count: 0, ratings: [], color: "#10b981" },
       "Singles": { count: 0, ratings: [], color: "#38bdf8" },
       "EPs": { count: 0, ratings: [], color: "#a78bfa" },
+      "Extras": { count: 0, ratings: [], color: "#ec4899" },
       "Relistens": { count: 0, ratings: [], color: "#f59e0b" }
     };
     spins.forEach(s => {
@@ -619,6 +622,7 @@
         const t = (s.type || "album").trim().toLowerCase();
         if (t === "single") bucketKey = "Singles";
         else if (t === "ep") bucketKey = "EPs";
+        else if (t === "extra") bucketKey = "Extras";
       }
       fmtBuckets[bucketKey].count += 1;
       if (!isNaN(r)) fmtBuckets[bucketKey].ratings.push(r);
@@ -641,6 +645,7 @@
       albumCount,
       singleCount,
       epCount,
+      extraCount,
       totalSeconds,
       formattedTotalTime: formatDuration(totalSeconds),
       avgRuntimeFormatted: formatDuration(avgRuntimeSeconds),
@@ -1296,7 +1301,10 @@
       + (metrics.uniqueMovementsCount || 0);
 
     setText("teleSpins", metrics.totalSpins.toLocaleString());
-    setText("teleSpinsSub", `${metrics.albumCount} alb • ${metrics.singleCount} sgl • ${metrics.epCount} EP`);
+    setText(
+      "teleSpinsSub",
+      `${metrics.albumCount} alb • ${metrics.singleCount} sgl • ${metrics.epCount} EP${metrics.extraCount ? ` • ${metrics.extraCount} ext` : ""}`
+    );
     setWidth("teleBarSpins", (metrics.totalSpins / totalAll) * 100);
 
     setText("teleRuntime", metrics.formattedTotalTime);

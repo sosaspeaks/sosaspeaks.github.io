@@ -196,16 +196,16 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
 
   function getProjectWeight(type) {
     const t = String(type || "Album").trim().toLowerCase();
-    if (t === "single" || t === "music video") return 0.3; // least weight
+    if (t === "single" || t === "music video" || t === "extra") return 0.3; // least weight
     if (t === "ep") return 0.6; // middle weight
     return 1.0; // albums, mixtapes, full-length projects: most weight
   }
 
   function getProjectFormatTier(type) {
     const t = String(type || "Album").trim().toLowerCase();
-    if (t === "single" || t === "music video") return 1;
+    if (t === "single" || t === "music video" || t === "extra") return 1;
     if (t === "ep") return 2;
-    return 3; // Albums and Mixtapes always rank above EPs and Singles
+    return 3; // Albums and Mixtapes always rank above EPs, Singles, and Extras
   }
 
   function getTop100RankForProject(project) {
