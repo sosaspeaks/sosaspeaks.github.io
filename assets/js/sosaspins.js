@@ -6647,11 +6647,48 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
     const rankBadge = resolvedRank ? `<div class="top100-detail-rank-badge artist-quick-rank-pill"><i class='bx bxs-award'></i> Rank #${resolvedRank}</div>` : "";
     const nativeHtml = profile.native_name ? `<span class="artist-quick-native">· ${escapeHtml(profile.native_name)}</span>` : "";
 
-    const originLocation = [profile.city, profile.state_province, profile.country].filter(Boolean).join(", ");
-    const metaChips = [];
-    if (profile.artist_kind) metaChips.push(`<span class="artist-quick-meta-chip">${escapeHtml(profile.artist_kind)}</span>`);
-    if (profile.active_years) metaChips.push(`<span class="artist-quick-meta-chip">${escapeHtml(profile.active_years)}</span>`);
-    if (originLocation) metaChips.push(`<span class="artist-quick-meta-chip"><i class='bx bx-map-pin'></i> ${escapeHtml(originLocation)}</span>`);
+    const formatOriginParts = (...parts) => {
+      const seen = new Set();
+      const out = [];
+      parts.forEach(p => {
+        const clean = String(p || "").trim();
+        if (!clean) return;
+        const k = clean.toLowerCase();
+        if (!seen.has(k)) {
+          seen.add(k);
+          out.push(clean);
+        }
+      });
+      return out.join(", ");
+    };
+    const originLocation = formatOriginParts(profile.city, profile.state_province, profile.country);
+    const yearsHtml = profile.active_years
+      ? `<span class="artist-quick-years-text">${escapeHtml(profile.active_years)}</span>`
+      : "";
+    const locHtml = originLocation
+      ? `<span class="artist-quick-loc-text">${escapeHtml(originLocation)}</span>`
+      : "";
+
+    const canOpenCustomImgModal = !!(isAdmin && resolvedRank && typeof openArtistCustomImageModal === "function" && document.getElementById("artistCustomImageModal"));
+    const canOpenDirectoryBtn = !!(isAdmin && typeof openArtistDirectoryModal === "function" && document.getElementById("artistDirectoryModal"));
+    const editCustomImgBtn = canOpenCustomImgModal ? `
+      <button type="button" class="aero-command-btn artist-quick-meta-icon-btn" aria-label="Change Image / GIF" onclick="closeArtistQuickModal(); openArtistCustomImageModal(${resolvedRank});">
+        <i class='bx bx-image-alt'></i>
+        <span class="action-tooltip artist-quick-tooltip">Change Image / GIF</span>
+      </button>
+    ` : "";
+    const editDirectoryBtn = canOpenDirectoryBtn ? `
+      <button type="button" class="aero-command-btn artist-quick-meta-icon-btn" aria-label="Edit Metadata" onclick="closeArtistQuickModal(); openArtistDirectoryModal('${canonical.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}');">
+        <i class='bx bx-id-card'></i>
+        <span class="action-tooltip artist-quick-tooltip">Edit Metadata</span>
+      </button>
+    ` : "";
+    const rightActionsHtml = (editCustomImgBtn || editDirectoryBtn)
+      ? `<div class="artist-quick-right-actions">${editCustomImgBtn}${editDirectoryBtn}</div>`
+      : "";
+    const rightRailHtml = (rankBadge || yearsHtml || locHtml || rightActionsHtml)
+      ? `<div class="artist-quick-right-rail">${rankBadge}${yearsHtml}${locHtml}${rightActionsHtml}</div>`
+      : "";
 
     const memberOfList = Array.isArray(profile.member_of) ? profile.member_of : [];
     const membersSet = new Set(Array.isArray(profile.members) ? profile.members : []);
@@ -6690,8 +6727,6 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
     ].filter(Boolean).join("");
 
     const relationsHtml = relLinesHtml ? `<div class="artist-quick-relations-wrap">${relLinesHtml}</div>` : "";
-
-    const quickMetaRowHtml = metaChips.length ? `<div class="artist-quick-meta-row">${metaChips.join("")}</div>` : "";
 
     const akaHtml = aliases.length ? `
       <div class="artist-quick-aka">
@@ -6911,44 +6946,29 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
       `;
     }
 
-    const canOpenCustomImgModal = !!(isAdmin && resolvedRank && typeof openArtistCustomImageModal === "function" && document.getElementById("artistCustomImageModal"));
-    const canOpenDirectoryBtn = !!(isAdmin && typeof openArtistDirectoryModal === "function" && document.getElementById("artistDirectoryModal"));
-    const editCustomImgBtn = canOpenCustomImgModal ? `
-      <button type="button" class="aero-command-btn artist-quick-edit-img-btn" onclick="closeArtistQuickModal(); openArtistCustomImageModal(${resolvedRank});">
-        <i class='bx bx-image-alt'></i> Change Image / GIF
-      </button>
-    ` : "";
-    const editDirectoryBtn = canOpenDirectoryBtn ? `
-      <button type="button" class="aero-command-btn artist-quick-edit-img-btn" onclick="closeArtistQuickModal(); openArtistDirectoryModal('${canonical.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}');">
-        <i class='bx bx-id-card'></i> Edit Metadata
-      </button>
-    ` : "";
-
     const avgNumeric = parseFloat(stats.avg) || 0;
 
     body.innerHTML = `
       <div class="artist-quick-header">
         <img src="${displayImg}" alt="${escapeHtml(canonical)}" class="artist-quick-avatar" decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
         <div class="artist-quick-meta">
-          ${rankBadge}
-          <div class="artist-quick-name">${escapeHtml(canonical)}${nativeHtml}</div>
-          ${quickMetaRowHtml}
-          ${relationsHtml}
-          ${akaHtml}
-          <div class="artist-quick-counts-row">
-            <span class="artist-quick-count-chip"><i class='bx bx-disc'></i> ${stats.count} spin${stats.count !== 1 ? 's' : ''}</span>
-            <span class="artist-quick-count-chip"><i class='bx bx-collection'></i> ${topProjects.length} project${topProjects.length !== 1 ? 's' : ''}</span>
+          <div class="artist-quick-main-col">
+            <div class="artist-quick-name">${escapeHtml(canonical)}${nativeHtml}</div>
+            <div class="artist-quick-inline-stats">
+              <span class="artist-quick-rating-inline" title="Average rating across ${stats.ratingsCount} rated project${stats.ratingsCount !== 1 ? 's' : ''}">
+                <span class="artist-quick-stars">${getStarString(avgNumeric)}</span>
+                <span class="artist-quick-avg-num">${stats.avg} Avg</span>
+              </span>
+              <span class="artist-quick-counts-inline">
+                <span class="artist-quick-stat-text">${stats.count} spin${stats.count !== 1 ? 's' : ''}</span>
+                <span class="artist-quick-stat-sep">•</span>
+                <span class="artist-quick-stat-text">${topProjects.length} project${topProjects.length !== 1 ? 's' : ''}</span>
+              </span>
+            </div>
+            ${relationsHtml}
+            ${akaHtml}
           </div>
-          <div class="artist-quick-stats-row">
-            <span class="artist-quick-rating-chip" title="Average rating across ${stats.ratingsCount} rated project${stats.ratingsCount !== 1 ? 's' : ''}">
-              <span class="artist-quick-stars">${getStarString(avgNumeric)}</span>
-              <span class="artist-quick-avg-num">${stats.avg} Avg</span>
-            </span>
-          </div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">
-            ${editCustomImgBtn}
-            ${editDirectoryBtn}
-          </div>
+          ${rightRailHtml}
         </div>
       </div>
       ${genresHtml}
@@ -9875,7 +9895,11 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       const countryTxt = countryInput ? countryInput.value.trim() : "";
       const stateTxt = stateInput ? stateInput.value.trim() : "";
       const cityTxt = cityInput ? cityInput.value.trim() : "";
-      const locTxt = [cityTxt, stateTxt, countryTxt].filter(Boolean).join(", ");
+      const locParts = [];
+      [cityTxt, stateTxt, countryTxt].forEach(p => {
+        if (p && !locParts.some(x => x.toLowerCase() === p.toLowerCase())) locParts.push(p);
+      });
+      const locTxt = locParts.join(", ");
       const urlVal = portraitUrlInput ? portraitUrlInput.value.trim() : "";
 
       if (portraitImg) {
@@ -9890,7 +9914,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       }
 
       if (previewTitleEl) {
-        const metaTail = [kindTxt, yearsTxt, locTxt].filter(Boolean).join(" • ");
+        const metaTail = [yearsTxt, locTxt].filter(Boolean).join(" • ");
         previewTitleEl.innerHTML = `${escapeHtml(canon)}${nativeTxt ? ` <span style="color:#6ee7b7;font-weight:600;">· ${escapeHtml(nativeTxt)}</span>` : ""}${metaTail ? ` <span style="color:#94a3b8;font-weight:500;font-size:0.74rem;">• ${escapeHtml(metaTail)}</span>` : ""}`;
       }
 
@@ -10008,7 +10032,12 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         if (rec.native_name) subParts.push(rec.native_name);
         if (rec.aliases.length) subParts.push(`${rec.aliases.length} alias${rec.aliases.length === 1 ? "" : "es"}`);
         if (rec.member_of.length) subParts.push(`${rec.artist_kind === "Subunit" ? "Subunit of" : "Member of"} ${rec.member_of[0]}`);
-        const loc = [rec.city, rec.state_province, rec.country].filter(Boolean).join(", ");
+        const locArr = [];
+        [rec.city, rec.state_province, rec.country].forEach(p => {
+          const clean = String(p || "").trim();
+          if (clean && !locArr.some(x => x.toLowerCase() === clean.toLowerCase())) locArr.push(clean);
+        });
+        const loc = locArr.join(", ");
         if (!subParts.length && loc) subParts.push(loc);
 
         return `

@@ -13900,11 +13900,169 @@ body.dark-mode .window.w7-modal-window.record-detail-window .window-body {
 
 .artist-quick-header {
   display: flex;
-  align-items: center;
-  gap: 18px;
+  align-items: flex-start;
+  gap: 16px;
   padding-bottom: 0.82rem;
   margin-bottom: 0;
   border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.artist-quick-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.artist-quick-main-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.artist-quick-right-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.artist-quick-right-rail .artist-quick-rank-pill {
+  align-self: flex-end !important;
+  margin-bottom: 2px !important;
+}
+
+.artist-quick-years-text {
+  font-family: "Noto Sans Mono", monospace;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #334155;
+  line-height: 1.3;
+}
+
+.artist-quick-loc-text {
+  font-size: 0.73rem;
+  font-weight: 600;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+.artist-quick-inline-stats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  column-gap: 10px;
+  row-gap: 2px;
+  margin-top: 5px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.artist-quick-inline-stats .artist-quick-stars {
+  font-size: 0.84rem;
+  gap: 1px;
+}
+
+.artist-quick-rating-inline,
+.artist-quick-counts-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.artist-quick-stat-sep {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.artist-quick-stat-text {
+  color: #334155;
+  font-weight: 700;
+}
+
+.artist-quick-right-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.artist-quick-meta-icon-btn {
+  position: relative;
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  justify-content: center;
+  border-radius: 6px !important;
+  font-size: 0.95rem !important;
+}
+
+.artist-quick-tooltip {
+  left: auto !important;
+  right: 0 !important;
+  top: calc(100% + 7px) !important;
+  bottom: auto !important;
+  transform: translateY(-4px) !important;
+}
+
+.artist-quick-tooltip::after {
+  left: auto !important;
+  right: 10px !important;
+  top: auto !important;
+  bottom: 100% !important;
+  transform: none !important;
+  border-color: transparent transparent rgba(255, 255, 255, 0.96) transparent !important;
+}
+
+body.dark-mode .artist-quick-tooltip::after {
+  border-color: transparent transparent rgba(15, 23, 42, 0.96) transparent !important;
+}
+
+.artist-quick-meta-icon-btn:hover .artist-quick-tooltip,
+.artist-quick-meta-icon-btn:focus-visible .artist-quick-tooltip {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: translateY(0) !important;
+}
+
+.artist-quick-edit-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+body.dark-mode .artist-quick-years-text,
+body.dark-mode .artist-quick-stat-text,
+body.dark-mode .artist-quick-inline-stats {
+  color: #cbd5e1;
+}
+
+body.dark-mode .artist-quick-loc-text,
+body.dark-mode .artist-quick-stat-sep {
+  color: #94a3b8;
+}
+
+@media (max-width: 600px) {
+  .artist-quick-meta {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .artist-quick-right-rail {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .artist-quick-right-rail .artist-quick-rank-pill {
+    align-self: flex-start !important;
+  }
 }
 
 .top100-detail-header-row {
@@ -13943,12 +14101,6 @@ body.dark-mode .artist-quick-header {
 body.dark-mode .artist-quick-avatar,
 body.dark-mode .top100-detail-cover {
   border-color: rgba(255, 255, 255, 0.22);
-}
-
-.artist-quick-meta {
-  flex: 1;
-  min-width: 0;
-  display: block;
 }
 
 .top100-detail-info {
@@ -14177,16 +14329,14 @@ body.dark-mode .artist-quick-rating-chip {
 
 .artist-quick-stars i.bx {
   color: #f59e0b;
-  filter:
-    drop-shadow(0 0 0.65px rgba(120, 53, 15, 0.75))
-    drop-shadow(0 1px 2px rgba(120, 53, 15, 0.28));
+  filter: none;
+  text-shadow: none;
 }
 
 body.dark-mode .artist-quick-stars i.bx {
   color: #fbbf24;
-  filter:
-    drop-shadow(0 0 1px rgba(0, 0, 0, 0.75))
-    drop-shadow(0 1px 4px rgba(245, 158, 11, 0.32));
+  filter: none;
+  text-shadow: none;
 }
 
 .artist-quick-stars i.bx-star {
