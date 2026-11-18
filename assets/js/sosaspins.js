@@ -7175,6 +7175,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
 
   window.appendNextFeedBatch = appendNextFeedBatch;
   window.ensureSpinRendered = ensureSpinRendered;
+  window.setSidebarFilter = setSidebarFilter;
 
   await loadSpins();
   initTop100Controller();
@@ -8383,7 +8384,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     }
   }
 
-  window.setSidebarFilter = function(type, val) {
+  function setSidebarFilter(type, val) {
     if (activeFilter.type === type && activeFilter.value === String(val)) {
       clearActiveFilter();
     } else {
@@ -8406,7 +8407,8 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         window.closeMobileWidgetsDrawer();
       }
     }
-  };
+  }
+  window.setSidebarFilter = setSidebarFilter;
 
   function clearActiveFilter() {
     activeFilter = { type: null, value: null };

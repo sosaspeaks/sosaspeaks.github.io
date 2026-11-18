@@ -21,7 +21,7 @@
   <meta property="og:description" content="Explore Sosa's 7×7 monthly album listening challenge backlog and completed spins.">
   <meta property="og:image" content="https://sosaspeaks.org/assets/images/homepics/Sosa-Icon-V3.png">
   <link rel="icon" type="image/png" href="assets/images/homepics/Sosa-Icon-V3.png">
-  <link rel="stylesheet" href="assets/css/challenge.css?v=20261116s">
+  <link rel="stylesheet" href="assets/css/challenge.css?v=20261116u">
   <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
   <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
 </head>
@@ -534,6 +534,22 @@
     </div>
   </div>
 
+  <!-- Swap Challenge Album Position Modal (Admin Only) -->
+  <div id="swapAlbumModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="window w7-modal-window swap-modal-window" role="dialog" aria-labelledby="swapModalTitleText">
+      <div class="title-bar">
+        <div class="title-bar-text" id="swapModalTitleText">
+          <i class='bx bx-transfer-alt' style="color: #10b981; vertical-align: middle; margin-right: 4px;"></i>
+          <span>Swap Challenge Album Position</span>
+        </div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeSwapModalBtn" class="is-close" aria-label="Close"></button>
+        </div>
+      </div>
+      <div class="window-body" id="swapModalBody"></div>
+    </div>
+  </div>
+
   <footer class="footer container">
         <p class="footer-copyright">
             &#169; SosaSpeaks. All non-quoted material is the original writing of SosaSpeaks and its authors.
@@ -667,7 +683,7 @@
   </nav>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="assets/js/challenge.js?v=20261116s"></script>
+  <script src="assets/js/challenge.js?v=20261116t"></script></script>
   <script src="assets/js/dock.js?v=20261115c"></script>
   <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>
 </body>

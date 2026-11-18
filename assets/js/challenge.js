@@ -1970,6 +1970,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!isAdmin && addModal) {
       addModal.style.setProperty("display", "none", "important");
     }
+    const swapModalEl = document.getElementById("swapAlbumModal");
+    if (!isAdmin && swapModalEl) {
+      swapModalEl.style.setProperty("display", "none", "important");
+    }
     if (isAdmin) {
       migrateLegacyReasonsInDatabase();
     }
@@ -2904,6 +2908,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const action = actionBtn.getAttribute("data-action");
         const id = actionBtn.getAttribute("data-id");
         if (action === "edit") openEditModal(e, id);
+        if (action === "swap") openSwapAlbumModal(e, id);
         if (action === "delete") deleteFromBacklog(e, id);
         return;
       }
@@ -3609,6 +3614,11 @@ document.addEventListener("DOMContentLoaded", async () => {
           <button type="button" class="cf-action-btn" onclick="openEditModal(event, ${safeIdArg})">
             <i class='bx bx-edit-alt'></i> Edit
           </button>
+          ${!isRel ? `
+            <button type="button" class="cf-action-btn" onclick="openSwapAlbumModal(event, ${safeIdArg})">
+              <i class='bx bx-transfer-alt'></i> Swap
+            </button>
+          ` : ""}
         `;
       }
       cfAlbumActions.innerHTML = actionsHtml;
@@ -4001,6 +4011,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
           <div class="tile-admin-actions">
             <button type="button" class="tile-icon-btn edit" data-action="edit" data-id="${escapeHtml(album.id)}" title="Edit">✎</button>
+            ${!itemIsRel ? `<button type="button" class="tile-icon-btn swap" data-action="swap" data-id="${escapeHtml(album.id)}" title="Swap position with another album">⇄</button>` : ""}
             <button type="button" class="tile-icon-btn delete" data-action="delete" data-id="${escapeHtml(album.id)}" title="Remove">✕</button>
           </div>
 
@@ -4094,6 +4105,316 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     });
   }
+
+  // Admin Swap Challenge Album Position Modal (Proposal 3)
+  const swapAlbumModal = document.getElementById("swapAlbumModal");
+  const swapModalBody = document.getElementById("swapModalBody");
+  const closeSwapModalBtn = document.getElementById("closeSwapModalBtn");
+  let swapSourceAlbumId = null;
+  let swapTargetMonth = "";
+  let swapSearchQuery = "";
+
+  function closeSwapAlbumModal() {
+    closeAeroModal(swapAlbumModal, () => {
+      swapSourceAlbumId = null;
+      swapSearchQuery = "";
+    });
+  }
+
+  if (closeSwapModalBtn) {
+    closeSwapModalBtn.addEventListener("click", closeSwapAlbumModal);
+  }
+  if (swapAlbumModal) {
+    swapAlbumModal.addEventListener("click", (e) => {
+      if (e.target === swapAlbumModal) closeSwapAlbumModal();
+    });
+  }
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && swapAlbumModal && swapAlbumModal.style.display === "flex") {
+      closeSwapAlbumModal();
+    }
+  });
+
+  function getOrderedMonthAlbums(monthKey) {
+    const clean = (monthKey || "").toLowerCase().trim();
+    return backlogEntries
+      .filter(a => (a.month || "").toLowerCase().trim() === clean)
+      .sort((a, b) => {
+        const posA = a.position !== null && a.position !== undefined ? a.position : (Number(a.id) || 0);
+        const posB = b.position !== null && b.position !== undefined ? b.position : (Number(b.id) || 0);
+        return posA - posB;
+      });
+  }
+
+  function renderSwapModalContent() {
+    if (!swapModalBody || !swapSourceAlbumId) return;
+    const sourceAlbum = backlogEntries.find(a => String(a.id) === String(swapSourceAlbumId));
+    if (!sourceAlbum) return;
+
+    const sourceMonth = (sourceAlbum.month || activeMonth).toLowerCase().trim();
+    const sourceMonthList = getOrderedMonthAlbums(sourceMonth);
+    const sourceSlotIdx = sourceMonthList.findIndex(a => String(a.id) === String(sourceAlbum.id));
+    const sourceSlotNum = sourceSlotIdx !== -1 ? sourceSlotIdx + 1 : 1;
+
+    const allTabButtons = Array.from(document.querySelectorAll('menu.w7-month-tabs button[role="tab"]'))
+      .filter(t => {
+        const m = (t.getAttribute("data-month") || "").toLowerCase().trim();
+        return t.getAttribute("data-tab-type") !== "relisten" && m !== "recalibrate" && m !== "relisten";
+      })
+      .sort((a, b) => {
+        const kA = getMonthYearSortKey(a.getAttribute("data-month"), a.getAttribute("data-year"));
+        const kB = getMonthYearSortKey(b.getAttribute("data-month"), b.getAttribute("data-year"));
+        return kA - kB;
+      });
+
+    const monthOptions = allTabButtons.map(btn => {
+      const m = (btn.getAttribute("data-month") || "").toLowerCase().trim();
+      const yr = btn.getAttribute("data-year");
+      const label = formatMonthDisplay(m, yr);
+      const count = backlogEntries.filter(a => (a.month || "").toLowerCase().trim() === m).length;
+      return { key: m, year: yr, label, count };
+    });
+
+    if (!swapTargetMonth || !monthOptions.some(o => o.key === swapTargetMonth)) {
+      const firstOther = monthOptions.find(o => o.key !== sourceMonth);
+      swapTargetMonth = firstOther ? firstOther.key : sourceMonth;
+    }
+
+    const sourceMonthObj = monthOptions.find(o => o.key === sourceMonth);
+    const sourceMonthLabel = sourceMonthObj ? sourceMonthObj.label : formatMonthDisplay(sourceMonth);
+    const targetMonthObj = monthOptions.find(o => o.key === swapTargetMonth);
+    const targetMonthLabel = targetMonthObj ? targetMonthObj.label : formatMonthDisplay(swapTargetMonth);
+
+    let sourceCover = sourceAlbum.cover_url || FALLBACK_PLACEHOLDER;
+    if (sourceCover.startsWith("../assets/")) sourceCover = sourceCover.replace(/^\.\.\//, "");
+
+    const monthPillsHtml = monthOptions.map(opt => {
+      const isAct = opt.key === swapTargetMonth;
+      const isSame = opt.key === sourceMonth;
+      return `
+        <button type="button" class="swap-m-pill${isAct ? " active" : ""}${isSame ? " is-source-month" : ""}" data-swap-month="${escapeHtml(opt.key)}">
+          <span>${escapeHtml(opt.label)}</span>
+          <span class="swap-m-count">(${opt.count})</span>
+        </button>
+      `;
+    }).join("");
+
+    const targetList = getOrderedMonthAlbums(swapTargetMonth);
+    const qNorm = normalizeSearchText(swapSearchQuery);
+    const filteredList = targetList
+      .map((item, idx) => ({ item, slotNum: idx + 1 }))
+      .filter(({ item }) => {
+        if (String(item.id) === String(sourceAlbum.id)) return false;
+        if (!qNorm) return true;
+        const hay = normalizeSearchText(`${item.artist || ""} ${item.title || ""} ${item.release_year || ""}`);
+        return hay.includes(qNorm);
+      });
+
+    const canMoveToOpenSlot = swapTargetMonth !== sourceMonth && targetList.length < 36;
+    const moveDirectBtnHtml = canMoveToOpenSlot ? `
+      <button type="button" class="swap-move-open-btn" id="swapMoveToOpenSlotBtn" title="Move directly into Slot #${targetList.length + 1} of ${escapeHtml(targetMonthLabel)}">
+        <i class='bx bx-right-arrow-alt'></i> Move to Slot #${targetList.length + 1} in ${escapeHtml(targetMonthLabel)}
+      </button>
+    ` : "";
+
+    const candidatesHtml = filteredList.length
+      ? filteredList.map(({ item, slotNum }) => {
+          let cUrl = item.cover_url || FALLBACK_PLACEHOLDER;
+          if (cUrl.startsWith("../assets/")) cUrl = cUrl.replace(/^\.\.\//, "");
+          return `
+            <button type="button" class="swap-cand-card" data-swap-target-id="${escapeHtml(item.id)}" title="Swap with #${slotNum}: ${escapeHtml(item.artist)} — ${escapeHtml(item.title)}">
+              <img src="${escapeHtml(cUrl)}" alt="${escapeHtml(item.title)}" loading="lazy" onerror="this.src='${FALLBACK_PLACEHOLDER}'">
+              <div class="swap-cand-meta">
+                <div class="swap-cand-title"><span class="swap-slot-num">#${slotNum}</span> • ${escapeHtml(item.title || "Untitled")}</div>
+                <div class="swap-cand-artist">${escapeHtml(item.artist || "Unknown Artist")}</div>
+              </div>
+              <span class="swap-cand-icon" aria-hidden="true"><i class='bx bx-transfer-alt'></i></span>
+            </button>
+          `;
+        }).join("")
+      : `<div class="swap-empty-note">No matching albums found in ${escapeHtml(targetMonthLabel)}.</div>`;
+
+    swapModalBody.innerHTML = `
+      <div class="swap-modal-inner">
+        <div class="swap-source-banner">
+          <div class="swap-source-left">
+            <img src="${escapeHtml(sourceCover)}" alt="${escapeHtml(sourceAlbum.title)}" onerror="this.src='${FALLBACK_PLACEHOLDER}'">
+            <div class="swap-source-text">
+              <div class="swap-source-kicker">Swapping From ${escapeHtml(sourceMonthLabel)} • Slot #${sourceSlotNum}</div>
+              <div class="swap-source-title">${escapeHtml(sourceAlbum.artist)} — ${escapeHtml(sourceAlbum.title)}${sourceAlbum.release_year ? ` <span class="swap-source-year">(${escapeHtml(sourceAlbum.release_year)})</span>` : ""}</div>
+            </div>
+          </div>
+          <div class="swap-source-right">
+            ${moveDirectBtnHtml || `<span class="swap-badge-hint"><i class='bx bx-transfer-alt'></i> Trades Month + Slot</span>`}
+          </div>
+        </div>
+
+        <div class="swap-controls-row">
+          <div class="swap-month-pills" role="tablist" aria-label="Target Month">
+            ${monthPillsHtml}
+          </div>
+          <div class="swap-search-wrap">
+            <i class='bx bx-search swap-search-icon'></i>
+            <input type="text" id="swapCandidateSearchInput" class="sosa-search-input swap-search-input" placeholder="Filter ${escapeHtml(targetMonthLabel)} albums..." value="${escapeHtml(swapSearchQuery)}">
+          </div>
+        </div>
+
+        <div class="swap-candidates-grid" id="swapCandidatesGrid">
+          ${candidatesHtml}
+        </div>
+      </div>
+    `;
+
+    swapModalBody.querySelectorAll(".swap-m-pill[data-swap-month]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        swapTargetMonth = btn.getAttribute("data-swap-month") || sourceMonth;
+        swapSearchQuery = "";
+        renderSwapModalContent();
+      });
+    });
+
+    const searchInputEl = document.getElementById("swapCandidateSearchInput");
+    if (searchInputEl) {
+      searchInputEl.addEventListener("input", () => {
+        swapSearchQuery = searchInputEl.value || "";
+        const caret = searchInputEl.selectionStart;
+        renderSwapModalContent();
+        const nextInput = document.getElementById("swapCandidateSearchInput");
+        if (nextInput) {
+          nextInput.focus();
+          try { nextInput.setSelectionRange(caret, caret); } catch (e) {}
+        }
+      });
+    }
+
+    const moveBtnEl = document.getElementById("swapMoveToOpenSlotBtn");
+    if (moveBtnEl) {
+      moveBtnEl.addEventListener("click", () => {
+        executeMoveAlbumToMonth(sourceAlbum.id, swapTargetMonth);
+      });
+    }
+
+    swapModalBody.querySelectorAll(".swap-cand-card[data-swap-target-id]").forEach(card => {
+      card.addEventListener("click", () => {
+        const targetId = card.getAttribute("data-swap-target-id");
+        if (targetId) executeAlbumSwap(sourceAlbum.id, targetId);
+      });
+    });
+  }
+
+  async function executeAlbumSwap(sourceId, targetId) {
+    if (!isAdmin) return;
+    const sourceAlbum = backlogEntries.find(a => String(a.id) === String(sourceId));
+    const targetAlbum = backlogEntries.find(a => String(a.id) === String(targetId));
+    if (!sourceAlbum || !targetAlbum || sourceAlbum.id === targetAlbum.id) return;
+
+    const sourceMonth = (sourceAlbum.month || activeMonth).toLowerCase().trim();
+    const targetMonth = (targetAlbum.month || activeMonth).toLowerCase().trim();
+
+    const sourceList = getOrderedMonthAlbums(sourceMonth);
+    const targetList = sourceMonth === targetMonth ? sourceList : getOrderedMonthAlbums(targetMonth);
+
+    // Ensure every item in both affected months has an explicit 0-based position index
+    sourceList.forEach((item, idx) => { item.position = idx; });
+    if (sourceMonth !== targetMonth) {
+      targetList.forEach((item, idx) => { item.position = idx; });
+    }
+
+    const sourcePos = sourceAlbum.position;
+    const targetPos = targetAlbum.position;
+
+    // Swap month and position in memory
+    sourceAlbum.month = targetMonth;
+    sourceAlbum.position = targetPos;
+    targetAlbum.month = sourceMonth;
+    targetAlbum.position = sourcePos;
+
+    backlogEntries.sort((a, b) => {
+      const posA = a.position !== null && a.position !== undefined ? a.position : (Number(a.id) || 0);
+      const posB = b.position !== null && b.position !== undefined ? b.position : (Number(b.id) || 0);
+      return posA - posB;
+    });
+
+    closeSwapAlbumModal();
+    updateMonthPillCounts();
+    renderGrid();
+
+    try {
+      const affectedItems = sourceMonth === targetMonth
+        ? sourceList
+        : [...sourceList, ...targetList];
+      await Promise.all(
+        affectedItems.map(item =>
+          sb.from("challenge_backlog")
+            .update({ month: item.month, position: item.position })
+            .eq("id", item.id)
+        )
+      );
+    } catch (err) {
+      console.error("Failed to save swapped albums:", err);
+      alert("Failed to save swap to database: " + err.message);
+    }
+  }
+
+  async function executeMoveAlbumToMonth(sourceId, destMonthKey) {
+    if (!isAdmin) return;
+    const sourceAlbum = backlogEntries.find(a => String(a.id) === String(sourceId));
+    if (!sourceAlbum) return;
+
+    const sourceMonth = (sourceAlbum.month || activeMonth).toLowerCase().trim();
+    const targetMonth = (destMonthKey || "").toLowerCase().trim();
+    if (!targetMonth || sourceMonth === targetMonth) return;
+
+    const sourceList = getOrderedMonthAlbums(sourceMonth).filter(a => String(a.id) !== String(sourceAlbum.id));
+    const targetList = getOrderedMonthAlbums(targetMonth);
+
+    sourceList.forEach((item, idx) => { item.position = idx; });
+    targetList.forEach((item, idx) => { item.position = idx; });
+
+    sourceAlbum.month = targetMonth;
+    sourceAlbum.position = targetList.length;
+
+    backlogEntries.sort((a, b) => {
+      const posA = a.position !== null && a.position !== undefined ? a.position : (Number(a.id) || 0);
+      const posB = b.position !== null && b.position !== undefined ? b.position : (Number(b.id) || 0);
+      return posA - posB;
+    });
+
+    closeSwapAlbumModal();
+    updateMonthPillCounts();
+    renderGrid();
+
+    try {
+      const affectedItems = [...sourceList, ...targetList, sourceAlbum];
+      await Promise.all(
+        affectedItems.map(item =>
+          sb.from("challenge_backlog")
+            .update({ month: item.month, position: item.position })
+            .eq("id", item.id)
+        )
+      );
+    } catch (err) {
+      console.error("Failed to move album:", err);
+      alert("Failed to move album: " + err.message);
+    }
+  }
+
+  window.openSwapAlbumModal = function(e, albumId) {
+    if (e) e.stopPropagation();
+    if (!isAdmin) return;
+    if (String(albumId).startsWith("spin_")) return;
+    const album = backlogEntries.find(a => String(a.id) === String(albumId));
+    if (!album || !swapAlbumModal) return;
+
+    swapSourceAlbumId = album.id;
+    swapSearchQuery = "";
+    const srcMonth = (album.month || activeMonth).toLowerCase().trim();
+    if (!swapTargetMonth || swapTargetMonth === srcMonth) {
+      swapTargetMonth = "";
+    }
+    renderSwapModalContent();
+    openAeroModal(swapAlbumModal);
+  };
 
   // Admin Modal Logic
   window.openEditModal = function(e, albumId) {
