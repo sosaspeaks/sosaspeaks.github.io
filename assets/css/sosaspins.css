@@ -12361,7 +12361,9 @@ body.dark-mode .spins-admin-divider,
 }
 
 .aero-admin-icon-btn.aero-queue-btn:hover .aero-admin-icon,
-.aero-admin-icon-btn.aero-queue-btn:focus-visible .aero-admin-icon {
+.aero-admin-icon-btn.aero-queue-btn:focus-visible .aero-admin-icon,
+.aero-admin-icon-btn.admin-artists-btn:hover .aero-admin-icon,
+.aero-admin-icon-btn.admin-artists-btn:focus-visible .aero-admin-icon {
   filter:
     drop-shadow(0 0 8px rgba(56, 189, 248, 0.95))
     drop-shadow(0 0 14px rgba(14, 165, 233, 0.72));
@@ -15831,5 +15833,629 @@ body.dark-mode .modal-spin-no-memo {
   .memo-aero-ribbon {
     gap: 4px 5px;
     padding: 5px 6px;
+  }
+}
+
+/* ============================================================================
+   Admin Modal: Windows 7 Aero Artist Directory & Metadata Manager
+   ============================================================================ */
+.window.w7-modal-window.artist-dir-window {
+  width: min(1080px, 95vw);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, rgba(226, 245, 237, 0.96) 0%, rgba(203, 233, 222, 0.94) 100%);
+  border: 1px solid rgba(20, 83, 45, 0.42);
+  border-radius: 10px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  padding: 6px;
+  overflow: hidden;
+}
+
+body.dark-mode .window.w7-modal-window.artist-dir-window {
+  background: linear-gradient(180deg, rgba(20, 32, 27, 0.97) 0%, rgba(12, 19, 16, 0.97) 100%);
+  border-color: rgba(52, 211, 153, 0.34);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.window.w7-modal-window.artist-dir-window .title-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 9px 8px;
+}
+
+.window.w7-modal-window.artist-dir-window .title-bar-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: #064e3b;
+}
+
+body.dark-mode .window.w7-modal-window.artist-dir-window .title-bar-text {
+  color: #a7f3d0;
+}
+
+.artist-dir-body {
+  background: #f8fbf9;
+  border: 1px solid #a7bdb4;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+body.dark-mode .artist-dir-body {
+  background: #0c1210;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.artist-dir-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #eff8f4 100%);
+  border-bottom: 1px solid #d1e3dc;
+}
+
+body.dark-mode .artist-dir-toolbar {
+  background: linear-gradient(180deg, #131d19 0%, #0e1613 100%);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.artist-dir-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 5px 10px;
+  width: 310px;
+  max-width: 100%;
+  color: #64748b;
+}
+
+body.dark-mode .artist-dir-search-wrap {
+  background: #0b1512;
+  border-color: rgba(52, 211, 153, 0.28);
+  color: #94a3b8;
+}
+
+.artist-dir-search-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+body.dark-mode .artist-dir-search-input {
+  color: #f1f5f9;
+}
+
+.artist-dir-toolbar-right {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.artist-dir-filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.artist-dir-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.artist-dir-tab.active {
+  background: linear-gradient(180deg, #34d399 0%, #059669 100%);
+  border-color: #047857;
+  color: #ffffff;
+}
+
+body.dark-mode .artist-dir-tab {
+  background: rgba(20, 30, 27, 0.9);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+}
+
+body.dark-mode .artist-dir-tab.active {
+  background: linear-gradient(180deg, #10b981 0%, #047857 100%);
+  border-color: #34d399;
+  color: #ecfdf5;
+}
+
+.artist-dir-split {
+  display: grid;
+  grid-template-columns: 315px minmax(0, 1fr);
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.artist-dir-list {
+  border-right: 1px solid #d1e3dc;
+  background: #f2faf6;
+  padding: 10px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+body.dark-mode .artist-dir-list {
+  background: #0f1814;
+  border-right-color: rgba(255, 255, 255, 0.08);
+}
+
+.artist-dir-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.artist-dir-item:hover {
+  border-color: #10b981;
+}
+
+.artist-dir-item.active {
+  background: linear-gradient(180deg, #e0f9ee 0%, #c1eedb 100%);
+  border-color: #10b981;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.16);
+}
+
+body.dark-mode .artist-dir-item {
+  background: rgba(19, 29, 25, 0.9);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .artist-dir-item.active {
+  background: rgba(16, 185, 129, 0.22);
+  border-color: rgba(52, 211, 153, 0.55);
+}
+
+.artist-dir-item-left {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  flex: 1;
+}
+
+.artist-dir-thumb {
+  width: 34px;
+  height: 34px;
+  border-radius: 5px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+}
+
+.artist-dir-item-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.artist-dir-item-name {
+  font-size: 0.79rem;
+  font-weight: 800;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.dark-mode .artist-dir-item-name {
+  color: #f1f5f9;
+}
+
+.artist-dir-item-sub {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #059669;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.dark-mode .artist-dir-item-sub {
+  color: #6ee7b7;
+}
+
+.artist-dir-spins-pill {
+  font-family: "Noto Sans Mono", monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.14);
+  color: #047857;
+  flex-shrink: 0;
+}
+
+body.dark-mode .artist-dir-spins-pill {
+  background: rgba(16, 185, 129, 0.22);
+  color: #6ee7b7;
+}
+
+.artist-dir-editor {
+  padding: 15px 18px;
+  background: #ffffff;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+body.dark-mode .artist-dir-editor {
+  background: #0c1210;
+}
+
+.artist-dir-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+}
+
+.artist-dir-head-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.artist-dir-portrait-img {
+  width: 58px;
+  height: 58px;
+  border-radius: 7px;
+  object-fit: cover;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.16);
+}
+
+.artist-dir-head-name {
+  font-size: 1.04rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+body.dark-mode .artist-dir-head-name {
+  color: #f8fafc;
+}
+
+.artist-dir-head-sub {
+  font-size: 0.73rem;
+  color: #64748b;
+}
+
+.artist-dir-sync-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: rgba(2, 132, 199, 0.12);
+  color: #0369a1;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+body.dark-mode .artist-dir-sync-badge {
+  background: rgba(14, 116, 144, 0.28);
+  color: #7dd3fc;
+}
+
+.artist-dir-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.artist-dir-save-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: 1px solid #047857;
+  background: linear-gradient(180deg, #34d399 0%, #059669 100%);
+  color: #ffffff;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.77rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.artist-dir-save-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.artist-dir-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+
+.artist-dir-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.artist-dir-field.is-full {
+  grid-column: 1 / -1;
+}
+
+.artist-dir-field label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #475569;
+}
+
+body.dark-mode .artist-dir-field label {
+  color: #94a3b8;
+}
+
+.artist-dir-hint-inline {
+  text-transform: none;
+  color: #059669;
+  font-weight: 700;
+}
+
+body.dark-mode .artist-dir-hint-inline {
+  color: #6ee7b7;
+}
+
+.artist-dir-chip-editor {
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+body.dark-mode .artist-dir-chip-editor {
+  background: rgba(15, 23, 20, 0.85);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.artist-dir-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.artist-dir-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.71rem;
+  font-weight: 700;
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+.artist-dir-chip.is-rel {
+  background: #f0f9ff;
+  color: #0369a1;
+  border-color: #7dd3fc;
+}
+
+body.dark-mode .artist-dir-chip {
+  background: rgba(6, 78, 59, 0.45);
+  color: #a7f3d0;
+  border-color: rgba(52, 211, 153, 0.4);
+}
+
+body.dark-mode .artist-dir-chip.is-rel {
+  background: rgba(14, 116, 144, 0.35);
+  color: #bae6fd;
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+.artist-dir-chip-rm {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.artist-dir-chip-add-row,
+.artist-dir-url-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.artist-dir-chip-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+body.dark-mode .artist-dir-chip-input {
+  color: #f1f5f9;
+}
+
+.artist-dir-mini-btn {
+  padding: 4px 9px;
+  border-radius: 5px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.71rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+body.dark-mode .artist-dir-mini-btn {
+  background: rgba(20, 30, 27, 0.9);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #cbd5e1;
+}
+
+.artist-dir-preview {
+  background: linear-gradient(135deg, #091511 0%, #0e241d 100%);
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  border-radius: 7px;
+  padding: 10px 14px;
+  color: #ecfdf5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.artist-dir-preview-kicker {
+  font-family: "Noto Sans Mono", monospace;
+  font-size: 0.61rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  color: #6ee7b7;
+}
+
+.artist-dir-preview-title {
+  font-size: 0.85rem;
+  font-weight: 800;
+  margin-top: 2px;
+}
+
+.artist-dir-preview-sub {
+  font-size: 0.71rem;
+  color: #cbd5e1;
+  margin-top: 2px;
+}
+
+.artist-dir-save-status {
+  font-family: "Noto Sans Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #a7f3d0;
+  white-space: nowrap;
+}
+
+/* Public Artist Details Enhancements (Native Script, Geography, Kind, Relations) */
+.artist-quick-native {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #059669;
+  margin-left: 6px;
+}
+
+body.dark-mode .artist-quick-native {
+  color: #6ee7b7;
+}
+
+.artist-quick-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 5px 0 6px;
+}
+
+.artist-quick-meta-chip {
+  font-size: 0.69rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+body.dark-mode .artist-quick-meta-chip {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+}
+
+.artist-quick-rel-chip {
+  cursor: pointer;
+  background: rgba(56, 189, 248, 0.14);
+  color: #0369a1;
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+.artist-quick-rel-chip:hover {
+  background: rgba(2, 132, 199, 0.22);
+}
+
+body.dark-mode .artist-quick-rel-chip {
+  background: rgba(14, 116, 144, 0.3);
+  color: #7dd3fc;
+}
+
+@media (max-width: 860px) {
+  .artist-dir-split {
+    grid-template-columns: minmax(0, 1fr);
+    overflow-y: auto;
+  }
+
+  .artist-dir-list {
+    border-right: none;
+    border-bottom: 1px solid #d1e3dc;
+    max-height: 220px;
+  }
+
+  .artist-dir-form-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

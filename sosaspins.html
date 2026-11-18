@@ -25,7 +25,7 @@
     <meta name="apple-mobile-web-app-title" content="SosaSpeaks" />
     <link rel="manifest" href="assets/images/homepics/site.webmanifest?v=20260527" />
     <!-- Link to CSS -->
-    <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261116x">
+    <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261118a">
     <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
     <!-- Box icons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
@@ -146,6 +146,13 @@
                   <div class="admin-icon-reflection admin-refl-studio" aria-hidden="true"></div>
                 </div>
               </a>
+              <button type="button" id="openArtistDirectoryBtn" class="aero-admin-icon-btn admin-artists-btn admin-only" style="display: none;" aria-label="Artist Directory">
+                <span class="taskbar-tooltip admin-tooltip">Artist Directory</span>
+                <div class="admin-icon-stage admin-stage-sky">
+                  <img src="assets/icons/aero/wlm.ico" alt="" class="aero-admin-icon" aria-hidden="true">
+                  <div class="admin-icon-reflection admin-refl-queue" aria-hidden="true"></div>
+                </div>
+              </button>
             </div>
           </div>
         </div>
@@ -672,6 +679,176 @@
     </div>
   </div>
 
+  <!-- ADMIN MODAL: Windows 7 Aero Artist Directory & Metadata Manager (Concept A) -->
+  <div id="artistDirectoryModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="window glass w7-modal-window artist-dir-window" role="dialog" aria-modal="true" aria-labelledby="artistDirTitle">
+      <div class="title-bar">
+        <div class="title-bar-text" id="artistDirTitle">
+          <img src="assets/icons/aero/wlm.ico" alt="" class="w7-title-icon">
+          <span>Artist Directory &amp; Metadata Manager</span>
+        </div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeArtistDirectoryBtn" aria-label="Close" class="is-close" onclick="closeArtistDirectoryModal()"></button>
+        </div>
+      </div>
+
+      <div class="artist-dir-body">
+        <!-- Top Toolbar: Search + Filter Tabs + Add Artist -->
+        <div class="artist-dir-toolbar">
+          <div class="artist-dir-search-wrap">
+            <i class='bx bx-search'></i>
+            <input type="text" id="artistDirSearchInput" class="artist-dir-search-input" placeholder="Search canonical, native script, alias, country, state..." autocomplete="off">
+          </div>
+          <div class="artist-dir-toolbar-right">
+            <div class="artist-dir-filter-tabs" role="tablist" aria-label="Filter Artists">
+              <button type="button" class="artist-dir-tab active" data-dir-filter="all" role="tab" aria-selected="true">All <span id="dirCountAll">0</span></button>
+              <button type="button" class="artist-dir-tab" data-dir-filter="aliases" role="tab" aria-selected="false">Aliases</button>
+              <button type="button" class="artist-dir-tab" data-dir-filter="native" role="tab" aria-selected="false">Native Script</button>
+              <button type="button" class="artist-dir-tab" data-dir-filter="groups" role="tab" aria-selected="false">Groups / Members</button>
+            </div>
+            <button type="button" id="artistDirNewBtn" class="aero-command-btn" title="Add custom artist record">
+              <i class='bx bx-plus'></i> <span>New Artist</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Split Workspace: Left Address Book List + Right Inspector -->
+        <div class="artist-dir-split">
+          <div class="artist-dir-list" id="artistDirList"></div>
+
+          <div class="artist-dir-editor" id="artistDirEditor">
+            <div class="artist-dir-editor-head">
+              <div class="artist-dir-head-left">
+                <div class="artist-dir-portrait-wrap">
+                  <img src="assets/images/spins/placeholder.png" alt="Artist Portrait" id="artistDirPortraitImg" class="artist-dir-portrait-img">
+                </div>
+                <div class="artist-dir-head-meta">
+                  <div class="artist-dir-head-name" id="artistDirHeadTitle">Select an artist</div>
+                  <div class="artist-dir-head-sub" id="artistDirHeadSub">Select an artist on the left to inspect or edit metadata.</div>
+                  <div class="artist-dir-sync-badge" id="artistDirTop100SyncBadge" style="display: none;">
+                    <i class='bx bx-sync'></i> Synced with Top 100 Artists Grid
+                  </div>
+                </div>
+              </div>
+              <div class="artist-dir-head-actions">
+                <input type="file" id="artistDirPortraitFileInput" accept="image/*,.gif" style="display: none;">
+                <button type="button" id="artistDirPortraitUploadBtn" class="aero-command-btn" title="Upload portrait to Supabase artists bucket">
+                  <i class='bx bx-upload'></i> <span>Portrait</span>
+                </button>
+                <button type="button" id="artistDirSaveBtn" class="artist-dir-save-btn">
+                  <i class='bx bx-save'></i> <span>Save Artist</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="artist-dir-form-grid">
+              <div class="artist-dir-field">
+                <label for="artistDirCanonicalInput">Canonical Artist Name</label>
+                <input type="text" id="artistDirCanonicalInput" class="sosa-search-input" placeholder="e.g. LOONA">
+              </div>
+
+              <div class="artist-dir-field">
+                <label for="artistDirNativeInput">Native Script / Original Writing <span class="artist-dir-hint-inline">(Display Only)</span></label>
+                <input type="text" id="artistDirNativeInput" class="sosa-search-input" placeholder="e.g. 이달의 소녀, フィッシュマンズ">
+              </div>
+
+              <div class="artist-dir-field is-full">
+                <label>Merged Aliases &amp; Alternate Credits <span class="artist-dir-hint-inline">(Groups spins under Canonical)</span></label>
+                <div class="artist-dir-chip-editor">
+                  <div class="artist-dir-chips" id="artistDirAliasesChips"></div>
+                  <div class="artist-dir-chip-add-row">
+                    <input type="text" id="artistDirAliasInput" class="artist-dir-chip-input" placeholder="Add alias (e.g. Devon Hendryx) and press Enter...">
+                    <button type="button" id="artistDirAliasAddBtn" class="artist-dir-mini-btn">Add</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="artist-dir-field">
+                <label>Member Of (Groups / Collectives)</label>
+                <div class="artist-dir-chip-editor">
+                  <div class="artist-dir-chips" id="artistDirMemberOfChips"></div>
+                  <div class="artist-dir-chip-add-row">
+                    <input type="text" id="artistDirMemberOfInput" list="artistDirKnownArtistsList" class="artist-dir-chip-input" placeholder="e.g. LOONA, OutKast...">
+                    <button type="button" id="artistDirMemberOfAddBtn" class="artist-dir-mini-btn">Add</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="artist-dir-field">
+                <label>Members / Solo Acts</label>
+                <div class="artist-dir-chip-editor">
+                  <div class="artist-dir-chips" id="artistDirMembersChips"></div>
+                  <div class="artist-dir-chip-add-row">
+                    <input type="text" id="artistDirMembersInput" list="artistDirKnownArtistsList" class="artist-dir-chip-input" placeholder="e.g. Yves, Chuu...">
+                    <button type="button" id="artistDirMembersAddBtn" class="artist-dir-mini-btn">Add</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="artist-dir-field">
+                <label for="artistDirKindInput">Artist Kind</label>
+                <select id="artistDirKindInput" class="sosa-search-input">
+                  <option value="">— Unspecified —</option>
+                  <option value="Solo">Solo</option>
+                  <option value="Group">Group</option>
+                  <option value="Duo">Duo</option>
+                  <option value="Collective">Collective</option>
+                </select>
+              </div>
+
+              <div class="artist-dir-field">
+                <label for="artistDirYearsInput">Active Years</label>
+                <input type="text" id="artistDirYearsInput" class="sosa-search-input" placeholder="e.g. 2016–2023 or 2018–present">
+              </div>
+
+              <div class="artist-dir-field">
+                <label for="artistDirCountryInput">Country</label>
+                <input type="text" id="artistDirCountryInput" list="artistDirCountryDatalist" class="sosa-search-input" placeholder="e.g. South Korea, United States">
+              </div>
+
+              <div class="artist-dir-field">
+                <label for="artistDirStateInput">State / Province</label>
+                <input type="text" id="artistDirStateInput" class="sosa-search-input" placeholder="e.g. California, Maryland, Seoul, Gyeonggi">
+              </div>
+
+              <div class="artist-dir-field is-full">
+                <label for="artistDirPortraitUrlInput">Portrait Image URL <span class="artist-dir-hint-inline">(Syncs with Top 100 Top Artists Grid)</span></label>
+                <div class="artist-dir-url-row">
+                  <input type="url" id="artistDirPortraitUrlInput" class="sosa-search-input" placeholder="https://... (or upload Portrait above)">
+                  <button type="button" id="artistDirPortraitClearBtn" class="artist-dir-mini-btn" title="Clear custom portrait">Clear</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Live Preview of Public Artist Details Modal -->
+            <div class="artist-dir-preview" id="artistDirPreviewBox">
+              <div>
+                <div class="artist-dir-preview-kicker">PUBLIC ARTIST MODAL PREVIEW</div>
+                <div class="artist-dir-preview-title" id="artistDirPreviewTitle">—</div>
+                <div class="artist-dir-preview-sub" id="artistDirPreviewSub">—</div>
+              </div>
+              <span class="artist-dir-save-status" id="artistDirSaveStatus"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <datalist id="artistDirKnownArtistsList"></datalist>
+      <datalist id="artistDirCountryDatalist">
+        <option value="United States"></option>
+        <option value="South Korea"></option>
+        <option value="Japan"></option>
+        <option value="United Kingdom"></option>
+        <option value="Canada"></option>
+        <option value="China"></option>
+        <option value="France"></option>
+        <option value="Germany"></option>
+        <option value="Sweden"></option>
+        <option value="Australia"></option>
+      </datalist>
+    </div>
+  </div>
+
     </section>
     <!-- Footer -->
     <footer class="footer container">
@@ -816,7 +993,7 @@
   </nav>
 
   <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
-  <script src="assets/js/sosaspins.js?v=20261118a"></script>
+  <script src="assets/js/sosaspins.js?v=20261118b"></script>
   <script src="assets/js/dock.js?v=20261115c"></script>
   <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>
 </body>

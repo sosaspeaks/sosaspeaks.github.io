@@ -75,26 +75,193 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
     }
   ];
   let activeArtistAliases = JSON.parse(JSON.stringify(DEFAULT_ARTIST_ALIASES));
+  let artistProfilesMap = {}; // keyed by canonical_artist.toLowerCase()
+  let artistProfilesTableAvailable = null;
 
-  function mergeArtistAliasGroups(extraGroups) {
+  function getArtistProfile(artistName) {
+    if (!artistName) return null;
+    const canon = getCanonicalArtist(artistName) || String(artistName).trim();
+    return artistProfilesMap[canon.toLowerCase()] || null;
+  }
+  window.getArtistProfile = getArtistProfile;
+
+  function findTopArtistCuratedRank(canonicalArtist) {
+    if (!canonicalArtist || typeof topArtistsCuratedState !== "object" || !topArtistsCuratedState) return null;
+    const target = String(canonicalArtist).trim().toLowerCase();
+    const matched = Object.keys(topArtistsCuratedState).find(r => {
+      const entry = topArtistsCuratedState[r];
+      return entry && entry.artist && getCanonicalArtist(entry.artist).toLowerCase() === target;
+    });
+    return matched ? Number(matched) : null;
+  }
+
+  function getSyncedArtistPortrait(canonicalArtist, curatedEntry = null) {
+    const profile = getArtistProfile(canonicalArtist);
+    if (profile && profile.portrait_url) return profile.portrait_url;
+    if (curatedEntry && curatedEntry.custom_image) return curatedEntry.custom_image;
+    const rank = findTopArtistCuratedRank(canonicalArtist);
+    if (rank && topArtistsCuratedState[rank] && topArtistsCuratedState[rank].custom_image) {
+      return topArtistsCuratedState[rank].custom_image;
+    }
+    return null;
+  }
+
+  function rebuildActiveArtistAliasesFromProfiles(extraAliasGroups = []) {
     activeArtistAliases = JSON.parse(JSON.stringify(DEFAULT_ARTIST_ALIASES));
-    if (!Array.isArray(extraGroups)) return;
-    extraGroups.forEach(item => {
-      if (!item || !item.primary) return;
-      const cleanAliases = (Array.isArray(item.aliases) ? item.aliases : [])
-        .map(a => String(a).trim())
-        .filter(Boolean);
-      const idx = activeArtistAliases.findIndex(g => g.primary.toLowerCase() === item.primary.trim().toLowerCase());
+
+    const applyGroup = (primaryName, aliasList, replaceExisting = false) => {
+      const cleanPrimary = String(primaryName || "").trim();
+      if (!cleanPrimary) return;
+      const cleanAliases = Array.from(new Set(
+        (Array.isArray(aliasList) ? aliasList : [])
+          .map(a => String(a).trim())
+          .filter(a => a && a.toLowerCase() !== cleanPrimary.toLowerCase())
+      ));
+      const idx = activeArtistAliases.findIndex(g => g.primary.toLowerCase() === cleanPrimary.toLowerCase());
       if (idx >= 0) {
-        const merged = new Set([...activeArtistAliases[idx].aliases, ...cleanAliases]);
-        activeArtistAliases[idx] = { primary: item.primary.trim(), aliases: Array.from(merged) };
+        activeArtistAliases[idx] = {
+          primary: cleanPrimary,
+          aliases: replaceExisting
+            ? cleanAliases
+            : Array.from(new Set([...activeArtistAliases[idx].aliases, ...cleanAliases]))
+        };
       } else {
-        activeArtistAliases.push({ primary: item.primary.trim(), aliases: Array.from(new Set(cleanAliases)) });
+        activeArtistAliases.push({ primary: cleanPrimary, aliases: cleanAliases });
+      }
+    };
+
+    if (Array.isArray(extraAliasGroups)) {
+      extraAliasGroups.forEach(item => applyGroup(item?.primary, item?.aliases, false));
+    }
+
+    Object.values(artistProfilesMap).forEach(prof => {
+      if (prof && prof.canonical_artist && Array.isArray(prof.aliases)) {
+        // Explicit saved artist profile replaces default aliases so edits/removals stick
+        applyGroup(prof.canonical_artist, prof.aliases, true);
       }
     });
   }
 
+  function mergeArtistAliasGroups(extraGroups) {
+    rebuildActiveArtistAliasesFromProfiles(extraGroups);
+  }
+
+  async function loadArtistProfiles() {
+    let loadedLocal = {};
+    try {
+      const cached = localStorage.getItem("sosa_artist_profiles");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && typeof parsed === "object") loadedLocal = parsed;
+      }
+    } catch (_) {}
+    artistProfilesMap = loadedLocal;
+
+    try {
+      if (typeof supabaseClient !== "undefined" && supabaseClient) {
+        const { data, error } = await supabaseClient.from("artist_profiles").select("*");
+        if (!error && Array.isArray(data)) {
+          artistProfilesTableAvailable = true;
+          const nextMap = { ...loadedLocal };
+          data.forEach(row => {
+            if (!row || !row.canonical_artist) return;
+            const k = row.canonical_artist.trim().toLowerCase();
+            nextMap[k] = {
+              canonical_artist: row.canonical_artist.trim(),
+              native_name: row.native_name || "",
+              aliases: Array.isArray(row.aliases) ? row.aliases : [],
+              member_of: Array.isArray(row.member_of) ? row.member_of : [],
+              members: Array.isArray(row.members) ? row.members : [],
+              artist_kind: row.artist_kind || "",
+              active_years: row.active_years || "",
+              country: row.country || "",
+              state_province: row.state_province || "",
+              portrait_url: row.portrait_url || "",
+              updated_at: row.updated_at || null
+            };
+          });
+          artistProfilesMap = nextMap;
+          try {
+            localStorage.setItem("sosa_artist_profiles", JSON.stringify(artistProfilesMap));
+          } catch (_) {}
+        } else if (error) {
+          artistProfilesTableAvailable = false;
+        }
+      }
+    } catch (_) {
+      artistProfilesTableAvailable = false;
+    }
+
+    rebuildActiveArtistAliasesFromProfiles();
+  }
+
+  async function persistArtistProfileRecord(record) {
+    if (!record || !record.canonical_artist) return { synced: false };
+    const cleanCanon = record.canonical_artist.trim();
+    const key = cleanCanon.toLowerCase();
+    const payload = {
+      canonical_artist: cleanCanon,
+      native_name: record.native_name ? String(record.native_name).trim() : null,
+      aliases: Array.isArray(record.aliases) ? record.aliases.map(s => String(s).trim()).filter(Boolean) : [],
+      member_of: Array.isArray(record.member_of) ? record.member_of.map(s => String(s).trim()).filter(Boolean) : [],
+      members: Array.isArray(record.members) ? record.members.map(s => String(s).trim()).filter(Boolean) : [],
+      artist_kind: record.artist_kind ? String(record.artist_kind).trim() : null,
+      active_years: record.active_years ? String(record.active_years).trim() : null,
+      country: record.country ? String(record.country).trim() : null,
+      state_province: record.state_province ? String(record.state_province).trim() : null,
+      portrait_url: record.portrait_url ? String(record.portrait_url).trim() : null,
+      updated_at: new Date().toISOString()
+    };
+
+    artistProfilesMap[key] = payload;
+    try {
+      localStorage.setItem("sosa_artist_profiles", JSON.stringify(artistProfilesMap));
+    } catch (_) {}
+    rebuildActiveArtistAliasesFromProfiles();
+
+    if (isAdmin && supabaseClient && artistProfilesTableAvailable !== false) {
+      try {
+        const { error } = await supabaseClient
+          .from("artist_profiles")
+          .upsert(payload, { onConflict: "canonical_artist" });
+        if (!error) {
+          artistProfilesTableAvailable = true;
+          return { synced: true };
+        }
+      } catch (_) {}
+    }
+    return { synced: false, localOnly: true };
+  }
+
+  async function syncPortraitFromTopArtists(canonicalArtist, portraitUrl) {
+    if (!canonicalArtist) return;
+    const canon = getCanonicalArtist(canonicalArtist) || String(canonicalArtist).trim();
+    const existing = getArtistProfile(canon) || { canonical_artist: canon };
+    const defaultsMatch = DEFAULT_ARTIST_ALIASES.find(d => d.primary.toLowerCase() === canon.toLowerCase());
+    await persistArtistProfileRecord({
+      ...existing,
+      canonical_artist: canon,
+      aliases: Array.isArray(existing.aliases) ? existing.aliases : (defaultsMatch ? [...defaultsMatch.aliases] : []),
+      portrait_url: portraitUrl || null
+    });
+  }
+
+  async function syncPortraitToTopArtists(canonicalArtist, portraitUrl) {
+    const rank = findTopArtistCuratedRank(canonicalArtist);
+    if (!rank || !topArtistsCuratedState[rank]) return false;
+    topArtistsCuratedState[rank].custom_image = portraitUrl || null;
+    if (typeof topArtistsCuratedOriginal === "object" && topArtistsCuratedOriginal && topArtistsCuratedOriginal[rank]) {
+      topArtistsCuratedOriginal[rank].custom_image = portraitUrl || null;
+    }
+    await persistTopArtistsCuratedToSupabase([rank]);
+    if (isTop100View && activeTop100Tab === "artists" && typeof renderTopArtistsView === "function") {
+      renderTopArtistsView();
+    }
+    return true;
+  }
+
   async function loadArtistAliases() {
+    await loadArtistProfiles();
     try {
       if (typeof supabaseClient !== "undefined" && supabaseClient) {
         const { data, error } = await supabaseClient.from("artist_aliases").select("*");
@@ -5502,7 +5669,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
       if (isPopulated) {
         const canonical = getCanonicalArtist(item.artist);
         const stats = getArtistStats(canonical);
-        const displayImg = item.custom_image || stats.cover || item.top_album_cover;
+        const displayImg = getSyncedArtistPortrait(canonical, item) || stats.cover || item.top_album_cover;
         const topTitle = (stats.topProject && stats.topProject.title) || item.top_album_title || "";
         const ratingStr = stats.avg;
         const spinsStr = stats.count;
@@ -5557,7 +5724,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
       if (item && item.artist) {
         const canonical = getCanonicalArtist(item.artist);
         const stats = getArtistStats(canonical);
-        const displayImg = item.custom_image || stats.cover || item.top_album_cover;
+        const displayImg = getSyncedArtistPortrait(canonical, item) || stats.cover || item.top_album_cover;
         const topTitle = (stats.topProject && stats.topProject.title) || item.top_album_title || "";
         const ratingStr = stats.avg;
         const spinsStr = stats.count;
@@ -5967,6 +6134,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
       item.top_album_cover = (stats.topProject && stats.topProject.cover_url) || stats.cover || item.top_album_cover;
 
       const syncRes = await persistTopArtistsCuratedToSupabase([rankToSave]);
+      await syncPortraitFromTopArtists(getCanonicalArtist(item.artist), url || null);
       topArtistsCuratedOriginal[rankToSave] = JSON.parse(JSON.stringify(item));
 
       closeArtistCustomImageModal();
@@ -6591,9 +6759,36 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
         }
       }
     }
-    const displayImg = curated.custom_image || stats.cover;
+    const profile = getArtistProfile(canonical) || {};
+    const displayImg = getSyncedArtistPortrait(canonical, curated) || stats.cover;
 
     const rankBadge = resolvedRank ? `<div class="top100-detail-rank-badge artist-quick-rank-pill"><i class='bx bxs-award'></i> Rank #${resolvedRank}</div>` : "";
+    const nativeHtml = profile.native_name ? `<span class="artist-quick-native">· ${escapeHtml(profile.native_name)}</span>` : "";
+
+    const originLocation = [profile.state_province, profile.country].filter(Boolean).join(", ");
+    const metaChips = [];
+    if (profile.artist_kind) metaChips.push(`<span class="artist-quick-meta-chip">${escapeHtml(profile.artist_kind)}</span>`);
+    if (profile.active_years) metaChips.push(`<span class="artist-quick-meta-chip">${escapeHtml(profile.active_years)}</span>`);
+    if (originLocation) metaChips.push(`<span class="artist-quick-meta-chip"><i class='bx bx-map-pin'></i> ${escapeHtml(originLocation)}</span>`);
+
+    const memberOfList = Array.isArray(profile.member_of) ? profile.member_of : [];
+    const membersSet = new Set(Array.isArray(profile.members) ? profile.members : []);
+    Object.values(artistProfilesMap || {}).forEach(other => {
+      if (!other || !other.canonical_artist || other.canonical_artist.toLowerCase() === canonical.toLowerCase()) return;
+      if (Array.isArray(other.member_of) && other.member_of.some(g => g.toLowerCase() === canonical.toLowerCase())) {
+        membersSet.add(other.canonical_artist);
+      }
+    });
+    const membersList = Array.from(membersSet);
+
+    const relationsHtml = (memberOfList.length || membersList.length) ? `
+      <div class="artist-quick-meta-row">
+        ${memberOfList.map(g => `<button type="button" class="artist-quick-meta-chip artist-quick-rel-chip" onclick="openArtistQuickModal('${g.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')">Member of: ${escapeHtml(g)}</button>`).join("")}
+        ${membersList.map(m => `<button type="button" class="artist-quick-meta-chip artist-quick-rel-chip" onclick="openArtistQuickModal('${m.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')">Member: ${escapeHtml(m)}</button>`).join("")}
+      </div>
+    ` : "";
+
+    const quickMetaRowHtml = metaChips.length ? `<div class="artist-quick-meta-row">${metaChips.join("")}</div>` : "";
 
     const akaHtml = aliases.length ? `
       <div class="artist-quick-aka">
@@ -6814,9 +7009,15 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
     }
 
     const canOpenCustomImgModal = !!(isAdmin && resolvedRank && typeof openArtistCustomImageModal === "function" && document.getElementById("artistCustomImageModal"));
+    const canOpenDirectoryBtn = !!(isAdmin && typeof openArtistDirectoryModal === "function" && document.getElementById("artistDirectoryModal"));
     const editCustomImgBtn = canOpenCustomImgModal ? `
       <button type="button" class="aero-command-btn artist-quick-edit-img-btn" onclick="closeArtistQuickModal(); openArtistCustomImageModal(${resolvedRank});">
         <i class='bx bx-image-alt'></i> Change Image / GIF
+      </button>
+    ` : "";
+    const editDirectoryBtn = canOpenDirectoryBtn ? `
+      <button type="button" class="aero-command-btn artist-quick-edit-img-btn" onclick="closeArtistQuickModal(); openArtistDirectoryModal('${canonical.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}');">
+        <i class='bx bx-id-card'></i> Edit Metadata
       </button>
     ` : "";
 
@@ -6827,7 +7028,9 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
         <img src="${displayImg}" alt="${escapeHtml(canonical)}" class="artist-quick-avatar" decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
         <div class="artist-quick-meta">
           ${rankBadge}
-          <div class="artist-quick-name">${escapeHtml(canonical)}</div>
+          <div class="artist-quick-name">${escapeHtml(canonical)}${nativeHtml}</div>
+          ${quickMetaRowHtml}
+          ${relationsHtml}
           ${akaHtml}
           <div class="artist-quick-counts-row">
             <span class="artist-quick-count-chip"><i class='bx bx-disc'></i> ${stats.count} spin${stats.count !== 1 ? 's' : ''}</span>
@@ -6839,7 +7042,10 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
               <span class="artist-quick-avg-num">${stats.avg} Avg</span>
             </span>
           </div>
-          ${editCustomImgBtn}
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">
+            ${editCustomImgBtn}
+            ${editDirectoryBtn}
+          </div>
         </div>
       </div>
       ${genresHtml}
@@ -8455,6 +8661,12 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     const filtered = allEntries.filter(i => {
       const matchesSearch = !val || (
         (i.artist && i.artist.toLowerCase().includes(val)) ||
+        (i.artist && (() => {
+          const canon = getCanonicalArtist(i.artist);
+          const prof = getArtistProfile(canon);
+          return (prof && prof.native_name && prof.native_name.toLowerCase().includes(val)) ||
+                 (canon && canon.toLowerCase().includes(val));
+        })()) ||
         (i.title && i.title.toLowerCase().includes(val)) ||
         (i.genres && i.genres.some(g => g.toLowerCase().includes(val))) ||
         safeToArray(i.scenes).some(s => s.toLowerCase().includes(val)) ||
@@ -9573,4 +9785,471 @@ if (addTrackRatingRowBtn && trackRatingsList) {
   }
 
   initMobileWidgetsDrawer();
+
+  // ============================================================================
+  // Admin Modal: Artist Directory & Metadata Manager (Concept A)
+  // ============================================================================
+  (function initArtistDirectoryManager() {
+    const dirModal = document.getElementById("artistDirectoryModal");
+    const openDirBtn = document.getElementById("openArtistDirectoryBtn");
+    const listEl = document.getElementById("artistDirList");
+    const searchInput = document.getElementById("artistDirSearchInput");
+    const addNewBtn = document.getElementById("artistDirNewBtn");
+    const filterTabs = document.querySelectorAll(".artist-dir-tab[data-dir-filter]");
+    const countAllEl = document.getElementById("dirCountAll");
+    const knownArtistsDatalist = document.getElementById("artistDirKnownArtistsList");
+
+    const portraitImg = document.getElementById("artistDirPortraitImg");
+    const headTitleEl = document.getElementById("artistDirHeadTitle");
+    const headSubEl = document.getElementById("artistDirHeadSub");
+    const top100SyncBadge = document.getElementById("artistDirTop100SyncBadge");
+    const portraitFileInput = document.getElementById("artistDirPortraitFileInput");
+    const portraitUploadBtn = document.getElementById("artistDirPortraitUploadBtn");
+    const portraitUrlInput = document.getElementById("artistDirPortraitUrlInput");
+    const portraitClearBtn = document.getElementById("artistDirPortraitClearBtn");
+    const saveBtn = document.getElementById("artistDirSaveBtn");
+
+    const canonicalInput = document.getElementById("artistDirCanonicalInput");
+    const nativeInput = document.getElementById("artistDirNativeInput");
+    const kindInput = document.getElementById("artistDirKindInput");
+    const yearsInput = document.getElementById("artistDirYearsInput");
+    const countryInput = document.getElementById("artistDirCountryInput");
+    const stateInput = document.getElementById("artistDirStateInput");
+
+    const aliasesChipsEl = document.getElementById("artistDirAliasesChips");
+    const aliasInput = document.getElementById("artistDirAliasInput");
+    const aliasAddBtn = document.getElementById("artistDirAliasAddBtn");
+
+    const memberOfChipsEl = document.getElementById("artistDirMemberOfChips");
+    const memberOfInput = document.getElementById("artistDirMemberOfInput");
+    const memberOfAddBtn = document.getElementById("artistDirMemberOfAddBtn");
+
+    const membersChipsEl = document.getElementById("artistDirMembersChips");
+    const membersInput = document.getElementById("artistDirMembersInput");
+    const membersAddBtn = document.getElementById("artistDirMembersAddBtn");
+
+    const previewTitleEl = document.getElementById("artistDirPreviewTitle");
+    const previewSubEl = document.getElementById("artistDirPreviewSub");
+    const saveStatusEl = document.getElementById("artistDirSaveStatus");
+
+    if (!dirModal) return;
+
+    let currentDirFilter = "all";
+    let selectedCanonical = null;
+    let draftAliases = [];
+    let draftMemberOf = [];
+    let draftMembers = [];
+
+    function buildArtistDirectoryIndex() {
+      const map = {};
+      const ensure = (rawName) => {
+        const canon = getCanonicalArtist(rawName) || String(rawName || "").trim();
+        if (!canon) return null;
+        const k = canon.toLowerCase();
+        if (!map[k]) {
+          const prof = getArtistProfile(canon) || {};
+          const curatedRank = findTopArtistCuratedRank(canon);
+          const curatedItem = curatedRank ? topArtistsCuratedState[curatedRank] : null;
+          map[k] = {
+            canonical: canon,
+            native_name: prof.native_name || "",
+            aliases: Array.isArray(prof.aliases) ? [...prof.aliases] : [...getArtistAliases(canon)],
+            member_of: Array.isArray(prof.member_of) ? [...prof.member_of] : [],
+            members: Array.isArray(prof.members) ? [...prof.members] : [],
+            artist_kind: prof.artist_kind || "",
+            active_years: prof.active_years || "",
+            country: prof.country || "",
+            state_province: prof.state_province || "",
+            portrait_url: getSyncedArtistPortrait(canon, curatedItem) || "",
+            inTop100: !!curatedRank,
+            spinsCount: 0,
+            backlogCount: 0,
+            fallbackCover: ""
+          };
+        }
+        return map[k];
+      };
+
+      (allEntries || []).forEach(spin => {
+        if (!spin.artist) return;
+        splitArtistCredits(spin.artist).forEach(credit => {
+          const rec = ensure(credit);
+          if (!rec) return;
+          rec.spinsCount += 1;
+          if (!rec.fallbackCover && spin.cover_url) rec.fallbackCover = spin.cover_url;
+        });
+      });
+
+      (backlogTagEntries || []).forEach(b => {
+        if (!b.artist) return;
+        splitArtistCredits(b.artist).forEach(credit => {
+          const rec = ensure(credit);
+          if (!rec) return;
+          rec.backlogCount += 1;
+          if (!rec.fallbackCover && b.cover_url) rec.fallbackCover = b.cover_url;
+        });
+      });
+
+      Object.values(artistProfilesMap || {}).forEach(prof => {
+        if (prof && prof.canonical_artist) ensure(prof.canonical_artist);
+      });
+
+      Object.values(topArtistsCuratedState || {}).forEach(entry => {
+        if (entry && entry.artist) ensure(entry.artist);
+      });
+
+      return Object.values(map).sort((a, b) => b.spinsCount - a.spinsCount || b.backlogCount - a.backlogCount || a.canonical.localeCompare(b.canonical));
+    }
+
+    function updateDraftPreview() {
+      const canon = (canonicalInput && canonicalInput.value.trim()) || selectedCanonical || "—";
+      const nativeTxt = nativeInput ? nativeInput.value.trim() : "";
+      const kindTxt = kindInput ? kindInput.value.trim() : "";
+      const yearsTxt = yearsInput ? yearsInput.value.trim() : "";
+      const countryTxt = countryInput ? countryInput.value.trim() : "";
+      const stateTxt = stateInput ? stateInput.value.trim() : "";
+      const locTxt = [stateTxt, countryTxt].filter(Boolean).join(", ");
+      const urlVal = portraitUrlInput ? portraitUrlInput.value.trim() : "";
+
+      if (portraitImg) {
+        const rec = buildArtistDirectoryIndex().find(r => r.canonical.toLowerCase() === (selectedCanonical || "").toLowerCase());
+        portraitImg.src = urlVal || (rec && rec.fallbackCover) || "assets/images/spins/placeholder.png";
+      }
+
+      if (headTitleEl) {
+        headTitleEl.innerHTML = nativeTxt
+          ? `${escapeHtml(canon)} <span class="artist-quick-native">(${escapeHtml(nativeTxt)})</span>`
+          : escapeHtml(canon);
+      }
+
+      if (previewTitleEl) {
+        const metaTail = [kindTxt, yearsTxt, locTxt].filter(Boolean).join(" • ");
+        previewTitleEl.innerHTML = `${escapeHtml(canon)}${nativeTxt ? ` <span style="color:#6ee7b7;font-weight:600;">· ${escapeHtml(nativeTxt)}</span>` : ""}${metaTail ? ` <span style="color:#94a3b8;font-weight:500;font-size:0.74rem;">• ${escapeHtml(metaTail)}</span>` : ""}`;
+      }
+
+      if (previewSubEl) {
+        const parts = [];
+        if (draftAliases.length) parts.push(`AKA: ${draftAliases.join(", ")}`);
+        if (draftMemberOf.length) parts.push(`Member of: ${draftMemberOf.join(", ")}`);
+        if (draftMembers.length) parts.push(`Members: ${draftMembers.join(", ")}`);
+        previewSubEl.textContent = parts.length ? parts.join(" • ") : "No aliases or group links added yet.";
+      }
+    }
+
+    function renderChipList(container, list, isRelation, onChange) {
+      if (!container) return;
+      container.innerHTML = list.map((val, idx) => `
+        <span class="artist-dir-chip ${isRelation ? "is-rel" : ""}">
+          <span>${escapeHtml(val)}</span>
+          <button type="button" class="artist-dir-chip-rm" data-idx="${idx}" aria-label="Remove ${escapeHtml(val)}">&times;</button>
+        </span>
+      `).join("");
+
+      container.querySelectorAll(".artist-dir-chip-rm").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const i = parseInt(btn.getAttribute("data-idx"), 10);
+          if (!isNaN(i)) {
+            list.splice(i, 1);
+            onChange();
+          }
+        });
+      });
+    }
+
+    function populateEditorFromRecord(rec) {
+      if (!rec) return;
+      selectedCanonical = rec.canonical;
+      draftAliases = [...(rec.aliases || [])];
+      draftMemberOf = [...(rec.member_of || [])];
+      draftMembers = [...(rec.members || [])];
+
+      if (canonicalInput) canonicalInput.value = rec.canonical || "";
+      if (nativeInput) nativeInput.value = rec.native_name || "";
+      if (kindInput) kindInput.value = rec.artist_kind || "";
+      if (yearsInput) yearsInput.value = rec.active_years || "";
+      if (countryInput) countryInput.value = rec.country || "";
+      if (stateInput) stateInput.value = rec.state_province || "";
+      if (portraitUrlInput) portraitUrlInput.value = rec.portrait_url || "";
+      if (saveStatusEl) saveStatusEl.textContent = "";
+
+      if (headSubEl) {
+        headSubEl.textContent = `Canonical Record • ${rec.spinsCount} spin${rec.spinsCount === 1 ? "" : "s"} • ${rec.backlogCount} backlog item${rec.backlogCount === 1 ? "" : "s"}`;
+      }
+      if (top100SyncBadge) {
+        top100SyncBadge.style.display = rec.inTop100 ? "inline-flex" : "none";
+      }
+
+      const refreshChips = () => {
+        renderChipList(aliasesChipsEl, draftAliases, false, refreshChips);
+        renderChipList(memberOfChipsEl, draftMemberOf, true, refreshChips);
+        renderChipList(membersChipsEl, draftMembers, true, refreshChips);
+        updateDraftPreview();
+      };
+      refreshChips();
+    }
+
+    function renderArtistDirectoryList() {
+      const index = buildArtistDirectoryIndex();
+      if (countAllEl) countAllEl.textContent = String(index.length);
+
+      if (knownArtistsDatalist) {
+        knownArtistsDatalist.innerHTML = index.map(r => `<option value="${escapeHtml(r.canonical)}"></option>`).join("");
+      }
+
+      const q = searchInput ? searchInput.value.trim().toLowerCase() : "";
+      const filtered = index.filter(rec => {
+        if (currentDirFilter === "aliases" && (!rec.aliases || !rec.aliases.length)) return false;
+        if (currentDirFilter === "native" && !rec.native_name) return false;
+        if (currentDirFilter === "groups" && !rec.member_of.length && !rec.members.length && rec.artist_kind !== "Group") return false;
+        if (!q) return true;
+        return (
+          rec.canonical.toLowerCase().includes(q) ||
+          (rec.native_name && rec.native_name.toLowerCase().includes(q)) ||
+          rec.aliases.some(a => a.toLowerCase().includes(q)) ||
+          (rec.country && rec.country.toLowerCase().includes(q)) ||
+          (rec.state_province && rec.state_province.toLowerCase().includes(q))
+        );
+      });
+
+      if (!listEl) return;
+      if (!filtered.length) {
+        listEl.innerHTML = `<div style="padding:1.5rem;text-align:center;color:#64748b;font-size:0.78rem;">No artists match current filter.</div>`;
+        return;
+      }
+
+      if (!selectedCanonical || !index.some(r => r.canonical.toLowerCase() === selectedCanonical.toLowerCase())) {
+        populateEditorFromRecord(filtered[0]);
+      }
+
+      listEl.innerHTML = filtered.map(rec => {
+        const isSel = selectedCanonical && rec.canonical.toLowerCase() === selectedCanonical.toLowerCase();
+        const thumb = rec.portrait_url || rec.fallbackCover || "assets/images/spins/placeholder.png";
+        const subParts = [];
+        if (rec.native_name) subParts.push(rec.native_name);
+        if (rec.aliases.length) subParts.push(`${rec.aliases.length} alias${rec.aliases.length === 1 ? "" : "es"}`);
+        if (rec.member_of.length) subParts.push(`Member of ${rec.member_of[0]}`);
+        const loc = [rec.state_province, rec.country].filter(Boolean).join(", ");
+        if (!subParts.length && loc) subParts.push(loc);
+
+        return `
+          <button type="button" class="artist-dir-item ${isSel ? "active" : ""}" data-canon="${escapeHtml(rec.canonical)}">
+            <div class="artist-dir-item-left">
+              <img src="${escapeHtml(thumb)}" alt="${escapeHtml(rec.canonical)}" class="artist-dir-thumb" loading="lazy" onerror="this.onerror=null;this.src='assets/images/spins/placeholder.png';">
+              <div class="artist-dir-item-text">
+                <span class="artist-dir-item-name">${escapeHtml(rec.canonical)}</span>
+                <span class="artist-dir-item-sub">${escapeHtml(subParts.join(" • ") || "No metadata yet")}</span>
+              </div>
+            </div>
+            <span class="artist-dir-spins-pill">${rec.spinsCount}</span>
+          </button>
+        `;
+      }).join("");
+
+      listEl.querySelectorAll(".artist-dir-item").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const canon = btn.getAttribute("data-canon");
+          const rec = index.find(r => r.canonical === canon);
+          if (!rec) return;
+          listEl.querySelectorAll(".artist-dir-item").forEach(el => el.classList.remove("active"));
+          btn.classList.add("active");
+          populateEditorFromRecord(rec);
+        });
+      });
+    }
+
+    function bindChipInput(inputEl, btnEl, getList, chipsEl, isRelation) {
+      const redraw = () => {
+        renderChipList(chipsEl, getList(), isRelation, redraw);
+        updateDraftPreview();
+      };
+      const addVal = () => {
+        if (!inputEl) return;
+        const val = inputEl.value.trim();
+        if (!val) return;
+        const targetList = getList();
+        if (!targetList.some(x => x.toLowerCase() === val.toLowerCase())) {
+          targetList.push(val);
+        }
+        inputEl.value = "";
+        redraw();
+      };
+      if (btnEl) btnEl.addEventListener("click", addVal);
+      if (inputEl) {
+        inputEl.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            addVal();
+          }
+        });
+      }
+    }
+
+    bindChipInput(aliasInput, aliasAddBtn, () => draftAliases, aliasesChipsEl, false);
+    bindChipInput(memberOfInput, memberOfAddBtn, () => draftMemberOf, memberOfChipsEl, true);
+    bindChipInput(membersInput, membersAddBtn, () => draftMembers, membersChipsEl, true);
+
+    [canonicalInput, nativeInput, kindInput, yearsInput, countryInput, stateInput, portraitUrlInput].forEach(el => {
+      if (el) el.addEventListener("input", updateDraftPreview);
+    });
+
+    if (portraitClearBtn) {
+      portraitClearBtn.addEventListener("click", () => {
+        if (portraitUrlInput) portraitUrlInput.value = "";
+        updateDraftPreview();
+      });
+    }
+
+    if (portraitUploadBtn && portraitFileInput) {
+      portraitUploadBtn.addEventListener("click", () => portraitFileInput.click());
+      portraitFileInput.addEventListener("change", async () => {
+        const file = portraitFileInput.files?.[0];
+        if (!file) return;
+        const targetName = (canonicalInput && canonicalInput.value.trim()) || selectedCanonical || "artist";
+        portraitUploadBtn.disabled = true;
+        const origHtml = portraitUploadBtn.innerHTML;
+        portraitUploadBtn.innerHTML = `<i class='bx bx-loader-alt bx-spin'></i> Uploading...`;
+        try {
+          const url = await uploadArtistImageBlobToSupabase(file, targetName);
+          if (url && portraitUrlInput) {
+            portraitUrlInput.value = url;
+            updateDraftPreview();
+            if (saveStatusEl) saveStatusEl.textContent = "Portrait uploaded — click Save Artist";
+          }
+        } catch (err) {
+          alert("Failed to upload portrait to artists bucket: " + (err?.message || err));
+        } finally {
+          portraitUploadBtn.disabled = false;
+          portraitUploadBtn.innerHTML = origHtml;
+          portraitFileInput.value = "";
+        }
+      });
+    }
+
+    if (addNewBtn) {
+      addNewBtn.addEventListener("click", () => {
+        const name = window.prompt("Enter canonical artist name:");
+        if (!name || !name.trim()) return;
+        const clean = name.trim();
+        selectedCanonical = clean;
+        populateEditorFromRecord({
+          canonical: clean,
+          native_name: "",
+          aliases: [],
+          member_of: [],
+          members: [],
+          artist_kind: "",
+          active_years: "",
+          country: "",
+          state_province: "",
+          portrait_url: "",
+          inTop100: !!findTopArtistCuratedRank(clean),
+          spinsCount: 0,
+          backlogCount: 0
+        });
+      });
+    }
+
+    if (searchInput) searchInput.addEventListener("input", renderArtistDirectoryList);
+
+    filterTabs.forEach(tab => {
+      tab.addEventListener("click", () => {
+        currentDirFilter = tab.getAttribute("data-dir-filter") || "all";
+        filterTabs.forEach(t => {
+          const act = t === tab;
+          t.classList.toggle("active", act);
+          t.setAttribute("aria-selected", act ? "true" : "false");
+        });
+        renderArtistDirectoryList();
+      });
+    });
+
+    if (saveBtn) {
+      saveBtn.addEventListener("click", async () => {
+        const canonName = canonicalInput ? canonicalInput.value.trim() : "";
+        if (!canonName) {
+          alert("Canonical artist name is required.");
+          return;
+        }
+        saveBtn.disabled = true;
+        const orig = saveBtn.innerHTML;
+        saveBtn.innerHTML = `<i class='bx bx-loader-alt bx-spin'></i> Saving...`;
+
+        try {
+          let portraitUrl = portraitUrlInput ? portraitUrlInput.value.trim() : "";
+          if (portraitUrl && portraitUrl.startsWith("http") && !portraitUrl.includes("supabase.co")) {
+            portraitUrl = await uploadCoverToSupabase(portraitUrl, "artist", canonName, ARTIST_STORAGE_BUCKET);
+            if (portraitUrlInput) portraitUrlInput.value = portraitUrl;
+          }
+
+          const res = await persistArtistProfileRecord({
+            canonical_artist: canonName,
+            native_name: nativeInput ? nativeInput.value.trim() : "",
+            aliases: draftAliases,
+            member_of: draftMemberOf,
+            members: draftMembers,
+            artist_kind: kindInput ? kindInput.value.trim() : "",
+            active_years: yearsInput ? yearsInput.value.trim() : "",
+            country: countryInput ? countryInput.value.trim() : "",
+            state_province: stateInput ? stateInput.value.trim() : "",
+            portrait_url: portraitUrl || null
+          });
+
+          const syncedTop100 = await syncPortraitToTopArtists(canonName, portraitUrl || null);
+          selectedCanonical = canonName;
+
+          if (typeof updateSidebar === "function") updateSidebar();
+          if (typeof applyFilters === "function") applyFilters();
+          renderArtistDirectoryList();
+
+          if (saveStatusEl) {
+            if (res.synced) {
+              saveStatusEl.textContent = syncedTop100 ? "Saved & Synced (Top 100)" : "Saved to Supabase";
+            } else {
+              saveStatusEl.textContent = "Saved locally (run SQL 012)";
+            }
+          }
+        } catch (err) {
+          console.error("Save artist profile error:", err);
+          alert("Failed to save artist profile: " + (err?.message || err));
+        } finally {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = orig;
+        }
+      });
+    }
+
+    window.openArtistDirectoryModal = function(initialArtistName = null) {
+      if (initialArtistName) {
+        selectedCanonical = getCanonicalArtist(initialArtistName) || initialArtistName;
+      }
+      renderArtistDirectoryList();
+      if (selectedCanonical) {
+        const rec = buildArtistDirectoryIndex().find(r => r.canonical.toLowerCase() === selectedCanonical.toLowerCase());
+        if (rec) populateEditorFromRecord(rec);
+      }
+      openAeroModal(dirModal);
+    };
+
+    window.closeArtistDirectoryModal = function() {
+      closeAeroModal(dirModal);
+    };
+
+    if (openDirBtn) {
+      openDirBtn.addEventListener("click", () => {
+        window.openArtistDirectoryModal();
+      });
+    }
+
+    dirModal.addEventListener("click", (e) => {
+      if (e.target === dirModal || !e.target.closest(".artist-dir-window")) {
+        window.closeArtistDirectoryModal();
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && dirModal.style.display !== "none") {
+        window.closeArtistDirectoryModal();
+      }
+    });
+  })();
 });
