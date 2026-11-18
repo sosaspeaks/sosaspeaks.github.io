@@ -21,7 +21,7 @@
   <meta property="og:description" content="Explore Sosa's 7×7 monthly album listening challenge backlog and completed spins.">
   <meta property="og:image" content="https://sosaspeaks.org/assets/images/homepics/Sosa-Icon-V3.png">
   <link rel="icon" type="image/png" href="assets/images/homepics/Sosa-Icon-V3.png">
-  <link rel="stylesheet" href="assets/css/challenge.css?v=20261116q">
+  <link rel="stylesheet" href="assets/css/challenge.css?v=20261116s">
   <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
   <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
 </head>
@@ -77,15 +77,26 @@
           <button type="button" role="tab" aria-selected="false" data-month="recalibrate" data-tab-type="relisten" id="recalibrateTabBtn" style="display: none;">Recalibrate (<span id="relistenCount">0</span>)</button>
         </menu>
 
-        <!-- New Month Button -->
-        <button type="button" id="addNewMonthBtn" class="aero-add-tab-btn admin-only" style="display: none;" title="Create New Month Challenge">
-          + New Month
-        </button>
+        <div class="folder-right-controls">
+          <!-- Subtle Calendar Icon Trigger + Aero Month Picker Popover -->
+          <div class="month-picker-wrap" id="monthPickerWrap">
+            <button type="button" id="monthPickerToggleBtn" class="aero-calendar-tab-btn" aria-haspopup="true" aria-expanded="false" title="Jump to any Challenge Month">
+              <i class='bx bx-calendar'></i>
+              <i class='bx bx-chevron-down cal-caret'></i>
+            </button>
+            <div class="aero-month-popover" id="monthPickerPopover" role="menu" aria-label="Jump to Challenge Month" style="display: none;"></div>
+          </div>
 
-        <!-- Redo / Recalibrate Queue Toggle Button -->
-        <button type="button" id="recalibrateToggleBtn" class="aero-redo-tab-btn" title="Recalibrate Queue (Relistens)">
-          <i class='bx bx-redo'></i>
-        </button>
+          <!-- New Month Button -->
+          <button type="button" id="addNewMonthBtn" class="aero-add-tab-btn admin-only" style="display: none;" title="Create New Month Challenge">
+            + New Month
+          </button>
+
+          <!-- Redo / Recalibrate Queue Toggle Button -->
+          <button type="button" id="recalibrateToggleBtn" class="aero-redo-tab-btn" title="Recalibrate Queue (Relistens)">
+            <i class='bx bx-redo'></i>
+          </button>
+        </div>
       </div>
 
     </div>
@@ -656,7 +667,7 @@
   </nav>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="assets/js/challenge.js?v=20261116p"></script>
+  <script src="assets/js/challenge.js?v=20261116s"></script>
   <script src="assets/js/dock.js?v=20261115c"></script>
   <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>
 </body>

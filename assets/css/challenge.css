@@ -527,45 +527,67 @@ i.bx-sun:hover {
 .tabs-and-actions-left {
   display: flex;
   align-items: flex-end;
-  gap: 4px;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
   max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
+  border-bottom: 1px solid rgba(142, 157, 168, 0.78);
+  overflow: visible !important;
+  position: relative;
 }
 
-.tabs-and-actions-left::-webkit-scrollbar {
-  display: none;
+body.dark-mode .tabs-and-actions-left {
+  border-bottom-color: rgba(148, 163, 184, 0.28);
 }
 
 menu.w7-month-tabs[role="tablist"] {
   display: flex;
-  flex-wrap: nowrap;
+  flex-direction: column;
+  align-items: flex-start;
+  flex: 1 1 auto;
+  min-width: 0;
   margin: 0;
-  padding: 0 0 0 4px;
+  padding: 0;
   list-style: none;
-  gap: 2px;
-  border-bottom: 1px solid rgba(142, 157, 168, 0.7);
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+  gap: 0;
+  border-bottom: none;
+  overflow: visible !important;
 }
 
-menu.w7-month-tabs[role="tablist"]::-webkit-scrollbar {
-  display: none;
+.folder-tab-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 3px;
+  padding-left: 4px;
+}
+
+.folder-tab-row.is-back-row {
+  z-index: 1;
+  padding-left: 12px;
+}
+
+.folder-tab-row.is-front-row {
+  z-index: 3;
+  margin-top: -6px;
+  position: relative;
+}
+
+.folder-tab-row.is-front-row.is-single-row {
+  margin-top: 0;
 }
 
 menu.w7-month-tabs button[role="tab"] {
   font-family: var(--font-body), sans-serif;
-  font-size: 0.85rem;
+  font-size: 0.83rem;
   font-weight: 600;
   padding: 5px 14px;
   cursor: pointer;
-  border: 1px solid rgba(142, 157, 168, 0.7);
+  border: 1px solid rgba(136, 152, 168, 0.78);
   border-bottom: none;
-  border-radius: 4px 4px 0 0;
-  background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
-  color: #475569;
+  border-radius: 6px 6px 0 0;
+  background: linear-gradient(180deg, #ffffff 0%, #e9eff5 100%);
+  color: #334155;
   position: relative;
   top: 1px;
   transition: all 0.15s ease;
@@ -577,6 +599,19 @@ menu.w7-month-tabs button[role="tab"] {
   align-items: center;
   justify-content: center;
   line-height: 1.2;
+  box-shadow:
+    0 -3px 6px rgba(15, 23, 42, 0.11),
+    inset 0 1px 0 #ffffff;
+}
+
+.folder-tab-row.is-back-row button[role="tab"] {
+  padding: 5px 13px 9px;
+  font-size: 0.81rem;
+  background: linear-gradient(180deg, #f1f5f9 0%, #dbe4ee 75%, #cbd5e1 100%);
+  color: #475569;
+  border-color: rgba(130, 146, 162, 0.72);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 -1px 2px rgba(15, 23, 42, 0.04);
+  top: 0;
 }
 
 menu.w7-month-tabs button[role="tab"]:hover {
@@ -586,14 +621,53 @@ menu.w7-month-tabs button[role="tab"]:hover {
 
 menu.w7-month-tabs button[role="tab"].active,
 menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
-  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%) !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f4fbf7 100%) !important;
   color: #064e3b !important;
-  font-weight: 700;
+  font-weight: 800;
   border-color: #10b981 #10b981 transparent #10b981 !important;
-  box-shadow: inset 0 2px 0 #10b981, 0 -2px 6px rgba(16, 185, 129, 0.15);
+  box-shadow:
+    0 -3px 8px rgba(16, 185, 129, 0.18),
+    inset 0 2.5px 0 #10b981,
+    inset 0 1px 0 #ffffff !important;
   padding-bottom: 6px;
+  top: 1px;
+  z-index: 5;
+}
+
+.folder-tab-row.is-back-row button[role="tab"].active,
+.folder-tab-row.is-back-row button[role="tab"][aria-selected="true"] {
+  padding-bottom: 10px;
   top: 0;
   z-index: 2;
+}
+
+body.dark-mode menu.w7-month-tabs button[role="tab"] {
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.92) 0%, rgba(15, 23, 42, 0.96) 100%);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: #cbd5e1;
+  box-shadow: 0 -3px 6px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .folder-tab-row.is-back-row button[role="tab"] {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.88) 0%, rgba(10, 15, 28, 0.94) 100%);
+  color: #94a3b8;
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+body.dark-mode menu.w7-month-tabs button[role="tab"]:hover {
+  background: linear-gradient(180deg, rgba(51, 65, 85, 0.92) 0%, rgba(30, 41, 59, 0.96) 100%);
+  color: #f8fafc;
+}
+
+body.dark-mode menu.w7-month-tabs button[role="tab"].active,
+body.dark-mode menu.w7-month-tabs button[role="tab"][aria-selected="true"] {
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.22) 0%, rgba(15, 23, 42, 0.96) 100%) !important;
+  color: #6ee7b7 !important;
+  border-color: #10b981 #10b981 transparent #10b981 !important;
+  box-shadow:
+    0 -3px 8px rgba(16, 185, 129, 0.22),
+    inset 0 2.5px 0 #10b981,
+    inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
 }
 
 /* Recalibrate Tab Active State */
@@ -609,13 +683,221 @@ body.recalibrate-active menu.w7-month-tabs button[role="tab"]:not([data-month="r
   display: none !important;
 }
 
-body.recalibrate-active #addNewMonthBtn {
+body.recalibrate-active .folder-tab-row.is-back-row,
+body.recalibrate-active #addNewMonthBtn,
+body.recalibrate-active #monthPickerWrap {
   display: none !important;
+}
+
+body.recalibrate-active .folder-tab-row.is-front-row {
+  margin-top: 0 !important;
 }
 
 body.recalibrate-active menu.w7-month-tabs button[data-month="recalibrate"],
 body.recalibrate-active menu.w7-month-tabs button[data-tab-type="relisten"] {
   display: inline-flex !important;
+}
+
+.folder-right-controls {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 4;
+}
+
+.month-picker-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: flex-end;
+}
+
+.aero-calendar-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 27px;
+  padding: 0 9px;
+  cursor: pointer;
+  border-radius: 4px 4px 0 0;
+  border: 1px solid rgba(142, 157, 168, 0.75);
+  border-bottom: none;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.96) 0%,
+    rgba(241, 245, 249, 0.9) 48%,
+    rgba(226, 232, 240, 0.85) 52%,
+    rgba(241, 245, 249, 0.95) 100%
+  );
+  color: #334155;
+  font-size: 0.92rem;
+  position: relative;
+  top: 1px;
+  box-shadow: inset 0 1px 0 #ffffff, 0 -1px 3px rgba(15, 23, 42, 0.06);
+  transition: all 0.15s ease;
+}
+
+.aero-calendar-tab-btn .cal-caret {
+  font-size: 0.72rem;
+  opacity: 0.7;
+  margin-left: -1px;
+}
+
+.aero-calendar-tab-btn.is-open,
+.aero-calendar-tab-btn:hover {
+  background: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #ecfdf5 48%,
+    #d1fae5 52%,
+    #ecfdf5 100%
+  );
+  color: #047857;
+  border-color: #10b981;
+  box-shadow: 0 -2px 6px rgba(16, 185, 129, 0.2), inset 0 1px 0 #ffffff;
+}
+
+body.dark-mode .aero-calendar-tab-btn {
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.88) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border-color: rgba(148, 163, 184, 0.32);
+  color: #cbd5e1;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .aero-calendar-tab-btn.is-open,
+body.dark-mode .aero-calendar-tab-btn:hover {
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.25) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border-color: #10b981;
+  color: #6ee7b7;
+}
+
+.aero-month-popover {
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  width: 328px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(242, 252, 247, 0.96) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.48);
+  border-radius: 8px;
+  box-shadow:
+    0 16px 36px rgba(15, 23, 42, 0.2),
+    0 2px 8px rgba(16, 185, 129, 0.12),
+    inset 0 1px 0 #ffffff;
+  padding: 9px 10px;
+  z-index: 120;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.aero-month-popover::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  right: 16px;
+  width: 10px;
+  height: 10px;
+  background: #ffffff;
+  border-left: 1px solid rgba(16, 185, 129, 0.48);
+  border-top: 1px solid rgba(16, 185, 129, 0.48);
+  transform: rotate(45deg);
+}
+
+.aero-month-popover .pop-head {
+  grid-column: 1 / -1;
+  font-size: 0.67rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #047857;
+  padding: 1px 4px 5px;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.18);
+  margin-bottom: 2px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.aero-month-popover .pop-month-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 8px;
+  border-radius: 5px;
+  font-family: var(--font-body), sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #334155;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.aero-month-popover .pop-month-btn:hover {
+  background: #ecfdf5;
+  border-color: rgba(16, 185, 129, 0.48);
+  color: #064e3b;
+}
+
+.aero-month-popover .pop-month-btn.is-active {
+  background: linear-gradient(180deg, #d1fae5 0%, #a7f3d0 100%);
+  border-color: #10b981;
+  color: #064e3b;
+  font-weight: 800;
+}
+
+.aero-month-popover .pop-month-pill {
+  font-size: 0.67rem;
+  font-weight: 700;
+  color: #047857;
+  background: rgba(16, 185, 129, 0.12);
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+body.dark-mode .aero-month-popover {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(10, 18, 28, 0.98) 100%);
+  border-color: rgba(52, 211, 153, 0.42);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .aero-month-popover::before {
+  background: #0f172a;
+  border-left-color: rgba(52, 211, 153, 0.42);
+  border-top-color: rgba(52, 211, 153, 0.42);
+}
+
+body.dark-mode .aero-month-popover .pop-head {
+  color: #6ee7b7;
+  border-bottom-color: rgba(52, 211, 153, 0.2);
+}
+
+body.dark-mode .aero-month-popover .pop-month-btn {
+  background: rgba(30, 41, 59, 0.78);
+  border-color: rgba(148, 163, 184, 0.22);
+  color: #e2e8f0;
+}
+
+body.dark-mode .aero-month-popover .pop-month-btn:hover {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: rgba(52, 211, 153, 0.45);
+  color: #ffffff;
+}
+
+body.dark-mode .aero-month-popover .pop-month-btn.is-active {
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.35) 0%, rgba(5, 150, 105, 0.45) 100%);
+  border-color: #34d399;
+  color: #ecfdf5;
+}
+
+body.dark-mode .aero-month-popover .pop-month-pill {
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.2);
 }
 
 .aero-add-tab-btn {
@@ -664,10 +946,50 @@ body.recalibrate-active menu.w7-month-tabs button[data-tab-type="relisten"] {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  max-height: 110px;
+  opacity: 1;
+  overflow: hidden;
+  transform: translateY(0);
+  transition:
+    max-height 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.22s ease,
+    padding 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    margin 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    border-width 0.28s ease,
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
   box-shadow:
     inset 0 1.5px 1px rgba(255, 255, 255, 1),
     0 4px 18px rgba(16, 185, 129, 0.08),
     0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+.challenge-progress-box.is-collapsed {
+  max-height: 0 !important;
+  opacity: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-top: -1rem !important;
+  margin-bottom: 0 !important;
+  border-top-width: 0 !important;
+  border-bottom-width: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(-4px);
+}
+
+@keyframes challengeExplorerFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.994);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+#topsterGrid.is-view-transitioning,
+#coverFlowWrapper.is-view-transitioning {
+  animation: challengeExplorerFadeIn 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .progress-labels {
@@ -4128,15 +4450,17 @@ body.dark-mode .w7-auth-footer {
 
   menu.w7-month-tabs {
     display: flex !important;
-    flex-wrap: nowrap !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    flex-direction: column !important;
+    overflow: visible !important;
   }
 
-  menu.w7-month-tabs::-webkit-scrollbar {
-    display: none;
+  .folder-tab-row {
+    flex-wrap: wrap !important;
+    padding-left: 2px !important;
+  }
+
+  .folder-tab-row.is-back-row {
+    padding-left: 8px !important;
   }
 
   menu.w7-month-tabs button[role="tab"] {
@@ -4144,8 +4468,13 @@ body.dark-mode .w7-auth-footer {
     width: auto !important;
     min-width: max-content !important;
     white-space: nowrap !important;
-    padding: 5px 12px !important;
-    font-size: 0.78rem !important;
+    padding: 5px 10px !important;
+    font-size: 0.76rem !important;
+  }
+
+  .aero-month-popover {
+    width: min(310px, calc(100vw - 28px));
+    right: -28px;
   }
 
   .cmd-text-short {

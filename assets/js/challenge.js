@@ -353,6 +353,199 @@ document.addEventListener("DOMContentLoaded", async () => {
   let loggedSpins = [];
   const addNewMonthBtn = document.getElementById("addNewMonthBtn");
   const monthTabsList = document.getElementById("monthTabsList");
+  const monthPickerWrap = document.getElementById("monthPickerWrap");
+  const monthPickerToggleBtn = document.getElementById("monthPickerToggleBtn");
+  const monthPickerPopover = document.getElementById("monthPickerPopover");
+
+  function closeMonthPickerPopover() {
+    if (!monthPickerPopover || !monthPickerToggleBtn) return;
+    monthPickerPopover.style.display = "none";
+    monthPickerToggleBtn.classList.remove("is-open");
+    monthPickerToggleBtn.setAttribute("aria-expanded", "false");
+  }
+
+  function renderMonthPickerPopover() {
+    if (!monthPickerPopover || !monthTabsList) return;
+    const allTabs = Array.from(monthTabsList.querySelectorAll('button[role="tab"]'));
+    const monthlyTabs = allTabs.filter(t => {
+      const m = (t.getAttribute("data-month") || "").toLowerCase();
+      return t.getAttribute("data-tab-type") !== "relisten" && m !== "recalibrate" && m !== "relisten";
+    });
+
+    const itemsHtml = monthlyTabs.map(btn => {
+      const m = (btn.getAttribute("data-month") || "").toLowerCase();
+      const yr = btn.getAttribute("data-year") || (MONTH_NAMES.findIndex(x => x.toLowerCase() === m) >= 9 ? "2026" : "2027");
+      const shortYr = String(yr).slice(-2);
+      const baseMonth = m.charAt(0).toUpperCase() + m.slice(1);
+      const popLabel = `${baseMonth} '${shortYr}`;
+      const count = backlogEntries.filter(e => (e.month || "").toLowerCase() === m).length;
+      const pillText = isAdmin ? `${count}/36` : `${count}`;
+      const isAct = m === activeMonth;
+      return `
+        <button type="button" class="pop-month-btn${isAct ? " is-active" : ""}" data-pick-month="${escapeHtml(m)}" role="menuitem">
+          <span>${escapeHtml(popLabel)}</span>
+          <span class="pop-month-pill">${escapeHtml(pillText)}</span>
+        </button>
+      `;
+    }).join("");
+
+    monthPickerPopover.innerHTML = `
+      <div class="pop-head">
+        <span><i class='bx bx-calendar-event'></i> All Challenge Months</span>
+        <span>${monthlyTabs.length} Total</span>
+      </div>
+      ${itemsHtml}
+    `;
+
+    monthPickerPopover.querySelectorAll(".pop-month-btn[data-pick-month]").forEach(itemBtn => {
+      itemBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const picked = (itemBtn.getAttribute("data-pick-month") || "").toLowerCase();
+        if (!picked) return;
+        clearBacklogSearch({ rerender: false });
+        setActiveMonthTab(picked);
+        closeMonthPickerPopover();
+        renderGrid();
+      });
+    });
+  }
+
+  function toggleMonthPickerPopover() {
+    if (!monthPickerPopover || !monthPickerToggleBtn) return;
+    if (monthPickerPopover.style.display !== "none") {
+      closeMonthPickerPopover();
+    } else {
+      renderMonthPickerPopover();
+      monthPickerPopover.style.display = "grid";
+      monthPickerToggleBtn.classList.add("is-open");
+      monthPickerToggleBtn.setAttribute("aria-expanded", "true");
+    }
+  }
+
+  if (monthPickerToggleBtn) {
+    monthPickerToggleBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleMonthPickerPopover();
+    });
+  }
+
+  document.addEventListener("click", (e) => {
+    if (monthPickerWrap && !monthPickerWrap.contains(e.target)) {
+      closeMonthPickerPopover();
+    }
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closeMonthPickerPopover();
+    }
+  });
+
+  const CUSTOM_MONTHS_KEY = "sosa_custom_challenge_months";
+  function getSavedCustomMonths() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(CUSTOM_MONTHS_KEY) || "[]");
+      return Array.isArray(raw) ? raw : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveCustomMonth(monthKey, yearVal) {
+    try {
+      const list = getSavedCustomMonths();
+      if (!list.some(item => item && String(item.month).toLowerCase() === String(monthKey).toLowerCase())) {
+        list.push({ month: String(monthKey).toLowerCase(), year: yearVal });
+        localStorage.setItem(CUSTOM_MONTHS_KEY, JSON.stringify(list));
+      }
+    } catch (e) {}
+  }
+
+  function triggerExplorerViewTransition(targetEl) {
+    if (!targetEl) return;
+    targetEl.classList.remove("is-view-transitioning");
+    void targetEl.offsetWidth;
+    targetEl.classList.add("is-view-transitioning");
+  }
+
+  // Organizes monthly tabs into up to 2 overlapping physical folder rows (capped at 2 rows / 12 tabs)
+  function layoutFolderTabRows(forceRebuild = false) {
+    if (!monthTabsList) return;
+    const allTabs = Array.from(monthTabsList.querySelectorAll('button[role="tab"]'));
+    if (!allTabs.length) return;
+
+    const monthlyTabs = [];
+    const relistenTabs = [];
+    allTabs.forEach(tab => {
+      const m = (tab.getAttribute("data-month") || "").toLowerCase().trim();
+      const isRel = tab.getAttribute("data-tab-type") === "relisten" || m === "recalibrate" || m === "relisten";
+      if (isRel) {
+        relistenTabs.push(tab);
+      } else {
+        monthlyTabs.push(tab);
+      }
+    });
+
+    const MAX_PER_ROW = 6;
+    const MAX_VISIBLE = MAX_PER_ROW * 2; // Capped at 2 rows (12 tabs)
+    const targetMonth = (activeMonth === "recalibrate" || activeMonth === "relisten")
+      ? (lastActiveChallengeMonth || "october")
+      : activeMonth;
+
+    let windowStart = 0;
+    if (monthlyTabs.length > MAX_VISIBLE) {
+      const activeIdx = monthlyTabs.findIndex(t => (t.getAttribute("data-month") || "").toLowerCase().trim() === targetMonth);
+      if (activeIdx === -1 || activeIdx >= monthlyTabs.length - MAX_VISIBLE) {
+        windowStart = monthlyTabs.length - MAX_VISIBLE;
+      } else {
+        windowStart = Math.max(0, Math.min(activeIdx - (MAX_PER_ROW - 1), monthlyTabs.length - MAX_VISIBLE));
+      }
+    }
+    const visibleTabs = monthlyTabs.slice(windowStart, windowStart + MAX_VISIBLE);
+    const visibleSet = new Set(visibleTabs);
+    const hiddenTabs = monthlyTabs.filter(t => !visibleSet.has(t));
+
+    const sig = visibleTabs.map(t => t.getAttribute("data-month")).join("|") +
+      "::" + hiddenTabs.map(t => t.getAttribute("data-month")).join("|");
+    if (!forceRebuild && monthTabsList._folderLayoutSig === sig && monthTabsList.querySelector(".folder-tab-row")) {
+      return;
+    }
+    monthTabsList._folderLayoutSig = sig;
+
+    // Clear existing row wrappers while preserving tab buttons
+    monthTabsList.innerHTML = "";
+
+    if (visibleTabs.length <= MAX_PER_ROW) {
+      const frontRow = document.createElement("div");
+      frontRow.className = "folder-tab-row is-front-row is-single-row";
+      visibleTabs.forEach(t => frontRow.appendChild(t));
+      relistenTabs.forEach(t => frontRow.appendChild(t));
+      monthTabsList.appendChild(frontRow);
+    } else {
+      const backRow = document.createElement("div");
+      backRow.className = "folder-tab-row is-back-row";
+      const frontRow = document.createElement("div");
+      frontRow.className = "folder-tab-row is-front-row";
+
+      const backCount = Math.floor(visibleTabs.length / 2);
+      visibleTabs.slice(0, backCount).forEach(t => backRow.appendChild(t));
+      visibleTabs.slice(backCount).forEach(t => frontRow.appendChild(t));
+      relistenTabs.forEach(t => frontRow.appendChild(t));
+
+      monthTabsList.appendChild(backRow);
+      monthTabsList.appendChild(frontRow);
+    }
+
+    if (hiddenTabs.length) {
+      const overflowHiddenRow = document.createElement("div");
+      overflowHiddenRow.className = "folder-tab-row is-overflow-hidden";
+      overflowHiddenRow.style.display = "none";
+      hiddenTabs.forEach(t => overflowHiddenRow.appendChild(t));
+      monthTabsList.appendChild(overflowHiddenRow);
+    }
+  }
 
   // Redo / Recalibrate Queue Toggle Control
   const recalibrateToggleBtn = document.getElementById("recalibrateToggleBtn");
@@ -394,9 +587,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
 
-    // Hide + New Month button while Recalibrate is active
+    // Hide + New Month & Calendar Picker button while Recalibrate is active
     if (addNewMonthBtn) {
       addNewMonthBtn.style.display = (!isRel && isAdmin) ? "" : "none";
+    }
+    if (monthPickerWrap) {
+      monthPickerWrap.style.display = isRel ? "none" : "";
+      if (isRel) closeMonthPickerPopover();
     }
 
     if (recalibrateToggleBtn) {
@@ -1074,7 +1271,9 @@ document.addEventListener("DOMContentLoaded", async () => {
           lastActiveChallengeMonth = activeMonth;
         }
 
+        layoutFolderTabRows();
         updateRecalibrateTabVisibility();
+        renderMonthPickerPopover();
         renderGrid();
       };
     });
@@ -1092,7 +1291,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       t.classList.toggle("active", match);
       t.setAttribute("aria-selected", match ? "true" : "false");
     });
+    layoutFolderTabRows();
     updateRecalibrateTabVisibility();
+    renderMonthPickerPopover();
   }
 
   setActiveMonthTab(activeMonth);
@@ -1292,6 +1493,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     const dbMonths = Array.from(new Set(backlogEntries.map(e => (e.month || "").toLowerCase().trim()).filter(Boolean)));
+    const savedCustomMonths = getSavedCustomMonths();
 
     dbMonths.forEach(m => {
       if (m === "recalibrate" || m === "relisten") return;
@@ -1301,8 +1503,28 @@ document.addEventListener("DOMContentLoaded", async () => {
         newTabBtn.setAttribute("role", "tab");
         newTabBtn.setAttribute("data-month", m);
         const entryWithYear = backlogEntries.find(e => (e.month || "").toLowerCase().trim() === m && e.year);
-        const mIdx = MONTH_NAMES.findIndex(x => x.toLowerCase() === m);
+        const mIdx = MONTH_NAMES.findIndex(x => x.toLowerCase() === m.replace(/[-_ ](?:'|20)?\d{2,4}$/, ""));
         const yr = entryWithYear ? entryWithYear.year : (mIdx >= 9 ? 2026 : 2027);
+        newTabBtn.setAttribute("data-year", yr);
+        newTabBtn.setAttribute("aria-selected", m === activeMonth ? "true" : "false");
+        if (m === activeMonth) newTabBtn.classList.add("active");
+        const label = formatMonthDisplay(m, yr);
+        newTabBtn.textContent = `${label} ${isAdmin ? "(0/36)" : "(0)"}`;
+        tabMap.set(m, newTabBtn);
+      }
+    });
+
+    savedCustomMonths.forEach(item => {
+      if (!item || !item.month) return;
+      const m = String(item.month).toLowerCase().trim();
+      if (!m || m === "recalibrate" || m === "relisten") return;
+      if (!tabMap.has(m)) {
+        const newTabBtn = document.createElement("button");
+        newTabBtn.type = "button";
+        newTabBtn.setAttribute("role", "tab");
+        newTabBtn.setAttribute("data-month", m);
+        const mIdx = MONTH_NAMES.findIndex(x => x.toLowerCase() === m.replace(/[-_ ](?:'|20)?\d{2,4}$/, ""));
+        const yr = item.year || (mIdx >= 9 ? 2026 : 2027);
         newTabBtn.setAttribute("data-year", yr);
         newTabBtn.setAttribute("aria-selected", m === activeMonth ? "true" : "false");
         if (m === activeMonth) newTabBtn.classList.add("active");
@@ -1317,7 +1539,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (m === "recalibrate" || m === "relisten") return;
       if (!btn.getAttribute("data-year")) {
         const entryWithYear = backlogEntries.find(e => (e.month || "").toLowerCase().trim() === m && e.year);
-        const mIdx = MONTH_NAMES.findIndex(x => x.toLowerCase() === m);
+        const mIdx = MONTH_NAMES.findIndex(x => x.toLowerCase() === m.replace(/[-_ ](?:'|20)?\d{2,4}$/, ""));
         const yr = entryWithYear ? entryWithYear.year : (mIdx >= 9 ? 2026 : 2027);
         btn.setAttribute("data-year", yr);
       }
@@ -1341,8 +1563,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       monthTabsList.appendChild(tab);
     });
 
+    layoutFolderTabRows(true);
     attachMonthTabListeners();
     populateMonthSelectOptions();
+    renderMonthPickerPopover();
   }
 
   attachMonthTabListeners();
@@ -1354,18 +1578,29 @@ document.addEventListener("DOMContentLoaded", async () => {
       const currentYear = new Date().getFullYear();
       const existingTabs = document.querySelectorAll('menu.w7-month-tabs button[role="tab"]');
 
-      // Find the last monthly calendar tab (exclude recalibrate)
-      const monthlyTabs = Array.from(existingTabs).filter(t => t.getAttribute("data-tab-type") !== "relisten" && t.getAttribute("data-month") !== "recalibrate");
+      // Find the last monthly calendar tab chronologically (exclude recalibrate)
+      const monthlyTabs = Array.from(existingTabs)
+        .filter(t => t.getAttribute("data-tab-type") !== "relisten" && t.getAttribute("data-month") !== "recalibrate")
+        .sort((a, b) => {
+          const kA = getMonthYearSortKey(a.getAttribute("data-month"), a.getAttribute("data-year"));
+          const kB = getMonthYearSortKey(b.getAttribute("data-month"), b.getAttribute("data-year"));
+          return kA - kB;
+        });
+
       const lastTab = monthlyTabs[monthlyTabs.length - 1];
-      const lastMonthRaw = lastTab ? lastTab.getAttribute("data-month") : "october";
+      const lastMonthRaw = lastTab ? (lastTab.getAttribute("data-month") || "october") : "october";
+      const cleanLastMonth = lastMonthRaw.toLowerCase().replace(/[-_ ](?:'|20)?\d{2,4}$/, "").trim();
+      const lastMonthIndex = MONTH_NAMES.findIndex(m => m.toLowerCase() === cleanLastMonth);
       const lastYear = lastTab && lastTab.getAttribute("data-year")
         ? parseInt(lastTab.getAttribute("data-year"), 10)
-        : currentYear;
+        : (lastMonthIndex >= 9 ? 2026 : 2027);
 
-      const lastMonthIndex = MONTH_NAMES.findIndex(m => m.toLowerCase() === lastMonthRaw.toLowerCase());
       const nextMonthIndex = (lastMonthIndex + 1) % 12;
       const targetYear = (lastMonthIndex + 1 >= 12) ? lastYear + 1 : lastYear;
       const nextMonthName = MONTH_NAMES[nextMonthIndex];
+      const baseKey = nextMonthName.toLowerCase();
+      const keyExists = monthlyTabs.some(t => (t.getAttribute("data-month") || "").toLowerCase().trim() === baseKey);
+      const nextMonthKey = keyExists ? `${baseKey}-${String(targetYear).slice(-2)}` : baseKey;
 
       const tabLabel = formatMonthDisplay(nextMonthName, targetYear);
 
@@ -1381,21 +1616,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       newTabBtn.setAttribute("role", "tab");
       newTabBtn.setAttribute("aria-selected", "true");
       newTabBtn.className = "active";
-      newTabBtn.setAttribute("data-month", nextMonthName.toLowerCase());
+      newTabBtn.setAttribute("data-month", nextMonthKey);
       newTabBtn.setAttribute("data-year", targetYear);
       newTabBtn.textContent = `${tabLabel} ${isAdmin ? "(0/36)" : "(0)"}`;
 
-      const relistenTab = monthTabsList.querySelector('button[data-tab-type="relisten"], button[data-month="recalibrate"]');
-      if (relistenTab) {
-        monthTabsList.insertBefore(newTabBtn, relistenTab);
-      } else {
-        monthTabsList.appendChild(newTabBtn);
-      }
-      syncMonthTabs();
-
-      activeMonth = nextMonthName.toLowerCase();
+      saveCustomMonth(nextMonthKey, targetYear);
+      activeMonth = nextMonthKey;
       lastActiveChallengeMonth = activeMonth;
-      updateRecalibrateTabVisibility();
+
+      monthTabsList.appendChild(newTabBtn);
+      syncMonthTabs();
+      setActiveMonthTab(nextMonthKey);
+      updateMonthPillCounts();
       renderGrid();
     });
   }
@@ -2761,13 +2993,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (isCoverFlowView) {
       if (exportWrapper) exportWrapper.style.setProperty("display", "none", "important");
       if (gridSizeBtn) gridSizeBtn.style.display = "none";
-      if (coverFlowWrapper) coverFlowWrapper.style.display = "flex";
+      if (coverFlowWrapper) {
+        coverFlowWrapper.style.display = "flex";
+        triggerExplorerViewTransition(coverFlowWrapper);
+      }
       updateCoverFlowPositions();
       if (coverFlowStage) coverFlowStage.focus({ preventScroll: true });
     } else {
       if (coverFlowWrapper) coverFlowWrapper.style.display = "none";
       if (exportWrapper) exportWrapper.style.removeProperty("display");
       if (gridSizeBtn) gridSizeBtn.style.display = "";
+      triggerExplorerViewTransition(topsterGrid);
       if (statusBarStatus) {
         const isRel = (activeMonth === "recalibrate" || activeMonth === "relisten");
         statusBarStatus.textContent = isRel
@@ -3147,7 +3383,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     }
 
+    layoutFolderTabRows();
     updateRecalibrateTabVisibility();
+    renderMonthPickerPopover();
   }
 
   function renderCoverFlow(list) {
@@ -3618,7 +3856,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const activeYearNum = activeYear ? parseInt(activeYear, 10) : currentCalendarYear;
     const isCurrentCalendarMonth = !isSearchActive && !isRelistenTab && (activeMonth === currentCalendarMonth) && (activeYearNum === currentCalendarYear);
     if (progressBox) {
-      progressBox.style.display = isCurrentCalendarMonth ? "" : "none";
+      progressBox.style.removeProperty("display");
+      progressBox.classList.toggle("is-collapsed", !isCurrentCalendarMonth);
     }
 
     list.forEach(album => {
@@ -3663,6 +3902,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     renderCoverFlow(list);
+    triggerExplorerViewTransition(isCoverFlowView ? coverFlowWrapper : topsterGrid);
 
     if (list.length === 0) {
       if (isSearchActive) {
