@@ -268,19 +268,7 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
 
   async function loadArtistAliases() {
     await loadArtistProfiles();
-    try {
-      if (typeof supabaseClient !== "undefined" && supabaseClient) {
-        const { data, error } = await supabaseClient.from("artist_aliases").select("*");
-        if (!error && data && data.length) {
-          const loaded = data.map(row => ({
-            primary: row.primary_artist,
-            aliases: Array.isArray(row.aliases) ? row.aliases : (row.aliases ? String(row.aliases).split(",").map(s => s.trim()) : [])
-          }));
-          mergeArtistAliasGroups(loaded);
-          return;
-        }
-      }
-    } catch (_) {}
+    if (artistProfilesMap.size > 0) return;
     try {
       const local = localStorage.getItem("sosa_artist_aliases");
       if (local) {

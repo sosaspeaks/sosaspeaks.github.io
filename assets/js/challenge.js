@@ -23,6 +23,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const progressSubtitle = document.getElementById("progressSubtitle");
   const adminTriggerBtn = document.getElementById("adminTriggerBtn");
   const adminLockIcon = document.getElementById("adminLockIcon");
+  const addModal = document.getElementById("addModal");
   const ICON_LOCKED = "assets/icons/aero/lock_closed.png";
   const ICON_UNLOCKED = "assets/icons/aero/lock_open.png";
 
@@ -66,6 +67,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Native Supabase Authentication State
   let isAdmin = false;
   let isDataLoaded = false;
+  let activeMonth = "";
   if (sb && sb.auth) {
     try {
       const { data: { session } } = await sb.auth.getSession();
@@ -123,7 +125,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const statusBarStatus = document.getElementById("statusBarStatus");
 
   // Admin Add / Edit Modal
-  const addModal = document.getElementById("addModal");
   const openAddModalBtn = document.getElementById("openAddModalBtn");
   const closeAddModal = document.getElementById("closeAddModal");
   const addAlbumForm = document.getElementById("addAlbumForm");
@@ -403,7 +404,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   const initialChallengeMonth = getInitialChallengeMonth();
-  let activeMonth = initialChallengeMonth;
+  activeMonth = initialChallengeMonth;
   let lastActiveChallengeMonth = (initialChallengeMonth === "recalibrate" || initialChallengeMonth === "relisten")
     ? MONTH_NAMES[new Date().getMonth()].toLowerCase()
     : initialChallengeMonth;
