@@ -25,7 +25,7 @@
     <meta name="apple-mobile-web-app-title" content="SosaSpeaks" />
     <link rel="manifest" href="assets/images/homepics/site.webmanifest?v=20260527" />
     <!-- Link to CSS -->
-    <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261118b">
+    <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261118e">
     <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
     <!-- Box icons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
@@ -725,14 +725,11 @@
                 <div class="artist-dir-head-meta">
                   <div class="artist-dir-head-name" id="artistDirHeadTitle">Select an artist</div>
                   <div class="artist-dir-head-sub" id="artistDirHeadSub">Select an artist on the left to inspect or edit metadata.</div>
-                  <div class="artist-dir-sync-badge" id="artistDirTop100SyncBadge" style="display: none;">
-                    <i class='bx bx-sync'></i> Synced with Top 100 Artists Grid
-                  </div>
                 </div>
               </div>
               <div class="artist-dir-head-actions">
                 <input type="file" id="artistDirPortraitFileInput" accept="image/*,.gif" style="display: none;">
-                <button type="button" id="artistDirPortraitUploadBtn" class="aero-command-btn" title="Upload portrait to Supabase artists bucket">
+                <button type="button" id="artistDirPortraitUploadBtn" class="aero-command-btn" title="Upload portrait to Cloudflare R2">
                   <i class='bx bx-upload'></i> <span>Portrait</span>
                 </button>
                 <button type="button" id="artistDirSaveBtn" class="artist-dir-save-btn">
@@ -744,21 +741,33 @@
             <div class="artist-dir-form-grid">
               <div class="artist-dir-field">
                 <label for="artistDirCanonicalInput">Canonical Artist Name</label>
-                <input type="text" id="artistDirCanonicalInput" class="sosa-search-input" placeholder="e.g. LOONA">
+                <div class="artist-dir-combo-wrap">
+                  <input type="text" id="artistDirCanonicalInput" class="sosa-search-input artist-dir-combo-input" placeholder="e.g. LOONA" autocomplete="off">
+                  <button type="button" class="artist-dir-combo-btn" aria-label="Show canonical artist options"><i class='bx bx-chevron-down'></i></button>
+                  <div id="artistDirCanonicalMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;"></div>
+                </div>
               </div>
 
               <div class="artist-dir-field">
                 <label for="artistDirNativeInput">Native Script / Original Writing <span class="artist-dir-hint-inline">(Display Only)</span></label>
-                <input type="text" id="artistDirNativeInput" class="sosa-search-input" placeholder="e.g. 이달의 소녀, フィッシュマンズ">
+                <div class="artist-dir-combo-wrap">
+                  <input type="text" id="artistDirNativeInput" class="sosa-search-input artist-dir-combo-input" placeholder="e.g. 이달의 소녀, フィッシュマンズ" autocomplete="off">
+                  <button type="button" class="artist-dir-combo-btn" aria-label="Show native script options"><i class='bx bx-chevron-down'></i></button>
+                  <div id="artistDirNativeMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;"></div>
+                </div>
               </div>
 
               <div class="artist-dir-field is-full">
                 <label>Merged Aliases &amp; Alternate Credits <span class="artist-dir-hint-inline">(Groups spins under Canonical)</span></label>
                 <div class="artist-dir-chip-editor">
                   <div class="artist-dir-chips" id="artistDirAliasesChips"></div>
-                  <div class="artist-dir-chip-add-row">
-                    <input type="text" id="artistDirAliasInput" class="artist-dir-chip-input" placeholder="Add alias (e.g. Devon Hendryx) and press Enter...">
-                    <button type="button" id="artistDirAliasAddBtn" class="artist-dir-mini-btn">Add</button>
+                  <div class="artist-dir-combo-wrap is-chip-combo">
+                    <div class="artist-dir-chip-add-row">
+                      <input type="text" id="artistDirAliasInput" class="artist-dir-chip-input" placeholder="Add alias (e.g. Devon Hendryx) and press Enter..." autocomplete="off">
+                      <button type="button" class="artist-dir-combo-btn is-inline" aria-label="Show alias options"><i class='bx bx-chevron-down'></i></button>
+                      <button type="button" id="artistDirAliasAddBtn" class="artist-dir-mini-btn">Add</button>
+                    </div>
+                    <div id="artistDirAliasMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;"></div>
                   </div>
                 </div>
               </div>
@@ -767,9 +776,13 @@
                 <label>Member Of (Groups / Collectives)</label>
                 <div class="artist-dir-chip-editor">
                   <div class="artist-dir-chips" id="artistDirMemberOfChips"></div>
-                  <div class="artist-dir-chip-add-row">
-                    <input type="text" id="artistDirMemberOfInput" list="artistDirKnownArtistsList" class="artist-dir-chip-input" placeholder="e.g. LOONA, OutKast...">
-                    <button type="button" id="artistDirMemberOfAddBtn" class="artist-dir-mini-btn">Add</button>
+                  <div class="artist-dir-combo-wrap is-chip-combo">
+                    <div class="artist-dir-chip-add-row">
+                      <input type="text" id="artistDirMemberOfInput" class="artist-dir-chip-input" placeholder="e.g. LOONA, OutKast..." autocomplete="off">
+                      <button type="button" class="artist-dir-combo-btn is-inline" aria-label="Show group options"><i class='bx bx-chevron-down'></i></button>
+                      <button type="button" id="artistDirMemberOfAddBtn" class="artist-dir-mini-btn">Add</button>
+                    </div>
+                    <div id="artistDirMemberOfMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;"></div>
                   </div>
                 </div>
               </div>
@@ -778,49 +791,86 @@
                 <label>Members / Solo Acts</label>
                 <div class="artist-dir-chip-editor">
                   <div class="artist-dir-chips" id="artistDirMembersChips"></div>
-                  <div class="artist-dir-chip-add-row">
-                    <input type="text" id="artistDirMembersInput" list="artistDirKnownArtistsList" class="artist-dir-chip-input" placeholder="e.g. Yves, Chuu...">
-                    <button type="button" id="artistDirMembersAddBtn" class="artist-dir-mini-btn">Add</button>
+                  <div class="artist-dir-combo-wrap is-chip-combo">
+                    <div class="artist-dir-chip-add-row">
+                      <input type="text" id="artistDirMembersInput" class="artist-dir-chip-input" placeholder="e.g. Yves, Chuu..." autocomplete="off">
+                      <button type="button" class="artist-dir-combo-btn is-inline" aria-label="Show member options"><i class='bx bx-chevron-down'></i></button>
+                      <button type="button" id="artistDirMembersAddBtn" class="artist-dir-mini-btn">Add</button>
+                    </div>
+                    <div id="artistDirMembersMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;"></div>
                   </div>
                 </div>
               </div>
 
               <div class="artist-dir-field">
-                <label for="artistDirKindInput">Artist Kind</label>
-                <select id="artistDirKindInput" class="sosa-search-input">
-                  <option value="">— Unspecified —</option>
-                  <option value="Solo">Solo</option>
-                  <option value="Group">Group</option>
-                  <option value="Duo">Duo</option>
-                  <option value="Subunit">Subunit</option>
-                  <option value="Collective">Collective</option>
-                </select>
+                <label for="artistDirKindBtn">Artist Kind</label>
+                <div class="artist-dir-combo-wrap is-select" id="artistDirKindCombo">
+                  <input type="hidden" id="artistDirKindInput" value="">
+                  <button type="button" id="artistDirKindBtn" class="sosa-search-input artist-dir-select-btn" aria-haspopup="listbox" aria-expanded="false">
+                    <span id="artistDirKindLabel">— Unspecified —</span>
+                    <i class='bx bx-chevron-down'></i>
+                  </button>
+                  <div id="artistDirKindMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;" role="listbox"></div>
+                </div>
               </div>
 
               <div class="artist-dir-field">
                 <label for="artistDirYearsInput">Active Years</label>
-                <input type="text" id="artistDirYearsInput" class="sosa-search-input" placeholder="e.g. 2016–2023 or 2018–present">
+                <div class="artist-dir-combo-wrap">
+                  <input type="text" id="artistDirYearsInput" class="sosa-search-input artist-dir-combo-input" placeholder="e.g. 2016–2023 or 2018–present" autocomplete="off">
+                  <button type="button" class="artist-dir-combo-btn" aria-label="Show active years options"><i class='bx bx-chevron-down'></i></button>
+                  <div id="artistDirYearsMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;"></div>
+                </div>
               </div>
 
               <div class="artist-dir-field is-full" id="artistDirParentGroupField" style="display: none;">
                 <label for="artistDirParentGroupInput">Parent Group <span class="artist-dir-hint-inline">(Subunit of — links back while keeping ratings separate)</span></label>
-                <input type="text" id="artistDirParentGroupInput" list="artistDirKnownArtistsList" class="sosa-search-input" placeholder="e.g. LOONA">
-              </div>
-
-              <div class="artist-dir-field">
-                <label for="artistDirCountryInput">Country</label>
-                <input type="text" id="artistDirCountryInput" list="artistDirCountryDatalist" class="sosa-search-input" placeholder="e.g. South Korea, United States">
-              </div>
-
-              <div class="artist-dir-field">
-                <label for="artistDirStateInput">State / Province</label>
-                <input type="text" id="artistDirStateInput" class="sosa-search-input" placeholder="e.g. California, Maryland, Seoul, Gyeonggi">
+                <div class="artist-dir-combo-wrap">
+                  <input type="text" id="artistDirParentGroupInput" class="sosa-search-input artist-dir-combo-input" placeholder="e.g. LOONA" autocomplete="off">
+                  <button type="button" class="artist-dir-combo-btn" aria-label="Show parent group options"><i class='bx bx-chevron-down'></i></button>
+                  <div id="artistDirParentGroupMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;"></div>
+                </div>
               </div>
 
               <div class="artist-dir-field is-full">
-                <label for="artistDirPortraitUrlInput">Portrait Image URL <span class="artist-dir-hint-inline">(Syncs with Top 100 Top Artists Grid)</span></label>
+                <div class="artist-dir-geo-grid">
+                  <div class="artist-dir-field">
+                    <label for="artistDirCountryInput">Country</label>
+                    <div class="artist-dir-combo-wrap">
+                      <input type="text" id="artistDirCountryInput" class="sosa-search-input artist-dir-combo-input" placeholder="e.g. United States" autocomplete="off">
+                      <button type="button" class="artist-dir-combo-btn" aria-label="Show country options"><i class='bx bx-chevron-down'></i></button>
+                      <div id="artistDirCountryMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;"></div>
+                    </div>
+                  </div>
+
+                  <div class="artist-dir-field">
+                    <label for="artistDirStateInput">State / Province</label>
+                    <div class="artist-dir-combo-wrap">
+                      <input type="text" id="artistDirStateInput" class="sosa-search-input artist-dir-combo-input" placeholder="e.g. New York, Gyeonggi" autocomplete="off">
+                      <button type="button" class="artist-dir-combo-btn" aria-label="Show state or province options"><i class='bx bx-chevron-down'></i></button>
+                      <div id="artistDirStateMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;"></div>
+                    </div>
+                  </div>
+
+                  <div class="artist-dir-field">
+                    <label for="artistDirCityInput">City</label>
+                    <div class="artist-dir-combo-wrap">
+                      <input type="text" id="artistDirCityInput" class="sosa-search-input artist-dir-combo-input" placeholder="e.g. New York City, Seoul" autocomplete="off">
+                      <button type="button" class="artist-dir-combo-btn" aria-label="Show city options"><i class='bx bx-chevron-down'></i></button>
+                      <div id="artistDirCityMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="artist-dir-field is-full">
+                <label for="artistDirPortraitUrlInput">Portrait Image URL</label>
                 <div class="artist-dir-url-row">
-                  <input type="url" id="artistDirPortraitUrlInput" class="sosa-search-input" placeholder="https://... (or upload Portrait above)">
+                  <div class="artist-dir-combo-wrap" style="flex: 1;">
+                    <input type="url" id="artistDirPortraitUrlInput" class="sosa-search-input artist-dir-combo-input" placeholder="https://... (or upload Portrait above)" autocomplete="off">
+                    <button type="button" class="artist-dir-combo-btn" aria-label="Show portrait image options"><i class='bx bx-chevron-down'></i></button>
+                    <div id="artistDirPortraitUrlMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;"></div>
+                  </div>
                   <button type="button" id="artistDirPortraitClearBtn" class="artist-dir-mini-btn" title="Clear custom portrait">Clear</button>
                 </div>
               </div>
@@ -838,20 +888,6 @@
           </div>
         </div>
       </div>
-
-      <datalist id="artistDirKnownArtistsList"></datalist>
-      <datalist id="artistDirCountryDatalist">
-        <option value="United States"></option>
-        <option value="South Korea"></option>
-        <option value="Japan"></option>
-        <option value="United Kingdom"></option>
-        <option value="Canada"></option>
-        <option value="China"></option>
-        <option value="France"></option>
-        <option value="Germany"></option>
-        <option value="Sweden"></option>
-        <option value="Australia"></option>
-      </datalist>
     </div>
   </div>
 
@@ -999,7 +1035,7 @@
   </nav>
 
   <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
-  <script src="assets/js/sosaspins.js?v=20261118g"></script>
+  <script src="assets/js/sosaspins.js?v=20261118i"></script>
   <script src="assets/js/dock.js?v=20261115c"></script>
   <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>
 </body>

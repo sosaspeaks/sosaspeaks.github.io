@@ -16212,25 +16212,6 @@ body.dark-mode .artist-dir-head-name {
   color: #64748b;
 }
 
-.artist-dir-sync-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 3px;
-  padding: 2px 7px;
-  border-radius: 999px;
-  font-size: 0.65rem;
-  font-weight: 700;
-  background: rgba(2, 132, 199, 0.12);
-  color: #0369a1;
-  border: 1px solid rgba(56, 189, 248, 0.35);
-}
-
-body.dark-mode .artist-dir-sync-badge {
-  background: rgba(14, 116, 144, 0.28);
-  color: #7dd3fc;
-}
-
 .artist-dir-head-actions {
   display: flex;
   align-items: center;
@@ -16260,6 +16241,12 @@ body.dark-mode .artist-dir-sync-badge {
 .artist-dir-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+
+.artist-dir-geo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px 14px;
 }
 
@@ -16363,6 +16350,146 @@ body.dark-mode .artist-dir-chip.is-rel {
   display: flex;
   gap: 6px;
   align-items: center;
+}
+
+.artist-dir-combo-wrap {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.artist-dir-combo-input {
+  padding-right: 28px !important;
+}
+
+.artist-dir-select-btn {
+  width: 100%;
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.artist-dir-select-btn i {
+  font-size: 0.95rem;
+  color: #059669;
+  flex-shrink: 0;
+  transition: transform 0.14s ease;
+}
+
+.artist-dir-combo-wrap.is-open .artist-dir-select-btn i,
+.artist-dir-combo-wrap.is-open .artist-dir-combo-btn i {
+  transform: rotate(180deg);
+}
+
+.artist-dir-combo-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #059669;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.95rem;
+  transition: background 0.14s ease;
+}
+
+.artist-dir-combo-btn:hover {
+  background: rgba(16, 185, 129, 0.14);
+}
+
+.artist-dir-combo-btn.is-inline {
+  position: static;
+  transform: none;
+  flex-shrink: 0;
+}
+
+body.dark-mode .artist-dir-select-btn i,
+body.dark-mode .artist-dir-combo-btn {
+  color: #6ee7b7;
+}
+
+body.dark-mode .artist-dir-combo-btn:hover {
+  background: rgba(52, 211, 153, 0.18);
+}
+
+.artist-dir-combo-menu {
+  z-index: 999999 !important;
+  max-height: 210px !important;
+}
+
+.artist-dir-combo-menu.is-dropup {
+  top: auto !important;
+  bottom: calc(100% + 4px) !important;
+}
+
+.artist-dir-combo-menu .aero-autocomplete-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.artist-dir-combo-sub {
+  font-size: 0.67rem;
+  font-weight: 600;
+  opacity: 0.72;
+  flex-shrink: 0;
+}
+
+body.dark-mode .artist-dir-combo-menu {
+  background: #0f1c18 !important;
+  border-color: rgba(52, 211, 153, 0.55) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55) !important;
+}
+
+body.dark-mode .artist-dir-combo-menu .aero-autocomplete-item {
+  color: #d1fae5 !important;
+}
+
+body.dark-mode .artist-dir-combo-menu .aero-autocomplete-item:hover,
+body.dark-mode .artist-dir-combo-menu .aero-autocomplete-item.active {
+  color: #ffffff !important;
+}
+
+body.dark-mode .artist-dir-window .sosa-search-input,
+body.dark-mode .artist-dir-window .artist-dir-select-btn {
+  background: rgba(15, 25, 22, 0.92) !important;
+  border-color: rgba(52, 211, 153, 0.28) !important;
+  color: #f1f5f9 !important;
+}
+
+body.dark-mode .artist-dir-window .sosa-search-input::placeholder {
+  color: #64748b !important;
+}
+
+body.dark-mode .artist-dir-window .sosa-search-input:focus,
+body.dark-mode .artist-dir-window .artist-dir-combo-wrap.is-open .artist-dir-select-btn {
+  background: #0a1411 !important;
+  border-color: #34d399 !important;
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.28) !important;
+}
+
+body.dark-mode .artist-dir-window .aero-command-btn {
+  background: rgba(20, 34, 29, 0.92) !important;
+  border-color: rgba(52, 211, 153, 0.3) !important;
+  color: #e2e8f0 !important;
+}
+
+body.dark-mode .artist-dir-window .aero-command-btn:hover {
+  background: rgba(16, 185, 129, 0.22) !important;
+  border-color: #34d399 !important;
+  color: #ffffff !important;
 }
 
 .artist-dir-chip-input {
@@ -16499,7 +16626,8 @@ body.dark-mode .artist-quick-rel-chip {
     max-height: 220px;
   }
 
-  .artist-dir-form-grid {
+  .artist-dir-form-grid,
+  .artist-dir-geo-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 }

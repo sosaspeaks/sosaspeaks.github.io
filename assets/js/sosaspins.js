@@ -183,6 +183,7 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
             if (prof && typeof prof === "object") {
               loadedLocal[k] = {
                 ...prof,
+                city: prof.city || "",
                 portrait_url: prof.portrait_url ? normalizeLegacyStorageUrl(prof.portrait_url) : ""
               };
             }
@@ -212,6 +213,7 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
               active_years: row.active_years || "",
               country: row.country || "",
               state_province: row.state_province || "",
+              city: row.city || "",
               portrait_url: row.portrait_url ? normalizeLegacyStorageUrl(row.portrait_url) : "",
               updated_at: row.updated_at || null
             };
@@ -245,6 +247,7 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
       active_years: record.active_years ? String(record.active_years).trim() : null,
       country: record.country ? String(record.country).trim() : null,
       state_province: record.state_province ? String(record.state_province).trim() : null,
+      city: record.city ? String(record.city).trim() : null,
       portrait_url: record.portrait_url ? normalizeLegacyStorageUrl(record.portrait_url) : null,
       updated_at: new Date().toISOString()
     };
@@ -267,6 +270,16 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
         if (!error) {
           artistProfilesTableAvailable = true;
           return { synced: true };
+        }
+        // Retry without `city` if sql/014_artist_city.sql hasn't been executed in Supabase yet
+        if (String(error.message || "").toLowerCase().includes("city")) {
+          const { city: _droppedCity, ...legacyPayload } = payload;
+          const retry = await supabaseClient
+            .from("artist_profiles")
+            .upsert(legacyPayload, { onConflict: "canonical_artist" });
+          if (!retry.error) {
+            return { synced: true, partialCityMissing: true };
+          }
         }
         console.error("Supabase artist_profiles upsert failed:", error);
         return { synced: false, error: error.message || "Supabase upsert error." };
@@ -6634,7 +6647,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
     const rankBadge = resolvedRank ? `<div class="top100-detail-rank-badge artist-quick-rank-pill"><i class='bx bxs-award'></i> Rank #${resolvedRank}</div>` : "";
     const nativeHtml = profile.native_name ? `<span class="artist-quick-native">· ${escapeHtml(profile.native_name)}</span>` : "";
 
-    const originLocation = [profile.state_province, profile.country].filter(Boolean).join(", ");
+    const originLocation = [profile.city, profile.state_province, profile.country].filter(Boolean).join(", ");
     const metaChips = [];
     if (profile.artist_kind) metaChips.push(`<span class="artist-quick-meta-chip">${escapeHtml(profile.artist_kind)}</span>`);
     if (profile.active_years) metaChips.push(`<span class="artist-quick-meta-chip">${escapeHtml(profile.active_years)}</span>`);
@@ -9673,12 +9686,11 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     const addNewBtn = document.getElementById("artistDirNewBtn");
     const filterTabs = document.querySelectorAll(".artist-dir-tab[data-dir-filter]");
     const countAllEl = document.getElementById("dirCountAll");
-    const knownArtistsDatalist = document.getElementById("artistDirKnownArtistsList");
+    const editorEl = document.getElementById("artistDirEditor");
 
     const portraitImg = document.getElementById("artistDirPortraitImg");
     const headTitleEl = document.getElementById("artistDirHeadTitle");
     const headSubEl = document.getElementById("artistDirHeadSub");
-    const top100SyncBadge = document.getElementById("artistDirTop100SyncBadge");
     const portraitFileInput = document.getElementById("artistDirPortraitFileInput");
     const portraitUploadBtn = document.getElementById("artistDirPortraitUploadBtn");
     const portraitUrlInput = document.getElementById("artistDirPortraitUrlInput");
@@ -9688,11 +9700,16 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     const canonicalInput = document.getElementById("artistDirCanonicalInput");
     const nativeInput = document.getElementById("artistDirNativeInput");
     const kindInput = document.getElementById("artistDirKindInput");
+    const kindComboWrap = document.getElementById("artistDirKindCombo");
+    const kindBtn = document.getElementById("artistDirKindBtn");
+    const kindLabelEl = document.getElementById("artistDirKindLabel");
+    const kindMenuEl = document.getElementById("artistDirKindMenu");
     const parentGroupField = document.getElementById("artistDirParentGroupField");
     const parentGroupInput = document.getElementById("artistDirParentGroupInput");
     const yearsInput = document.getElementById("artistDirYearsInput");
     const countryInput = document.getElementById("artistDirCountryInput");
     const stateInput = document.getElementById("artistDirStateInput");
+    const cityInput = document.getElementById("artistDirCityInput");
 
     const aliasesChipsEl = document.getElementById("artistDirAliasesChips");
     const aliasInput = document.getElementById("artistDirAliasInput");
@@ -9718,6 +9735,37 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     let draftMemberOf = [];
     let draftMembers = [];
     let lastSyncedParentGroup = "";
+    let cachedDirIndex = [];
+
+    const KIND_OPTIONS = [
+      { value: "", label: "— Unspecified —" },
+      { value: "Solo", label: "Solo" },
+      { value: "Group", label: "Group" },
+      { value: "Duo", label: "Duo" },
+      { value: "Subunit", label: "Subunit" },
+      { value: "Collective", label: "Collective" }
+    ];
+
+    function setKindFieldValue(val, emitChange = false) {
+      const clean = String(val || "");
+      const matched = KIND_OPTIONS.find(o => o.value.toLowerCase() === clean.toLowerCase()) || KIND_OPTIONS[0];
+      if (kindInput) kindInput.value = matched.value;
+      if (kindLabelEl) kindLabelEl.textContent = matched.label;
+      if (emitChange && kindInput) {
+        kindInput.dispatchEvent(new Event("change"));
+      }
+    }
+
+    function closeAllDirDropdowns(exceptWrap = null) {
+      dirModal.querySelectorAll(".artist-dir-combo-wrap.is-open").forEach(wrap => {
+        if (wrap === exceptWrap) return;
+        wrap.classList.remove("is-open");
+        const menu = wrap.querySelector(".artist-dir-combo-menu");
+        if (menu) menu.style.display = "none";
+        const trigger = wrap.querySelector("[aria-expanded]");
+        if (trigger) trigger.setAttribute("aria-expanded", "false");
+      });
+    }
 
     function buildArtistDirectoryIndex() {
       const map = {};
@@ -9739,6 +9787,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
             active_years: prof.active_years || "",
             country: prof.country || "",
             state_province: prof.state_province || "",
+            city: prof.city || "",
             portrait_url: getSyncedArtistPortrait(canon, curatedItem) || "",
             inTop100: !!curatedRank,
             spinsCount: 0,
@@ -9811,7 +9860,8 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       const yearsTxt = yearsInput ? yearsInput.value.trim() : "";
       const countryTxt = countryInput ? countryInput.value.trim() : "";
       const stateTxt = stateInput ? stateInput.value.trim() : "";
-      const locTxt = [stateTxt, countryTxt].filter(Boolean).join(", ");
+      const cityTxt = cityInput ? cityInput.value.trim() : "";
+      const locTxt = [cityTxt, stateTxt, countryTxt].filter(Boolean).join(", ");
       const urlVal = portraitUrlInput ? portraitUrlInput.value.trim() : "";
 
       if (portraitImg) {
@@ -9879,7 +9929,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
 
       if (canonicalInput) canonicalInput.value = rec.canonical || "";
       if (nativeInput) nativeInput.value = rec.native_name || "";
-      if (kindInput) kindInput.value = rec.artist_kind || "";
+      setKindFieldValue(rec.artist_kind || "", false);
       if (parentGroupInput) {
         const initParent = (rec.artist_kind === "Subunit" && rec.member_of && rec.member_of.length) ? rec.member_of[0] : "";
         parentGroupInput.value = initParent;
@@ -9889,14 +9939,12 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       if (yearsInput) yearsInput.value = rec.active_years || "";
       if (countryInput) countryInput.value = rec.country || "";
       if (stateInput) stateInput.value = rec.state_province || "";
+      if (cityInput) cityInput.value = rec.city || "";
       if (portraitUrlInput) portraitUrlInput.value = rec.portrait_url || "";
       if (saveStatusEl) saveStatusEl.textContent = "";
 
       if (headSubEl) {
         headSubEl.textContent = `Canonical Record • ${rec.spinsCount} spin${rec.spinsCount === 1 ? "" : "s"} • ${rec.backlogCount} backlog item${rec.backlogCount === 1 ? "" : "s"}`;
-      }
-      if (top100SyncBadge) {
-        top100SyncBadge.style.display = rec.inTop100 ? "inline-flex" : "none";
       }
 
       const refreshChips = () => {
@@ -9910,11 +9958,8 @@ if (addTrackRatingRowBtn && trackRatingsList) {
 
     function renderArtistDirectoryList() {
       const index = buildArtistDirectoryIndex();
+      cachedDirIndex = index;
       if (countAllEl) countAllEl.textContent = String(index.length);
-
-      if (knownArtistsDatalist) {
-        knownArtistsDatalist.innerHTML = index.map(r => `<option value="${escapeHtml(r.canonical)}"></option>`).join("");
-      }
 
       const q = searchInput ? searchInput.value.trim().toLowerCase() : "";
       const filtered = index.filter(rec => {
@@ -9927,7 +9972,8 @@ if (addTrackRatingRowBtn && trackRatingsList) {
           (rec.native_name && rec.native_name.toLowerCase().includes(q)) ||
           rec.aliases.some(a => a.toLowerCase().includes(q)) ||
           (rec.country && rec.country.toLowerCase().includes(q)) ||
-          (rec.state_province && rec.state_province.toLowerCase().includes(q))
+          (rec.state_province && rec.state_province.toLowerCase().includes(q)) ||
+          (rec.city && rec.city.toLowerCase().includes(q))
         );
       });
 
@@ -9948,7 +9994,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         if (rec.native_name) subParts.push(rec.native_name);
         if (rec.aliases.length) subParts.push(`${rec.aliases.length} alias${rec.aliases.length === 1 ? "" : "es"}`);
         if (rec.member_of.length) subParts.push(`${rec.artist_kind === "Subunit" ? "Subunit of" : "Member of"} ${rec.member_of[0]}`);
-        const loc = [rec.state_province, rec.country].filter(Boolean).join(", ");
+        const loc = [rec.city, rec.state_province, rec.country].filter(Boolean).join(", ");
         if (!subParts.length && loc) subParts.push(loc);
 
         return `
@@ -9982,33 +10028,498 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         renderChipList(chipsEl, getList(), isRelation, redraw);
         updateDraftPreview();
       };
-      const addVal = () => {
-        if (!inputEl) return;
-        const val = inputEl.value.trim();
+      const addVal = (overrideVal = null) => {
+        if (!inputEl && overrideVal === null) return;
+        const val = (overrideVal !== null ? String(overrideVal) : inputEl.value).trim();
         if (!val) return;
         const targetList = getList();
         if (!targetList.some(x => x.toLowerCase() === val.toLowerCase())) {
           targetList.push(val);
         }
-        inputEl.value = "";
+        if (inputEl && overrideVal === null) inputEl.value = "";
+        else if (inputEl) inputEl.value = "";
         redraw();
       };
-      if (btnEl) btnEl.addEventListener("click", addVal);
+      if (btnEl) btnEl.addEventListener("click", () => addVal());
       if (inputEl) {
         inputEl.addEventListener("keydown", (e) => {
+          const wrap = inputEl.closest(".artist-dir-combo-wrap");
+          const menu = wrap && wrap.querySelector(".artist-dir-combo-menu");
+          if (e.key === "Enter" && menu && menu.style.display !== "none" && menu.querySelector(".aero-autocomplete-item.active")) {
+            return; // Combo menu handler consumes Enter to pick highlighted item
+          }
           if (e.key === "Enter") {
             e.preventDefault();
             addVal();
           }
         });
       }
+      return { addVal };
     }
 
-    bindChipInput(aliasInput, aliasAddBtn, () => draftAliases, aliasesChipsEl, false);
-    bindChipInput(memberOfInput, memberOfAddBtn, () => draftMemberOf, memberOfChipsEl, true);
-    bindChipInput(membersInput, membersAddBtn, () => draftMembers, membersChipsEl, true);
+    const aliasCtrl = bindChipInput(aliasInput, aliasAddBtn, () => draftAliases, aliasesChipsEl, false);
+    const memberOfCtrl = bindChipInput(memberOfInput, memberOfAddBtn, () => draftMemberOf, memberOfChipsEl, true);
+    const membersCtrl = bindChipInput(membersInput, membersAddBtn, () => draftMembers, membersChipsEl, true);
 
-    [canonicalInput, nativeInput, kindInput, parentGroupInput, yearsInput, countryInput, stateInput, portraitUrlInput].forEach(el => {
+    function attachAeroComboDropdown({ inputEl, menuEl, triggerEl, getItems, onSelect, filterByInput = true }) {
+      const targetAnchor = triggerEl || inputEl;
+      if (!targetAnchor || !menuEl) return;
+      const wrap = targetAnchor.closest(".artist-dir-combo-wrap");
+      const toggleBtn = triggerEl || (wrap && wrap.querySelector(".artist-dir-combo-btn"));
+      let activeIdx = -1;
+      let currentItems = [];
+
+      const close = () => {
+        menuEl.style.display = "none";
+        menuEl.classList.remove("is-dropup");
+        if (wrap) wrap.classList.remove("is-open");
+        if (triggerEl) triggerEl.setAttribute("aria-expanded", "false");
+        activeIdx = -1;
+      };
+
+      const render = (showAll = false) => {
+        const rawQ = (!showAll && filterByInput && inputEl) ? inputEl.value.trim().toLowerCase() : "";
+        const allItems = (getItems() || []).map(item =>
+          typeof item === "string" ? { value: item, label: item, sub: "" } : item
+        );
+        currentItems = rawQ
+          ? allItems.filter(it =>
+              String(it.label || it.value).toLowerCase().includes(rawQ) ||
+              String(it.sub || "").toLowerCase().includes(rawQ)
+            )
+          : allItems;
+        currentItems = currentItems.slice(0, 45);
+
+        if (!currentItems.length) {
+          close();
+          return;
+        }
+
+        menuEl.innerHTML = currentItems.map((it, idx) => `
+          <div class="aero-autocomplete-item${idx === activeIdx ? " active" : ""}" data-idx="${idx}" role="option">
+            <span>${escapeHtml(it.label || it.value)}</span>
+            ${it.sub ? `<span class="artist-dir-combo-sub">${escapeHtml(it.sub)}</span>` : ""}
+          </div>
+        `).join("");
+
+        menuEl.classList.remove("is-dropup");
+        menuEl.style.display = "block";
+        if (wrap) {
+          wrap.classList.add("is-open");
+          const wrapRect = wrap.getBoundingClientRect();
+          const boundBottom = editorEl ? editorEl.getBoundingClientRect().bottom : window.innerHeight;
+          if (wrapRect.bottom + Math.min(menuEl.scrollHeight || 190, 210) > boundBottom - 8 && wrapRect.top > 220) {
+            menuEl.classList.add("is-dropup");
+          }
+        }
+        if (triggerEl) triggerEl.setAttribute("aria-expanded", "true");
+
+        menuEl.querySelectorAll(".aero-autocomplete-item").forEach(el => {
+          el.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            const chosen = currentItems[Number(el.getAttribute("data-idx"))];
+            if (chosen) {
+              close();
+              onSelect(chosen);
+            }
+          });
+        });
+      };
+
+      const toggleMenu = (showAll = true) => {
+        if (menuEl.style.display !== "none") {
+          close();
+        } else {
+          closeAllDirDropdowns(wrap);
+          render(showAll);
+        }
+      };
+
+      if (inputEl) {
+        inputEl.addEventListener("focus", () => {
+          closeAllDirDropdowns(wrap);
+          render(true);
+        });
+        inputEl.addEventListener("input", () => render(false));
+      }
+
+      if (toggleBtn) {
+        toggleBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleMenu(true);
+        });
+      }
+
+      const keyTarget = triggerEl || inputEl;
+      if (keyTarget) {
+        keyTarget.addEventListener("keydown", (e) => {
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            if (menuEl.style.display === "none") {
+              closeAllDirDropdowns(wrap);
+              render(true);
+            } else if (currentItems.length) {
+              activeIdx = (activeIdx + 1) % currentItems.length;
+              render(true);
+              const actEl = menuEl.querySelector(".aero-autocomplete-item.active");
+              if (actEl) actEl.scrollIntoView({ block: "nearest" });
+            }
+          } else if (e.key === "ArrowUp") {
+            if (menuEl.style.display !== "none" && currentItems.length) {
+              e.preventDefault();
+              activeIdx = (activeIdx - 1 + currentItems.length) % currentItems.length;
+              render(true);
+              const actEl = menuEl.querySelector(".aero-autocomplete-item.active");
+              if (actEl) actEl.scrollIntoView({ block: "nearest" });
+            }
+          } else if (e.key === "Enter") {
+            if (menuEl.style.display !== "none" && activeIdx >= 0 && currentItems[activeIdx]) {
+              e.preventDefault();
+              const chosen = currentItems[activeIdx];
+              close();
+              onSelect(chosen);
+            }
+          } else if (e.key === "Escape" && menuEl.style.display !== "none") {
+            e.preventDefault();
+            e.stopPropagation();
+            close();
+          }
+        });
+      }
+    }
+
+    const PRESET_COUNTRIES = [
+      "United States", "South Korea", "Japan", "United Kingdom", "Canada",
+      "France", "Germany", "Sweden", "Iceland", "Australia",
+      "Brazil", "Mexico", "Nigeria", "Norway", "Ireland", "Taiwan", "China", "Spain", "Italy"
+    ];
+    const PRESET_STATES_BY_COUNTRY = {
+      "united states": ["New York", "California", "Georgia", "Illinois", "Maryland", "Texas", "Washington", "Massachusetts", "Tennessee", "Florida", "New Jersey", "Pennsylvania", "Michigan", "Ohio"],
+      "south korea": ["Seoul", "Gyeonggi", "Busan", "Incheon", "Daegu"],
+      "japan": ["Tokyo", "Osaka", "Kanagawa", "Kyoto", "Fukuoka"],
+      "united kingdom": ["Greater London", "Greater Manchester", "Bristol", "Merseyside", "Scotland"],
+      "canada": ["Ontario", "Quebec", "British Columbia", "Alberta"],
+      "sweden": ["Södermanland", "Uppland", "Västra Götaland"],
+      "iceland": ["Capital Region"]
+    };
+    const PRESET_CITIES_BY_COUNTRY = {
+      "united states": ["New York City", "Los Angeles", "Chicago", "Atlanta", "Detroit", "Baltimore", "Houston", "Seattle", "Milton"],
+      "south korea": ["Seoul", "Busan", "Incheon", "Suwon", "Daegu"],
+      "japan": ["Tokyo", "Osaka", "Yokohama", "Kyoto", "Fukuoka"],
+      "united kingdom": ["London", "Manchester", "Bristol", "Liverpool", "Glasgow"],
+      "canada": ["Toronto", "Montreal", "Vancouver", "Calgary"],
+      "sweden": ["Stockholm", "Gothenburg"],
+      "iceland": ["Reykjavík"]
+    };
+    const PRESET_YEARS = [
+      "2020–present", "2018–present", "2016–2023", "2016–present", "2015–present",
+      "2010–present", "2000–present", "1990s–present", "1980s–present"
+    ];
+
+    const getArtistGroupOptions = (preferKinds = []) => {
+      const idx = cachedDirIndex.length ? cachedDirIndex : buildArtistDirectoryIndex();
+      const sorted = [...idx].sort((a, b) => {
+        const pa = preferKinds.includes((a.artist_kind || "").toLowerCase()) ? 0 : 1;
+        const pb = preferKinds.includes((b.artist_kind || "").toLowerCase()) ? 0 : 1;
+        if (pa !== pb) return pa - pb;
+        return b.spinsCount - a.spinsCount || a.canonical.localeCompare(b.canonical);
+      });
+      return sorted
+        .filter(r => !selectedCanonical || r.canonical.toLowerCase() !== selectedCanonical.toLowerCase())
+        .map(r => ({
+          value: r.canonical,
+          label: r.canonical,
+          sub: [r.artist_kind, r.spinsCount ? `${r.spinsCount} spins` : ""].filter(Boolean).join(" • ")
+        }));
+    };
+
+    // Custom Aero Select for Artist Kind
+    attachAeroComboDropdown({
+      triggerEl: kindBtn,
+      menuEl: kindMenuEl,
+      filterByInput: false,
+      getItems: () => KIND_OPTIONS.map(o => ({
+        value: o.value,
+        label: o.label,
+        sub: o.value === "Subunit" ? "Links to parent group" : ""
+      })),
+      onSelect: (chosen) => setKindFieldValue(chosen.value, true)
+    });
+
+    // Custom Aero Dropdowns for every remaining field in Artist Directory
+    attachAeroComboDropdown({
+      inputEl: canonicalInput,
+      menuEl: document.getElementById("artistDirCanonicalMenu"),
+      getItems: () => {
+        const idx = cachedDirIndex.length ? cachedDirIndex : buildArtistDirectoryIndex();
+        return idx.map(r => ({
+          value: r.canonical,
+          label: r.canonical,
+          sub: r.native_name || `${r.spinsCount} spins`
+        }));
+      },
+      onSelect: (chosen) => {
+        const idx = cachedDirIndex.length ? cachedDirIndex : buildArtistDirectoryIndex();
+        const found = idx.find(r => r.canonical.toLowerCase() === chosen.value.toLowerCase());
+        if (found) {
+          populateEditorFromRecord(found);
+          renderArtistDirectoryList();
+        } else if (canonicalInput) {
+          canonicalInput.value = chosen.value;
+          updateDraftPreview();
+        }
+      }
+    });
+
+    attachAeroComboDropdown({
+      inputEl: nativeInput,
+      menuEl: document.getElementById("artistDirNativeMenu"),
+      getItems: () => {
+        const out = new Map();
+        const curName = (canonicalInput?.value || selectedCanonical || "").trim().toLowerCase();
+        [...(allEntries || []), ...(backlogTagEntries || [])].forEach(item => {
+          const raw = String(item?.artist || "").trim();
+          if (raw && /[^\u0000-\u007f]/.test(raw) && raw.toLowerCase().includes(curName) && !out.has(raw.toLowerCase())) {
+            out.set(raw.toLowerCase(), { value: raw, label: raw, sub: "From catalog" });
+          }
+        });
+        Object.values(artistProfilesMap || {}).forEach(p => {
+          const nn = String(p?.native_name || "").trim();
+          if (nn && !out.has(nn.toLowerCase())) {
+            out.set(nn.toLowerCase(), { value: nn, label: nn, sub: p.canonical_artist });
+          }
+        });
+        return Array.from(out.values());
+      },
+      onSelect: (chosen) => {
+        if (nativeInput) nativeInput.value = chosen.value;
+        updateDraftPreview();
+      }
+    });
+
+    attachAeroComboDropdown({
+      inputEl: aliasInput,
+      menuEl: document.getElementById("artistDirAliasMenu"),
+      getItems: () => {
+        const seen = new Set(draftAliases.map(a => a.toLowerCase()));
+        const curCanon = (canonicalInput?.value || selectedCanonical || "").trim().toLowerCase();
+        if (curCanon) seen.add(curCanon);
+        const rawCredits = [];
+        [...(allEntries || []), ...(backlogTagEntries || [])].forEach(item => {
+          if (!item?.artist) return;
+          splitArtistCredits(item.artist).forEach(credit => {
+            const k = credit.toLowerCase();
+            if (!seen.has(k)) {
+              seen.add(k);
+              rawCredits.push({ value: credit, label: credit, sub: "Spin credit" });
+            }
+          });
+        });
+        rawCredits.sort((a, b) => {
+          const ma = curCanon && a.value.toLowerCase().includes(curCanon) ? 0 : 1;
+          const mb = curCanon && b.value.toLowerCase().includes(curCanon) ? 0 : 1;
+          return ma - mb || a.value.localeCompare(b.value);
+        });
+        return rawCredits;
+      },
+      onSelect: (chosen) => aliasCtrl.addVal(chosen.value)
+    });
+
+    attachAeroComboDropdown({
+      inputEl: memberOfInput,
+      menuEl: document.getElementById("artistDirMemberOfMenu"),
+      getItems: () => getArtistGroupOptions(["group", "collective"]),
+      onSelect: (chosen) => memberOfCtrl.addVal(chosen.value)
+    });
+
+    attachAeroComboDropdown({
+      inputEl: membersInput,
+      menuEl: document.getElementById("artistDirMembersMenu"),
+      getItems: () => getArtistGroupOptions(["solo", "subunit"]),
+      onSelect: (chosen) => membersCtrl.addVal(chosen.value)
+    });
+
+    attachAeroComboDropdown({
+      inputEl: parentGroupInput,
+      menuEl: document.getElementById("artistDirParentGroupMenu"),
+      getItems: () => getArtistGroupOptions(["group", "collective"]),
+      onSelect: (chosen) => {
+        if (parentGroupInput) parentGroupInput.value = chosen.value;
+        syncParentGroupIntoMemberOf(true);
+      }
+    });
+
+    attachAeroComboDropdown({
+      inputEl: yearsInput,
+      menuEl: document.getElementById("artistDirYearsMenu"),
+      getItems: () => {
+        const seen = new Set();
+        const items = [];
+        Object.values(artistProfilesMap || {}).forEach(p => {
+          const y = String(p?.active_years || "").trim();
+          if (y && !seen.has(y.toLowerCase())) {
+            seen.add(y.toLowerCase());
+            items.push({ value: y, label: y, sub: "Saved" });
+          }
+        });
+        PRESET_YEARS.forEach(y => {
+          if (!seen.has(y.toLowerCase())) {
+            seen.add(y.toLowerCase());
+            items.push({ value: y, label: y, sub: "Preset" });
+          }
+        });
+        return items;
+      },
+      onSelect: (chosen) => {
+        if (yearsInput) yearsInput.value = chosen.value;
+        updateDraftPreview();
+      }
+    });
+
+    attachAeroComboDropdown({
+      inputEl: countryInput,
+      menuEl: document.getElementById("artistDirCountryMenu"),
+      getItems: () => {
+        const seen = new Set();
+        const items = [];
+        Object.values(artistProfilesMap || {}).forEach(p => {
+          const c = String(p?.country || "").trim();
+          if (c && !seen.has(c.toLowerCase())) {
+            seen.add(c.toLowerCase());
+            items.push({ value: c, label: c, sub: "Saved" });
+          }
+        });
+        PRESET_COUNTRIES.forEach(c => {
+          if (!seen.has(c.toLowerCase())) {
+            seen.add(c.toLowerCase());
+            items.push({ value: c, label: c, sub: "" });
+          }
+        });
+        return items;
+      },
+      onSelect: (chosen) => {
+        if (countryInput) countryInput.value = chosen.value;
+        updateDraftPreview();
+      }
+    });
+
+    attachAeroComboDropdown({
+      inputEl: stateInput,
+      menuEl: document.getElementById("artistDirStateMenu"),
+      getItems: () => {
+        const curCountry = (countryInput?.value || "").trim().toLowerCase();
+        const seen = new Set();
+        const items = [];
+        Object.values(artistProfilesMap || {}).forEach(p => {
+          const st = String(p?.state_province || "").trim();
+          const pCountry = String(p?.country || "").trim().toLowerCase();
+          if (st && (!curCountry || pCountry === curCountry) && !seen.has(st.toLowerCase())) {
+            seen.add(st.toLowerCase());
+            items.push({ value: st, label: st, sub: p.country || "Saved" });
+          }
+        });
+        const countryRegions = PRESET_STATES_BY_COUNTRY[curCountry] || [];
+        countryRegions.forEach(st => {
+          if (!seen.has(st.toLowerCase())) {
+            seen.add(st.toLowerCase());
+            items.push({ value: st, label: st, sub: countryInput?.value.trim() || "" });
+          }
+        });
+        if (!curCountry) {
+          Object.values(PRESET_STATES_BY_COUNTRY).flat().forEach(st => {
+            if (!seen.has(st.toLowerCase())) {
+              seen.add(st.toLowerCase());
+              items.push({ value: st, label: st, sub: "" });
+            }
+          });
+        }
+        return items;
+      },
+      onSelect: (chosen) => {
+        if (stateInput) stateInput.value = chosen.value;
+        updateDraftPreview();
+      }
+    });
+
+    attachAeroComboDropdown({
+      inputEl: cityInput,
+      menuEl: document.getElementById("artistDirCityMenu"),
+      getItems: () => {
+        const curCountry = (countryInput?.value || "").trim().toLowerCase();
+        const curState = (stateInput?.value || "").trim().toLowerCase();
+        const seen = new Set();
+        const items = [];
+        Object.values(artistProfilesMap || {}).forEach(p => {
+          const ct = String(p?.city || "").trim();
+          const pCountry = String(p?.country || "").trim().toLowerCase();
+          const pState = String(p?.state_province || "").trim().toLowerCase();
+          const matchesLoc = (!curCountry || pCountry === curCountry) && (!curState || pState === curState);
+          if (ct && matchesLoc && !seen.has(ct.toLowerCase())) {
+            seen.add(ct.toLowerCase());
+            items.push({ value: ct, label: ct, sub: p.state_province || p.country || "Saved" });
+          }
+        });
+        const countryCities = PRESET_CITIES_BY_COUNTRY[curCountry] || [];
+        countryCities.forEach(ct => {
+          if (!seen.has(ct.toLowerCase())) {
+            seen.add(ct.toLowerCase());
+            items.push({ value: ct, label: ct, sub: countryInput?.value.trim() || "" });
+          }
+        });
+        if (!curCountry) {
+          Object.values(PRESET_CITIES_BY_COUNTRY).flat().forEach(ct => {
+            if (!seen.has(ct.toLowerCase())) {
+              seen.add(ct.toLowerCase());
+              items.push({ value: ct, label: ct, sub: "" });
+            }
+          });
+        }
+        return items;
+      },
+      onSelect: (chosen) => {
+        if (cityInput) cityInput.value = chosen.value;
+        updateDraftPreview();
+      }
+    });
+
+    attachAeroComboDropdown({
+      inputEl: portraitUrlInput,
+      menuEl: document.getElementById("artistDirPortraitUrlMenu"),
+      getItems: () => {
+        const curCanon = (canonicalInput?.value || selectedCanonical || "").trim();
+        const seen = new Set();
+        const items = [];
+        const curatedRank = findTopArtistCuratedRank(curCanon);
+        const curatedImg = curatedRank && topArtistsCuratedState[curatedRank]?.custom_image;
+        if (curatedImg) {
+          const clean = normalizeLegacyStorageUrl(curatedImg);
+          seen.add(clean);
+          items.push({ value: clean, label: "Top Artists Portrait", sub: `#${curatedRank}` });
+        }
+        (allEntries || []).forEach(spin => {
+          if (!spin.cover_url || !spin.artist) return;
+          const matches = splitArtistCredits(spin.artist).some(c => isArtistInGroup(c, curCanon));
+          if (matches && !seen.has(spin.cover_url)) {
+            seen.add(spin.cover_url);
+            items.push({ value: spin.cover_url, label: spin.title || "Album Cover", sub: spin.log_date || "Spin art" });
+          }
+        });
+        return items;
+      },
+      onSelect: (chosen) => {
+        if (portraitUrlInput) portraitUrlInput.value = chosen.value;
+        updateDraftPreview();
+      }
+    });
+
+    dirModal.addEventListener("click", (e) => {
+      if (!e.target.closest(".artist-dir-combo-wrap")) {
+        closeAllDirDropdowns();
+      }
+    });
+
+    [canonicalInput, nativeInput, kindInput, parentGroupInput, yearsInput, countryInput, stateInput, cityInput, portraitUrlInput].forEach(el => {
       if (el) el.addEventListener("input", updateDraftPreview);
     });
     if (kindInput) {
@@ -10078,6 +10589,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
           active_years: "",
           country: "",
           state_province: "",
+          city: "",
           portrait_url: "",
           inTop100: !!findTopArtistCuratedRank(clean),
           spinsCount: 0,
@@ -10129,6 +10641,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
             active_years: yearsInput ? yearsInput.value.trim() : "",
             country: countryInput ? countryInput.value.trim() : "",
             state_province: stateInput ? stateInput.value.trim() : "",
+            city: cityInput ? cityInput.value.trim() : "",
             portrait_url: portraitUrl || null
           });
 
@@ -10140,7 +10653,9 @@ if (addTrackRatingRowBtn && trackRatingsList) {
           renderArtistDirectoryList();
 
           if (saveStatusEl) {
-            if (res.synced) {
+            if (res.synced && res.partialCityMissing) {
+              saveStatusEl.textContent = "Saved (run SQL 014 for City)";
+            } else if (res.synced) {
               saveStatusEl.textContent = syncedTop100 ? "Saved & Synced (Top 100)" : "Saved to Supabase";
             } else {
               saveStatusEl.textContent = `Save failed (${res.error || "local only"})`;
@@ -10190,6 +10705,11 @@ if (addTrackRatingRowBtn && trackRatingsList) {
 
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && dirModal.style.display !== "none") {
+        const openWrap = dirModal.querySelector(".artist-dir-combo-wrap.is-open");
+        if (openWrap) {
+          closeAllDirDropdowns();
+          return;
+        }
         window.closeArtistDirectoryModal();
       }
     });
