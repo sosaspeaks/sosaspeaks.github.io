@@ -1,6 +1,11 @@
 document.addEventListener("DOMContentLoaded", async () => {
   const SUPABASE_URL = "https://gxgfuomkjrhixcjfvhvj.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_tgeBo35B4k__uyfMyaxXnA_O5KUKlL7";
+  const R2_UPLOAD_ENDPOINT = localStorage.getItem("r2_upload_endpoint") || "https://upload.sosaspeaks.org/upload";
+  function isHostedAssetUrl(url) {
+    const u = String(url || "").trim();
+    return u.includes("assets.sosaspeaks.org") || u.includes("supabase.co/storage");
+  }
   const LASTFM_API_KEY = localStorage.getItem("lastfm_api_key") || "54dae88eb8fc817f7745c41968fca582";
 
   let sb = window.supabaseClient;
@@ -1637,38 +1642,43 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // Cover Cloud Upload Helper
+  // Cover Cloud Upload Helper (Cloudflare R2 via Worker)
   async function uploadExternalCoverToSupabase(imageUrl, artist, title) {
-    if (!imageUrl || !imageUrl.startsWith("http") || imageUrl.includes("supabase.co")) {
+    if (!imageUrl || !imageUrl.startsWith("http") || isHostedAssetUrl(imageUrl)) {
       return imageUrl;
     }
 
     try {
-      const res = await fetch(imageUrl);
-      if (!res.ok) throw new Error(`HTTP Error fetching image: ${res.status}`);
-      const blob = await res.blob();
-
-      const cleanArtist = (artist || "unknown").toLowerCase().replace(/[^a-z0-9]/g, "_");
-      const cleanTitle = (title || "unknown").toLowerCase().replace(/[^a-z0-9]/g, "_");
-      const filePath = `${cleanArtist}_${cleanTitle}_${Date.now()}.jpg`;
-
-      const { error: uploadError } = await sb.storage
-        .from("covers")
-        .upload(filePath, blob, {
-          contentType: blob.type || "image/jpeg",
-          upsert: true
-        });
-
-      if (uploadError) {
-        console.warn("Supabase storage upload error:", uploadError);
+      const { data: sessionData } = await sb.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) {
+        console.warn("Admin session required to upload backlog cover to R2.");
         return imageUrl;
       }
 
-      const { data: publicData } = sb.storage
-        .from("covers")
-        .getPublicUrl(filePath);
+      const cleanArtist = (artist || "unknown").toLowerCase().replace(/[^a-z0-9]/g, "_");
+      const cleanTitle = (title || "unknown").toLowerCase().replace(/[^a-z0-9]/g, "_");
+      const fileName = `${cleanArtist}_${cleanTitle}_${Date.now()}.jpg`;
 
-      return publicData ? publicData.publicUrl : imageUrl;
+      const res = await fetch(R2_UPLOAD_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          sourceUrl: imageUrl,
+          folder: "covers",
+          filename: fileName
+        })
+      });
+
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok || !payload.url) {
+        console.warn("R2 mirror upload error:", payload.error || `HTTP ${res.status}`);
+        return imageUrl;
+      }
+      return payload.url;
     } catch (err) {
       console.warn(`Could not upload art for "${artist} - ${title}", keeping remote URL:`, err);
       return imageUrl;
@@ -1686,15 +1696,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (isFinished) return false;
 
         const url = (album.cover_url || "").trim();
-        return url.startsWith("http") && !url.includes("supabase.co");
+        return url.startsWith("http") && !isHostedAssetUrl(url);
       });
 
       if (targets.length === 0) {
-        alert("All unfinished backlog album covers are already hosted on Supabase Storage.");
+        alert("All unfinished backlog album covers are already hosted on Cloudflare R2.");
         return;
       }
 
-      if (!confirm(`Found ${targets.length} unfinished backlog album(s) with external URLs. Upload them to Supabase "covers" bucket?`)) {
+      if (!confirm(`Found ${targets.length} unfinished backlog album(s) with external URLs. Upload them to Cloudflare R2 (assets.sosaspeaks.org/covers/)?`)) {
         return;
       }
 
@@ -1707,7 +1717,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const newCloudUrl = await uploadExternalCoverToSupabase(item.cover_url, item.artist, item.title);
 
-        if (newCloudUrl && newCloudUrl.includes("supabase.co")) {
+        if (newCloudUrl && isHostedAssetUrl(newCloudUrl)) {
           const { error } = await sb
             .from("challenge_backlog")
             .update({ cover_url: newCloudUrl })

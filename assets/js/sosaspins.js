@@ -17,6 +17,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   const clearFilterBtn = document.getElementById("clearFilterBtn");
   const SUPABASE_URL = "https://gxgfuomkjrhixcjfvhvj.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_tgeBo35B4k__uyfMyaxXnA_O5KUKlL7";
+  const R2_PUBLIC_BASE = "https://assets.sosaspeaks.org";
+  const R2_UPLOAD_ENDPOINT = localStorage.getItem("r2_upload_endpoint") || "https://upload.sosaspeaks.org/upload";
+  function isHostedAssetUrl(url) {
+    const u = String(url || "").trim();
+    return u.includes("assets.sosaspeaks.org") || u.includes("supabase.co/storage");
+  }
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const sb = supabaseClient;
   window.supabaseClient = supabaseClient;
@@ -776,9 +782,6 @@ function getDominantColorFromImg(imgUrl) {
     else if (typeof renderFeed === "function") renderFeed(allEntries);
     if (typeof renderGrid === "function") renderGrid();
     if (typeof renderTopArtistsView === "function" && activeTop100Tab === "artists") renderTopArtistsView();
-    if (isAdmin && typeof migrateLegacyArtistImagesToArtistsBucket === "function") {
-      migrateLegacyArtistImagesToArtistsBucket();
-    }
   });
 
   const adminAuthModal = document.getElementById("adminAuthModal");
@@ -3177,63 +3180,68 @@ function getImageExtFromMime(mime, fallbackName = "") {
 const COVERS_STORAGE_BUCKET = "covers";
 const ARTIST_STORAGE_BUCKET = "artists";
 
+async function getAdminAccessToken() {
+  const { data } = await supabaseClient.auth.getSession();
+  const token = data?.session?.access_token;
+  if (!token) throw new Error("Admin authentication required to upload images to R2.");
+  return token;
+}
+
 async function uploadArtistImageBlobToSupabase(blobOrFile, artistName) {
   if (!blobOrFile) throw new Error("No image file provided.");
   const cleanArtist = (artistName || "artist").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "artist";
   const ext = getImageExtFromMime(blobOrFile.type, blobOrFile.name || "");
-  const filePath = `artist_${cleanArtist}_${Date.now()}.${ext}`;
+  const fileName = `artist_${cleanArtist}_${Date.now()}.${ext}`;
+  const token = await getAdminAccessToken();
 
-  const { error } = await supabaseClient.storage
-    .from(ARTIST_STORAGE_BUCKET)
-    .upload(filePath, blobOrFile, {
-      contentType: blobOrFile.type || (ext === "gif" ? "image/gif" : "image/jpeg"),
-      upsert: true
-    });
+  const form = new FormData();
+  form.append("file", blobOrFile, fileName);
+  form.append("folder", ARTIST_STORAGE_BUCKET);
+  form.append("filename", fileName);
 
-  if (error) throw error;
-
-  const { data: publicData } = supabaseClient.storage
-    .from(ARTIST_STORAGE_BUCKET)
-    .getPublicUrl(filePath);
-
-  return publicData?.publicUrl || null;
+  const res = await fetch(R2_UPLOAD_ENDPOINT, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form
+  });
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok || !payload.url) {
+    throw new Error(payload.error || `R2 upload failed (HTTP ${res.status})`);
+  }
+  return payload.url;
 }
 
 async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_STORAGE_BUCKET) {
-  // If it's already a Supabase URL, a local path, or invalid, keep as-is
-  if (!imageUrl || !imageUrl.startsWith("http") || imageUrl.includes("supabase.co")) {
+  // Keep already-hosted R2/Supabase storage URLs, local paths, or invalid URLs untouched
+  if (!imageUrl || !imageUrl.startsWith("http") || isHostedAssetUrl(imageUrl)) {
     return imageUrl;
   }
 
   try {
-    const res = await fetch(imageUrl);
-    if (!res.ok) throw new Error(`HTTP Error fetching image: ${res.status}`);
-    const blob = await res.blob();
-
+    const token = await getAdminAccessToken();
     const cleanArtist = (artist || "unknown").toLowerCase().replace(/[^a-z0-9]/g, "_");
     const cleanTitle = (title || "unknown").toLowerCase().replace(/[^a-z0-9]/g, "_");
-    const ext = getImageExtFromMime(blob.type, imageUrl);
-    const filePath = `${cleanArtist}_${cleanTitle}_${Date.now()}.${ext}`;
+    const ext = getImageExtFromMime("", imageUrl);
+    const fileName = `${cleanArtist}_${cleanTitle}_${Date.now()}.${ext}`;
+    const folder = bucket === ARTIST_STORAGE_BUCKET ? "artists" : "covers";
 
-    const { data, error } = await supabaseClient.storage
-      .from(bucket)
-      .upload(filePath, blob, {
-        contentType: blob.type || "image/jpeg",
-        upsert: true
-      });
+    const res = await fetch(R2_UPLOAD_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ sourceUrl: imageUrl, folder, filename: fileName })
+    });
 
-    if (error) {
-      console.warn("Supabase storage upload error:", error);
-      return imageUrl; // Fallback to raw link
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok || !payload.url) {
+      console.warn("R2 mirror upload error:", payload.error || `HTTP ${res.status}`);
+      return imageUrl;
     }
-
-    const { data: publicData } = supabaseClient.storage
-      .from(bucket)
-      .getPublicUrl(filePath);
-
-    return publicData.publicUrl;
+    return payload.url;
   } catch (err) {
-    console.warn("Cover upload failed (CORS or network), using original URL:", err);
+    console.warn("Cover upload failed, keeping original URL:", err);
     return imageUrl;
   }
 }
@@ -4892,196 +4900,13 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
   }
 
   let topArtistsLoadedFromSupabase = false;
-  let isMigratingArtistBucket = false;
 
-  async function listLegacyArtistPathsInCoversBucket() {
-    const foundPaths = new Set();
-    const prefixes = ["", "artists"];
-    for (const prefix of prefixes) {
-      let offset = 0;
-      const pageSize = 1000;
-      while (true) {
-        const { data, error } = await supabaseClient.storage
-          .from(COVERS_STORAGE_BUCKET)
-          .list(prefix, { limit: pageSize, offset });
-        if (error) {
-          console.warn(`Could not list covers/${prefix}:`, error);
-          break;
-        }
-        if (!Array.isArray(data) || data.length === 0) break;
-        for (const entry of data) {
-          if (!entry || !entry.name || entry.id === null) continue;
-          const fullPath = prefix ? `${prefix}/${entry.name}` : entry.name;
-          if (prefix === "artists" || entry.name.startsWith("artist_")) {
-            foundPaths.add(fullPath);
-          }
-        }
-        if (data.length < pageSize) break;
-        offset += pageSize;
-      }
-    }
-    return Array.from(foundPaths);
-  }
-
-  async function migrateLegacyArtistImagesToArtistsBucket(manualTrigger = false) {
-    if (!isAdmin || isMigratingArtistBucket) return;
-    if (!manualTrigger && (!topArtistsLoadedFromSupabase || isTop100Editing)) return;
-
-    const legacyPrefix = "/storage/v1/object/public/covers/";
-    const migrateBtn = document.getElementById("migrateArtistBucketBtn");
-    const origBtnHtml = migrateBtn ? migrateBtn.innerHTML : "";
-
-    isMigratingArtistBucket = true;
-    if (migrateBtn && manualTrigger) {
-      migrateBtn.disabled = true;
-      migrateBtn.innerHTML = `<i class='bx bx-loader-alt bx-spin'></i> Moving...`;
-    }
-
-    try {
-      // 1. Collect all artist_* files in `covers` bucket + any referenced in top_artists
-      const pathSet = new Set(await listLegacyArtistPathsInCoversBucket());
-      Object.values(topArtistsCuratedState || {}).forEach((item) => {
-        if (!item || !item.custom_image) return;
-        const idx = item.custom_image.indexOf(legacyPrefix);
-        if (idx === -1) return;
-        const objPath = decodeURIComponent(item.custom_image.slice(idx + legacyPrefix.length).split("?")[0]);
-        if (objPath && (objPath.startsWith("artist_") || objPath.startsWith("artists/"))) {
-          pathSet.add(objPath);
-        }
-      });
-
-      const pathsToMove = Array.from(pathSet);
-      if (pathsToMove.length === 0) {
-        if (migrateBtn) migrateBtn.style.display = "none";
-        if (manualTrigger && typeof showTop100Toast === "function") {
-          showTop100Toast("All artist images are already in the artists bucket.");
-        }
-        return;
-      }
-
-      const urlMap = new Map();
-      const uploadedOldPaths = [];
-      let lastErrorMsg = "";
-
-      for (const oldPath of pathsToMove) {
-        const targetPath = oldPath.split("/").pop();
-        let blob = null;
-
-        const { data: dlData, error: dlErr } = await supabaseClient.storage
-          .from(COVERS_STORAGE_BUCKET)
-          .download(oldPath);
-        if (!dlErr && dlData) {
-          blob = dlData;
-        } else {
-          const { data: oldPub } = supabaseClient.storage
-            .from(COVERS_STORAGE_BUCKET)
-            .getPublicUrl(oldPath);
-          if (oldPub?.publicUrl) {
-            const res = await fetch(oldPub.publicUrl);
-            if (res.ok) blob = await res.blob();
-          }
-        }
-
-        if (!blob) {
-          lastErrorMsg = dlErr?.message || `Failed to read covers/${oldPath}`;
-          continue;
-        }
-
-        const ext = getImageExtFromMime(blob.type, targetPath);
-        const { error: uploadErr } = await supabaseClient.storage
-          .from(ARTIST_STORAGE_BUCKET)
-          .upload(targetPath, blob, {
-            contentType: blob.type || (ext === "gif" ? "image/gif" : "image/jpeg"),
-            upsert: true
-          });
-
-        if (uploadErr) {
-          lastErrorMsg = uploadErr.message || String(uploadErr);
-          console.warn(`Artist bucket migration upload failed for ${oldPath}:`, uploadErr);
-          continue;
-        }
-
-        const { data: newPub } = supabaseClient.storage
-          .from(ARTIST_STORAGE_BUCKET)
-          .getPublicUrl(targetPath);
-        const newUrl = newPub?.publicUrl;
-        if (!newUrl) continue;
-
-        urlMap.set(oldPath, newUrl);
-        uploadedOldPaths.push(oldPath);
-      }
-
-      if (uploadedOldPaths.length === 0) {
-        if (migrateBtn) migrateBtn.style.display = "inline-flex";
-        const msg = lastErrorMsg
-          ? `Could not move artist images to the artists bucket: ${lastErrorMsg}`
-          : "Could not move artist images to the artists bucket. Ensure sql/011_artists_bucket.sql has been run in Supabase.";
-        if (manualTrigger) alert(msg);
-        else console.warn(msg);
-        return;
-      }
-
-      // 2. Update matching top_artists rows in state and Supabase before deleting old files
-      const updatedRanks = [];
-      Object.entries(topArtistsCuratedState || {}).forEach(([rankKey, item]) => {
-        if (!item || !item.custom_image) return;
-        const idx = item.custom_image.indexOf(legacyPrefix);
-        if (idx === -1) return;
-        const objPath = decodeURIComponent(item.custom_image.slice(idx + legacyPrefix.length).split("?")[0]);
-        const newUrl = urlMap.get(objPath);
-        if (newUrl) {
-          item.custom_image = newUrl;
-          updatedRanks.push(Number(rankKey));
-        }
-      });
-
-      let dbSynced = true;
-      if (updatedRanks.length > 0) {
-        const syncRes = await persistTopArtistsCuratedToSupabase(updatedRanks);
-        dbSynced = !!(syncRes && syncRes.synced);
-        if (!dbSynced) {
-          const errDetail = syncRes?.error?.message || "Failed to update top_artists table.";
-          if (manualTrigger) alert(errDetail);
-          else console.warn(errDetail);
-          return;
-        }
-      }
-
-      // 3. Delete migrated files from `covers`
-      const { error: removeErr } = await supabaseClient.storage
-        .from(COVERS_STORAGE_BUCKET)
-        .remove(uploadedOldPaths);
-      if (removeErr) {
-        console.warn("Could not remove legacy artist files from covers bucket:", removeErr);
-        if (migrateBtn) migrateBtn.style.display = "inline-flex";
-        if (manualTrigger) {
-          alert(`Copied ${uploadedOldPaths.length} image(s) to artists and updated top_artists, but failed to delete old files from covers: ${removeErr.message}. Run sql/011_artists_bucket.sql and try again.`);
-        }
-      } else if (migrateBtn) {
-        migrateBtn.style.display = "none";
-      }
-
-      topArtistsCuratedOriginal = JSON.parse(JSON.stringify(topArtistsCuratedState));
-      if (typeof renderTopArtistsView === "function" && activeTop100Tab === "artists") {
-        renderTopArtistsView();
-      }
-      if (typeof showTop100Toast === "function") {
-        showTop100Toast(`Moved ${uploadedOldPaths.length} artist image${uploadedOldPaths.length === 1 ? "" : "s"} to the artists bucket.`);
-      }
-    } catch (err) {
-      console.warn("Artist bucket migration error:", err);
-      if (manualTrigger) alert("Artist bucket migration error: " + (err?.message || err));
-    } finally {
-      isMigratingArtistBucket = false;
-      if (migrateBtn) {
-        migrateBtn.disabled = false;
-        if (origBtnHtml) migrateBtn.innerHTML = origBtnHtml;
-      }
-    }
-  }
-
+  // Legacy Supabase bucket-to-bucket migration retired in favor of Cloudflare R2 (assets.sosaspeaks.org)
   window.migrateArtistImagesToArtistsBucket = function() {
-    return migrateLegacyArtistImagesToArtistsBucket(true);
+    if (typeof showTop100Toast === "function") {
+      showTop100Toast("Legacy Supabase bucket migration disabled; assets now target R2.");
+    }
+    return Promise.resolve();
   };
 
   async function fetchTopArtistsCurated() {
@@ -5113,8 +4938,6 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
 
     if (!loadedFromSupabase) {
       loadTopArtistsCurated();
-    } else if (isAdmin) {
-      await migrateLegacyArtistImagesToArtistsBucket();
     }
   }
 
@@ -6022,7 +5845,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
         artistCustomImgUploadBtn.innerHTML = `<i class='bx bx-loader-alt bx-spin'></i> Uploading...`;
       }
       if (artistCustomImgUploadStatus) {
-        artistCustomImgUploadStatus.textContent = "Uploading to Supabase...";
+        artistCustomImgUploadStatus.textContent = "Uploading to R2...";
         artistCustomImgUploadStatus.className = "artist-custom-img-upload-status";
       }
       if (artistCustomImgPreview) {
@@ -6041,17 +5864,17 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
           artistModalCoversPicker.querySelectorAll(".artist-modal-thumb").forEach(t => t.classList.remove("is-selected"));
         }
         if (artistCustomImgUploadStatus) {
-          artistCustomImgUploadStatus.textContent = "Uploaded to Supabase";
+          artistCustomImgUploadStatus.textContent = "Uploaded to R2";
           artistCustomImgUploadStatus.className = "artist-custom-img-upload-status is-success";
         }
-        showTop100Toast("Uploaded image to Supabase. Click Apply Image to save.");
+        showTop100Toast("Uploaded image to Cloudflare R2. Click Apply Image to save.");
       } catch (err) {
         console.error("Artist image upload error:", err);
         if (artistCustomImgUploadStatus) {
           artistCustomImgUploadStatus.textContent = "Upload failed";
           artistCustomImgUploadStatus.className = "artist-custom-img-upload-status is-error";
         }
-        alert("Failed to upload image to Supabase: " + (err?.message || err));
+        alert("Failed to upload image to Cloudflare R2: " + (err?.message || err));
       } finally {
         if (artistCustomImgUploadBtn) {
           artistCustomImgUploadBtn.disabled = false;
@@ -6118,9 +5941,9 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
     }
 
     try {
-      if (url && url.startsWith("http") && !url.includes("supabase.co")) {
+      if (url && url.startsWith("http") && !isHostedAssetUrl(url)) {
         if (artistCustomImgUploadStatus) {
-          artistCustomImgUploadStatus.textContent = "Uploading URL to Supabase...";
+          artistCustomImgUploadStatus.textContent = "Uploading URL to R2...";
           artistCustomImgUploadStatus.className = "artist-custom-img-upload-status";
         }
         url = await uploadCoverToSupabase(url, "artist", item.artist, ARTIST_STORAGE_BUCKET);
@@ -6141,9 +5964,9 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
       renderTopArtistsView();
 
       if (syncRes && syncRes.synced) {
-        showTop100Toast("Artist image saved & synced to Supabase.");
-      } else if (url && url.includes("supabase.co")) {
-        showTop100Toast("Image uploaded to Supabase Storage & updated.");
+        showTop100Toast("Artist image saved & synced.");
+      } else if (url && isHostedAssetUrl(url)) {
+        showTop100Toast("Image uploaded to Cloudflare R2 & updated.");
       } else {
         showTop100Toast("Artist image updated.");
       }
@@ -9109,7 +8932,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       const isRelistenChecked = logRelisten ? logRelisten.checked : false;
       const trackRatings = collectTrackRatingRows();
       let finalCoverUrl = logCoverUrl.value.trim() || "assets/images/spins/placeholder.png";
-      if (finalCoverUrl.startsWith("http") && !finalCoverUrl.includes("supabase.co")) {
+      if (finalCoverUrl.startsWith("http") && !isHostedAssetUrl(finalCoverUrl)) {
         if (modalSubmitBtn) modalSubmitBtn.textContent = "Uploading Art...";
         finalCoverUrl = await uploadCoverToSupabase(finalCoverUrl, artistVal, titleVal);
         if (modalSubmitBtn) modalSubmitBtn.textContent = editingIndex !== null ? "Update Spin" : "Save Spin";
@@ -10116,7 +9939,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
             if (saveStatusEl) saveStatusEl.textContent = "Portrait uploaded — click Save Artist";
           }
         } catch (err) {
-          alert("Failed to upload portrait to artists bucket: " + (err?.message || err));
+          alert("Failed to upload portrait to Cloudflare R2: " + (err?.message || err));
         } finally {
           portraitUploadBtn.disabled = false;
           portraitUploadBtn.innerHTML = origHtml;
@@ -10176,7 +9999,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
 
         try {
           let portraitUrl = portraitUrlInput ? portraitUrlInput.value.trim() : "";
-          if (portraitUrl && portraitUrl.startsWith("http") && !portraitUrl.includes("supabase.co")) {
+          if (portraitUrl && portraitUrl.startsWith("http") && !isHostedAssetUrl(portraitUrl)) {
             portraitUrl = await uploadCoverToSupabase(portraitUrl, "artist", canonName, ARTIST_STORAGE_BUCKET);
             if (portraitUrlInput) portraitUrlInput.value = portraitUrl;
           }

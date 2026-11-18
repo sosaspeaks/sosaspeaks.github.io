@@ -7,3 +7,7 @@ CONTEXT.md
 scratch/
 docs/
 tests/
+r2-migration/
+workers/r2-uploader/.wrangler/
+workers/r2-uploader/.dev.vars
+.wrangler/
