@@ -14,6 +14,60 @@
     ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
     : null;
 
+  const DEFAULT_ARTIST_ALIASES = [
+    { primary: "JPEGMAFIA", aliases: ["Devon Hendryx"] },
+    { primary: "Jane Remover", aliases: ["leroy"] },
+    { primary: "LOONA", aliases: ["이달의 소녀 [LOONA]"] },
+    { primary: "ODD EYE CIRCLE", aliases: ["LOONA / ODD EYE CIRCLE"] },
+    { primary: "LOONA yyxy", aliases: ["LOONA / yyxy"] }
+  ];
+  let artistProfilesMap = {};
+  let activeArtistAliases = JSON.parse(JSON.stringify(DEFAULT_ARTIST_ALIASES));
+
+  function rebuildStatsArtistAliases(profiles = []) {
+    artistProfilesMap = {};
+    activeArtistAliases = JSON.parse(JSON.stringify(DEFAULT_ARTIST_ALIASES));
+    (profiles || []).forEach(prof => {
+      if (!prof || !prof.canonical_artist) return;
+      const canon = String(prof.canonical_artist).trim();
+      artistProfilesMap[canon.toLowerCase()] = prof;
+      if (Array.isArray(prof.aliases)) {
+        const cleanAliases = Array.from(new Set(
+          prof.aliases.map(a => String(a).trim()).filter(a => a && a.toLowerCase() !== canon.toLowerCase())
+        ));
+        const idx = activeArtistAliases.findIndex(g => g.primary.toLowerCase() === canon.toLowerCase());
+        if (idx >= 0) {
+          activeArtistAliases[idx] = { primary: canon, aliases: cleanAliases };
+        } else {
+          activeArtistAliases.push({ primary: canon, aliases: cleanAliases });
+        }
+      }
+    });
+  }
+
+  function getCanonicalArtist(rawArtist) {
+    if (!rawArtist) return "";
+    const trimmed = String(rawArtist).trim();
+    const lower = trimmed.toLowerCase();
+    const match = activeArtistAliases.find(group =>
+      group.primary.toLowerCase() === lower ||
+      group.aliases.some(a => a.toLowerCase() === lower)
+    );
+    return match ? match.primary : trimmed;
+  }
+
+  function resolveCanonicalCredits(rawArtist) {
+    const raw = String(rawArtist || "").trim();
+    if (!raw) return [];
+    const tylerSentinel = "__TYLER_THE_CREATOR__";
+    const credits = raw
+      .replace(/Tyler,\s*The Creator/gi, tylerSentinel)
+      .split(/(?:,|\s+(?:&|feat\.?|ft\.?|with)\s+)/i)
+      .map(a => getCanonicalArtist(a.replace(new RegExp(tylerSentinel, "g"), "Tyler, The Creator").trim()))
+      .filter(Boolean);
+    return Array.from(new Set(credits));
+  }
+
   let allSpins = [];
   let backlogEntries = [];
   let filteredSpins = [];
@@ -365,15 +419,7 @@
       let rawArtist = String(s.artist).trim();
       if (!rawArtist) return;
 
-      let individualArtists;
-      if (/^Tyler,\s*The Creator$/i.test(rawArtist)) {
-        individualArtists = ["Tyler, The Creator"];
-      } else {
-        individualArtists = rawArtist
-          .split(/(?:,|\s+(?:&|feat\.?|ft\.?|with)\s+)/i)
-          .map(a => a.trim())
-          .filter(Boolean);
-      }
+      const individualArtists = resolveCanonicalCredits(rawArtist);
 
       const r = parseFloat(s.rating);
       const sec = parseRuntimeToSeconds(s.runtime);
@@ -902,12 +948,9 @@
       const rym = item.rymRating !== null && item.rymRating !== undefined ? Number(item.rymRating) : NaN;
       const doneInc = item.isDone ? 1 : 0;
 
-      // Artists (split collaborations consistently with computeStats)
+      // Artists (split collaborations + resolve canonical aliases)
       if (item.artist) {
-        const rawArtist = String(item.artist).trim();
-        const credits = /^Tyler,\s*The Creator$/i.test(rawArtist)
-          ? ["Tyler, The Creator"]
-          : rawArtist.split(/(?:,|\s+(?:&|feat\.?|ft\.?|with)\s+)/i).map(a => a.trim()).filter(Boolean);
+        const credits = resolveCanonicalCredits(item.artist);
         credits.forEach(a => {
           if (!artistMap[a]) artistMap[a] = { artist: a, count: 0, doneCount: 0, ryms: [], cover: item.cover_url };
           artistMap[a].count += 1;
@@ -1109,13 +1152,15 @@
       });
 
       if (s.artist) {
-        const rawA = String(s.artist).trim();
-        const aName = rawA || "Unknown";
-        if (!artistStats[aName]) {
-          artistStats[aName] = { artist: aName, count: 0, ratings: [], cover: s.cover_url || "assets/images/spins/placeholder.png" };
-        }
-        artistStats[aName].count += 1;
-        if (!isNaN(r)) artistStats[aName].ratings.push(r);
+        const credits = resolveCanonicalCredits(s.artist);
+        const list = credits.length ? credits : ["Unknown"];
+        list.forEach(aName => {
+          if (!artistStats[aName]) {
+            artistStats[aName] = { artist: aName, count: 0, ratings: [], cover: s.cover_url || "assets/images/spins/placeholder.png" };
+          }
+          artistStats[aName].count += 1;
+          if (!isNaN(r)) artistStats[aName].ratings.push(r);
+        });
       }
     });
 
@@ -3460,15 +3505,19 @@
     try {
       let data = [];
       let backlogData = [];
+      let profilesData = [];
       if (supabaseClient) {
-        const [spinsRes, backlogRes] = await Promise.all([
+        const [spinsRes, backlogRes, profilesRes] = await Promise.all([
           supabaseClient
             .from("spins")
             .select("*")
             .order("id", { ascending: false }),
           supabaseClient
             .from("challenge_backlog")
-            .select("*")
+            .select("*"),
+          supabaseClient
+            .from("artist_profiles")
+            .select("canonical_artist,aliases,artist_kind,member_of,portrait_url")
         ]);
 
         if (spinsRes && spinsRes.data && spinsRes.data.length) {
@@ -3477,7 +3526,18 @@
         if (backlogRes && backlogRes.data && backlogRes.data.length) {
           backlogData = backlogRes.data;
         }
+        if (profilesRes && !profilesRes.error && Array.isArray(profilesRes.data)) {
+          profilesData = profilesRes.data;
+        }
       }
+
+      if (!profilesData.length) {
+        try {
+          const cachedProfs = localStorage.getItem("sosa_artist_profiles");
+          if (cachedProfs) profilesData = Object.values(JSON.parse(cachedProfs) || {});
+        } catch (_) {}
+      }
+      rebuildStatsArtistAliases(profilesData);
 
       if (!data.length) {
         const cached = localStorage.getItem("sosaspins_cache");

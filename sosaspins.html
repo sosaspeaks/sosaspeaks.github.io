@@ -25,7 +25,7 @@
     <meta name="apple-mobile-web-app-title" content="SosaSpeaks" />
     <link rel="manifest" href="assets/images/homepics/site.webmanifest?v=20260527" />
     <!-- Link to CSS -->
-    <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261118a">
+    <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261118b">
     <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
     <!-- Box icons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
@@ -792,6 +792,7 @@
                   <option value="Solo">Solo</option>
                   <option value="Group">Group</option>
                   <option value="Duo">Duo</option>
+                  <option value="Subunit">Subunit</option>
                   <option value="Collective">Collective</option>
                 </select>
               </div>
@@ -799,6 +800,11 @@
               <div class="artist-dir-field">
                 <label for="artistDirYearsInput">Active Years</label>
                 <input type="text" id="artistDirYearsInput" class="sosa-search-input" placeholder="e.g. 2016–2023 or 2018–present">
+              </div>
+
+              <div class="artist-dir-field is-full" id="artistDirParentGroupField" style="display: none;">
+                <label for="artistDirParentGroupInput">Parent Group <span class="artist-dir-hint-inline">(Subunit of — links back while keeping ratings separate)</span></label>
+                <input type="text" id="artistDirParentGroupInput" list="artistDirKnownArtistsList" class="sosa-search-input" placeholder="e.g. LOONA">
               </div>
 
               <div class="artist-dir-field">
@@ -993,7 +999,7 @@
   </nav>
 
   <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
-  <script src="assets/js/sosaspins.js?v=20261118d"></script>
+  <script src="assets/js/sosaspins.js?v=20261118g"></script>
   <script src="assets/js/dock.js?v=20261115c"></script>
   <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>
 </body>

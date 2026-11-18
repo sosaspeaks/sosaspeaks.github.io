@@ -23,6 +23,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     const u = String(url || "").trim();
     return u.includes("assets.sosaspeaks.org") || u.includes("supabase.co/storage");
   }
+  function normalizeLegacyStorageUrl(url) {
+    if (!url) return url;
+    const raw = String(url).trim();
+    const prefix = "https://gxgfuomkjrhixcjfvhvj.supabase.co/storage/v1/object/public/";
+    if (raw.startsWith(prefix)) {
+      const rest = raw.slice(prefix.length);
+      if (rest.startsWith("covers/") || rest.startsWith("artists/")) {
+        return `${R2_PUBLIC_BASE}/${rest}`;
+      }
+    }
+    return raw;
+  }
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const sb = supabaseClient;
   window.supabaseClient = supabaseClient;
@@ -77,7 +89,15 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
     },
     {
       primary: "LOONA",
-      aliases: ["LOONA 1/3", "ODD EYE CIRCLE", "LOONA yyxy", "LOONA / yyxy", "LOONA / ODD EYE CIRCLE"]
+      aliases: ["이달의 소녀 [LOONA]"]
+    },
+    {
+      primary: "ODD EYE CIRCLE",
+      aliases: ["LOONA / ODD EYE CIRCLE"]
+    },
+    {
+      primary: "LOONA yyxy",
+      aliases: ["LOONA / yyxy"]
     }
   ];
   let activeArtistAliases = JSON.parse(JSON.stringify(DEFAULT_ARTIST_ALIASES));
@@ -103,11 +123,11 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
 
   function getSyncedArtistPortrait(canonicalArtist, curatedEntry = null) {
     const profile = getArtistProfile(canonicalArtist);
-    if (profile && profile.portrait_url) return profile.portrait_url;
-    if (curatedEntry && curatedEntry.custom_image) return curatedEntry.custom_image;
+    if (profile && profile.portrait_url) return normalizeLegacyStorageUrl(profile.portrait_url);
+    if (curatedEntry && curatedEntry.custom_image) return normalizeLegacyStorageUrl(curatedEntry.custom_image);
     const rank = findTopArtistCuratedRank(canonicalArtist);
     if (rank && topArtistsCuratedState[rank] && topArtistsCuratedState[rank].custom_image) {
-      return topArtistsCuratedState[rank].custom_image;
+      return normalizeLegacyStorageUrl(topArtistsCuratedState[rank].custom_image);
     }
     return null;
   }
@@ -158,7 +178,16 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
       const cached = localStorage.getItem("sosa_artist_profiles");
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (parsed && typeof parsed === "object") loadedLocal = parsed;
+        if (parsed && typeof parsed === "object") {
+          Object.entries(parsed).forEach(([k, prof]) => {
+            if (prof && typeof prof === "object") {
+              loadedLocal[k] = {
+                ...prof,
+                portrait_url: prof.portrait_url ? normalizeLegacyStorageUrl(prof.portrait_url) : ""
+              };
+            }
+          });
+        }
       }
     } catch (_) {}
     artistProfilesMap = loadedLocal;
@@ -168,7 +197,8 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
         const { data, error } = await supabaseClient.from("artist_profiles").select("*");
         if (!error && Array.isArray(data)) {
           artistProfilesTableAvailable = true;
-          const nextMap = { ...loadedLocal };
+          // Supabase Postgres is authoritative when reachable so localhost and live domains never diverge
+          const nextMap = {};
           data.forEach(row => {
             if (!row || !row.canonical_artist) return;
             const k = row.canonical_artist.trim().toLowerCase();
@@ -182,7 +212,7 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
               active_years: row.active_years || "",
               country: row.country || "",
               state_province: row.state_province || "",
-              portrait_url: row.portrait_url || "",
+              portrait_url: row.portrait_url ? normalizeLegacyStorageUrl(row.portrait_url) : "",
               updated_at: row.updated_at || null
             };
           });
@@ -202,7 +232,7 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
   }
 
   async function persistArtistProfileRecord(record) {
-    if (!record || !record.canonical_artist) return { synced: false };
+    if (!record || !record.canonical_artist) return { synced: false, error: "Canonical artist name is required." };
     const cleanCanon = record.canonical_artist.trim();
     const key = cleanCanon.toLowerCase();
     const payload = {
@@ -215,7 +245,7 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
       active_years: record.active_years ? String(record.active_years).trim() : null,
       country: record.country ? String(record.country).trim() : null,
       state_province: record.state_province ? String(record.state_province).trim() : null,
-      portrait_url: record.portrait_url ? String(record.portrait_url).trim() : null,
+      portrait_url: record.portrait_url ? normalizeLegacyStorageUrl(record.portrait_url) : null,
       updated_at: new Date().toISOString()
     };
 
@@ -225,8 +255,12 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
     } catch (_) {}
     rebuildActiveArtistAliasesFromProfiles();
 
-    if (isAdmin && supabaseClient && artistProfilesTableAvailable !== false) {
+    if (typeof supabaseClient !== "undefined" && supabaseClient && artistProfilesTableAvailable !== false) {
       try {
+        const { data: sessData } = await supabaseClient.auth.getSession();
+        if (!sessData?.session) {
+          return { synced: false, localOnly: true, error: "Admin login session missing or expired." };
+        }
         const { error } = await supabaseClient
           .from("artist_profiles")
           .upsert(payload, { onConflict: "canonical_artist" });
@@ -234,21 +268,40 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
           artistProfilesTableAvailable = true;
           return { synced: true };
         }
-      } catch (_) {}
+        console.error("Supabase artist_profiles upsert failed:", error);
+        return { synced: false, error: error.message || "Supabase upsert error." };
+      } catch (err) {
+        console.error("Supabase artist_profiles upsert exception:", err);
+        return { synced: false, error: err?.message || "Network error saving artist profile." };
+      }
     }
-    return { synced: false, localOnly: true };
+    return { synced: false, localOnly: true, error: "Supabase artist_profiles table unavailable." };
   }
 
   async function syncPortraitFromTopArtists(canonicalArtist, portraitUrl) {
     if (!canonicalArtist) return;
     const canon = getCanonicalArtist(canonicalArtist) || String(canonicalArtist).trim();
-    const existing = getArtistProfile(canon) || { canonical_artist: canon };
+    let existing = getArtistProfile(canon);
+    // Fetch live DB row first so updating a portrait from Top 100 never overwrites remote metadata
+    if (typeof supabaseClient !== "undefined" && supabaseClient && artistProfilesTableAvailable !== false) {
+      try {
+        const { data, error } = await supabaseClient
+          .from("artist_profiles")
+          .select("*")
+          .eq("canonical_artist", canon)
+          .maybeSingle();
+        if (!error && data) {
+          existing = data;
+        }
+      } catch (_) {}
+    }
+    existing = existing || { canonical_artist: canon };
     const defaultsMatch = DEFAULT_ARTIST_ALIASES.find(d => d.primary.toLowerCase() === canon.toLowerCase());
     await persistArtistProfileRecord({
       ...existing,
       canonical_artist: canon,
       aliases: Array.isArray(existing.aliases) ? existing.aliases : (defaultsMatch ? [...defaultsMatch.aliases] : []),
-      portrait_url: portraitUrl || null
+      portrait_url: portraitUrl ? normalizeLegacyStorageUrl(portraitUrl) : null
     });
   }
 
@@ -4859,6 +4912,11 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
       const stored = localStorage.getItem("sosa_top_artists_curated");
       if (stored) {
         topArtistsCuratedState = JSON.parse(stored);
+        Object.values(topArtistsCuratedState || {}).forEach(row => {
+          if (!row) return;
+          if (row.custom_image) row.custom_image = normalizeLegacyStorageUrl(row.custom_image);
+          if (row.top_album_cover) row.top_album_cover = normalizeLegacyStorageUrl(row.top_album_cover);
+        });
       }
     } catch (e) {
       console.warn("Failed to load top_artists_curated from storage:", e);
@@ -6591,11 +6649,18 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
       }
     });
     const membersList = Array.from(membersSet);
+    const isSubunitArtist = String(profile.artist_kind || "").trim().toLowerCase() === "subunit";
+    const parentRelPrefix = isSubunitArtist ? "Subunit of:" : "Member of:";
 
     const relationsHtml = (memberOfList.length || membersList.length) ? `
       <div class="artist-quick-meta-row">
-        ${memberOfList.map(g => `<button type="button" class="artist-quick-meta-chip artist-quick-rel-chip" onclick="openArtistQuickModal('${g.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')">Member of: ${escapeHtml(g)}</button>`).join("")}
-        ${membersList.map(m => `<button type="button" class="artist-quick-meta-chip artist-quick-rel-chip" onclick="openArtistQuickModal('${m.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')">Member: ${escapeHtml(m)}</button>`).join("")}
+        ${memberOfList.map(g => `<button type="button" class="artist-quick-meta-chip artist-quick-rel-chip" onclick="openArtistQuickModal('${g.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')">${parentRelPrefix} ${escapeHtml(g)}</button>`).join("")}
+        ${membersList.map(m => {
+          const childProf = getArtistProfile(m);
+          const childIsSubunit = String(childProf?.artist_kind || "").trim().toLowerCase() === "subunit";
+          const childPrefix = childIsSubunit ? "Subunit:" : "Member:";
+          return `<button type="button" class="artist-quick-meta-chip artist-quick-rel-chip" onclick="openArtistQuickModal('${m.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')">${childPrefix} ${escapeHtml(m)}</button>`;
+        }).join("")}
       </div>
     ` : "";
 
@@ -9623,6 +9688,8 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     const canonicalInput = document.getElementById("artistDirCanonicalInput");
     const nativeInput = document.getElementById("artistDirNativeInput");
     const kindInput = document.getElementById("artistDirKindInput");
+    const parentGroupField = document.getElementById("artistDirParentGroupField");
+    const parentGroupInput = document.getElementById("artistDirParentGroupInput");
     const yearsInput = document.getElementById("artistDirYearsInput");
     const countryInput = document.getElementById("artistDirCountryInput");
     const stateInput = document.getElementById("artistDirStateInput");
@@ -9650,6 +9717,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     let draftAliases = [];
     let draftMemberOf = [];
     let draftMembers = [];
+    let lastSyncedParentGroup = "";
 
     function buildArtistDirectoryIndex() {
       const map = {};
@@ -9712,6 +9780,30 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       return Object.values(map).sort((a, b) => b.spinsCount - a.spinsCount || b.backlogCount - a.backlogCount || a.canonical.localeCompare(b.canonical));
     }
 
+    function toggleParentGroupField() {
+      if (!parentGroupField || !kindInput) return;
+      parentGroupField.style.display = kindInput.value === "Subunit" ? "flex" : "none";
+    }
+
+    function syncParentGroupIntoMemberOf(redrawChips = true) {
+      if (!kindInput || kindInput.value !== "Subunit" || !parentGroupInput) return;
+      const nextParent = parentGroupInput.value.trim();
+      if (lastSyncedParentGroup && lastSyncedParentGroup.toLowerCase() !== nextParent.toLowerCase()) {
+        draftMemberOf = draftMemberOf.filter(g => g.toLowerCase() !== lastSyncedParentGroup.toLowerCase());
+      }
+      if (nextParent) {
+        draftMemberOf = [nextParent, ...draftMemberOf.filter(g => g.toLowerCase() !== nextParent.toLowerCase())];
+      }
+      lastSyncedParentGroup = nextParent;
+      if (redrawChips) {
+        const redraw = () => {
+          renderChipList(memberOfChipsEl, draftMemberOf, true, redraw);
+          updateDraftPreview();
+        };
+        redraw();
+      }
+    }
+
     function updateDraftPreview() {
       const canon = (canonicalInput && canonicalInput.value.trim()) || selectedCanonical || "—";
       const nativeTxt = nativeInput ? nativeInput.value.trim() : "";
@@ -9740,8 +9832,15 @@ if (addTrackRatingRowBtn && trackRatingsList) {
 
       if (previewSubEl) {
         const parts = [];
+        const effectiveParents = [...draftMemberOf];
+        if (kindTxt === "Subunit" && parentGroupInput && parentGroupInput.value.trim()) {
+          const pv = parentGroupInput.value.trim();
+          if (!effectiveParents.some(g => g.toLowerCase() === pv.toLowerCase())) {
+            effectiveParents.unshift(pv);
+          }
+        }
         if (draftAliases.length) parts.push(`AKA: ${draftAliases.join(", ")}`);
-        if (draftMemberOf.length) parts.push(`Member of: ${draftMemberOf.join(", ")}`);
+        if (effectiveParents.length) parts.push(`${kindTxt === "Subunit" ? "Subunit of" : "Member of"}: ${effectiveParents.join(", ")}`);
         if (draftMembers.length) parts.push(`Members: ${draftMembers.join(", ")}`);
         previewSubEl.textContent = parts.length ? parts.join(" • ") : "No aliases or group links added yet.";
       }
@@ -9760,7 +9859,11 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         btn.addEventListener("click", () => {
           const i = parseInt(btn.getAttribute("data-idx"), 10);
           if (!isNaN(i)) {
-            list.splice(i, 1);
+            const removed = list.splice(i, 1)[0];
+            if (container === memberOfChipsEl && parentGroupInput && removed && removed.toLowerCase() === parentGroupInput.value.trim().toLowerCase()) {
+              parentGroupInput.value = "";
+              lastSyncedParentGroup = "";
+            }
             onChange();
           }
         });
@@ -9777,6 +9880,12 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       if (canonicalInput) canonicalInput.value = rec.canonical || "";
       if (nativeInput) nativeInput.value = rec.native_name || "";
       if (kindInput) kindInput.value = rec.artist_kind || "";
+      if (parentGroupInput) {
+        const initParent = (rec.artist_kind === "Subunit" && rec.member_of && rec.member_of.length) ? rec.member_of[0] : "";
+        parentGroupInput.value = initParent;
+        lastSyncedParentGroup = initParent;
+      }
+      toggleParentGroupField();
       if (yearsInput) yearsInput.value = rec.active_years || "";
       if (countryInput) countryInput.value = rec.country || "";
       if (stateInput) stateInput.value = rec.state_province || "";
@@ -9811,7 +9920,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       const filtered = index.filter(rec => {
         if (currentDirFilter === "aliases" && (!rec.aliases || !rec.aliases.length)) return false;
         if (currentDirFilter === "native" && !rec.native_name) return false;
-        if (currentDirFilter === "groups" && !rec.member_of.length && !rec.members.length && rec.artist_kind !== "Group") return false;
+        if (currentDirFilter === "groups" && !rec.member_of.length && !rec.members.length && rec.artist_kind !== "Group" && rec.artist_kind !== "Subunit") return false;
         if (!q) return true;
         return (
           rec.canonical.toLowerCase().includes(q) ||
@@ -9838,7 +9947,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         const subParts = [];
         if (rec.native_name) subParts.push(rec.native_name);
         if (rec.aliases.length) subParts.push(`${rec.aliases.length} alias${rec.aliases.length === 1 ? "" : "es"}`);
-        if (rec.member_of.length) subParts.push(`Member of ${rec.member_of[0]}`);
+        if (rec.member_of.length) subParts.push(`${rec.artist_kind === "Subunit" ? "Subunit of" : "Member of"} ${rec.member_of[0]}`);
         const loc = [rec.state_province, rec.country].filter(Boolean).join(", ");
         if (!subParts.length && loc) subParts.push(loc);
 
@@ -9899,9 +10008,26 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     bindChipInput(memberOfInput, memberOfAddBtn, () => draftMemberOf, memberOfChipsEl, true);
     bindChipInput(membersInput, membersAddBtn, () => draftMembers, membersChipsEl, true);
 
-    [canonicalInput, nativeInput, kindInput, yearsInput, countryInput, stateInput, portraitUrlInput].forEach(el => {
+    [canonicalInput, nativeInput, kindInput, parentGroupInput, yearsInput, countryInput, stateInput, portraitUrlInput].forEach(el => {
       if (el) el.addEventListener("input", updateDraftPreview);
     });
+    if (kindInput) {
+      kindInput.addEventListener("change", () => {
+        toggleParentGroupField();
+        if (kindInput.value === "Subunit" && parentGroupInput) {
+          if (!parentGroupInput.value.trim() && draftMemberOf.length) {
+            parentGroupInput.value = draftMemberOf[0];
+            lastSyncedParentGroup = draftMemberOf[0];
+          }
+          if (!parentGroupInput.value.trim()) parentGroupInput.focus();
+        }
+        updateDraftPreview();
+      });
+    }
+    if (parentGroupInput) {
+      parentGroupInput.addEventListener("change", () => syncParentGroupIntoMemberOf(true));
+      parentGroupInput.addEventListener("blur", () => syncParentGroupIntoMemberOf(true));
+    }
 
     if (portraitClearBtn) {
       portraitClearBtn.addEventListener("click", () => {
@@ -9986,6 +10112,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         saveBtn.innerHTML = `<i class='bx bx-loader-alt bx-spin'></i> Saving...`;
 
         try {
+          syncParentGroupIntoMemberOf(false);
           let portraitUrl = portraitUrlInput ? portraitUrlInput.value.trim() : "";
           if (portraitUrl && portraitUrl.startsWith("http") && !isHostedAssetUrl(portraitUrl)) {
             portraitUrl = await uploadCoverToSupabase(portraitUrl, "artist", canonName, ARTIST_STORAGE_BUCKET);
@@ -10016,8 +10143,11 @@ if (addTrackRatingRowBtn && trackRatingsList) {
             if (res.synced) {
               saveStatusEl.textContent = syncedTop100 ? "Saved & Synced (Top 100)" : "Saved to Supabase";
             } else {
-              saveStatusEl.textContent = "Saved locally (run SQL 012)";
+              saveStatusEl.textContent = `Save failed (${res.error || "local only"})`;
             }
+          }
+          if (!res.synced && res.error) {
+            alert("Artist saved locally only — could not sync to Supabase: " + res.error);
           }
         } catch (err) {
           console.error("Save artist profile error:", err);
@@ -10029,7 +10159,8 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       });
     }
 
-    window.openArtistDirectoryModal = function(initialArtistName = null) {
+    window.openArtistDirectoryModal = async function(initialArtistName = null) {
+      await loadArtistProfiles();
       if (initialArtistName) {
         selectedCanonical = getCanonicalArtist(initialArtistName) || initialArtistName;
       }
@@ -10052,7 +10183,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     }
 
     dirModal.addEventListener("click", (e) => {
-      if (e.target === dirModal || !e.target.closest(".artist-dir-window")) {
+      if (e.target === dirModal) {
         window.closeArtistDirectoryModal();
       }
     });
