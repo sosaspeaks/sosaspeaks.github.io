@@ -2022,18 +2022,26 @@ body.dark-mode .modal-cover-reflection {
 }
 
 .modal-title-line {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0 5px;
+  display: block;
+  line-height: 1.28;
   min-width: 0;
 }
 
 .modal-detail-title {
+  display: inline;
   font-weight: 800;
   font-size: 1.14rem;
   color: #064e3b;
   line-height: 1.22;
+}
+
+.spin-meta-cluster {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.24rem;
+  margin-left: 0.26rem;
+  white-space: nowrap;
+  vertical-align: baseline;
 }
 
 .spin-format-text {
@@ -2083,8 +2091,10 @@ body.dark-mode .spin-format-text {
 .modal-detail-artist-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   flex-wrap: wrap;
   gap: 6px 8px;
+  width: 100%;
 }
 
 .modal-rating-inline {
@@ -2094,7 +2104,7 @@ body.dark-mode .spin-format-text {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: 2px;
+  margin-top: 3px;
   cursor: default;
 }
 
@@ -2113,10 +2123,10 @@ body.dark-mode .spin-format-text {
 }
 
 .modal-rating-paren {
-  font-family: "Plus Jakarta Sans", sans-serif;
+  font-family: "Noto Sans Mono", "Plus Jakarta Sans", monospace;
   font-size: 0.8rem;
   font-weight: 700;
-  color: #64748b;
+  color: #f59e0b;
 }
 
 .rym-rating-tooltip {
@@ -2175,8 +2185,8 @@ body.dark-mode .spin-format-text {
   align-items: flex-start !important;
   width: 100%;
   max-width: 100%;
-  margin-top: 4px;
-  gap: 0.25rem;
+  margin-top: 6px;
+  gap: 0.34rem;
 }
 
 .modal-header-genres .primary-genres-wrap,
@@ -2190,9 +2200,12 @@ body.dark-mode .spin-format-text {
 }
 
 body.dark-mode .modal-runtime-favfont,
-body.dark-mode .modal-top-date,
-body.dark-mode .modal-rating-paren {
+body.dark-mode .modal-top-date {
   color: #94a3b8;
+}
+
+body.dark-mode .modal-rating-paren {
+  color: #fbbf24;
 }
 
 body.dark-mode .modal-rating-inline .stars-gold i.bx-star {
@@ -2300,11 +2313,21 @@ body.dark-mode .modal-spin-stars-plain .stars-gold i.bx-star {
 }
 
 .desc-label {
-  font-size: 0.72rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  color: #64748b;
-  margin-right: 2px;
+  margin-right: 0.15rem;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.76rem;
+  font-weight: 600;
+  font-style: italic;
+  text-transform: none;
+  color: #0f172a;
+  opacity: 0.65;
+  display: inline-flex;
+  align-items: center;
+}
+
+body.dark-mode .desc-label,
+.dark-mode .desc-label {
+  color: #f1f5f9;
 }
 
 .descriptor-pill {
@@ -2319,6 +2342,86 @@ body.dark-mode .modal-spin-stars-plain .stars-gold i.bx-star {
   padding: 2px 7px;
   border-radius: 4px;
   font-weight: 500;
+}
+
+.context-meta-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  row-gap: 0.35rem;
+  margin-top: 0.1rem;
+  font-size: 0.76rem;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.context-meta-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.context-meta-group + .context-meta-group {
+  margin-left: 0.3rem;
+}
+
+.context-meta-pill {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 2px 7px;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.3;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  text-transform: none !important;
+}
+
+.context-meta-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+}
+
+.context-meta-pill.is-scene {
+  color: #0369a1;
+  background: rgba(224, 242, 254, 0.68);
+  border: 1px solid rgba(56, 189, 248, 0.42);
+}
+
+.context-meta-pill.is-scene:hover {
+  background: rgba(224, 242, 254, 0.95);
+  border-color: rgba(14, 165, 233, 0.7);
+}
+
+.context-meta-pill.is-movement {
+  color: #5b21b6;
+  background: rgba(237, 233, 254, 0.68);
+  border: 1px solid rgba(139, 92, 246, 0.38);
+}
+
+.context-meta-pill.is-movement:hover {
+  background: rgba(237, 233, 254, 0.95);
+  border-color: rgba(139, 92, 246, 0.68);
+}
+
+body.dark-mode .context-meta-pill.is-scene,
+.dark-mode .context-meta-pill.is-scene {
+  color: #7dd3fc;
+  background: rgba(14, 116, 144, 0.22);
+  border-color: rgba(56, 189, 248, 0.34);
+}
+
+body.dark-mode .context-meta-pill.is-movement,
+.dark-mode .context-meta-pill.is-movement {
+  color: #c4b5fd;
+  background: rgba(91, 33, 182, 0.22);
+  border-color: rgba(167, 139, 250, 0.34);
 }
 
 /* Descriptors Toggle & Collapse Button in Details Modal */
@@ -2479,22 +2582,35 @@ span.fav-track-chip:not(.song-embed-link):hover .aero-favtrack-icon,
    Favorite Tracks Row & Sky-Blue Chips (Matching SosaSpins)
    ============================================================ */
 .fav-tracks-row {
-  margin-top: 0.65rem;
+  display: flex !important;
+  align-items: center;
+  gap: 0.55rem;
+  row-gap: 0.45rem !important;
+  flex: 1 1 auto;
+  width: auto !important;
+  min-width: 0;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  flex-wrap: wrap !important;
 }
 
 .fav-label {
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: #1e3a8a;
-  margin-bottom: 0.35rem;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 4px;
+  font-family: "Plus Jakarta Sans", sans-serif !important;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #065f46;
+  text-transform: uppercase;
+  margin-bottom: 0;
 }
 
 body.dark-mode .fav-label,
 .dark-mode .fav-label {
-  color: #93c5fd;
+  color: #6ee7b7;
 }
 
 .fav-tracks-chips {
@@ -2576,22 +2692,25 @@ body.dark-mode .fav-track-chip.song-embed-link:hover,
 }
 
 .modal-detail-body .spin-memo-entry {
-  font-size: 0.92rem;
-  line-height: 1.65;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.55;
   color: #1e293b;
-  margin-top: 0.55rem;
-  padding: 0.8rem 1.05rem;
-  background: linear-gradient(135deg, rgba(167, 243, 208, 0.22) 0%, rgba(110, 231, 183, 0.12) 100%);
-  border: 1px solid rgba(16, 185, 129, 0.25);
-  border-left: 3px solid #10b981;
-  border-radius: 0 6px 6px 0;
+  margin: 0.45rem 0 0 0;
+  padding: 0.85rem 1.15rem;
+  background: rgba(255, 255, 255, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 6px;
+  box-shadow: 0 2px 10px rgba(10, 35, 20, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .modal-spin-history {
-  margin-top: 0.95rem;
+  margin-top: 0.15rem;
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 0.55rem;
 }
 
 .modal-spin-history-header {
@@ -2633,16 +2752,16 @@ body.dark-mode .fav-track-chip.song-embed-link:hover,
 }
 
 .modal-spin-entry {
-  padding: 0.7rem 0.85rem;
+  padding: 0.56rem 0.74rem;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.76);
   border: 1px solid rgba(148, 163, 184, 0.32);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 4px rgba(15, 23, 42, 0.05);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92), 0 1px 4px rgba(15, 23, 42, 0.05);
 }
 
 .modal-spin-entry.is-latest {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(236, 253, 245, 0.68) 100%);
-  border-color: rgba(16, 185, 129, 0.42);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(236, 253, 245, 0.7) 100%);
+  border-color: rgba(16, 185, 129, 0.44);
 }
 
 .modal-spin-entry-header {
@@ -2736,6 +2855,27 @@ body.dark-mode .fav-track-chip.song-embed-link:hover,
   color: rgba(146, 64, 14, 0.25);
 }
 
+.modal-spin-jump-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(14, 165, 233, 0.36);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(224, 242, 254, 0.85) 100%);
+  color: #0369a1;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.69rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.modal-spin-jump-btn:hover {
+  border-color: #0284c7;
+  background: linear-gradient(180deg, #ffffff 0%, #bae6fd 100%);
+}
+
 .modal-spin-no-memo {
   margin-top: 0.45rem;
   font-size: 0.8rem;
@@ -2801,15 +2941,21 @@ body.dark-mode .modal-spin-rating-pill .stars-gold i.bx-star {
   color: rgba(255, 255, 255, 0.2);
 }
 
+body.dark-mode .modal-spin-jump-btn {
+  background: rgba(14, 165, 233, 0.18);
+  border-color: rgba(56, 189, 248, 0.38);
+  color: #bae6fd;
+}
+
 body.dark-mode .modal-spin-no-memo {
   color: #94a3b8;
 }
 
 body.dark-mode .modal-detail-body .spin-memo-entry {
   color: #e2e8f0;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.16) 0%, rgba(6, 78, 59, 0.24) 100%);
-  border-color: rgba(52, 211, 153, 0.28);
-  border-left: 3px solid #34d399;
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
 }
 
 /* Blockquote & Bilingual Translation Blocks inside Challenge Spin Memos */
@@ -5936,7 +6082,7 @@ body.dark-mode .context-popover-pill.is-movement {
    WINDOWS 7 AERO GLASS MODALS (Challenge Parity + Glass Shell)
    ============================================================ */
 .window.w7-modal-window {
-  max-width: 615px !important;
+  max-width: 605px !important;
   width: 94% !important;
   margin: auto !important;
   background:
@@ -6038,7 +6184,7 @@ body.dark-mode .window.w7-modal-window.w7-auth-window .title-bar-text {
 .window.w7-modal-window .window-body {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.72) 0%, rgba(246, 251, 255, 0.66) 100%) !important;
   margin: 0 !important;
-  padding: 0.95rem 1.2rem 1rem !important;
+  padding: 1.08rem 1.28rem 1.1rem !important;
   border: none !important;
   border-radius: 0 0 5px 5px !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75) !important;
@@ -6099,7 +6245,9 @@ body.dark-mode .w7-auth-footer {
 
 /* Challenge Album Details Modal Inner Parity */
 .challenge-detail-window .modal-detail-wrapper {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  gap: 0.68rem;
 }
 
 .challenge-detail-window .modal-detail-header {
@@ -6107,8 +6255,8 @@ body.dark-mode .w7-auth-footer {
   flex-direction: row !important;
   align-items: flex-start !important;
   text-align: left !important;
-  gap: 0.92rem !important;
-  padding-bottom: 0;
+  gap: 1.05rem !important;
+  padding-bottom: 0.15rem;
   border-bottom: none;
 }
 
@@ -6141,7 +6289,7 @@ body.dark-mode .challenge-detail-window .modal-detail-cover {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.18rem;
+  gap: 0.27rem;
 }
 
 .challenge-detail-window .modal-backlog-month-pill {
@@ -6176,7 +6324,7 @@ body.dark-mode .modal-detail-year {
 .modal-detail-artist {
   font-size: 0.92rem;
   font-weight: 700;
-  color: #0284c7;
+  color: #047857;
   margin-top: 0;
   line-height: 1.3;
   word-break: break-word;
@@ -6189,17 +6337,17 @@ body.dark-mode .modal-detail-year {
 }
 
 .modal-detail-artist-link:hover {
-  color: #0369a1;
+  color: #065f46;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 body.dark-mode .modal-detail-artist {
-  color: #38bdf8;
+  color: #6ee7b7;
 }
 
 body.dark-mode .modal-detail-artist-link:hover {
-  color: #7dd3fc;
+  color: #a7f3d0;
 }
 
 .modal-detail-stats-row {
@@ -6325,8 +6473,17 @@ body.dark-mode .modal-count-chip.is-pending-chip {
   border-color: rgba(148, 163, 184, 0.3);
 }
 
+.modal-detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
 .modal-detail-section {
-  margin-top: 0.75rem;
+  margin-top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
 .modal-sec-title {
@@ -6443,7 +6600,7 @@ body.dark-mode .modal-recal-btn {
   padding: 6px 14px !important;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 480px) {
   .window.w7-modal-window .window-body {
     padding: 0.8rem 0.9rem !important;
   }

@@ -2461,10 +2461,6 @@ function getDominantColorFromImg(imgUrl) {
               No logged spins were found for <b>${escapeHtml(displayArtist ? `${displayArtist} — ${displayTitle}` : displayTitle)}</b>.
             </div>
           </div>
-          <div class="modal-detail-actions-bar">
-            <div class="modal-detail-actions-left"></div>
-            <button type="button" class="aero-command-btn" onclick="closeRecordHistoryModal()">Close</button>
-          </div>
         </div>
       `;
       openAeroModal(recordHistoryModal);
@@ -2540,7 +2536,7 @@ function getDominantColorFromImg(imgUrl) {
       descriptorsSectionHtml = `
         <div class="modal-detail-section">
           <div class="descriptors-wrapper">
-            <span class="desc-label">Descriptors:</span>
+            <span class="desc-label">descriptors:</span>
             ${initialDesc.map(d => `<span class="descriptor-pill" onclick="closeRecordHistoryModal(); setSidebarFilter('descriptor', '${String(d).replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')">${escapeHtml(d)}</span>`).join("")}
             ${hasManyDesc ? `
               <span class="remaining-descriptors is-hidden">
@@ -2568,8 +2564,10 @@ function getDominantColorFromImg(imgUrl) {
       }).join("");
       favTracksSectionHtml = `
         <div class="modal-detail-section">
-          <div class="modal-sec-title"><i class='bx bxs-music'></i> Favorite Tracks</div>
-          <div class="fav-tracks-chips">${chipsHtml}</div>
+          <div class="fav-tracks-row">
+            <span class="fav-label">Fav Tracks:</span>
+            <div class="fav-tracks-chips">${chipsHtml}</div>
+          </div>
         </div>
       `;
     }
@@ -2648,11 +2646,13 @@ function getDominantColorFromImg(imgUrl) {
           <div class="modal-detail-meta">
             <div class="modal-header-top-row">
               <div class="modal-title-line">
-                <span class="modal-detail-title">${escapeHtml(displayTitle)}</span>${yearHtml}${formatInlineHtml}${runtimeInlineHtml}
+                <span class="modal-detail-title">${escapeHtml(displayTitle)}</span><span class="spin-meta-cluster">${yearHtml}${formatInlineHtml}${runtimeInlineHtml}</span>
               </div>
               ${topDateHtml}
             </div>
-            <div class="modal-detail-artist">${renderClickableArtists(displayArtist)}</div>
+            <div class="modal-detail-artist-row">
+              <div class="modal-detail-artist">${renderClickableArtists(displayArtist)}</div>
+            </div>
             ${ratingInlineHtml}
             ${genresSectionHtml}
           </div>
@@ -2670,17 +2670,6 @@ function getDominantColorFromImg(imgUrl) {
             </div>
             <div class="modal-spin-history-list">${entriesHtml}</div>
           </div>
-        </div>
-
-        <div class="modal-detail-actions-bar">
-          <div class="modal-detail-actions-left">
-            ${latest.id ? `
-              <button type="button" class="aero-command-btn artist-quick-primary-btn" onclick="closeRecordHistoryModal(); if (window.jumpToSpinInTimeline) window.jumpToSpinInTimeline(${latest.id});">
-                <i class='bx bx-search'></i> View Latest in Timeline
-              </button>
-            ` : ""}
-          </div>
-          <button type="button" class="aero-command-btn" onclick="closeRecordHistoryModal()">Close</button>
         </div>
       </div>
     `;
@@ -6247,21 +6236,42 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
   function openTop100DetailModal(rank, album) {
     if (!top100DetailModal || !top100ModalBody) return;
 
+    const displayTitle = album.title || "Untitled";
+    const displayArtist = album.artist || "Unknown Artist";
     const top100TitleEl = document.getElementById("top100DetailTitle");
     if (top100TitleEl) {
-      top100TitleEl.innerHTML = `<i class='bx bx-disc'></i> Album Details &mdash; ${escapeHtml(album.title || "Untitled")}`;
+      top100TitleEl.innerHTML = `<i class='bx bx-disc' style="color: #10b981; vertical-align: middle; margin-right: 4px;"></i> <span>${escapeHtml(displayArtist ? `${displayArtist} — ${displayTitle}` : displayTitle)}</span>`;
     }
 
-    const coverSrc = album.cover_url || "assets/images/spins/placeholder.png";
+    const aNorm = String(album.artist || "").trim().toLowerCase();
+    const tNorm = String(album.title || "").trim().toLowerCase();
+    const list = Array.isArray(allEntries) ? allEntries : [];
+    let matchingSpins = list.filter(entry => {
+      const ea = String(entry.artist || "").trim().toLowerCase();
+      const et = String(entry.title || "").trim().toLowerCase();
+      if (aNorm && tNorm) return ea === aNorm && et === tNorm;
+      if (tNorm) return et === tNorm;
+      return false;
+    });
+    matchingSpins = sortSpinsNewestFirst(matchingSpins);
+    if (!matchingSpins.length && album.live_spin) {
+      matchingSpins = [album.live_spin];
+    }
+    const latestSpin = matchingSpins[0] || null;
+    const totalSpins = matchingSpins.length;
+
+    const coverSrc = album.cover_url || (latestSpin && latestSpin.cover_url) || "assets/images/spins/placeholder.png";
     const ratingVal = (album.rating !== null && album.rating !== undefined && album.rating !== "") ? parseFloat(album.rating).toFixed(1) : "";
-    const yearHtml = album.release_year ? ` <span class="top100-detail-year">(${album.release_year})</span>` : "";
-    const top100DisplayType = normalizeSpinDisplayType(album.type);
+    const yearHtml = album.release_year ? `<span class="modal-detail-year top100-detail-year">(${album.release_year})</span>` : "";
+    const top100DisplayType = normalizeSpinDisplayType(album.type || (latestSpin && latestSpin.type));
     const top100FormatHtml = `<span class="spin-format-text"><span class="format-bullet">•</span> ${escapeHtml(top100DisplayType)}</span>`;
-    const top100RuntimeHtml = album.runtime
-      ? `<span class="modal-runtime-favfont" title="Runtime: ${escapeHtml(album.runtime)}">• ${escapeHtml(album.runtime)}</span>`
+    const dispRuntime = album.runtime || (latestSpin && latestSpin.runtime) || "";
+    const top100RuntimeHtml = dispRuntime
+      ? `<span class="modal-runtime-favfont" title="Runtime: ${escapeHtml(dispRuntime)}">• ${escapeHtml(dispRuntime)}</span>`
       : "";
-    const top100TopDateHtml = album.log_date
-      ? `<span class="modal-top-date" title="Most recent spin"><i class='bx bx-calendar'></i> ${escapeHtml(album.log_date)}</span>`
+    const dispLogDate = album.log_date || (latestSpin && latestSpin.log_date) || "";
+    const top100TopDateHtml = dispLogDate
+      ? `<span class="modal-top-date" title="Most recent spin"><i class='bx bx-calendar'></i> ${escapeHtml(dispLogDate)}</span>`
       : "";
 
     let primaryGenres = [];
@@ -6303,86 +6313,154 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
     }
     descriptors = descriptors.map(d => String(d).trim()).filter(Boolean);
 
-    let favTracks = [];
-    if (Array.isArray(album.fav_tracks)) {
-      favTracks = album.fav_tracks;
-    } else if (typeof album.fav_tracks === "string" && album.fav_tracks.trim()) {
-      favTracks = album.fav_tracks.split(",").map(t => t.trim()).filter(Boolean);
-    }
+    const favTracks = parseFavTracks(album.fav_tracks || (latestSpin && latestSpin.fav_tracks));
+    const contextPinsHtml = renderContextPinsHtml(
+      album.scenes || (latestSpin && latestSpin.scenes),
+      album.movements || (latestSpin && latestSpin.movements)
+    );
 
-    const hasManyDesc = descriptors.length > 3;
-    const initialDesc = descriptors.slice(0, 3);
-    const remainingDesc = descriptors.slice(3);
-    const descHtml = renderDescriptorsAndContextHtml({
-      boxId: "desc-box-top100",
-      descriptors,
-      initialDesc,
-      remainingDesc,
-      hasManyDesc,
-      scenesVal: album.scenes,
-      movementsVal: album.movements,
-      isTop100: true
-    });
-    const contextSectionHtml = descHtml ? `
-      <div class="artist-quick-section top100-context-section">
-        <div class="artist-quick-sec-title"><i class='bx bx-detail'></i> Descriptors & Context:</div>
-        ${descHtml}
-      </div>
-    ` : "";
     let genresHtml = "";
-    if (primaryGenres.length || secondaryGenres.length) {
+    if (primaryGenres.length || secondaryGenres.length || contextPinsHtml) {
       genresHtml = `
         <div class="genre-container modal-header-genres">
           ${primaryGenres.length ? `
             <div class="primary-genres-wrap">
-              ${primaryGenres.map(g => `<span class="genre-pill genre-primary">${escapeHtml(g)}</span>`).join("")}
+              ${primaryGenres.map(g => `<span class="genre-pill genre-primary" onclick="closeTop100Modal(); setSidebarFilter('genre', '${String(g).replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')">${escapeHtml(g)}</span>`).join("")}
             </div>
           ` : ""}
           ${secondaryGenres.length ? `
             <div class="secondary-genres-wrap">
-              ${secondaryGenres.map(g => `<span class="genre-pill genre-secondary">${escapeHtml(g)}</span>`).join("")}
+              ${secondaryGenres.map(g => `<span class="genre-pill genre-secondary" onclick="closeTop100Modal(); setSidebarFilter('genre', '${String(g).replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')">${escapeHtml(g)}</span>`).join("")}
             </div>
           ` : ""}
+          ${contextPinsHtml}
+        </div>
+      `;
+    }
+
+    let descriptorsSectionHtml = "";
+    if (descriptors.length) {
+      const hasManyDesc = descriptors.length > 4;
+      const initialDesc = descriptors.slice(0, 4);
+      const remainingDesc = descriptors.slice(4);
+      descriptorsSectionHtml = `
+        <div class="modal-detail-section">
+          <div class="descriptors-wrapper">
+            <span class="desc-label">descriptors:</span>
+            ${initialDesc.map(d => `<span class="descriptor-pill" onclick="closeTop100Modal(); setSidebarFilter('descriptor', '${String(d).replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')">${escapeHtml(d)}</span>`).join("")}
+            ${hasManyDesc ? `
+              <span class="remaining-descriptors is-hidden">
+                ${remainingDesc.map(d => `<span class="descriptor-pill" onclick="closeTop100Modal(); setSidebarFilter('descriptor', '${String(d).replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')">${escapeHtml(d)}</span>`).join("")}
+              </span>
+              <button type="button" class="desc-expand-btn" data-count="${remainingDesc.length}" aria-expanded="false" title="Show ${remainingDesc.length} more descriptors" onclick="toggleModalDescriptors(this)">
+                <i class='bx bx-chevron-down' style="font-size: 0.85rem; vertical-align: middle;"></i> +${remainingDesc.length}
+              </button>
+            ` : ""}
+          </div>
         </div>
       `;
     }
 
     let favTracksHtml = "";
     if (favTracks.length) {
+      const chipsHtml = favTracks.map(t => {
+        const parts = t.split("|");
+        const name = parts[0].trim();
+        const url = parts.length > 1 ? parts[1].trim() : (name.startsWith("http") ? name : null);
+        const safeTrack = escapeHtml(name).replace(/'/g, "\\'");
+        const safeArtist = escapeHtml(album.artist || "").replace(/'/g, "\\'");
+        const safeAlbum = escapeHtml(album.title || "").replace(/'/g, "\\'");
+        const safeCover = (album.cover_url || "").replace(/'/g, "\\'");
+        if (url && (url.startsWith("http://") || url.startsWith("https://"))) {
+          return `<span class="fav-track-chip song-embed-link single-play-chip" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')" title="Play ${escapeHtml(name)}"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(name)}</span>`;
+        }
+        return `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon"> ${escapeHtml(name)}</span>`;
+      }).join("");
       favTracksHtml = `
-        <div class="artist-quick-section top100-fav-tracks-wrap">
-          <div class="artist-quick-sec-title"><i class='bx bxs-music'></i> Favorite Tracks:</div>
-          <div class="top100-fav-tracks-list">
-            ${favTracks.map(t => {
-              const parts = t.split("|");
-              const name = parts[0].trim();
-              const url = parts.length > 1 ? parts[1].trim() : (name.startsWith("http") ? name : null);
-              const safeTrack = escapeHtml(name).replace(/'/g, "\\'");
-              const safeArtist = escapeHtml(album.artist || "").replace(/'/g, "\\'");
-              const safeAlbum = escapeHtml(album.title || "").replace(/'/g, "\\'");
-              const safeCover = (album.cover_url || "").replace(/'/g, "\\'");
-              if (url && (url.startsWith("http://") || url.startsWith("https://"))) {
-                return `<span class="fav-track-chip song-embed-link single-play-chip" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')" title="Play ${escapeHtml(name)}"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(name)}</span>`;
-              }
-              return `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon"> ${escapeHtml(name)}</span>`;
-            }).join("")}
+        <div class="modal-detail-section">
+          <div class="fav-tracks-row">
+            <span class="fav-label">Fav Tracks:</span>
+            <div class="fav-tracks-chips">${chipsHtml}</div>
           </div>
         </div>
       `;
     }
 
-    let memoHtml = "";
-    if (album.memo) {
-      memoHtml = `
-        <div class="artist-quick-section">
-          <div class="artist-quick-sec-title"><i class='bx bx-note'></i> Notes:</div>
-          <div class="top100-memo-box">"${escapeHtml(album.memo).replace(/\r?\n/g, "<br>")}"</div>
+    let latestSpinSectionHtml = "";
+    if (latestSpin || album.memo) {
+      const spinObj = latestSpin || {
+        id: album.spin_id || null,
+        log_date: dispLogDate,
+        rating: album.rating,
+        relisten: false,
+        rating_shift: null,
+        memo: album.memo || ""
+      };
+      const totalCount = totalSpins || 1;
+      const rNum = (spinObj.rating !== null && spinObj.rating !== undefined && spinObj.rating !== "") ? parseFloat(spinObj.rating) : NaN;
+      let shiftStr = "";
+      if (spinObj.rating_shift && spinObj.rating_shift.from !== undefined && spinObj.rating_shift.to !== undefined) {
+        const fNum = parseFloat(spinObj.rating_shift.from);
+        const tNum = parseFloat(spinObj.rating_shift.to);
+        if (!Number.isNaN(fNum) && !Number.isNaN(tNum)) {
+          shiftStr = `<span class="modal-spin-shift-pill" title="Rating recalibration">${fNum.toFixed(1)} ➔ ${tNum.toFixed(1)} ★</span>`;
+        }
+      }
+      const ratingPillHtml = !Number.isNaN(rNum)
+        ? `<span class="modal-spin-stars-plain"><span class="stars-gold">${getStarString(rNum)}</span> <span class="modal-rating-paren">(${rNum.toFixed(1)})</span></span>`
+        : "";
+      const numLabel = totalCount === 1 ? "Spin #1" : `Latest • Spin #${totalCount}`;
+      const countPillLabel = totalCount > 1 ? `Most recent of ${totalCount} spins` : "1 spin";
+      const relistenBadgeHtml = spinObj.relisten
+        ? `<span class="modal-spin-relisten-badge"><i class='bx bx-revision'></i> Relisten</span>`
+        : "";
+      const spinIdToJump = spinObj.id || album.spin_id;
+      const spinJumpHtml = spinIdToJump
+        ? `<button type="button" class="modal-spin-jump-btn" onclick="closeTop100Modal(); if (window.jumpToSpinInTimeline) window.jumpToSpinInTimeline(${spinIdToJump});" title="Jump to this spin in timeline"><i class='bx bx-right-top-arrow-circle'></i> Jump</button>`
+        : "";
+      const spinSafeArtist = (spinObj.artist || displayArtist || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+      const spinSafeAlbum = (spinObj.title || displayTitle || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+      const spinSafeCover = (spinObj.cover_url || coverSrc).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+      const rawMemoToRender = spinObj.memo || album.memo || "";
+      const formattedMemo = formatSpinMemoHtml(rawMemoToRender, {
+        safeArtist: spinSafeArtist,
+        safeAlbum: spinSafeAlbum,
+        safeCover: spinSafeCover
+      });
+
+      latestSpinSectionHtml = `
+        <div class="modal-spin-history">
+          <div class="modal-spin-history-header">
+            <div class="modal-spin-history-title">
+              <i class='bx bx-history'></i> LATEST SPIN
+            </div>
+            <span class="modal-spin-count-pill">${escapeHtml(countPillLabel)}</span>
+          </div>
+          <div class="modal-spin-history-list">
+            <div class="modal-spin-entry is-latest">
+              <div class="modal-spin-entry-header">
+                <div class="modal-spin-entry-left">
+                  <span class="modal-spin-num-badge is-latest">${numLabel}</span>
+                  <span class="modal-spin-date"><i class='bx bx-calendar'></i> ${escapeHtml(spinObj.log_date || dispLogDate || "Date N/A")}</span>
+                  ${relistenBadgeHtml}
+                </div>
+                <div class="modal-spin-entry-right">
+                  ${shiftStr}
+                  ${ratingPillHtml}
+                  ${spinJumpHtml}
+                </div>
+              </div>
+              ${formattedMemo
+                ? `<div class="spin-memo-entry" style="margin-top: 0.45rem;">${formattedMemo}</div>`
+                : `<div class="modal-spin-no-memo">No memo written for this listen.</div>`}
+            </div>
+          </div>
         </div>
       `;
     }
 
     let jumpActionHtml = "";
-    if (album.spin_id) {
+    if (!latestSpinSectionHtml && album.spin_id) {
       jumpActionHtml += `
         <button type="button" class="aero-command-btn artist-quick-primary-btn" onclick="closeTop100Modal(); window.jumpToSpinInTimeline(${album.spin_id});">
           <i class='bx bx-search'></i> View in Timeline
@@ -6409,34 +6487,39 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
     ` : (rymHoverText ? `<div class="modal-runtime-favfont">${escapeHtml(rymHoverText)}</div>` : "");
 
     top100ModalBody.innerHTML = `
-      <div class="top100-detail-body">
-        <div class="top100-detail-header-row">
+      <div class="modal-detail-wrapper top100-detail-body">
+        <div class="modal-detail-header top100-detail-header-row">
           <div class="modal-cover-wrap">
-            <img src="${coverSrc}" alt="${escapeHtml(album.title)}" class="top100-detail-cover modal-detail-cover" decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png'; if (this.nextElementSibling) this.nextElementSibling.style.backgroundImage='url(assets/images/spins/placeholder.png)';">
+            <img src="${coverSrc}" alt="${escapeHtml(displayTitle)}" class="top100-detail-cover modal-detail-cover" decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png'; if (this.nextElementSibling) this.nextElementSibling.style.backgroundImage='url(assets/images/spins/placeholder.png)';">
             <div class="modal-cover-reflection" style="background-image: url('${coverSrc}');" aria-hidden="true"></div>
           </div>
-          <div class="top100-detail-info">
+          <div class="modal-detail-meta top100-detail-info">
             <div class="modal-header-top-row">
-              <div class="top100-detail-rank-badge artist-quick-rank-pill"><i class='bx bxs-award'></i> Rank #${rank}</div>
+              <div class="modal-title-line">
+                <span class="modal-detail-title top100-detail-title">${escapeHtml(displayTitle)}</span><span class="spin-meta-cluster">${yearHtml}${top100FormatHtml}${top100RuntimeHtml}</span>
+              </div>
               ${top100TopDateHtml}
             </div>
-            <div class="modal-title-line">
-              <span class="top100-detail-title">${escapeHtml(album.title)}</span>${yearHtml}${top100FormatHtml}${top100RuntimeHtml}
+            <div class="modal-detail-artist-row">
+              <div class="modal-detail-artist top100-detail-artist">${renderClickableArtists(displayArtist)}</div>
+              <span class="top100-detail-rank-badge artist-quick-rank-pill"><i class='bx bxs-award'></i> Rank #${rank}</span>
             </div>
-            <div class="top100-detail-artist">${renderClickableArtists(album.artist || "Unknown Artist")}</div>
             ${ratingInlineHtml}
             ${genresHtml}
           </div>
         </div>
-        ${contextSectionHtml}
-        ${favTracksHtml}
-        ${memoHtml}
-        <div class="artist-quick-actions-bar top100-detail-actions-bar">
-          <div class="top100-detail-actions-left">
-            ${jumpActionHtml}
-          </div>
-          <button type="button" class="aero-command-btn artist-quick-close-btn" onclick="closeTop100Modal()">Close</button>
+        <div class="modal-detail-body">
+          ${descriptorsSectionHtml}
+          ${favTracksHtml}
+          ${latestSpinSectionHtml}
         </div>
+        ${jumpActionHtml ? `
+          <div class="modal-detail-actions-bar artist-quick-actions-bar top100-detail-actions-bar">
+            <div class="modal-detail-actions-left top100-detail-actions-left">
+              ${jumpActionHtml}
+            </div>
+          </div>
+        ` : ""}
       </div>
     `;
 
@@ -6564,7 +6647,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
                     <span class="artist-project-rank">#${idx + 1}</span>
                     <img src="${p.cover_url || 'assets/images/spins/placeholder.png'}" alt="${escapeHtml(p.title)}" class="artist-project-cover" decoding="async" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
                     <div class="artist-project-info">
-                      <div class="artist-project-title" title="${escapeHtml(p.title)}">${escapeHtml(p.title)} <span class="artist-project-year">${yStr}</span>${typeInline}${aliasTag}</div>
+                      <div class="artist-project-title" title="${escapeHtml(p.title)}"><span class="artist-project-name-text">${escapeHtml(p.title)}</span><span class="spin-meta-cluster">${yStr ? `<span class="artist-project-year">${yStr}</span>` : ""}${typeInline}${aliasTag}</span></div>
                     </div>
                   </div>
                   <div class="artist-project-right">
@@ -7136,9 +7219,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
             <!-- 1. Header Line: Title on left, Date on right -->
           <div class="spin-header">
             <div class="title-meta-group">
-              <span class="spin-title">${renderClickableArtists(item.artist)} <span class="spin-title-dash">—</span> <span class="spin-album-title">${escapeHtml(item.title)}</span></span>
-              <span class="spin-year">${item.year ? `(${item.year})` : ''}</span>
-              <span class="spin-format-text"><span class="format-bullet">•</span> ${escapeHtml(displayType)}</span>${item.runtime ? `<span class="spin-runtime-text" title="Runtime: ${escapeHtml(item.runtime)}"><span class="runtime-bullet">•</span> ${escapeHtml(item.runtime)}</span>` : ""}
+              <span class="spin-title">${renderClickableArtists(item.artist)} <span class="spin-title-dash">—</span> <span class="spin-album-title">${escapeHtml(item.title)}</span></span><span class="spin-meta-cluster">${item.year ? `<span class="spin-year">(${item.year})</span>` : ''}<span class="spin-format-text"><span class="format-bullet">•</span> ${escapeHtml(displayType)}</span>${item.runtime ? `<span class="spin-runtime-text" title="Runtime: ${escapeHtml(item.runtime)}"><span class="runtime-bullet">•</span> ${escapeHtml(item.runtime)}</span>` : ""}</span>
               ${(() => {
                 const recalMeta = getActiveRecalibrateMeta(item);
                 if (!recalMeta) return "";

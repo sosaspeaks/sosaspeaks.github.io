@@ -590,6 +590,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     `;
   }
 
+  function renderContextMetaGroup(kind, items, extraClass = "") {
+    if (!items || !items.length) return "";
+    const isScene = kind === "scene";
+    const kindClass = isScene ? "is-scene" : "is-movement";
+    const labelText = isScene ? "scene:" : "movement:";
+    const cls = extraClass ? ` ${extraClass}` : "";
+    const pillsHtml = items.map(val => {
+      const escapedJs = val.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+      return `<button type="button" class="context-meta-pill ${kindClass}" onclick="handleContextPillClick('${kind}', '${escapedJs}', event)" title="View in SosaSpins: ${escapeHtml(val)}">${escapeHtml(val)}</button>`;
+    }).join("");
+    return `<span class="context-meta-group${cls}"><span class="desc-label context-meta-label">${labelText}</span>${pillsHtml}</span>`;
+  }
+
+  function renderContextMetaRowsHtml(scenesVal, movementsVal, extraClass = "") {
+    const scenes = safeToArray(scenesVal);
+    const movements = safeToArray(movementsVal);
+    if (!scenes.length && !movements.length) return "";
+    const cls = extraClass ? ` ${extraClass}` : "";
+    return `<div class="context-meta-wrapper${cls}">${renderContextMetaGroup("scene", scenes)}${renderContextMetaGroup("movement", movements)}</div>`;
+  }
+
   function renderContextPinsHtml(scenesVal, movementsVal) {
     const scenes = safeToArray(scenesVal);
     const movements = safeToArray(movementsVal);
@@ -2192,6 +2213,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         ? `<span class="modal-spin-relisten-badge"><i class='bx bx-revision'></i> Relisten${relistenReasonText ? `: ${escapeHtml(relistenReasonText)}` : ""}</span>`
         : "";
 
+      const spinJumpHtml = spin.id
+        ? `<a href="sosaspins.html?highlight=${spin.id}" class="modal-spin-jump-btn" style="text-decoration: none;" title="Jump to this spin in timeline"><i class='bx bx-right-top-arrow-circle'></i> Jump</a>`
+        : "";
+
       const memoHtml = formatSpinMemoHtml(spin.memo);
 
       return `
@@ -2205,6 +2230,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             <div class="modal-spin-entry-right">
               ${shiftStr}
               ${ratingPillHtml}
+              ${spinJumpHtml}
             </div>
           </div>
           ${memoHtml
@@ -2304,7 +2330,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const displayArtist = (match && match.artist) ? match.artist : (album.artist || "Unknown Artist");
     const titleBarEl = document.getElementById("detailModalTitleText");
     if (titleBarEl) {
-      titleBarEl.innerHTML = `<i class='bx bx-disc'></i> Album Details &mdash; ${escapeHtml(displayTitle)}`;
+      titleBarEl.innerHTML = `<i class='bx bx-disc' style="color: #10b981; vertical-align: middle; margin-right: 4px;"></i> <span>${escapeHtml(displayArtist ? `${displayArtist} — ${displayTitle}` : displayTitle)}</span>`;
     }
 
     const releaseYear = (match && match.year) ? match.year : (album.release_year || album.year || (priorSpin ? priorSpin.year : ""));
@@ -2328,16 +2354,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         const secondaryGenres = safeToArray(match.secondary_genres);
         const matchedScenes = safeToArray((match.scenes && match.scenes.length) ? match.scenes : album.scenes);
         const matchedMovements = safeToArray((match.movements && match.movements.length) ? match.movements : album.movements);
-        const matchedContextPinsHtml = renderContextPinsHtml(matchedScenes, matchedMovements);
+        const matchedContextPinsHtml = renderContextMetaRowsHtml(matchedScenes, matchedMovements);
 
         let genresSectionHtml = "";
         if (primaryGenres.length || secondaryGenres.length || matchedContextPinsHtml) {
           genresSectionHtml = `
             <div class="genre-container modal-header-genres">
-              ${(primaryGenres.length || matchedContextPinsHtml) ? `
+              ${primaryGenres.length ? `
                 <div class="primary-genres-wrap">
                   ${primaryGenres.map(g => `<span class="genre-pill genre-primary">${escapeHtml(g)}</span>`).join("")}
-                  ${matchedContextPinsHtml}
                 </div>
               ` : ""}
               ${secondaryGenres.length ? `
@@ -2345,6 +2370,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                   ${secondaryGenres.map(g => `<span class="genre-pill genre-secondary">${escapeHtml(g)}</span>`).join("")}
                 </div>
               ` : ""}
+              ${matchedContextPinsHtml}
             </div>
           `;
         }
@@ -2352,13 +2378,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         const descriptors = safeToArray(match.descriptors);
         let descriptorsSectionHtml = "";
         if (descriptors.length) {
-          const hasManyDesc = descriptors.length > 3;
-          const initialDesc = hasManyDesc ? descriptors.slice(0, 3) : descriptors;
-          const remainingDesc = hasManyDesc ? descriptors.slice(3) : [];
+          const hasManyDesc = descriptors.length > 4;
+          const initialDesc = hasManyDesc ? descriptors.slice(0, 4) : descriptors;
+          const remainingDesc = hasManyDesc ? descriptors.slice(4) : [];
           descriptorsSectionHtml = `
             <div class="modal-detail-section">
-              <div class="modal-sec-title"><i class='bx bx-detail'></i> Descriptors:</div>
               <div class="descriptors-wrapper">
+                <span class="desc-label">descriptors:</span>
                 ${initialDesc.map(d => `<span class="descriptor-pill">${escapeHtml(d)}</span>`).join("")}
                 ${hasManyDesc ? `
                   <span class="remaining-descriptors is-hidden">
@@ -2400,9 +2426,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (link) {
               favTracksSectionHtml = `
                 <div class="modal-detail-section">
-                  <div class="modal-sec-title"><img src="assets/icons/aero/audio.png" alt="Audio" class="aero-audio-icon"> Audio:</div>
-                  <div class="fav-tracks-chips">
-                    <a href="${link}" target="_blank" rel="noopener noreferrer" class="fav-track-chip single-play-chip song-embed-link"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(title)} ↗</a>
+                  <div class="fav-tracks-row">
+                    <span class="fav-label">Audio:</span>
+                    <div class="fav-tracks-chips">
+                      <a href="${link}" target="_blank" rel="noopener noreferrer" class="fav-track-chip single-play-chip song-embed-link"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(title)}</a>
+                    </div>
                   </div>
                 </div>`;
             }
@@ -2412,14 +2440,16 @@ document.addEventListener("DOMContentLoaded", async () => {
               const title = parts[0].trim().replace(/^["“]|["”]$/g, "");
               const link = parts[1] ? parts[1].trim() : null;
               return link
-                ? `<a href="${link}" target="_blank" rel="noopener noreferrer" class="fav-track-chip song-embed-link"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(title)} ↗</a>`
+                ? `<a href="${link}" target="_blank" rel="noopener noreferrer" class="fav-track-chip song-embed-link"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(title)}</a>`
                 : `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon"> ${escapeHtml(title)}</span>`;
             }).join("");
 
             favTracksSectionHtml = `
               <div class="modal-detail-section">
-                <div class="modal-sec-title"><i class='bx bxs-music'></i> Favorite Tracks:</div>
-                <div class="fav-tracks-chips">${cleanedTracks}</div>
+                <div class="fav-tracks-row">
+                  <span class="fav-label">Fav Tracks:</span>
+                  <div class="fav-tracks-chips">${cleanedTracks}</div>
+                </div>
               </div>`;
           }
         }
@@ -2436,13 +2466,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           : "";
 
         let leftActionsHtml = "";
-        if (match.id) {
-          leftActionsHtml += `
-            <a href="sosaspins.html?highlight=${match.id}" class="aero-command-btn modal-primary-btn" style="text-decoration: none;">
-              <i class='bx bx-search'></i> View in Timeline
-            </a>
-          `;
-        }
         if (isAdmin && isRecalibrate) {
           leftActionsHtml += `
             <button type="button" class="aero-command-btn modal-recal-btn" onclick="importRelistenToSpin('${album.id}')">
@@ -2461,7 +2484,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               <div class="modal-detail-meta">
                 <div class="modal-header-top-row">
                   <div class="modal-title-line">
-                    <span class="modal-detail-title">${escapeHtml(displayTitle)}</span>${yearHtml}${formatInlineHtml}${runtimeInlineHtml}
+                    <span class="modal-detail-title">${escapeHtml(displayTitle)}</span><span class="spin-meta-cluster">${yearHtml}${formatInlineHtml}${runtimeInlineHtml}</span>
                   </div>
                   ${topDateHtml}
                 </div>
@@ -2482,10 +2505,11 @@ document.addEventListener("DOMContentLoaded", async () => {
               ${spinHistoryHtml}
             </div>
 
-            <div class="modal-detail-actions-bar">
-              <div class="modal-detail-actions-left">${leftActionsHtml}</div>
-              <button type="button" class="aero-command-btn modal-close-action-btn" onclick="closeChallengeDetailModal()">Close</button>
-            </div>
+            ${leftActionsHtml ? `
+              <div class="modal-detail-actions-bar">
+                <div class="modal-detail-actions-left">${leftActionsHtml}</div>
+              </div>
+            ` : ""}
           </div>
         `;
       } else {
@@ -2497,17 +2521,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         const descriptors = safeToArray((album.descriptors && album.descriptors.length) ? album.descriptors : (priorSpin ? priorSpin.descriptors : []));
         const unloggedScenes = safeToArray((album.scenes && album.scenes.length) ? album.scenes : (priorSpin ? priorSpin.scenes : []));
         const unloggedMovements = safeToArray((album.movements && album.movements.length) ? album.movements : (priorSpin ? priorSpin.movements : []));
-        const unloggedContextHtml = renderContextPinsHtml(unloggedScenes, unloggedMovements);
+        const unloggedContextHtml = renderContextMetaRowsHtml(unloggedScenes, unloggedMovements);
         const dispRuntime = album.runtime || (priorSpin ? priorSpin.runtime : "");
 
         let unloggedGenresHtml = "";
         if (primaryGenres.length || secondaryGenres.length || unloggedContextHtml) {
           unloggedGenresHtml = `
             <div class="genre-container modal-header-genres">
-              ${(primaryGenres.length || unloggedContextHtml) ? `
+              ${primaryGenres.length ? `
                 <div class="primary-genres-wrap">
                   ${primaryGenres.map(g => `<span class="genre-pill genre-primary">${escapeHtml(g)}</span>`).join("")}
-                  ${unloggedContextHtml}
                 </div>
               ` : ""}
               ${secondaryGenres.length ? `
@@ -2515,19 +2538,20 @@ document.addEventListener("DOMContentLoaded", async () => {
                   ${secondaryGenres.map(g => `<span class="genre-pill genre-secondary">${escapeHtml(g)}</span>`).join("")}
                 </div>
               ` : ""}
+              ${unloggedContextHtml}
             </div>
           `;
         }
 
         let unloggedDescHtml = "";
         if (descriptors.length) {
-          const hasManyDesc = descriptors.length > 3;
-          const initialDesc = hasManyDesc ? descriptors.slice(0, 3) : descriptors;
-          const remainingDesc = hasManyDesc ? descriptors.slice(3) : [];
+          const hasManyDesc = descriptors.length > 4;
+          const initialDesc = hasManyDesc ? descriptors.slice(0, 4) : descriptors;
+          const remainingDesc = hasManyDesc ? descriptors.slice(4) : [];
           unloggedDescHtml = `
             <div class="modal-detail-section">
-              <div class="modal-sec-title"><i class='bx bx-detail'></i> Descriptors:</div>
               <div class="descriptors-wrapper">
+                <span class="desc-label">descriptors:</span>
                 ${initialDesc.map(d => `<span class="descriptor-pill">${escapeHtml(d)}</span>`).join("")}
                 ${hasManyDesc ? `
                   <span class="remaining-descriptors is-hidden">
@@ -2567,7 +2591,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               <div class="modal-detail-meta">
                 <div class="modal-header-top-row">
                   <div class="modal-title-line">
-                    <span class="modal-detail-title">${escapeHtml(displayTitle)}</span>${yearHtml}${formatInlineHtml}${unloggedRuntimeHtml}
+                    <span class="modal-detail-title">${escapeHtml(displayTitle)}</span><span class="spin-meta-cluster">${yearHtml}${formatInlineHtml}${unloggedRuntimeHtml}</span>
                   </div>
                   ${unloggedTopDateHtml}
                 </div>
@@ -2594,10 +2618,11 @@ document.addEventListener("DOMContentLoaded", async () => {
               </div>
             </div>
 
-            <div class="modal-detail-actions-bar">
-              <div class="modal-detail-actions-left">${leftActionHtml}</div>
-              <button type="button" class="aero-command-btn modal-close-action-btn" onclick="closeChallengeDetailModal()">Close</button>
-            </div>
+            ${leftActionHtml ? `
+              <div class="modal-detail-actions-bar">
+                <div class="modal-detail-actions-left">${leftActionHtml}</div>
+              </div>
+            ` : ""}
           </div>
         `;
       }
