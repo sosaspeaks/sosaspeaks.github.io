@@ -4,12 +4,14 @@
   <img alt="sosaspeaks" src="https://github.com/sosaspeaks/sosaspeaks/blob/main/sosaspeaks-logo-blk.png" />
 </picture>
 
-_____                 _____                  __
+<pre>
+  _____                 _____                  __
   / ___/____  ________ _/ ___/____  ___  ____ _/ /_______
   \__ \/ __ \/ ___/ __ `/\__ \/ __ \/ _ \/ __ `/ //_/ ___/
  ___/ / /_/ (__  ) /_/ /___/ / /_/ /  __/ /_/ / ,< (__  )
 /____/\____/____/\__,_//____/ .___/\___/\__,_/_/|_/____/
                            /_/
+ </pre>
 
 > *"How it is we have so much information, but know so little?"*
 
