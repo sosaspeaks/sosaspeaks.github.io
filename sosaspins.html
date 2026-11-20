@@ -25,7 +25,7 @@
     <meta name="apple-mobile-web-app-title" content="SosaSpeaks" />
     <link rel="manifest" href="assets/images/homepics/site.webmanifest?v=20260527" />
     <!-- Link to CSS -->
-    <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261115d">
+    <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261118k">
     <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
     <!-- Box icons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
@@ -54,7 +54,11 @@
                 <a href="about.html" class="nav-custom-link" title="About">
                     <img src="assets/images/homepics/msgsres_1.ico" class="nav-custom-icon msngr-icon" alt="About">
                 </a>
-                <i class='bx bx-moon theme-toggle' style="scale: 155%;" title="Theme"></i>
+                <button type="button" class="aero-theme-switch theme-toggle" aria-label="Toggle Light/Dark Theme" title="Theme">
+                    <span class="aero-theme-glider" aria-hidden="true"></span>
+                    <span class="aero-theme-opt is-sun" aria-hidden="true"><i class='bx bxs-sun'></i></span>
+                    <span class="aero-theme-opt is-moon" aria-hidden="true"><i class='bx bxs-moon'></i></span>
+                </button>
             </div>
         </div>
     </header>
@@ -142,6 +146,13 @@
                   <div class="admin-icon-reflection admin-refl-studio" aria-hidden="true"></div>
                 </div>
               </a>
+              <button type="button" id="openArtistDirectoryBtn" class="aero-admin-icon-btn admin-artists-btn admin-only" style="display: none;" aria-label="Artist Directory">
+                <span class="taskbar-tooltip admin-tooltip">Artist Directory</span>
+                <div class="admin-icon-stage admin-stage-sky">
+                  <img src="assets/icons/aero/wlm.ico" alt="" class="aero-admin-icon" aria-hidden="true">
+                  <div class="admin-icon-reflection admin-refl-queue" aria-hidden="true"></div>
+                </div>
+              </button>
             </div>
           </div>
         </div>
@@ -157,6 +168,7 @@
             <button type="button" class="filter-item" data-filter="Single">Singles</button>
             <button type="button" class="filter-item" data-filter="Mixtape">Mixtapes</button>
             <button type="button" class="filter-item" data-filter="Music Video">Music Videos</button>
+            <button type="button" class="filter-item" data-filter="Extra">Extras</button>
         </div>
     </div>
     <!-- Feed -->
@@ -230,17 +242,14 @@
               <path d="M3.7,15.7 L24.3,15.7 L24.3,19.1 C19,20 9,18.6 3.7,19.7 Z" fill="url(#cfIconGlassSheen)"/>
             </symbol>
           </svg>
-          <button type="button" id="spinsCoverFlowToggleBtn" class="aero-cf-icon-btn" aria-label="Switch to Cover Flow view" aria-pressed="false">
-            <span class="taskbar-tooltip cf-tooltip" id="spinsCfTooltip">Cover Flow</span>
-            <div class="cf-icon-stage">
-              <svg class="cf-icon-main cf-svg-coverflow" viewBox="0 0 28 28" aria-hidden="true"><use href="#cfAeroSymbol"></use></svg>
-              <svg class="cf-icon-main cf-svg-timeline" viewBox="0 0 28 28" aria-hidden="true"><use href="#tlAeroSymbol"></use></svg>
-              <div class="cf-icon-reflection" aria-hidden="true">
-                <svg class="cf-svg-coverflow" width="28" height="28" viewBox="0 0 28 28"><use href="#cfAeroSymbol"></use></svg>
-                <svg class="cf-svg-timeline" width="28" height="28" viewBox="0 0 28 28"><use href="#tlAeroSymbol"></use></svg>
-              </div>
-            </div>
-          </button>
+          <div class="aero-filter-capsule is-compact spins-view-icon-capsule" id="spinsViewModeCapsule" role="group" aria-label="Feed view mode">
+            <button type="button" id="spinsTimelineViewBtn" class="filter-item active" aria-pressed="true" aria-label="Timeline Feed" title="Timeline Feed">
+              <svg class="spins-view-svg" viewBox="0 0 28 28" aria-hidden="true"><use href="#tlAeroSymbol"></use></svg>
+            </button>
+            <button type="button" id="spinsCoverFlowViewBtn" class="filter-item" aria-pressed="false" aria-label="3D Cover Flow" title="3D Cover Flow">
+              <svg class="spins-view-svg" viewBox="0 0 28 28" aria-hidden="true"><use href="#cfAeroSymbol"></use></svg>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -347,8 +356,9 @@
 <!-- Add / Edit Spin -->
   <div id="modalOverlay" class="sosa-modal-backdrop" style="display: none;">
     <div class="modal-dialog">
-      <div class="modal-header">
+      <div class="modal-header aero-modal-header">
         <div class="modal-title-wrap">
+          <span class="aero-modal-title-orb" aria-hidden="true"><i class='bx bx-disc'></i></span>
           <h3 class="modal-title" id="modalTitle">Log a Spin</h3>
           <div class="modal-clipboard-actions admin-only">
             <button type="button" class="action-icon-btn copy-spin-btn" id="modalCopySpinBtn" onclick="copyCurrentSpinModalInfo()" aria-label="Copy Spin Info">
@@ -371,122 +381,175 @@
       </div>
 
       <form id="spinForm" class="modal-form" autocomplete="off">
-        <div class="modal-top-section">
-          <div class="modal-cover-preview">
-            <img id="previewImg" src="assets/images/spins/placeholder.png" alt="Preview" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
-            <button type="button" id="fetchCoverBtn" class="review-action-btn" style="width: 100%; justify-content: center;">Fetch Art</button>
-            <button type="button" id="rymImportBtn" class="review-action-btn rym-import-btn" style="width: 100%; justify-content: center; margin-top: 5px;" title="Import release data from Rate Your Music clipboard">
-              <i class='bx bx-clipboard'></i> Import RYM
-            </button>
-          </div>
+        <div class="spin-modal-columns">
+          <div class="spin-modal-col-left">
+            <div class="modal-top-section">
+              <div class="modal-cover-preview">
+                <img id="previewImg" src="assets/images/spins/placeholder.png" alt="Preview" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+                <button type="button" id="fetchCoverBtn" class="review-action-btn" style="width: 100%; justify-content: center;">Fetch Art</button>
+                <button type="button" id="rymImportBtn" class="review-action-btn rym-import-btn" style="width: 100%; justify-content: center; margin-top: 4px;" title="Import release data from Rate Your Music clipboard">
+                  <i class='bx bx-clipboard'></i> Import RYM
+                </button>
+              </div>
 
-          <div class="modal-main-inputs">
-            <div class="input-row">
-              <input type="text" id="logArtist" placeholder="Artist" required class="sosa-search-input">
-              <input type="text" id="logTitle" placeholder="Release Title" required class="sosa-search-input">
-            </div>
+              <div class="modal-main-inputs">
+                <div class="input-row">
+                  <input type="text" id="logArtist" placeholder="Artist" required class="sosa-search-input">
+                  <input type="text" id="logTitle" placeholder="Release Title" required class="sosa-search-input">
+                </div>
 
-            <div class="input-row triple">
-              <select id="logType" class="sosa-search-input">
-                <option value="Album">Album</option>
-                <option value="EP">EP</option>
-                <option value="Single">Single</option>
-                <option value="Mixtape">Mixtape</option>
-                <option value="Music Video">Music Video</option>
-              </select>
-              <input type="number" id="logYear" placeholder="Year" class="sosa-search-input">
-              <input type="number" id="logRating" placeholder="Rating (0.5–5.0)" min="0.5" max="5.0" step="0.5" class="sosa-search-input">
-            </div>
+                <div class="input-row triple">
+                  <select id="logType" class="sosa-search-input">
+                    <option value="Album">Album</option>
+                    <option value="EP">EP</option>
+                    <option value="Single">Single</option>
+                    <option value="Mixtape">Mixtape</option>
+                    <option value="Music Video">Music Video</option>
+                    <option value="Extra">Extra</option>
+                  </select>
+                  <input type="number" id="logYear" placeholder="Year" class="sosa-search-input">
+                  <input type="number" id="logRating" placeholder="Rating (0.5–5.0)" min="0.5" max="5.0" step="0.5" class="sosa-search-input">
+                </div>
 
-            <!-- Runtime | Date | Relisten Checkbox -->
-            <div class="input-row triple align-center">
-              <input type="text" id="logRuntime" placeholder="Runtime (e.g. 42m 15s)" class="sosa-search-input">
-              <input type="text" id="logDate" placeholder="Date (MM/DD/YY)" class="sosa-search-input">
-              <div class="relisten-container">
-                <label class="relisten-label">
-                  <input type="checkbox" id="logRelisten">
-                  <span class="relisten-text">Relisten?</span>
-                </label>
-                <input type="number" id="logPrevRating" placeholder="Old" min="0.5" max="5.0" step="0.5" class="sosa-search-input" style="display: none; width: 65px;">
+                <!-- Runtime | Date | Relisten Checkbox -->
+                <div class="input-row triple align-center">
+                  <input type="text" id="logRuntime" placeholder="Runtime (e.g. 42m 15s)" class="sosa-search-input">
+                  <input type="text" id="logDate" placeholder="Date (MM/DD/YY)" class="sosa-search-input">
+                  <div class="relisten-container">
+                    <label class="relisten-label">
+                      <input type="checkbox" id="logRelisten">
+                      <span class="relisten-text">Relisten?</span>
+                    </label>
+                    <input type="number" id="logPrevRating" placeholder="Old" min="0.5" max="5.0" step="0.5" class="sosa-search-input" style="display: none; width: 65px;">
+                  </div>
+                </div>
+
+                <!-- Cover Path | RYM Rating -->
+                <div class="input-row cover-rym-row">
+                  <input type="text" id="logCoverUrl" list="coverPathSuggestions" placeholder="Cover Path / URL" class="sosa-search-input" autocomplete="new-password">
+                  <input type="number" id="logRymRating" placeholder="RYM Avg (e.g. 3.84)" step="0.01" min="0" max="5.0" class="sosa-search-input">
+                </div>
+                <datalist id="coverPathSuggestions"></datalist>
               </div>
             </div>
 
-            <!-- RYM Rating -->
-            <div class="input-row">
-              <input type="number" id="logRymRating" placeholder="RYM Avg Rating (e.g. 3.84)" step="0.01" min="0" max="5.0" class="sosa-search-input">
+            <!-- Cover Carousel -->
+            <div id="artCandidatesContainer" class="art-candidates-picker" style="display: none;">
+              <span class="picker-label">Select Artwork:</span>
+              <div id="artThumbnailsRow" class="thumbnails-scroll-row"></div>
+            </div>
+
+            <div class="spin-modal-tags-stack">
+              <!-- Primary Genres Tag Box -->
+              <div class="tag-field-row">
+                <div class="tag-input-box" id="genresTagBox">
+                  <input type="text" id="logGenresInput" class="tag-inline-input" placeholder="Add Primary Genre..." autocomplete="off">
+                </div>
+                <div class="aero-autocomplete-menu" id="genresDropdown" style="display: none;"></div>
+              </div>
+              <input type="hidden" id="logGenres" value="">
+
+              <!-- Secondary Genres Tag Box -->
+              <div class="tag-field-row">
+                <div class="tag-input-box" id="secondaryGenresTagBox">
+                  <input type="text" id="logSecondaryGenresInput" class="tag-inline-input" placeholder="Add Secondary Genre..." autocomplete="off">
+                </div>
+                <div class="aero-autocomplete-menu" id="secondaryGenresDropdown" style="display: none;"></div>
+              </div>
+              <input type="hidden" id="logSecondaryGenres" value="">
+
+              <!-- Descriptors Tag Box -->
+              <div class="tag-field-row">
+                <div class="tag-input-box" id="descriptorsTagBox">
+                  <input type="text" id="logDescriptorsInput" class="tag-inline-input" placeholder="Add Descriptor..." autocomplete="off">
+                </div>
+                <div class="aero-autocomplete-menu" id="descriptorsDropdown" style="display: none;"></div>
+              </div>
+              <input type="hidden" id="logDescriptors" value="">
+
+              <div class="input-row context-tags-row">
+                <!-- Scenes Tag Box -->
+                <div class="tag-field-row">
+                  <div class="tag-input-box" id="scenesTagBox">
+                    <input type="text" id="logScenesInput" class="tag-inline-input" placeholder="Scene (e.g. Bloghouse)..." autocomplete="off">
+                  </div>
+                  <div class="aero-autocomplete-menu" id="scenesDropdown" style="display: none;"></div>
+                </div>
+                <input type="hidden" id="logScenes" value="">
+
+                <!-- Movements Tag Box -->
+                <div class="tag-field-row">
+                  <div class="tag-input-box" id="movementsTagBox">
+                    <input type="text" id="logMovementsInput" class="tag-inline-input" placeholder="Movement (e.g. Afrofuturism)..." autocomplete="off">
+                  </div>
+                  <div class="aero-autocomplete-menu" id="movementsDropdown" style="display: none;"></div>
+                </div>
+                <input type="hidden" id="logMovements" value="">
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Cover Carousel -->
-        <div id="artCandidatesContainer" class="art-candidates-picker" style="display: none;">
-          <span class="picker-label">Select Artwork:</span>
-          <div id="artThumbnailsRow" class="thumbnails-scroll-row"></div>
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 0.45rem;">
-          <input type="text" id="logCoverUrl" list="coverPathSuggestions" placeholder="Cover Path / URL" class="sosa-search-input" autocomplete="new-password">
-          <datalist id="coverPathSuggestions"></datalist>
-
-          <!-- Primary Genres Tag Box -->
-          <div class="tag-field-row">
-            <div class="tag-input-box" id="genresTagBox">
-              <input type="text" id="logGenresInput" class="tag-inline-input" placeholder="Add Primary Genre..." autocomplete="off">
+          <div class="spin-modal-col-right">
+            <div class="tag-field-row fav-tracks-field-row" id="favTracksFieldWrap">
+              <div class="tag-input-box fav-tracks-tag-box" id="favTracksTagBox" title="Type or pick a track from tracklist + Enter; click any chip to attach a link">
+                <input type="text" id="logFavTracksInput" class="tag-inline-input" placeholder="Favorite Track + Enter (click chip to add link)..." autocomplete="off">
+              </div>
+              <div class="aero-autocomplete-menu fav-tracks-autocomplete-menu" id="favTracksDropdown" style="display: none;"></div>
+              <div class="fav-track-link-popover" id="favTrackLinkPopover" style="display: none;">
+                <span class="fav-track-link-badge" id="favTrackLinkTargetName">Track Link</span>
+                <input type="text" id="favTrackLinkInput" class="sosa-search-input fav-track-link-input" placeholder="Paste YouTube / SoundCloud / MP4 URL (Enter to save, Esc to skip)..." autocomplete="off">
+                <button type="button" id="favTrackLinkClearBtn" class="fav-track-link-clear" title="Remove link">&times;</button>
+                <button type="button" id="favTrackLinkSaveBtn" class="add-track-btn fav-track-link-done">Done</button>
+              </div>
+              <input type="hidden" id="logFavTracks" value="">
             </div>
-            <div class="aero-autocomplete-menu" id="genresDropdown" style="display: none;"></div>
-          </div>
-          <input type="hidden" id="logGenres" value="">
+            <input type="text" id="logSingleAudioUrl" placeholder="Audio / Stream Link (YouTube, SoundCloud, MP4...)" class="sosa-search-input" style="display: none;">
+            <input type="text" id="logReviewUrl" placeholder="Full Review URL (e.g. reviews/cork_tree.html)" class="sosa-search-input">
 
-          <!-- Secondary Genres Tag Box -->
-          <div class="tag-field-row">
-            <div class="tag-input-box" id="secondaryGenresTagBox">
-              <input type="text" id="logSecondaryGenresInput" class="tag-inline-input" placeholder="Add Secondary Genre..." autocomplete="off">
+            <div class="spin-memo-field-wrap">
+              <label for="logMemo" class="spin-modal-section-label">Listening Notes &amp; Memo</label>
+              <div class="spin-memo-editor-box">
+                <div class="memo-aero-ribbon" id="memoRibbonToolbar" role="toolbar" aria-label="Memo Formatting">
+                  <div class="memo-ribbon-group">
+                    <button type="button" class="memo-ribbon-btn is-icon-only" data-memo-snippet="bold" title="Bold (&lt;b&gt;...&lt;/b&gt;, Ctrl+B)"><b>B</b></button>
+                    <button type="button" class="memo-ribbon-btn is-icon-only" data-memo-snippet="italic" title="Italic (&lt;i&gt;...&lt;/i&gt;, Ctrl+I)"><i>I</i></button>
+                    <button type="button" class="memo-ribbon-btn" data-memo-snippet="link" title="Insert Hyperlink"><i class="bx bx-link"></i><span>Link</span></button>
+                  </div>
+                  <div class="memo-ribbon-group">
+                    <button type="button" class="memo-ribbon-btn" data-memo-snippet="blockquote" title="Insert Blockquote"><i class="bx bxs-quote-left"></i><span>Quote</span></button>
+                    <button type="button" class="memo-ribbon-btn" data-memo-snippet="bilingual" title="Insert Side-by-Side Bilingual Block"><i class="bx bx-globe"></i><span>Bilingual</span></button>
+                    <button type="button" class="memo-ribbon-btn is-embed-spin" id="memoEmbedSpinBtn" title="Hyperlink &amp; Embed an Album Spin"><i class="bx bx-disc"></i><span>Embed Spin</span></button>
+                  </div>
+                </div>
+                <textarea id="logMemo" placeholder="Notes &amp; Thoughts..." rows="6" class="sosa-search-input spin-memo-textarea"></textarea>
+              </div>
+              <div class="memo-embed-popover" id="memoEmbedSpinPopover" style="display: none;">
+                <div class="memo-embed-search-row">
+                  <i class="bx bx-search"></i>
+                  <input type="text" id="memoEmbedSearchInput" class="sosa-search-input memo-embed-search-input" placeholder="Search artist or album to embed..." autocomplete="off">
+                  <button type="button" id="memoEmbedCloseBtn" class="fav-track-link-clear" title="Close">&times;</button>
+                </div>
+                <div class="memo-embed-results" id="memoEmbedResults"></div>
+              </div>
             </div>
-            <div class="aero-autocomplete-menu" id="secondaryGenresDropdown" style="display: none;"></div>
-          </div>
-          <input type="hidden" id="logSecondaryGenres" value="">
 
-
-          <!-- Descriptors Tag Box -->
-          <div class="tag-field-row">
-            <div class="tag-input-box" id="descriptorsTagBox">
-              <input type="text" id="logDescriptorsInput" class="tag-inline-input" placeholder="Add Descriptor..." autocomplete="off">
+            <!-- Track Ratings Manager -->
+            <div class="modal-form-group spin-track-ratings-card">
+              <label>
+                <span class="tr-header-title">Tracklist &amp; Ratings <span id="trackRatingsCountBadge" class="tr-count-badge" style="display: none;">0</span></span>
+                <button type="button" id="addTrackRatingRowBtn" class="add-track-btn">+ Add Track</button>
+              </label>
+              <div id="trListHeader" class="tr-list-header" style="display: none;" aria-hidden="true">
+                <span class="tr-col-num">#</span>
+                <span class="tr-col-title">Track</span>
+                <span class="tr-col-dur">Time</span>
+                <span class="tr-col-url">URL</span>
+                <span class="tr-col-rate">Rating</span>
+                <span class="tr-col-act"></span>
+              </div>
+              <div id="trackRatingsList" class="track-ratings-editor-list"></div>
             </div>
-            <div class="aero-autocomplete-menu" id="descriptorsDropdown" style="display: none;"></div>
           </div>
-          <input type="hidden" id="logDescriptors" value="">
-
-          <!-- Scenes Tag Box -->
-          <div class="tag-field-row">
-            <div class="tag-input-box" id="scenesTagBox">
-              <input type="text" id="logScenesInput" class="tag-inline-input" placeholder="Add Scene (e.g. Southern Hip Hop, Bristol Sound)..." autocomplete="off">
-            </div>
-            <div class="aero-autocomplete-menu" id="scenesDropdown" style="display: none;"></div>
-          </div>
-          <input type="hidden" id="logScenes" value="">
-
-          <!-- Movements Tag Box -->
-          <div class="tag-field-row">
-            <div class="tag-input-box" id="movementsTagBox">
-              <input type="text" id="logMovementsInput" class="tag-inline-input" placeholder="Add Movement (e.g. Afrofuturism, Bloghouse)..." autocomplete="off">
-            </div>
-            <div class="aero-autocomplete-menu" id="movementsDropdown" style="display: none;"></div>
-          </div>
-          <input type="hidden" id="logMovements" value="">
-
-          <input type="text" id="logFavTracks" placeholder="Favorite Tracks (semicolon-separated, e.g. Song, Pt. 1; Song 2 | https://link)" class="sosa-search-input">
-          <input type="text" id="logSingleAudioUrl" placeholder="Audio / Stream Link (YouTube, SoundCloud, MP4...)" class="sosa-search-input" style="display: none;">
-          <input type="text" id="logReviewUrl" placeholder="Full Review URL (e.g. reviews/cork_tree.html)" class="sosa-search-input">
-          <textarea id="logMemo" placeholder="Notes & Thoughts..." rows="3" class="sosa-search-input" style="resize: vertical;"></textarea>
-        </div>
-
-        <!-- Track Ratings Manager -->
-        <div class="modal-form-group">
-          <label style="font-weight: 700; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; margin-top: 0.2rem;">
-            Track Ratings
-            <button type="button" id="addTrackRatingRowBtn" class="add-track-btn">+ Add Track</button>
-          </label>
-          <div id="trackRatingsList" class="track-ratings-editor-list"></div>
         </div>
 
         <!-- Bottom Actions -->
@@ -512,6 +575,22 @@
       <div id="queueModalBody" class="aero-queue-modal-body">
         <div class="queue-empty-state">No pending comments in queue.</div>
       </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Embedded Record Spin History Popup -->
+  <div id="recordHistoryModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="window glass w7-modal-window record-detail-window" role="dialog" aria-modal="true" aria-labelledby="recordHistoryModalTitleText">
+      <div class="title-bar">
+        <div class="title-bar-text" id="recordHistoryModalTitle">
+          <i class='bx bx-disc' style="color: #10b981; vertical-align: middle; margin-right: 4px;"></i>
+          <span id="recordHistoryModalTitleText">Album Spins</span>
+        </div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeRecordHistoryModalBtn" aria-label="Close" class="is-close"></button>
+        </div>
+      </div>
+      <div class="window-body record-history-modal-body" id="recordHistoryModalBody"></div>
     </div>
   </div>
 
@@ -596,6 +675,218 @@
       </div>
       <div class="modal-content-glass artist-quick-content" id="artistQuickModalBody">
         <!-- Injected dynamically via openArtistQuickModal(artistName) -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN MODAL: Windows 7 Aero Artist Directory & Metadata Manager (Concept A) -->
+  <div id="artistDirectoryModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="window glass w7-modal-window artist-dir-window" role="dialog" aria-modal="true" aria-labelledby="artistDirTitle">
+      <div class="title-bar">
+        <div class="title-bar-text" id="artistDirTitle">
+          <img src="assets/icons/aero/wlm.ico" alt="" class="w7-title-icon">
+          <span>Artist Directory &amp; Metadata Manager</span>
+        </div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeArtistDirectoryBtn" aria-label="Close" class="is-close" onclick="closeArtistDirectoryModal()"></button>
+        </div>
+      </div>
+
+      <div class="artist-dir-body">
+        <!-- Top Toolbar: Search + Filter Tabs + Add Artist -->
+        <div class="artist-dir-toolbar">
+          <div class="artist-dir-search-wrap">
+            <i class='bx bx-search'></i>
+            <input type="text" id="artistDirSearchInput" class="artist-dir-search-input" placeholder="Search canonical, native script, alias, country, state..." autocomplete="off">
+          </div>
+          <div class="artist-dir-toolbar-right">
+            <div class="artist-dir-filter-tabs" role="tablist" aria-label="Filter Artists">
+              <button type="button" class="artist-dir-tab active" data-dir-filter="all" role="tab" aria-selected="true">All <span id="dirCountAll">0</span></button>
+              <button type="button" class="artist-dir-tab" data-dir-filter="aliases" role="tab" aria-selected="false">Aliases</button>
+              <button type="button" class="artist-dir-tab" data-dir-filter="native" role="tab" aria-selected="false">Native Script</button>
+              <button type="button" class="artist-dir-tab" data-dir-filter="groups" role="tab" aria-selected="false">Groups / Members</button>
+            </div>
+            <button type="button" id="artistDirNewBtn" class="aero-command-btn" title="Add custom artist record">
+              <i class='bx bx-plus'></i> <span>New Artist</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Split Workspace: Left Address Book List + Right Inspector -->
+        <div class="artist-dir-split">
+          <div class="artist-dir-list" id="artistDirList"></div>
+
+          <div class="artist-dir-editor" id="artistDirEditor">
+            <div class="artist-dir-editor-head">
+              <div class="artist-dir-head-left">
+                <div class="artist-dir-portrait-wrap">
+                  <img src="assets/images/spins/placeholder.png" alt="Artist Portrait" id="artistDirPortraitImg" class="artist-dir-portrait-img">
+                </div>
+                <div class="artist-dir-head-meta">
+                  <div class="artist-dir-head-name" id="artistDirHeadTitle">Select an artist</div>
+                  <div class="artist-dir-head-sub" id="artistDirHeadSub">Select an artist on the left to inspect or edit metadata.</div>
+                </div>
+              </div>
+              <div class="artist-dir-head-actions">
+                <input type="file" id="artistDirPortraitFileInput" accept="image/*,.gif" style="display: none;">
+                <button type="button" id="artistDirPortraitUploadBtn" class="aero-command-btn" title="Upload portrait to Cloudflare R2">
+                  <i class='bx bx-upload'></i> <span>Portrait</span>
+                </button>
+                <button type="button" id="artistDirSaveBtn" class="artist-dir-save-btn">
+                  <i class='bx bx-save'></i> <span>Save Artist</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="artist-dir-form-grid">
+              <div class="artist-dir-field">
+                <label for="artistDirCanonicalInput">Canonical Artist Name</label>
+                <div class="artist-dir-combo-wrap">
+                  <input type="text" id="artistDirCanonicalInput" class="sosa-search-input artist-dir-combo-input" placeholder="e.g. LOONA" autocomplete="off">
+                  <button type="button" class="artist-dir-combo-btn" aria-label="Show canonical artist options"><i class='bx bx-chevron-down'></i></button>
+                  <div id="artistDirCanonicalMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;"></div>
+                </div>
+              </div>
+
+              <div class="artist-dir-field">
+                <label for="artistDirNativeInput">Native Script / Original Writing <span class="artist-dir-hint-inline">(Display Only)</span></label>
+                <div class="artist-dir-combo-wrap">
+                  <input type="text" id="artistDirNativeInput" class="sosa-search-input artist-dir-combo-input" placeholder="e.g. 이달의 소녀, フィッシュマンズ" autocomplete="off">
+                  <button type="button" class="artist-dir-combo-btn" aria-label="Show native script options"><i class='bx bx-chevron-down'></i></button>
+                  <div id="artistDirNativeMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;"></div>
+                </div>
+              </div>
+
+              <div class="artist-dir-field is-full">
+                <label>Merged Aliases &amp; Alternate Credits <span class="artist-dir-hint-inline">(Groups spins under Canonical)</span></label>
+                <div class="artist-dir-chip-editor">
+                  <div class="artist-dir-chips" id="artistDirAliasesChips"></div>
+                  <div class="artist-dir-combo-wrap is-chip-combo">
+                    <div class="artist-dir-chip-add-row">
+                      <input type="text" id="artistDirAliasInput" class="artist-dir-chip-input" placeholder="Add alias (e.g. Devon Hendryx) and press Enter..." autocomplete="off">
+                      <button type="button" class="artist-dir-combo-btn is-inline" aria-label="Show alias options"><i class='bx bx-chevron-down'></i></button>
+                      <button type="button" id="artistDirAliasAddBtn" class="artist-dir-mini-btn">Add</button>
+                    </div>
+                    <div id="artistDirAliasMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="artist-dir-field">
+                <label>Member Of (Groups / Collectives)</label>
+                <div class="artist-dir-chip-editor">
+                  <div class="artist-dir-chips" id="artistDirMemberOfChips"></div>
+                  <div class="artist-dir-combo-wrap is-chip-combo">
+                    <div class="artist-dir-chip-add-row">
+                      <input type="text" id="artistDirMemberOfInput" class="artist-dir-chip-input" placeholder="e.g. LOONA, OutKast..." autocomplete="off">
+                      <button type="button" class="artist-dir-combo-btn is-inline" aria-label="Show group options"><i class='bx bx-chevron-down'></i></button>
+                      <button type="button" id="artistDirMemberOfAddBtn" class="artist-dir-mini-btn">Add</button>
+                    </div>
+                    <div id="artistDirMemberOfMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="artist-dir-field">
+                <label>Members / Solo Acts</label>
+                <div class="artist-dir-chip-editor">
+                  <div class="artist-dir-chips" id="artistDirMembersChips"></div>
+                  <div class="artist-dir-combo-wrap is-chip-combo">
+                    <div class="artist-dir-chip-add-row">
+                      <input type="text" id="artistDirMembersInput" class="artist-dir-chip-input" placeholder="e.g. Yves, Chuu..." autocomplete="off">
+                      <button type="button" class="artist-dir-combo-btn is-inline" aria-label="Show member options"><i class='bx bx-chevron-down'></i></button>
+                      <button type="button" id="artistDirMembersAddBtn" class="artist-dir-mini-btn">Add</button>
+                    </div>
+                    <div id="artistDirMembersMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="artist-dir-field">
+                <label for="artistDirKindBtn">Artist Kind</label>
+                <div class="artist-dir-combo-wrap is-select" id="artistDirKindCombo">
+                  <input type="hidden" id="artistDirKindInput" value="">
+                  <button type="button" id="artistDirKindBtn" class="sosa-search-input artist-dir-select-btn" aria-haspopup="listbox" aria-expanded="false">
+                    <span id="artistDirKindLabel">— Unspecified —</span>
+                    <i class='bx bx-chevron-down'></i>
+                  </button>
+                  <div id="artistDirKindMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;" role="listbox"></div>
+                </div>
+              </div>
+
+              <div class="artist-dir-field">
+                <label for="artistDirYearsInput">Active Years</label>
+                <div class="artist-dir-combo-wrap">
+                  <input type="text" id="artistDirYearsInput" class="sosa-search-input artist-dir-combo-input" placeholder="e.g. 2016–2023 or 2018–present" autocomplete="off">
+                  <button type="button" class="artist-dir-combo-btn" aria-label="Show active years options"><i class='bx bx-chevron-down'></i></button>
+                  <div id="artistDirYearsMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;"></div>
+                </div>
+              </div>
+
+              <div class="artist-dir-field is-full" id="artistDirParentGroupField" style="display: none;">
+                <label for="artistDirParentGroupInput">Parent Group <span class="artist-dir-hint-inline">(Subunit of — links back while keeping ratings separate)</span></label>
+                <div class="artist-dir-combo-wrap">
+                  <input type="text" id="artistDirParentGroupInput" class="sosa-search-input artist-dir-combo-input" placeholder="e.g. LOONA" autocomplete="off">
+                  <button type="button" class="artist-dir-combo-btn" aria-label="Show parent group options"><i class='bx bx-chevron-down'></i></button>
+                  <div id="artistDirParentGroupMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;"></div>
+                </div>
+              </div>
+
+              <div class="artist-dir-field is-full">
+                <div class="artist-dir-geo-grid">
+                  <div class="artist-dir-field">
+                    <label for="artistDirCountryInput">Country</label>
+                    <div class="artist-dir-combo-wrap">
+                      <input type="text" id="artistDirCountryInput" class="sosa-search-input artist-dir-combo-input" placeholder="e.g. United States" autocomplete="off">
+                      <button type="button" class="artist-dir-combo-btn" aria-label="Show country options"><i class='bx bx-chevron-down'></i></button>
+                      <div id="artistDirCountryMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;"></div>
+                    </div>
+                  </div>
+
+                  <div class="artist-dir-field">
+                    <label for="artistDirStateInput">State / Province</label>
+                    <div class="artist-dir-combo-wrap">
+                      <input type="text" id="artistDirStateInput" class="sosa-search-input artist-dir-combo-input" placeholder="e.g. New York, Gyeonggi" autocomplete="off">
+                      <button type="button" class="artist-dir-combo-btn" aria-label="Show state or province options"><i class='bx bx-chevron-down'></i></button>
+                      <div id="artistDirStateMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;"></div>
+                    </div>
+                  </div>
+
+                  <div class="artist-dir-field">
+                    <label for="artistDirCityInput">City</label>
+                    <div class="artist-dir-combo-wrap">
+                      <input type="text" id="artistDirCityInput" class="sosa-search-input artist-dir-combo-input" placeholder="e.g. New York City, Seoul" autocomplete="off">
+                      <button type="button" class="artist-dir-combo-btn" aria-label="Show city options"><i class='bx bx-chevron-down'></i></button>
+                      <div id="artistDirCityMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="artist-dir-field is-full">
+                <label for="artistDirPortraitUrlInput">Portrait Image URL</label>
+                <div class="artist-dir-url-row">
+                  <div class="artist-dir-combo-wrap" style="flex: 1;">
+                    <input type="url" id="artistDirPortraitUrlInput" class="sosa-search-input artist-dir-combo-input" placeholder="https://... (or upload Portrait above)" autocomplete="off">
+                    <button type="button" class="artist-dir-combo-btn" aria-label="Show portrait image options"><i class='bx bx-chevron-down'></i></button>
+                    <div id="artistDirPortraitUrlMenu" class="artist-dir-combo-menu aero-autocomplete-menu" style="display: none;"></div>
+                  </div>
+                  <button type="button" id="artistDirPortraitClearBtn" class="artist-dir-mini-btn" title="Clear custom portrait">Clear</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Live Preview of Public Artist Details Modal -->
+            <div class="artist-dir-preview" id="artistDirPreviewBox">
+              <div>
+                <div class="artist-dir-preview-kicker">PUBLIC ARTIST MODAL PREVIEW</div>
+                <div class="artist-dir-preview-title" id="artistDirPreviewTitle">—</div>
+                <div class="artist-dir-preview-sub" id="artistDirPreviewSub">—</div>
+              </div>
+              <span class="artist-dir-save-status" id="artistDirSaveStatus"></span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -750,7 +1041,8 @@
   </nav>
 
   <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
-  <script src="assets/js/sosaspins.js?v=20261115d"></script>
+  <script src="assets/js/sosaspins.js?v=20261118o"></script>
   <script src="assets/js/dock.js?v=20261115c"></script>
+  <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>
 </body>
 </html>

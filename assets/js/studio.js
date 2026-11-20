@@ -911,7 +911,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (poetryModePill) {
       poetryModePill.style.display = isPoetry ? "inline-flex" : "none";
     }
-    const targetCss = isStudy ? "assets/css/review.css?v=20261115d" : "assets/css/style.css?v=20261115d";
+    const targetCss = isStudy ? "assets/css/review.css?v=20261116a" : "assets/css/style.css?v=20261115d";
     if (previewStylesheetLabel) {
       previewStylesheetLabel.textContent = isStudy
         ? "review.css"
@@ -1306,6 +1306,37 @@ document.addEventListener("DOMContentLoaded", async () => {
     return escapeHtml(str).replace(/\r?\n/g, "&#10;");
   }
 
+  function openAeroModal(backdrop) {
+    if (!backdrop) return;
+    if (backdrop._closeTimer) {
+      clearTimeout(backdrop._closeTimer);
+      backdrop._closeTimer = null;
+    }
+    backdrop.classList.remove("is-closing");
+    backdrop.style.display = "flex";
+  }
+
+  function closeAeroModal(backdrop, onClosed) {
+    if (!backdrop || backdrop.style.display === "none") {
+      if (typeof onClosed === "function") onClosed();
+      return;
+    }
+    if (backdrop._closeTimer) return;
+    backdrop.classList.add("is-closing");
+    const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const finish = () => {
+      backdrop._closeTimer = null;
+      backdrop.classList.remove("is-closing");
+      backdrop.style.display = "none";
+      if (typeof onClosed === "function") onClosed();
+    };
+    if (reduced) {
+      finish();
+    } else {
+      backdrop._closeTimer = setTimeout(finish, 200);
+    }
+  }
+
   function openAnnotationModal() {
     if (!annotationModal || !bodyHtmlEditor) return;
     const start = bodyHtmlEditor.selectionStart;
@@ -1316,7 +1347,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (annotNoteInput) annotNoteInput.value = "";
     if (annotImageUrlInput) annotImageUrlInput.value = "";
     if (annotImageCaptionInput) annotImageCaptionInput.value = "";
-    annotationModal.style.display = "flex";
+    openAeroModal(annotationModal);
     setTimeout(() => {
       if (!selectedText && annotPhraseInput) annotPhraseInput.focus();
       else if (annotNoteInput) annotNoteInput.focus();
@@ -1324,8 +1355,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function closeAnnotationModal() {
-    if (annotationModal) annotationModal.style.display = "none";
-    pendingAnnotRange = null;
+    closeAeroModal(annotationModal, () => {
+      pendingAnnotRange = null;
+    });
   }
 
   if (openAnnotationModalBtn) {
@@ -2923,13 +2955,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (deleteConfirmMessage) {
         deleteConfirmMessage.textContent = `Permanently delete "${stripHtml(metaTitle.value)}" (${metaSlug.value}) from Supabase?`;
       }
-      deleteConfirmModal.style.display = "flex";
+      openAeroModal(deleteConfirmModal);
     });
   }
 
   if (cancelDeleteBtn && deleteConfirmModal) {
     cancelDeleteBtn.addEventListener("click", () => {
-      deleteConfirmModal.style.display = "none";
+      closeAeroModal(deleteConfirmModal);
     });
   }
 
@@ -2941,7 +2973,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const { error } = await sb.from("articles").delete().eq("id", currentArticleId);
         if (error) throw error;
         allArticles = allArticles.filter((a) => a.id !== currentArticleId);
-        deleteConfirmModal.style.display = "none";
+        closeAeroModal(deleteConfirmModal);
         showToast("Essay deleted");
         startNewEssay();
       } catch (err) {

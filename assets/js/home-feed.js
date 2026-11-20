@@ -218,15 +218,15 @@
       currentActive === "all" || categoryMap.has(currentActive) ? currentActive : "all";
 
     const tabsHtml = [
-      `<span class="filter-item ${activeToken === "all" ? "active-filter" : ""}" data-filter="all">All</span>`,
+      `<button type="button" class="filter-item ${activeToken === "all" ? "active-filter" : ""}" data-filter="all">All</button>`,
       ...orderedTokens.map((token) => {
         const label = categoryMap.get(token);
         const cls = token === activeToken ? "filter-item active-filter" : "filter-item";
-        return `<span class="${cls}" data-filter="${escapeHtml(token)}">${escapeHtml(label)}</span>`;
+        return `<button type="button" class="${cls}" data-filter="${escapeHtml(token)}">${escapeHtml(label)}</button>`;
       })
     ].join("\n        ");
 
-    filterBar.innerHTML = tabsHtml;
+    filterBar.innerHTML = `<div class="aero-filter-capsule" role="group" aria-label="Category filters">\n        ${tabsHtml}\n      </div>`;
   }
 
   function applyCurrentCategoryFilter() {

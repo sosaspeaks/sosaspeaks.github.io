@@ -1,6 +1,6 @@
 // Filter Js (delegated so dynamically generated filter tabs always work)
 $(document).ready(function () {
-    const duration = 250;
+    const duration = 200;
 
     $(document).on('click', '.post-filter .filter-item', function () {
         const value = $(this).attr('data-filter');
@@ -65,40 +65,39 @@ let darkMode = localStorage.getItem('darkMode');
 const themeToggleBtn = document.querySelector('.theme-toggle');
 
 const enableDarkMode = () => {
-// 1. Add the class to the body
-document.body.classList.add('dark-mode');
-themeToggleBtn.classList.add('bx-sun');
-// 2. Update darkMode in localStorage
-localStorage.setItem('darkMode', 'enabled');
-}
+    document.body.classList.add('dark-mode');
+    if (themeToggleBtn) {
+        themeToggleBtn.classList.add('bx-sun');
+        themeToggleBtn.setAttribute('aria-pressed', 'true');
+    }
+    localStorage.setItem('darkMode', 'enabled');
+};
 
 const disableDarkMode = () => {
-// 1. Remove the class from the body
-document.body.classList.remove('dark-mode');
-themeToggleBtn.classList.remove('bx-sun');
-// 2. Update darkMode in localStorage
-localStorage.setItem('darkMode', null);
-}
+    document.body.classList.remove('dark-mode');
+    if (themeToggleBtn) {
+        themeToggleBtn.classList.remove('bx-sun');
+        themeToggleBtn.setAttribute('aria-pressed', 'false');
+    }
+    localStorage.setItem('darkMode', null);
+};
 
-// If the user already visited and enabled darkMode
-// start things off with it on
-if (darkMode === 'enabled') {
-enableDarkMode();
-}
+if (themeToggleBtn) {
+    if (darkMode === 'enabled') {
+        enableDarkMode();
+    } else {
+        themeToggleBtn.setAttribute('aria-pressed', 'false');
+    }
 
-// When someone clicks the button
-themeToggleBtn.addEventListener('click', () => {
-// get their darkMode setting
-darkMode = localStorage.getItem('darkMode');
-
-// if it not current enabled, enable it
-if (darkMode !== 'enabled') {
-  enableDarkMode();
-// if it has been enabled, turn it off
-} else {
-  disableDarkMode();
+    themeToggleBtn.addEventListener('click', () => {
+        darkMode = localStorage.getItem('darkMode');
+        if (darkMode !== 'enabled') {
+            enableDarkMode();
+        } else {
+            disableDarkMode();
+        }
+    });
 }
-});
 
 
 // Scroll to Top Button

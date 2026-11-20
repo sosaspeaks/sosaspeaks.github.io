@@ -9,11 +9,79 @@
 (function initSosaStats() {
   const SUPABASE_URL = "https://gxgfuomkjrhixcjfvhvj.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_tgeBo35B4k__uyfMyaxXnA_O5KUKlL7";
-  const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+  const hasWindow = typeof window !== "undefined";
+  const supabaseClient = (hasWindow && window.supabase)
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+
+  const DEFAULT_ARTIST_ALIASES = [
+    { primary: "JPEGMAFIA", aliases: ["Devon Hendryx"] },
+    { primary: "Jane Remover", aliases: ["leroy"] },
+    { primary: "LOONA", aliases: ["이달의 소녀 [LOONA]"] },
+    { primary: "ODD EYE CIRCLE", aliases: ["LOONA / ODD EYE CIRCLE"] },
+    { primary: "LOONA yyxy", aliases: ["LOONA / yyxy"] }
+  ];
+  let artistProfilesMap = {};
+  let activeArtistAliases = JSON.parse(JSON.stringify(DEFAULT_ARTIST_ALIASES));
+
+  function rebuildStatsArtistAliases(profiles = []) {
+    artistProfilesMap = {};
+    activeArtistAliases = JSON.parse(JSON.stringify(DEFAULT_ARTIST_ALIASES));
+    (profiles || []).forEach(prof => {
+      if (!prof || !prof.canonical_artist) return;
+      const canon = String(prof.canonical_artist).trim();
+      artistProfilesMap[canon.toLowerCase()] = prof;
+      if (Array.isArray(prof.aliases)) {
+        const cleanAliases = Array.from(new Set(
+          prof.aliases.map(a => String(a).trim()).filter(a => a && a.toLowerCase() !== canon.toLowerCase())
+        ));
+        const idx = activeArtistAliases.findIndex(g => g.primary.toLowerCase() === canon.toLowerCase());
+        if (idx >= 0) {
+          activeArtistAliases[idx] = { primary: canon, aliases: cleanAliases };
+        } else {
+          activeArtistAliases.push({ primary: canon, aliases: cleanAliases });
+        }
+      }
+    });
+  }
+
+  function getCanonicalArtist(rawArtist) {
+    if (!rawArtist) return "";
+    const trimmed = String(rawArtist).trim();
+    const lower = trimmed.toLowerCase();
+    const match = activeArtistAliases.find(group =>
+      group.primary.toLowerCase() === lower ||
+      group.aliases.some(a => a.toLowerCase() === lower)
+    );
+    return match ? match.primary : trimmed;
+  }
+
+  function resolveCanonicalCredits(rawArtist) {
+    const raw = String(rawArtist || "").trim();
+    if (!raw) return [];
+    const tylerSentinel = "__TYLER_THE_CREATOR__";
+    const credits = raw
+      .replace(/Tyler,\s*The Creator/gi, tylerSentinel)
+      .split(/(?:,|\s+(?:&|feat\.?|ft\.?|with)\s+)/i)
+      .map(a => getCanonicalArtist(a.replace(new RegExp(tylerSentinel, "g"), "Tyler, The Creator").trim()))
+      .filter(Boolean);
+    return Array.from(new Set(credits));
+  }
 
   let allSpins = [];
+  let backlogEntries = [];
   let filteredSpins = [];
   let currentFilter = "all";
+  let currentExplorerView = "overview"; // "overview" | "clouds" | "years" | "calendar" | "artists" | "challenge"
+  let cloudWorkspaceMode = "genres";    // "genres" | "descriptors" | "scenes" | "movements"
+  let contextWorkspaceMode = "scenes";  // "scenes" | "movements"
+  let contextSortView = "qty";          // "qty" | "rating"
+  let selectedContextTag = null;
+  let yearSortView = "chron";           // "chron" | "qty" | "rating"
+  let selectedReleaseYear = null;
+  let selectedCalendarDay = null;
+  let calendarRangeMode = "rolling";    // "rolling" or 4-digit year string
+  let challengeBreakdownScope = "all";  // "all" | "remaining" | "done"
   let ratedArtistsView = "top";
   let minSpinsThreshold = 2;
   let genreTypeView = "primary";     // "primary" or "secondary"
@@ -22,7 +90,196 @@
   let descSortView = "qty";          // "qty" or "rating"
   let selectedDescriptor = null;
   let currentMetrics = null;
+  let challengeMetrics = null;
+  let monthlyMetrics = null;
+  let selectedRecapMonth = null;       // "YYYY-MM", null defaults to previous calendar month
+  let monthlySortView = "rating";        // "rating" | "date"
   const chartInstances = {};
+
+  function safeToArray(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val.map(x => String(x).trim()).filter(Boolean);
+    if (typeof val === "string") return val.split(",").map(x => x.trim()).filter(Boolean);
+    return [String(val).trim()].filter(Boolean);
+  }
+
+  function toCalendarDayKey(dateObj) {
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const d = String(dateObj.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  /**
+   * Parses spin.log_date ("MM/DD/YY", "MM/DD/YYYY", or "YYYY-MM-DD") or created_at fallback
+   * into a local calendar key ("YYYY-MM-DD") without UTC date shift.
+   */
+  function parseSpinCalendarDay(spin) {
+    if (!spin) return null;
+    if (spin.log_date && typeof spin.log_date === "string") {
+      const raw = spin.log_date.trim();
+      const slashParts = raw.split("/");
+      if (slashParts.length === 3) {
+        const m = parseInt(slashParts[0], 10);
+        const d = parseInt(slashParts[1], 10);
+        let y = parseInt(slashParts[2], 10);
+        if (!isNaN(m) && !isNaN(d) && !isNaN(y)) {
+          if (y < 100) y += 2000;
+          const dt = new Date(y, m - 1, d);
+          if (dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d) {
+            return toCalendarDayKey(dt);
+          }
+        }
+        return null;
+      }
+      const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (isoMatch) {
+        const y = parseInt(isoMatch[1], 10);
+        const m = parseInt(isoMatch[2], 10);
+        const d = parseInt(isoMatch[3], 10);
+        const dt = new Date(y, m - 1, d);
+        if (dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d) {
+          return toCalendarDayKey(dt);
+        }
+        return null;
+      }
+    }
+
+    const fallbackRaw = spin.created_at || spin.date || spin.timestamp;
+    if (fallbackRaw) {
+      const d = new Date(fallbackRaw);
+      if (!isNaN(d.getTime())) {
+        return toCalendarDayKey(d);
+      }
+    }
+    return null;
+  }
+
+  function addCalendarDays(dayKey, deltaDays) {
+    const parts = String(dayKey || "").split("-");
+    if (parts.length !== 3) return null;
+    const dt = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10) + deltaDays);
+    return toCalendarDayKey(dt);
+  }
+
+  function formatCalendarDayShort(dayKey) {
+    const parts = String(dayKey || "").split("-");
+    if (parts.length !== 3) return dayKey || "—";
+    const dt = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    return dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  }
+
+  function computeStreakAndCalendar(spins, referenceDate = new Date()) {
+    const dayMap = {};
+    (spins || []).forEach(spin => {
+      const key = parseSpinCalendarDay(spin);
+      if (!key) return;
+      if (!dayMap[key]) dayMap[key] = [];
+      dayMap[key].push(spin);
+    });
+
+    const dayKeys = Object.keys(dayMap).sort();
+    dayKeys.forEach(k => {
+      dayMap[k].sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
+    });
+
+    let longestStreak = 0;
+    let longestStartKey = null;
+    let longestEndKey = null;
+    let runStart = null;
+    let runLen = 0;
+
+    dayKeys.forEach((key, idx) => {
+      if (idx > 0 && key === addCalendarDays(dayKeys[idx - 1], 1)) {
+        runLen += 1;
+      } else {
+        runStart = key;
+        runLen = 1;
+      }
+      if (runLen > longestStreak) {
+        longestStreak = runLen;
+        longestStartKey = runStart;
+        longestEndKey = key;
+      }
+    });
+
+    const todayKey = toCalendarDayKey(referenceDate);
+    const yesterdayKey = addCalendarDays(todayKey, -1);
+    let currentStreak = 0;
+    let cursor = dayMap[todayKey] ? todayKey : (dayMap[yesterdayKey] ? yesterdayKey : null);
+    while (cursor && dayMap[cursor]) {
+      currentStreak += 1;
+      cursor = addCalendarDays(cursor, -1);
+    }
+
+    let peakDayKey = null;
+    let peakDayCount = 0;
+    dayKeys.forEach(k => {
+      const count = dayMap[k].length;
+      if (count >= peakDayCount) {
+        peakDayCount = count;
+        peakDayKey = k;
+      }
+    });
+
+    const yearSet = new Set();
+    dayKeys.forEach(k => {
+      const yr = parseInt(k.slice(0, 4), 10);
+      if (!isNaN(yr)) yearSet.add(yr);
+    });
+    const availableYears = Array.from(yearSet).sort((a, b) => b - a);
+    const longestRange = longestStartKey && longestEndKey
+      ? (longestStartKey === longestEndKey
+          ? formatCalendarDayShort(longestStartKey)
+          : `${formatCalendarDayShort(longestStartKey)} – ${formatCalendarDayShort(longestEndKey)}`)
+      : "—";
+
+    return {
+      dayMap,
+      dayKeys,
+      totalActiveDays: dayKeys.length,
+      currentStreak,
+      longestStreak,
+      longestRange,
+      peakDayKey,
+      peakDayCount,
+      latestActiveDayKey: dayKeys.length ? dayKeys[dayKeys.length - 1] : null,
+      availableYears
+    };
+  }
+
+  function computeScenesAndMovements(spins) {
+    const sceneMap = {};
+    const movementMap = {};
+
+    (spins || []).forEach(s => {
+      const r = parseFloat(s.rating);
+      safeToArray(s.scenes).forEach(sc => {
+        const key = sc.toLowerCase();
+        if (!sceneMap[key]) sceneMap[key] = { name: sc, count: 0, ratings: [] };
+        sceneMap[key].count += 1;
+        if (!isNaN(r)) sceneMap[key].ratings.push(r);
+      });
+
+      safeToArray(s.movements).forEach(mv => {
+        const key = mv.toLowerCase();
+        if (!movementMap[key]) movementMap[key] = { name: mv, count: 0, ratings: [] };
+        movementMap[key].count += 1;
+        if (!isNaN(r)) movementMap[key].ratings.push(r);
+      });
+    });
+
+    const finalize = (mapObj) => Object.values(mapObj).map(d => ({
+      name: d.name,
+      count: d.count,
+      avg: d.ratings.length ? (d.ratings.reduce((a, b) => a + b, 0) / d.ratings.length).toFixed(2) : "0.00"
+    }));
+
+    return {
+      allScenes: finalize(sceneMap),
+      allMovements: finalize(movementMap)
+    };
+  }
 
   // Helpers
   function parseRuntimeToSeconds(rt) {
@@ -75,6 +332,7 @@
     let albumCount = 0;
     let singleCount = 0;
     let epCount = 0;
+    let extraCount = 0;
     let totalSeconds = 0;
     let totalRatingSum = 0;
     let ratedCount = 0;
@@ -89,6 +347,7 @@
       if (type === "album") albumCount++;
       else if (type === "single") singleCount++;
       else if (type === "ep") epCount++;
+      else if (type === "extra") extraCount++;
 
       const sec = parseRuntimeToSeconds(s.runtime);
       totalSeconds += sec;
@@ -160,23 +419,17 @@
       let rawArtist = String(s.artist).trim();
       if (!rawArtist) return;
 
-      let individualArtists;
-      if (/^Tyler,\s*The Creator$/i.test(rawArtist)) {
-        individualArtists = ["Tyler, The Creator"];
-      } else {
-        individualArtists = rawArtist
-          .split(/(?:,|\s+(?:&|feat\.?|ft\.?|with)\s+)/i)
-          .map(a => a.trim())
-          .filter(Boolean);
-      }
+      const individualArtists = resolveCanonicalCredits(rawArtist);
 
       const r = parseFloat(s.rating);
+      const sec = parseRuntimeToSeconds(s.runtime);
 
       individualArtists.forEach(a => {
         if (!artistMap[a]) {
-          artistMap[a] = { count: 0, ratings: [], covers: [], topProject: null, topRating: -1 };
+          artistMap[a] = { count: 0, seconds: 0, ratings: [], covers: [], topProject: null, topRating: -1 };
         }
         artistMap[a].count++;
+        artistMap[a].seconds += sec;
         if (!isNaN(r)) {
           artistMap[a].ratings.push(r);
           if (r > artistMap[a].topRating) {
@@ -196,6 +449,18 @@
         cover: (d.topProject && d.topProject.cover_url) || d.covers[0] || "assets/images/spins/placeholder.png"
       }))
       .sort((a, b) => b.count - a.count || parseFloat(b.avg) - parseFloat(a.avg))
+      .slice(0, 10);
+
+    const artistRuntimeTop = Object.entries(artistMap)
+      .filter(([, d]) => d.seconds > 0)
+      .map(([artist, d]) => ({
+        artist,
+        seconds: d.seconds,
+        hours: Number((d.seconds / 3600).toFixed(2)),
+        formattedTime: formatDuration(d.seconds),
+        count: d.count
+      }))
+      .sort((a, b) => b.seconds - a.seconds || b.count - a.count)
       .slice(0, 10);
 
     const allArtistsList = Object.entries(artistMap)
@@ -338,7 +603,7 @@
       }
     }
 
-    // Golden Years (min 3 spins)
+    // Years Breakdown & Golden Years (min 3 spins)
     const yearMap = {};
     spins.forEach(s => {
       const y = parseInt(s.year, 10);
@@ -349,21 +614,84 @@
       if (!isNaN(r)) yearMap[y].ratings.push(r);
     });
 
-    const goldenYears = Object.entries(yearMap)
-      .filter(([y, d]) => d.count >= 3)
-      .map(([year, d]) => ({
-        year: parseInt(year, 10),
-        count: d.count,
-        avg: (d.ratings.reduce((a, b) => a + b, 0) / d.ratings.length).toFixed(2)
-      }))
+    const allYears = Object.entries(yearMap)
+      .map(([yearStr, d]) => {
+        const yNum = parseInt(yearStr, 10);
+        return {
+          year: yNum,
+          count: d.count,
+          avg: d.ratings.length ? (d.ratings.reduce((a, b) => a + b, 0) / d.ratings.length).toFixed(2) : "0.00",
+          decade: yNum < 1970 ? "Pre-70s" : Math.floor(yNum / 10) * 10 + "s"
+        };
+      })
+      .sort((a, b) => b.year - a.year);
+
+    const goldenYears = allYears
+      .filter(y => y.count >= 3)
       .sort((a, b) => parseFloat(b.avg) - parseFloat(a.avg) || b.count - a.count)
       .slice(0, 5);
+
+    // Day-of-Week Listening Rhythm (Sun..Sat)
+    const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const weekdayBuckets = WEEKDAY_LABELS.map(label => ({ label, count: 0, ratings: [] }));
+    spins.forEach(s => {
+      const dayKey = parseSpinCalendarDay(s);
+      if (!dayKey) return;
+      const [yy, mm, dd] = dayKey.split("-").map(Number);
+      const dow = new Date(yy, mm - 1, dd).getDay();
+      if (weekdayBuckets[dow]) {
+        weekdayBuckets[dow].count += 1;
+        const r = parseFloat(s.rating);
+        if (!isNaN(r)) weekdayBuckets[dow].ratings.push(r);
+      }
+    });
+    const weekdayStats = weekdayBuckets.map(b => ({
+      label: b.label,
+      count: b.count,
+      avg: b.ratings.length ? (b.ratings.reduce((a, x) => a + x, 0) / b.ratings.length).toFixed(2) : "0.00"
+    }));
+
+    // Format & Re-Spin Breakdown (for Overview Chart)
+    const fmtBuckets = {
+      "Albums": { count: 0, ratings: [], color: "#10b981" },
+      "Singles": { count: 0, ratings: [], color: "#38bdf8" },
+      "EPs": { count: 0, ratings: [], color: "#a78bfa" },
+      "Extras": { count: 0, ratings: [], color: "#ec4899" },
+      "Relistens": { count: 0, ratings: [], color: "#f59e0b" }
+    };
+    spins.forEach(s => {
+      const r = parseFloat(s.rating);
+      let bucketKey = "Albums";
+      if (s.relisten === true) {
+        bucketKey = "Relistens";
+      } else {
+        const t = (s.type || "album").trim().toLowerCase();
+        if (t === "single") bucketKey = "Singles";
+        else if (t === "ep") bucketKey = "EPs";
+        else if (t === "extra") bucketKey = "Extras";
+      }
+      fmtBuckets[bucketKey].count += 1;
+      if (!isNaN(r)) fmtBuckets[bucketKey].ratings.push(r);
+    });
+    const formatBreakdown = Object.entries(fmtBuckets)
+      .filter(([, d]) => d.count > 0)
+      .map(([label, d]) => ({
+        label,
+        count: d.count,
+        color: d.color,
+        pct: ((d.count / totalSpins) * 100).toFixed(1),
+        avg: d.ratings.length ? (d.ratings.reduce((a, x) => a + x, 0) / d.ratings.length).toFixed(2) : "—"
+      }));
+
+    const { allScenes, allMovements } = computeScenesAndMovements(spins);
+    const calendar = computeStreakAndCalendar(spins);
 
     return {
       totalSpins,
       albumCount,
       singleCount,
       epCount,
+      extraCount,
       totalSeconds,
       formattedTotalTime: formatDuration(totalSeconds),
       avgRuntimeFormatted: formatDuration(avgRuntimeSeconds),
@@ -375,6 +703,8 @@
       uniqueGenresCount: Object.keys(primaryGenreMap).length,
       topGenreName: topPrimaryGenres[0] ? topPrimaryGenres[0].genre : "—",
       topGenreCount: topPrimaryGenres[0] ? topPrimaryGenres[0].count : 0,
+      uniqueScenesCount: allScenes.length,
+      uniqueMovementsCount: allMovements.length,
       relistensCount,
       relistenRate,
       ratingBins,
@@ -389,12 +719,19 @@
         pctSub3: ((countSub3 / totalSpins) * 100).toFixed(1)
       },
       topArtists,
+      artistRuntimeTop,
       allArtistsList,
       allPrimaryGenres,
       allSecondaryGenres,
       topPrimaryGenres,
       topSecondaryGenres,
       allDescriptors,
+      allScenes,
+      allMovements,
+      allYears,
+      weekdayStats,
+      formatBreakdown,
+      calendar,
       decadeMap,
       monthMap,
       goldenYears,
@@ -404,46 +741,711 @@
   }
 
   // ============================================================
+  // Challenge Backlog Analytics
+  // ============================================================
+  const CHALLENGE_MONTH_NAMES = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  function resolveChallengeMonthYear(monthStr, fallbackYear = null) {
+    if (!monthStr) return fallbackYear ? parseInt(fallbackYear, 10) : 2026;
+    const clean = String(monthStr).trim().toLowerCase();
+    const matchWithYear = clean.match(/^([a-z]+)[-_ ](?:'|20)?(\d{2,4})$/);
+    if (matchWithYear) {
+      const yParsed = parseInt(matchWithYear[2], 10);
+      return yParsed < 100 ? 2000 + yParsed : yParsed;
+    }
+    const mIdx = CHALLENGE_MONTH_NAMES.findIndex(x => x.toLowerCase() === clean);
+    if (mIdx !== -1) {
+      return mIdx >= 9 ? 2026 : 2027;
+    }
+    return fallbackYear ? parseInt(fallbackYear, 10) : 2026;
+  }
+
+  function computeChallengeStats(backlogList, spinsList) {
+    const entries = Array.isArray(backlogList) ? backlogList : [];
+    const spins = Array.isArray(spinsList) ? spinsList : [];
+
+    const isPendingStub = s => s && (s.relisten_pending === true || (s.relisten === true && (s.rating === null || s.rating === undefined || s.rating === "")));
+    const isRelisten = s => s && !s.relisten_pending && (s.relisten === true || s.relisten === "true" || !!s.rating_shift);
+
+    const spinMap = {};
+    spins.forEach(s => {
+      if (!s || isPendingStub(s)) return;
+      const k = `${String(s.artist || "").trim().toLowerCase()}::${String(s.title || "").trim().toLowerCase()}`;
+      if (k === "::") return;
+      if (!spinMap[k]) spinMap[k] = [];
+      spinMap[k].push(s);
+    });
+
+    const items = [];
+    const monthBuckets = {};
+    let completedMonthly = 0;
+    let totalMonthly = 0;
+    let remainingRuntimeSec = 0;
+    let completedRuntimeSec = 0;
+    let recalDone = 0;
+    let recalTotal = 0;
+
+    const rymAllRatings = [];
+    const rymDoneRatings = [];
+    const actualDoneRatings = [];
+
+    entries.forEach(entry => {
+      const rawMonth = String(entry.month || "").trim().toLowerCase();
+      const isRecal = rawMonth === "recalibrate" || rawMonth === "relisten" || !!entry.relisten_reason;
+
+      const key = `${String(entry.artist || "").trim().toLowerCase()}::${String(entry.title || "").trim().toLowerCase()}`;
+      const matchedList = spinMap[key] || [];
+      const matchedSpin = isRecal ? (matchedList.find(s => isRelisten(s)) || null) : (matchedList[0] || null);
+      const isDone = !!matchedSpin;
+
+      const rymVal = parseFloat(entry.rym_rating);
+      const actualVal = matchedSpin ? parseFloat(matchedSpin.rating) : NaN;
+      const runtimeSec = parseRuntimeToSeconds(entry.runtime);
+
+      let monthKey = "recalibrate";
+      let monthLabel = "Recalibrate";
+      let sortOrder = 999999;
+
+      if (!isRecal) {
+        const mBase = rawMonth.replace(/[-_ ]*(?:'|20)?\d{2,4}$/, "");
+        const mIdx = CHALLENGE_MONTH_NAMES.findIndex(x => x.toLowerCase() === mBase);
+        const yNum = resolveChallengeMonthYear(rawMonth, entry.year);
+        if (mIdx !== -1) {
+          monthKey = `${yNum}-${String(mIdx + 1).padStart(2, "0")}`;
+          monthLabel = `${CHALLENGE_MONTH_NAMES[mIdx].slice(0, 3)} '${String(yNum).slice(-2)}`;
+          sortOrder = yNum * 100 + (mIdx + 1);
+        } else {
+          monthKey = rawMonth || "other";
+          monthLabel = rawMonth ? rawMonth.charAt(0).toUpperCase() + rawMonth.slice(1) : "Other";
+          sortOrder = 999990;
+        }
+      }
+
+      if (!monthBuckets[monthKey]) {
+        monthBuckets[monthKey] = {
+          monthKey,
+          monthLabel,
+          sortOrder,
+          isRecal,
+          done: 0,
+          remaining: 0,
+          total: 0,
+          rymDone: [],
+          actualDone: []
+        };
+      }
+
+      const mb = monthBuckets[monthKey];
+      mb.total += 1;
+      if (isDone) {
+        mb.done += 1;
+        if (!isNaN(rymVal)) mb.rymDone.push(rymVal);
+        if (!isNaN(actualVal)) mb.actualDone.push(actualVal);
+      } else {
+        mb.remaining += 1;
+      }
+
+      if (isRecal) {
+        recalTotal += 1;
+        if (isDone) recalDone += 1;
+      } else {
+        totalMonthly += 1;
+        if (isDone) {
+          completedMonthly += 1;
+          completedRuntimeSec += runtimeSec;
+          if (!isNaN(rymVal)) rymDoneRatings.push(rymVal);
+          if (!isNaN(actualVal)) actualDoneRatings.push(actualVal);
+        } else {
+          remainingRuntimeSec += runtimeSec;
+        }
+        if (!isNaN(rymVal)) rymAllRatings.push(rymVal);
+      }
+
+      items.push({
+        id: entry.id,
+        artist: entry.artist || "Unknown Artist",
+        title: entry.title || "Untitled",
+        cover_url: entry.cover_url || "assets/images/spins/placeholder.png",
+        release_year: entry.release_year || entry.year || null,
+        genres: safeToArray(entry.genres),
+        secondary_genres: safeToArray(entry.secondary_genres),
+        scenes: safeToArray(entry.scenes),
+        movements: safeToArray(entry.movements),
+        runtime: entry.runtime || "",
+        runtimeSec,
+        rymRating: !isNaN(rymVal) ? rymVal : null,
+        actualRating: !isNaN(actualVal) ? actualVal : null,
+        matchedSpinId: matchedSpin ? matchedSpin.id : null,
+        isDone,
+        isRecal,
+        relistenReason: entry.relisten_reason || null,
+        monthKey,
+        monthLabel,
+        position: entry.position !== null && entry.position !== undefined ? Number(entry.position) : (Number(entry.id) || 0)
+      });
+    });
+
+    const monthsBreakdown = Object.values(monthBuckets)
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map(m => ({
+        monthKey: m.monthKey,
+        monthLabel: m.monthLabel,
+        isRecal: m.isRecal,
+        done: m.done,
+        remaining: m.remaining,
+        total: m.total,
+        pct: m.total > 0 ? ((m.done / m.total) * 100).toFixed(1) : "0.0",
+        avgRym: m.rymDone.length ? (m.rymDone.reduce((a, b) => a + b, 0) / m.rymDone.length).toFixed(2) : null,
+        avgActual: m.actualDone.length ? (m.actualDone.reduce((a, b) => a + b, 0) / m.actualDone.length).toFixed(2) : null
+      }));
+
+    const pct = totalMonthly > 0 ? ((completedMonthly / totalMonthly) * 100).toFixed(1) : "0.0";
+    const avgRymDone = rymDoneRatings.length ? rymDoneRatings.reduce((a, b) => a + b, 0) / rymDoneRatings.length : null;
+    const avgActualDone = actualDoneRatings.length ? actualDoneRatings.reduce((a, b) => a + b, 0) / actualDoneRatings.length : null;
+    const ratingDeltaNum = (avgRymDone !== null && avgActualDone !== null) ? (avgActualDone - avgRymDone) : null;
+
+    return {
+      totalMonthly,
+      completedMonthly,
+      remainingMonthly: Math.max(0, totalMonthly - completedMonthly),
+      pct,
+      remainingRuntimeSec,
+      formattedRemainingRuntime: formatDuration(remainingRuntimeSec),
+      completedRuntimeSec,
+      formattedCompletedRuntime: formatDuration(completedRuntimeSec),
+      recalDone,
+      recalTotal,
+      recalPending: Math.max(0, recalTotal - recalDone),
+      avgRymDone: avgRymDone !== null ? avgRymDone.toFixed(2) : null,
+      avgActualDone: avgActualDone !== null ? avgActualDone.toFixed(2) : null,
+      ratingDeltaNum,
+      ratingDeltaFormatted: ratingDeltaNum !== null
+        ? `${ratingDeltaNum >= 0 ? "+" : ""}${ratingDeltaNum.toFixed(2)} ★`
+        : "—",
+      monthsBreakdown,
+      items
+    };
+  }
+
+  function computeChallengeBreakdown(items, scope = "all") {
+    const scoped = (Array.isArray(items) ? items : []).filter(item => {
+      if (scope === "remaining") return !item.isDone;
+      if (scope === "done") return !!item.isDone;
+      return true;
+    });
+
+    const artistMap = {};
+    const genreMap = {};
+    const secGenreMap = {};
+    const contextMap = {};
+    const yearMap = {};
+    const decadeMap = {};
+
+    scoped.forEach(item => {
+      const rym = item.rymRating !== null && item.rymRating !== undefined ? Number(item.rymRating) : NaN;
+      const doneInc = item.isDone ? 1 : 0;
+
+      // Artists (split collaborations + resolve canonical aliases)
+      if (item.artist) {
+        const credits = resolveCanonicalCredits(item.artist);
+        credits.forEach(a => {
+          if (!artistMap[a]) artistMap[a] = { artist: a, count: 0, doneCount: 0, ryms: [], cover: item.cover_url };
+          artistMap[a].count += 1;
+          artistMap[a].doneCount += doneInc;
+          if (!isNaN(rym)) artistMap[a].ryms.push(rym);
+        });
+      }
+
+      // Primary Genres
+      safeToArray(item.genres).forEach(g => {
+        if (!genreMap[g]) genreMap[g] = { genre: g, count: 0, doneCount: 0, ryms: [] };
+        genreMap[g].count += 1;
+        genreMap[g].doneCount += doneInc;
+        if (!isNaN(rym)) genreMap[g].ryms.push(rym);
+      });
+
+      // Secondary Genres
+      safeToArray(item.secondary_genres).forEach(sg => {
+        if (!secGenreMap[sg]) secGenreMap[sg] = { genre: sg, count: 0, ryms: [] };
+        secGenreMap[sg].count += 1;
+        if (!isNaN(rym)) secGenreMap[sg].ryms.push(rym);
+      });
+
+      // Scenes & Movements
+      safeToArray(item.scenes).forEach(sc => {
+        const key = `scene::${sc.toLowerCase()}`;
+        if (!contextMap[key]) contextMap[key] = { name: sc, kind: "scene", count: 0, doneCount: 0, ryms: [] };
+        contextMap[key].count += 1;
+        contextMap[key].doneCount += doneInc;
+        if (!isNaN(rym)) contextMap[key].ryms.push(rym);
+      });
+      safeToArray(item.movements).forEach(mv => {
+        const key = `movement::${mv.toLowerCase()}`;
+        if (!contextMap[key]) contextMap[key] = { name: mv, kind: "movement", count: 0, doneCount: 0, ryms: [] };
+        contextMap[key].count += 1;
+        contextMap[key].doneCount += doneInc;
+        if (!isNaN(rym)) contextMap[key].ryms.push(rym);
+      });
+
+      // Release Year & Decade
+      const yNum = parseInt(item.release_year, 10);
+      if (yNum && !isNaN(yNum)) {
+        if (!yearMap[yNum]) yearMap[yNum] = { year: yNum, count: 0, ryms: [] };
+        yearMap[yNum].count += 1;
+        if (!isNaN(rym)) yearMap[yNum].ryms.push(rym);
+
+        const dec = yNum < 1970 ? "Pre-70s" : Math.floor(yNum / 10) * 10 + "s";
+        if (!decadeMap[dec]) decadeMap[dec] = { decade: dec, count: 0, ryms: [] };
+        decadeMap[dec].count += 1;
+        if (!isNaN(rym)) decadeMap[dec].ryms.push(rym);
+      }
+    });
+
+    const fmtAvg = arr => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2) : "—";
+
+    const topArtists = Object.values(artistMap)
+      .map(a => ({ artist: a.artist, count: a.count, doneCount: a.doneCount, avgRym: fmtAvg(a.ryms), cover: a.cover || "assets/images/spins/placeholder.png" }))
+      .sort((a, b) => b.count - a.count || parseFloat(b.avgRym || 0) - parseFloat(a.avgRym || 0))
+      .slice(0, 15);
+
+    const topPrimaryGenres = Object.values(genreMap)
+      .map(g => ({ genre: g.genre, count: g.count, doneCount: g.doneCount, avgRym: fmtAvg(g.ryms) }))
+      .sort((a, b) => b.count - a.count || parseFloat(b.avgRym || 0) - parseFloat(a.avgRym || 0))
+      .slice(0, 10);
+
+    const topSecondaryGenres = Object.values(secGenreMap)
+      .map(g => ({ genre: g.genre, count: g.count, avgRym: fmtAvg(g.ryms) }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    const contextTags = Object.values(contextMap)
+      .map(c => ({ name: c.name, kind: c.kind, count: c.count, doneCount: c.doneCount, avgRym: fmtAvg(c.ryms) }))
+      .sort((a, b) => b.count - a.count || parseFloat(b.avgRym || 0) - parseFloat(a.avgRym || 0));
+
+    const decadeOrder = ["Pre-70s", "1970s", "1980s", "1990s", "2000s", "2010s", "2020s"];
+    const decadeCounts = decadeOrder
+      .filter(k => decadeMap[k])
+      .map(k => ({ decade: k, count: decadeMap[k].count, avgRym: fmtAvg(decadeMap[k].ryms) }));
+
+    const topYears = Object.values(yearMap)
+      .map(y => ({ year: y.year, count: y.count, avgRym: fmtAvg(y.ryms) }))
+      .sort((a, b) => b.count - a.count || b.year - a.year)
+      .slice(0, 12);
+
+    return {
+      totalCount: scoped.length,
+      uniqueArtistsCount: Object.keys(artistMap).length,
+      uniqueGenresCount: Object.keys(genreMap).length,
+      uniqueContextCount: contextTags.length,
+      uniqueYearsCount: Object.keys(yearMap).length,
+      topArtists,
+      topPrimaryGenres,
+      topSecondaryGenres,
+      contextTags,
+      decadeCounts,
+      topYears
+    };
+  }
+
+  // ============================================================
+  // Monthly Listening Recap Engine
+  // ============================================================
+  function formatMonthKeyLabel(monthKey, short = false) {
+    if (!monthKey || typeof monthKey !== "string" || !monthKey.includes("-")) return "—";
+    const [yStr, mStr] = monthKey.split("-");
+    const y = parseInt(yStr, 10);
+    const m = parseInt(mStr, 10);
+    if (isNaN(y) || isNaN(m) || m < 1 || m > 12) return monthKey;
+    const d = new Date(y, m - 1, 1);
+    return short
+      ? `${d.toLocaleDateString("en-US", { month: "short" })} '${String(y).slice(-2)}`
+      : d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  }
+
+  function getDefaultPreviousMonthKey(referenceDate = new Date()) {
+    const prevDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth() - 1, 1);
+    return `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
+  }
+
+  function computeMonthlyRecap(spins, requestedMonthKey = null, referenceDate = new Date()) {
+    const list = Array.isArray(spins) ? spins : [];
+    const monthBuckets = {};
+
+    list.forEach(s => {
+      const dayKey = parseSpinCalendarDay(s);
+      if (!dayKey) return;
+      const monthKey = dayKey.slice(0, 7);
+      const dayNum = parseInt(dayKey.slice(8, 10), 10);
+      if (!monthBuckets[monthKey]) {
+        monthBuckets[monthKey] = { spins: [], days: {} };
+      }
+      monthBuckets[monthKey].spins.push({ ...s, _dayKey: dayKey, _dayNum: dayNum });
+      if (!monthBuckets[monthKey].days[dayNum]) {
+        monthBuckets[monthKey].days[dayNum] = [];
+      }
+      monthBuckets[monthKey].days[dayNum].push(s);
+    });
+
+    const availableMonths = Object.keys(monthBuckets).sort((a, b) => b.localeCompare(a));
+    if (!availableMonths.length) {
+      return null;
+    }
+
+    const yearsMap = {};
+    availableMonths.forEach(mk => {
+      const yr = mk.slice(0, 4);
+      if (!yearsMap[yr]) yearsMap[yr] = [];
+      yearsMap[yr].push({
+        monthKey: mk,
+        shortMonth: formatMonthKeyLabel(mk, true).split(" ")[0],
+        shortLabel: formatMonthKeyLabel(mk, true),
+        count: monthBuckets[mk].spins.length
+      });
+    });
+    const availableYears = Object.keys(yearsMap).sort((a, b) => Number(b) - Number(a));
+
+    const defaultPrevKey = getDefaultPreviousMonthKey(referenceDate);
+    let activeKey = requestedMonthKey && monthBuckets[requestedMonthKey] ? requestedMonthKey : null;
+    if (!activeKey) {
+      if (monthBuckets[defaultPrevKey]) {
+        activeKey = defaultPrevKey;
+      } else {
+        activeKey = availableMonths.find(m => m <= defaultPrevKey) || availableMonths[0];
+      }
+    }
+
+    const activeIdx = availableMonths.indexOf(activeKey);
+    const newerMonthKey = activeIdx > 0 ? availableMonths[activeIdx - 1] : null;
+    const olderMonthKey = activeIdx >= 0 && activeIdx < availableMonths.length - 1 ? availableMonths[activeIdx + 1] : null;
+
+    const bucket = monthBuckets[activeKey];
+    const monthSpins = bucket.spins;
+    const [yrNum, moNum] = activeKey.split("-").map(Number);
+    const daysInMonth = new Date(yrNum, moNum, 0).getDate();
+
+    let totalSeconds = 0;
+    let ratingSum = 0;
+    let ratedCount = 0;
+    let relistensCount = 0;
+    const descCounts = {};
+    const genreCounts = {};
+    const artistStats = {};
+
+    monthSpins.forEach(s => {
+      totalSeconds += parseRuntimeToSeconds(s.runtime);
+      const r = parseFloat(s.rating);
+      if (!isNaN(r)) {
+        ratingSum += r;
+        ratedCount += 1;
+      }
+      if (s.relisten === true) relistensCount += 1;
+
+      safeToArray(s.descriptors).forEach(d => {
+        const clean = d.toLowerCase();
+        descCounts[clean] = (descCounts[clean] || 0) + 1;
+      });
+      safeToArray(s.genres).forEach(g => {
+        genreCounts[g] = (genreCounts[g] || 0) + 1;
+      });
+
+      if (s.artist) {
+        const credits = resolveCanonicalCredits(s.artist);
+        const list = credits.length ? credits : ["Unknown"];
+        list.forEach(aName => {
+          if (!artistStats[aName]) {
+            artistStats[aName] = { artist: aName, count: 0, ratings: [], cover: s.cover_url || "assets/images/spins/placeholder.png" };
+          }
+          artistStats[aName].count += 1;
+          if (!isNaN(r)) artistStats[aName].ratings.push(r);
+        });
+      }
+    });
+
+    const avgRating = ratedCount > 0 ? (ratingSum / ratedCount).toFixed(2) : "—";
+    const activeDays = Object.keys(bucket.days).length;
+
+    const dailyCadence = [];
+    let peakDay = null;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dayItems = bucket.days[d] || [];
+      const entry = {
+        day: d,
+        count: dayItems.length,
+        titles: dayItems.map(x => x.title || "Untitled").slice(0, 4)
+      };
+      dailyCadence.push(entry);
+      if (!peakDay || entry.count > peakDay.count) {
+        peakDay = entry;
+      }
+    }
+
+    const sortedByRating = [...monthSpins].sort((a, b) => {
+      const ra = parseFloat(a.rating) || 0;
+      const rb = parseFloat(b.rating) || 0;
+      if (rb !== ra) return rb - ra;
+      const sbSec = parseRuntimeToSeconds(b.runtime);
+      const saSec = parseRuntimeToSeconds(a.runtime);
+      if (sbSec !== saSec) return sbSec - saSec;
+      return (Number(b.id) || 0) - (Number(a.id) || 0);
+    });
+
+    const sortedByDate = [...monthSpins].sort((a, b) => {
+      if (b._dayKey !== a._dayKey) return b._dayKey.localeCompare(a._dayKey);
+      return (Number(b.id) || 0) - (Number(a.id) || 0);
+    });
+
+    const topPick = sortedByRating[0] || null;
+    const topDescriptors = Object.entries(descCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, count]) => ({ name, count }));
+
+    const topGenres = Object.entries(genreCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, count]) => ({ name, count }));
+
+    const topArtists = Object.values(artistStats)
+      .map(a => ({
+        artist: a.artist,
+        count: a.count,
+        avg: a.ratings.length ? (a.ratings.reduce((x, y) => x + y, 0) / a.ratings.length).toFixed(2) : "—",
+        cover: a.cover
+      }))
+      .sort((a, b) => b.count - a.count || parseFloat(b.avg || 0) - parseFloat(a.avg || 0))
+      .slice(0, 4);
+
+    let spinDeltaText = "";
+    if (olderMonthKey && monthBuckets[olderMonthKey]) {
+      const diff = monthSpins.length - monthBuckets[olderMonthKey].spins.length;
+      spinDeltaText = `(${diff >= 0 ? "+" : ""}${diff} vs ${formatMonthKeyLabel(olderMonthKey, true)})`;
+    }
+
+    return {
+      activeKey,
+      activeYear: activeKey.slice(0, 4),
+      monthLabel: formatMonthKeyLabel(activeKey, false),
+      shortLabel: formatMonthKeyLabel(activeKey, true),
+      isPreviousCalendarMonth: activeKey === defaultPrevKey,
+      daysInMonth,
+      spinsCount: monthSpins.length,
+      formattedRuntime: formatDuration(totalSeconds),
+      avgRating,
+      activeDays,
+      relistensCount,
+      spinDeltaText,
+      newerMonthKey,
+      olderMonthKey,
+      peakDay,
+      topPick,
+      topDescriptors,
+      topGenres,
+      topArtists,
+      dailyCadence,
+      sortedByRating,
+      sortedByDate,
+      availableMonths,
+      availableYears,
+      yearsMap
+    };
+  }
+
+  // ============================================================
   // DOM Renderers
   // ============================================================
-  function renderKPIs(metrics) {
-    if (!metrics) return;
+  function getHeatmapLevel(count) {
+    if (!count || count <= 0) return 0;
+    if (count === 1) return 1;
+    if (count === 2) return 2;
+    if (count <= 4) return 3;
+    return 4;
+  }
 
-    const elTotal = document.getElementById("kpiTotalSpins");
-    const elTotalSub = document.getElementById("kpiTotalSpinsSub");
-    if (elTotal) elTotal.textContent = metrics.totalSpins.toLocaleString();
-    if (elTotalSub) {
-      elTotalSub.textContent = `${metrics.albumCount} albums, ${metrics.singleCount} singles, ${metrics.epCount} EPs`;
+  function renderLeaderboardSpinRows(listEl, spins, emptyHtml) {
+    if (!listEl) return;
+    if (!spins || spins.length === 0) {
+      listEl.innerHTML = emptyHtml;
+      return;
     }
 
-    const elTime = document.getElementById("kpiTotalTime");
-    const elTimeSub = document.getElementById("kpiTotalTimeSub");
-    if (elTime) elTime.textContent = metrics.formattedTotalTime;
-    if (elTimeSub) elTimeSub.textContent = `Avg album runtime: ${metrics.avgRuntimeFormatted}`;
+    const sorted = [...spins].sort((a, b) => {
+      const ra = parseFloat(a.rating) || 0;
+      const rb = parseFloat(b.rating) || 0;
+      if (rb !== ra) return rb - ra;
+      return (parseInt(b.year, 10) || 0) - (parseInt(a.year, 10) || 0);
+    });
 
-    const elAvg = document.getElementById("kpiAvgRating");
-    const elAvgSub = document.getElementById("kpiAvgRatingSub");
-    if (elAvg) elAvg.textContent = `${metrics.avgRating} ★`;
-    if (elAvgSub) elAvgSub.textContent = `Spread (Std Dev): ±${metrics.stdDev}`;
+    listEl.innerHTML = sorted.map((s, i) => {
+      const rNum = parseFloat(s.rating);
+      const isLow = !isNaN(rNum) && rNum < 3.0;
+      const scoreClass = isLow ? "leaderboard-score-chip score-low" : "leaderboard-score-chip";
+      const ratingDisplay = !isNaN(rNum) ? rNum.toFixed(1) : "—";
+      const titleEsc = escapeHtml(s.title || "Untitled");
+      const artistEsc = escapeHtml(s.artist || "Unknown Artist");
 
-    const elArtists = document.getElementById("kpiUniqueArtists");
-    const elArtistsSub = document.getElementById("kpiUniqueArtistsSub");
-    if (elArtists) elArtists.textContent = metrics.uniqueArtistsCount.toLocaleString();
-    if (elArtistsSub) {
-      elArtistsSub.textContent = `Top: ${metrics.topArtistName} (${metrics.topArtistCount} spins)`;
+      return `
+        <div class="leaderboard-row" title="${titleEsc} by ${artistEsc}">
+          <div class="leaderboard-left">
+            <span class="leaderboard-rank">#${i + 1}</span>
+            <img src="${escapeHtml(s.cover_url || 'assets/images/spins/placeholder.png')}" alt="${titleEsc}" class="leaderboard-avatar" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+            <div style="display: flex; flex-direction: column; min-width: 0;">
+              <a href="sosaspins.html#spin-row-${s.id}" class="leaderboard-name top-album-link" target="_blank">${titleEsc}</a>
+              <span style="font-size: 0.72rem; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${artistEsc}${s.year ? ' • ' + s.year : ''}</span>
+            </div>
+          </div>
+          <div class="leaderboard-stats">
+            <span class="${scoreClass}">${ratingDisplay} ★</span>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function renderResourceTelemetry(metrics) {
+    const setText = (id, txt) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = txt;
+    };
+    const setWidth = (id, pct) => {
+      const el = document.getElementById(id);
+      if (el) el.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+    };
+
+    if (!metrics) {
+      setText("teleSpins", "0");
+      setText("teleSpinsSub", "0 albums, 0 singles, 0 EPs");
+      setWidth("teleBarSpins", 0);
+      setText("teleRuntime", "0m");
+      setText("teleRuntimeSub", "Avg runtime: 0m");
+      setWidth("teleBarRuntime", 0);
+      setText("teleRating", "— ★");
+      setText("teleRatingSub", "Std Dev: ±0.00");
+      setWidth("teleBarRating", 0);
+      setText("teleStreak", "0d");
+      setText("teleStreakSub", "Best: 0 days");
+      setWidth("teleBarStreak", 0);
+      setText("teleLibraryMix", "0 / 0");
+      setText("teleRelisten", "0.0%");
+      setText("navCloudsCount", "0");
+      setText("navYearsCount", "0");
+      setText("navStreakDays", "0d");
+      return;
     }
 
-    const elGenres = document.getElementById("kpiUniqueGenres");
-    const elGenresSub = document.getElementById("kpiUniqueGenresSub");
-    if (elGenres) elGenres.textContent = metrics.uniqueGenresCount.toLocaleString();
-    if (elGenresSub) {
-      elGenresSub.textContent = `Dominant: ${metrics.topGenreName} (${metrics.topGenreCount})`;
+    const totalAll = Math.max(allSpins.length, metrics.totalSpins, 1);
+    const cal = metrics.calendar || {};
+    const avgNum = parseFloat(metrics.avgRating) || 0;
+    const curStreak = cal.currentStreak || 0;
+    const bestStreak = Math.max(cal.longestStreak || 0, 1);
+    const cloudsTotal = (metrics.allPrimaryGenres ? metrics.allPrimaryGenres.length : 0)
+      + (metrics.allDescriptors ? metrics.allDescriptors.length : 0)
+      + (metrics.uniqueScenesCount || 0)
+      + (metrics.uniqueMovementsCount || 0);
+
+    setText("teleSpins", metrics.totalSpins.toLocaleString());
+    setText(
+      "teleSpinsSub",
+      `${metrics.albumCount} alb • ${metrics.singleCount} sgl • ${metrics.epCount} EP${metrics.extraCount ? ` • ${metrics.extraCount} ext` : ""}`
+    );
+    setWidth("teleBarSpins", (metrics.totalSpins / totalAll) * 100);
+
+    setText("teleRuntime", metrics.formattedTotalTime);
+    setText("teleRuntimeSub", `Avg album runtime: ${metrics.avgRuntimeFormatted}`);
+    setWidth("teleBarRuntime", metrics.totalSeconds > 0 ? Math.min(100, (metrics.totalSeconds / 1200000) * 100) : 0);
+
+    setText("teleRating", `${metrics.avgRating} ★`);
+    setText("teleRatingSub", `Spread (Std Dev): ±${metrics.stdDev}`);
+    setWidth("teleBarRating", (avgNum / 5) * 100);
+
+    setText("teleStreak", `${curStreak}d`);
+    setText("teleStreakSub", `Best: ${cal.longestStreak || 0} days (${cal.totalActiveDays || 0} active)`);
+    setWidth("teleBarStreak", (curStreak / bestStreak) * 100);
+
+    setText("teleLibraryMix", `${metrics.uniqueArtistsCount} / ${metrics.uniqueGenresCount}`);
+    setText("teleRelisten", `${metrics.relistenRate}%`);
+    setText("navCloudsCount", String(cloudsTotal));
+    setText("navYearsCount", String(metrics.allYears ? metrics.allYears.length : 0));
+    setText("navStreakDays", `${curStreak}d`);
+  }
+
+  function renderOverviewStreakSnapshot(metrics) {
+    const setText = (id, txt) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = txt;
+    };
+
+    const miniEl = document.getElementById("overviewMiniHeatmap");
+    if (!metrics) {
+      setText("snapCurrentStreak", "0 days");
+      setText("snapLongestStreak", "Best: 0 days");
+      setText("snapActiveDays", "0");
+      setText("snapPeakDay", "Peak: —");
+      setText("snapTopArtist", "—");
+      setText("snapTopArtistSub", "No matching spins");
+      setText("snapTopGenre", "—");
+      setText("snapTopGenreSub", "No matching spins");
+      if (miniEl) miniEl.innerHTML = "";
+      return;
     }
 
-    const elRelisten = document.getElementById("kpiRelistenRate");
-    const elRelistenSub = document.getElementById("kpiRelistenRateSub");
-    if (elRelisten) elRelisten.textContent = `${metrics.relistenRate}%`;
-    if (elRelistenSub) elRelistenSub.textContent = `${metrics.relistensCount} repeat spins logged`;
+    const cal = metrics.calendar || {
+      dayMap: {},
+      dayKeys: [],
+      totalActiveDays: 0,
+      currentStreak: 0,
+      longestStreak: 0,
+      longestRange: "—",
+      peakDayKey: null,
+      peakDayCount: 0,
+      latestActiveDayKey: null
+    };
+
+    setText("snapCurrentStreak", `${cal.currentStreak || 0} day${cal.currentStreak === 1 ? "" : "s"}`);
+    setText("snapLongestStreak", `Best: ${cal.longestStreak || 0} day${cal.longestStreak === 1 ? "" : "s"}`);
+    setText("snapActiveDays", (cal.totalActiveDays || 0).toLocaleString());
+    setText(
+      "snapPeakDay",
+      cal.peakDayKey ? `Peak: ${formatCalendarDayShort(cal.peakDayKey)} (${cal.peakDayCount})` : "Peak: —"
+    );
+    setText("snapTopArtist", metrics.topArtistName || "—");
+    setText("snapTopArtistSub", metrics.topArtistCount ? `${metrics.topArtistCount} spins` : "—");
+    setText("snapTopGenre", metrics.topGenreName || "—");
+    setText("snapTopGenreSub", metrics.topGenreCount ? `${metrics.topGenreCount} spins` : "—");
+
+    if (!miniEl) return;
+
+    const todayKey = toCalendarDayKey(new Date());
+    const anchorKey = cal.latestActiveDayKey && cal.latestActiveDayKey > todayKey ? cal.latestActiveDayKey : todayKey;
+    const [ay, am, ad] = anchorKey.split("-").map(Number);
+    const anchorDate = new Date(ay, am - 1, ad);
+    const satOffset = 6 - anchorDate.getDay();
+    const endKey = addCalendarDays(anchorKey, satOffset);
+    const startKey = addCalendarDays(endKey, -83); // 12 weeks x 7 days
+
+    const cells = [];
+    for (let i = 0; i < 84; i++) {
+      const key = addCalendarDays(startKey, i);
+      const count = cal.dayMap && cal.dayMap[key] ? cal.dayMap[key].length : 0;
+      const lvl = getHeatmapLevel(count);
+      const label = formatCalendarDayShort(key);
+      cells.push(
+        `<button type="button" class="cal-day-cell" data-day="${key}" data-level="${lvl}" title="${label}: ${count} spin${count === 1 ? "" : "s"}" aria-label="${label}: ${count} spins"></button>`
+      );
+    }
+
+    miniEl.innerHTML = cells.join("");
+    miniEl.querySelectorAll(".cal-day-cell").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const dayKey = btn.getAttribute("data-day");
+        if (!dayKey) return;
+        selectedCalendarDay = dayKey;
+        setActiveExplorerView("calendar");
+        renderStreakCalendar();
+      });
+    });
   }
 
   function renderStrictness(metrics) {
@@ -518,38 +1520,507 @@
       `).join("");
     }
 
-    // 6. Outliers: Longest & Shortest
-    const longestCard = document.getElementById("longestProjectCard");
-    if (longestCard && metrics.longestProject) {
-      const lp = metrics.longestProject;
-      longestCard.innerHTML = `
-        <div class="outlier-card">
-          <img src="${escapeHtml(lp.cover_url)}" alt="${escapeHtml(lp.title)}" class="outlier-cover" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
-          <div class="outlier-info">
-            <div class="outlier-type-tag"><i class='bx bx-time'></i> Longest</div>
-            <div class="outlier-title" title="${escapeHtml(lp.title)}">${escapeHtml(lp.title)}</div>
-            <div class="outlier-artist">${escapeHtml(lp.artist)}</div>
-            <span class="outlier-runtime-badge"><i class='bx bx-stopwatch'></i> ${escapeHtml(lp.runtime)}</span>
-          </div>
-        </div>
-      `;
+    // 6. Overview Format Summary & Challenge Pulse + Dedicated Years Explorer
+    renderOverviewFormatSummary(metrics);
+    renderYearsExplorer();
+  }
+
+  function renderOverviewFormatSummary(metrics) {
+    const summaryEl = document.getElementById("formatStatsSummary");
+    if (!summaryEl) return;
+
+    const list = metrics && metrics.formatBreakdown ? metrics.formatBreakdown : [];
+    if (!list.length) {
+      summaryEl.innerHTML = `<div style="padding: 1rem; text-align: center; color: #64748b; font-size: 0.78rem;">No format data.</div>`;
+      return;
     }
 
-    const shortestCard = document.getElementById("shortestProjectCard");
-    if (shortestCard && metrics.shortestProject) {
-      const sp = metrics.shortestProject;
-      shortestCard.innerHTML = `
-        <div class="outlier-card">
-          <img src="${escapeHtml(sp.cover_url)}" alt="${escapeHtml(sp.title)}" class="outlier-cover" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
-          <div class="outlier-info">
-            <div class="outlier-type-tag" style="color: #0284c7;"><i class='bx bx-stopwatch'></i> Shortest</div>
-            <div class="outlier-title" title="${escapeHtml(sp.title)}">${escapeHtml(sp.title)}</div>
-            <div class="outlier-artist">${escapeHtml(sp.artist)}</div>
-            <span class="outlier-runtime-badge" style="border-color: rgba(56, 189, 248, 0.4); color: #0284c7; background: rgba(56, 189, 248, 0.12);"><i class='bx bx-time'></i> ${escapeHtml(sp.runtime)}</span>
-          </div>
-        </div>
-      `;
+    summaryEl.innerHTML = list.map(item => `
+      <div class="format-summary-row">
+        <span class="format-summary-left">
+          <span class="format-dot" style="background: ${item.color};"></span>
+          <span>${escapeHtml(item.label)}</span>
+        </span>
+        <span class="format-summary-right">${item.count} (${item.pct}%) • ${item.avg}★</span>
+      </div>
+    `).join("");
+  }
+
+  function renderOverviewChallengePulse(chalStats) {
+    const setText = (id, txt) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = txt;
+    };
+
+    const barEl = document.getElementById("ovChallengeBar");
+    if (!chalStats) {
+      setText("ovChallengeHeadline", "—");
+      setText("ovChallengeSub", "Unavailable offline");
+      setText("ovChallengePct", "0%");
+      setText("ovChallengeRuntime", "—");
+      setText("ovChallengeRuntimeSub", "—");
+      setText("ovChallengeDelta", "—");
+      setText("ovChallengeRecal", "Recalibrate: —");
+      setText("navChallengeCount", "—");
+      if (barEl) barEl.style.width = "0%";
+      return;
     }
+
+    setText("ovChallengeHeadline", `${chalStats.completedMonthly} / ${chalStats.totalMonthly}`);
+    setText("ovChallengeSub", `${chalStats.remainingMonthly} monthly challenge albums remaining`);
+    setText("ovChallengePct", `${chalStats.pct}%`);
+    setText("ovChallengeRuntime", chalStats.formattedRemainingRuntime);
+    setText("ovChallengeRuntimeSub", `Done: ${chalStats.formattedCompletedRuntime}`);
+    setText("ovChallengeDelta", chalStats.ratingDeltaFormatted);
+    setText("ovChallengeRecal", `Recalibrate: ${chalStats.recalDone}/${chalStats.recalTotal} done`);
+    setText("navChallengeCount", `${chalStats.completedMonthly}/${chalStats.totalMonthly}`);
+    if (barEl) barEl.style.width = `${chalStats.pct}%`;
+  }
+
+  // ============================================================
+  // Release Years Explorer
+  // ============================================================
+  function renderYearsExplorer() {
+    const matrixEl = document.getElementById("yearCloudMatrix");
+    const badgeEl = document.getElementById("yearsDirectoryBadge");
+    const scorecardsEl = document.getElementById("decadeScorecardsList");
+
+    if (!currentMetrics) {
+      selectedReleaseYear = null;
+      if (matrixEl) matrixEl.innerHTML = `<div style="padding: 2rem; text-align: center; color: #64748b; font-size: 0.82rem;">No spins match current filter.</div>`;
+      if (badgeEl) badgeEl.textContent = "0 Years";
+      if (scorecardsEl) scorecardsEl.innerHTML = "";
+      renderYearSelectedAlbums();
+      return;
+    }
+
+    const yearsList = [...(currentMetrics.allYears || [])];
+    if (badgeEl) badgeEl.textContent = `${yearsList.length} Release Year${yearsList.length === 1 ? "" : "s"}`;
+
+    if (scorecardsEl) {
+      const decOrder = ["2020s", "2010s", "2000s", "1990s", "1980s", "1970s", "Pre-70s"];
+      const decEntries = decOrder
+        .filter(k => currentMetrics.decadeMap && currentMetrics.decadeMap[k])
+        .map(k => {
+          const d = currentMetrics.decadeMap[k];
+          const avg = d.ratings.length ? (d.ratings.reduce((a, b) => a + b, 0) / d.ratings.length).toFixed(2) : "—";
+          const pct = ((d.count / Math.max(currentMetrics.totalSpins, 1)) * 100).toFixed(1);
+          return { decade: k, count: d.count, avg, pct };
+        });
+
+      scorecardsEl.innerHTML = decEntries.length
+        ? decEntries.map((d, idx) => `
+            <div class="leaderboard-row">
+              <div class="leaderboard-left">
+                <span class="leaderboard-rank">#${idx + 1}</span>
+                <span class="leaderboard-name" style="font-family: var(--font-mono, monospace);">${escapeHtml(d.decade)}</span>
+              </div>
+              <div class="leaderboard-stats">
+                <span class="leaderboard-count-chip">${d.count} (${d.pct}%)</span>
+                <span class="leaderboard-score-chip">${d.avg} ★</span>
+              </div>
+            </div>
+          `).join("")
+        : `<div style="padding: 1.5rem 1rem; text-align: center; color: #64748b; font-size: 0.8rem;">No decade data.</div>`;
+    }
+
+    if (!matrixEl) return;
+    if (!yearsList.length) {
+      selectedReleaseYear = null;
+      matrixEl.innerHTML = `<div style="padding: 2rem; text-align: center; color: #64748b; font-size: 0.82rem;">No release years available in current filter.</div>`;
+      renderYearSelectedAlbums();
+      return;
+    }
+
+    if (yearSortView === "qty") {
+      yearsList.sort((a, b) => b.count - a.count || b.year - a.year);
+    } else if (yearSortView === "rating") {
+      yearsList.sort((a, b) => parseFloat(b.avg) - parseFloat(a.avg) || b.count - a.count || b.year - a.year);
+    } else {
+      yearsList.sort((a, b) => b.year - a.year);
+    }
+
+    if (!selectedReleaseYear || !yearsList.some(y => y.year === selectedReleaseYear)) {
+      selectedReleaseYear = yearsList[0].year;
+    }
+
+    const counts = yearsList.map(y => y.count);
+    const maxC = Math.max(...counts, 1);
+    const minC = Math.min(...counts, 1);
+    const range = maxC - minC > 0 ? maxC - minC : 1;
+
+    matrixEl.innerHTML = yearsList.map(y => {
+      const isSelected = y.year === selectedReleaseYear;
+      const norm = (y.count - minC) / range;
+      const fontSize = (0.76 + norm * 0.42).toFixed(2);
+      const fontWeight = norm > 0.5 ? 700 : 600;
+      return `
+        <span class="desc-cloud-tag context-pill is-year ${isSelected ? 'selected' : ''}" data-year="${y.year}" style="font-size: ${fontSize}rem; font-weight: ${fontWeight};" title="${y.year}: ${y.count} release${y.count === 1 ? '' : 's'} • Avg ${y.avg}★">
+          <span>${y.year}</span>
+          <span class="desc-cloud-count">${yearSortView === "rating" ? y.avg + "★" : y.count}</span>
+        </span>
+      `;
+    }).join("");
+
+    matrixEl.querySelectorAll(".context-pill.is-year").forEach(pill => {
+      pill.addEventListener("click", () => {
+        const yNum = parseInt(pill.getAttribute("data-year"), 10);
+        if (isNaN(yNum)) return;
+        selectedReleaseYear = yNum;
+        matrixEl.querySelectorAll(".context-pill.is-year").forEach(p => p.classList.remove("selected"));
+        pill.classList.add("selected");
+        renderYearSelectedAlbums();
+      });
+    });
+
+    renderYearSelectedAlbums();
+  }
+
+  function renderYearSelectedAlbums() {
+    const titleEl = document.getElementById("yearSelectedTitle");
+    const badgeEl = document.getElementById("yearSelectedBadge");
+    const listEl = document.getElementById("yearSelectedAlbumsList");
+    if (!listEl) return;
+
+    if (!selectedReleaseYear) {
+      if (titleEl) titleEl.textContent = "—";
+      if (badgeEl) badgeEl.textContent = "0 Albums";
+      listEl.innerHTML = `<div style="padding: 2.5rem 1rem; text-align: center; color: #64748b; font-size: 0.82rem;">Select a release year on the left to see its rated albums.</div>`;
+      return;
+    }
+
+    if (titleEl) titleEl.textContent = String(selectedReleaseYear);
+
+    const matchingSpins = filteredSpins.filter(s => parseInt(s.year, 10) === selectedReleaseYear);
+    const ratedNums = matchingSpins.map(s => parseFloat(s.rating)).filter(r => !isNaN(r));
+    const avgYear = ratedNums.length ? (ratedNums.reduce((a, b) => a + b, 0) / ratedNums.length).toFixed(2) : null;
+
+    if (badgeEl) {
+      badgeEl.textContent = avgYear
+        ? `${matchingSpins.length} Album${matchingSpins.length === 1 ? "" : "s"} • ${avgYear}★ Avg`
+        : `${matchingSpins.length} Album${matchingSpins.length === 1 ? "" : "s"}`;
+    }
+
+    renderLeaderboardSpinRows(
+      listEl,
+      matchingSpins,
+      `<div style="padding: 2.5rem 1rem; text-align: center; color: #64748b; font-size: 0.82rem;">No releases found for ${selectedReleaseYear} in current filter.</div>`
+    );
+  }
+
+  // ============================================================
+  // Challenge Backlog Renderers
+  // ============================================================
+  function renderChallengeView() {
+    const setText = (id, txt) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = txt;
+    };
+
+    if (!challengeMetrics) {
+      setText("chalTotalProgress", "0 / 0");
+      setText("chalTotalSub", "No challenge backlog entries loaded");
+      setText("chalRemainingRuntime", "0m");
+      setText("chalRemainingSub", "0 unspun albums left");
+      setText("chalRatingDelta", "—");
+      setText("chalDeltaSub", "Avg RYM: — • Yours: —");
+      setText("chalRecalCount", "0 / 0");
+      setText("chalRecalSub", "0 pending relistens");
+      renderChallengeBreakdown();
+      return;
+    }
+
+    const cs = challengeMetrics;
+    setText("chalTotalProgress", `${cs.completedMonthly} / ${cs.totalMonthly}`);
+    setText("chalTotalSub", `${cs.pct}% completed (${cs.remainingMonthly} left)`);
+    setText("chalRemainingRuntime", cs.formattedRemainingRuntime);
+    setText("chalRemainingSub", `${cs.remainingMonthly} unspun album${cs.remainingMonthly === 1 ? "" : "s"} left`);
+    setText("chalRatingDelta", cs.ratingDeltaFormatted);
+    setText(
+      "chalDeltaSub",
+      cs.avgRymDone && cs.avgActualDone
+        ? `Avg RYM: ${cs.avgRymDone}★ • Yours: ${cs.avgActualDone}★`
+        : "Complete more picks for delta"
+    );
+    setText("chalRecalCount", `${cs.recalDone} / ${cs.recalTotal}`);
+    setText("chalRecalSub", `${cs.recalPending} pending recalibration${cs.recalPending === 1 ? "" : "s"}`);
+
+    renderChallengeBreakdown();
+  }
+
+  function renderChallengeBreakdown() {
+    const setText = (id, txt) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = txt;
+    };
+
+    const artistsEl = document.getElementById("chalTopArtistsList");
+    const contextEl = document.getElementById("chalScenesMovementsList");
+    const secGenresEl = document.getElementById("chalSecondaryGenresWrap");
+    const topYearsEl = document.getElementById("chalTopYearsBadges");
+
+    if (!challengeMetrics || !challengeMetrics.items) {
+      setText("chalBreakdownBadge", "0 Albums");
+      setText("chalArtistsBadge", "0 Artists");
+      setText("chalContextBadge", "0 Tags");
+      setText("chalGenresBadge", "0 Genres");
+      setText("chalYearsBadge", "0 Years");
+      if (artistsEl) artistsEl.innerHTML = `<div style="padding: 1.5rem; text-align: center; color: #64748b; font-size: 0.8rem;">No backlog data.</div>`;
+      if (contextEl) contextEl.innerHTML = "";
+      if (secGenresEl) secGenresEl.innerHTML = "";
+      if (topYearsEl) topYearsEl.innerHTML = "";
+      return;
+    }
+
+    const bd = computeChallengeBreakdown(challengeMetrics.items, challengeBreakdownScope);
+    challengeMetrics.activeBreakdown = bd;
+
+    setText("chalBreakdownBadge", `${bd.totalCount} Album${bd.totalCount === 1 ? "" : "s"}`);
+    setText("chalArtistsBadge", `${bd.uniqueArtistsCount} Artist${bd.uniqueArtistsCount === 1 ? "" : "s"}`);
+    setText("chalContextBadge", `${bd.uniqueContextCount} Tag${bd.uniqueContextCount === 1 ? "" : "s"}`);
+    setText("chalGenresBadge", `${bd.uniqueGenresCount} Genre${bd.uniqueGenresCount === 1 ? "" : "s"}`);
+    setText("chalYearsBadge", `${bd.uniqueYearsCount} Year${bd.uniqueYearsCount === 1 ? "" : "s"}`);
+
+    if (artistsEl) {
+      artistsEl.innerHTML = bd.topArtists.length
+        ? bd.topArtists.map((a, i) => `
+            <div class="leaderboard-row">
+              <div class="leaderboard-left">
+                <span class="leaderboard-rank">#${i + 1}</span>
+                <img src="${escapeHtml(a.cover)}" alt="${escapeHtml(a.artist)}" class="leaderboard-avatar" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+                <span class="leaderboard-name" title="${escapeHtml(a.artist)}">${escapeHtml(a.artist)}</span>
+              </div>
+              <div class="leaderboard-stats">
+                <span class="leaderboard-count-chip">${a.count} queued${challengeBreakdownScope === "all" && a.doneCount ? ` (${a.doneCount} done)` : ""}</span>
+                <span class="leaderboard-score-chip">${a.avgRym} RYM</span>
+              </div>
+            </div>
+          `).join("")
+        : `<div style="padding: 1.5rem; text-align: center; color: #64748b; font-size: 0.8rem;">No artists in this backlog scope.</div>`;
+    }
+
+    if (contextEl) {
+      contextEl.innerHTML = bd.contextTags.length
+        ? bd.contextTags.map((c, i) => `
+            <div class="leaderboard-row">
+              <div class="leaderboard-left">
+                <span class="leaderboard-rank">#${i + 1}</span>
+                <span class="desc-cloud-tag context-pill ${c.kind === "scene" ? "is-scene" : "is-movement"}" style="padding: 2px 8px; font-size: 0.72rem; cursor: default;">
+                  <span>${escapeHtml(c.name)}</span>
+                </span>
+              </div>
+              <div class="leaderboard-stats">
+                <span class="leaderboard-count-chip">${c.count} album${c.count === 1 ? "" : "s"}</span>
+                <span class="leaderboard-score-chip">${c.avgRym} RYM</span>
+              </div>
+            </div>
+          `).join("")
+        : `<div style="padding: 1.5rem; text-align: center; color: #64748b; font-size: 0.8rem;">No scenes or movements tagged in this scope.</div>`;
+    }
+
+    if (secGenresEl) {
+      secGenresEl.innerHTML = bd.topSecondaryGenres.length
+        ? `<span class="context-hint-pill" style="align-self:center; margin-right:4px;">Secondary:</span>` + bd.topSecondaryGenres.map(g => `
+            <span class="panel-badge" title="Avg RYM: ${g.avgRym}★">${escapeHtml(g.genre)} (${g.count})</span>
+          `).join("")
+        : "";
+    }
+
+    if (topYearsEl) {
+      topYearsEl.innerHTML = bd.topYears.length
+        ? `<span class="context-hint-pill" style="align-self:center; margin-right:4px;">Top Years:</span>` + bd.topYears.map(y => `
+            <span class="panel-badge" title="Avg RYM: ${y.avgRym}★">${y.year} (${y.count})</span>
+          `).join("")
+        : "";
+    }
+  }
+
+  // ============================================================
+  // Monthly Listening Recap Renderer (Concept 2 Aero Zine + Daily Cadence)
+  // ============================================================
+  function renderMonthlyRecapView() {
+    const setText = (id, txt) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = txt;
+    };
+
+    const yearsBar = document.getElementById("monthlyYearsBar");
+    const monthsBar = document.getElementById("monthlyMonthsBar");
+    const genresWrap = document.getElementById("monthlyGenresWrap");
+    const artistsList = document.getElementById("monthlyTopArtistsList");
+    const prevBtn = document.getElementById("btnMonthlyPrev");
+    const nextBtn = document.getElementById("btnMonthlyNext");
+
+    const m = monthlyMetrics;
+    if (!m) {
+      setText("navMonthlyBadge", "—");
+      setText("monthlyHeroKicker", "NO DATED LOGS");
+      setText("monthlyHeroTitle", "NO MONTHLY DATA");
+      setText("monthlyHeroTopPick", "No dated spins match the current filter.");
+      setText("monthlyHeroMood", "Mood Signature: —");
+      setText("monthlyHeroSpins", "0");
+      setText("monthlyHeroDelta", "");
+      setText("monthlyHeroRuntime", "0m");
+      setText("monthlyHeroRating", "— ★");
+      setText("monthlyHeroDays", "0");
+      if (yearsBar) yearsBar.innerHTML = "";
+      if (monthsBar) monthsBar.innerHTML = "";
+      if (genresWrap) genresWrap.innerHTML = "";
+      if (artistsList) artistsList.innerHTML = "";
+      if (prevBtn) prevBtn.disabled = true;
+      if (nextBtn) nextBtn.disabled = true;
+      renderMonthlyCollage();
+      return;
+    }
+
+    selectedRecapMonth = m.activeKey;
+    setText("navMonthlyBadge", m.shortLabel);
+
+    if (prevBtn) prevBtn.disabled = !m.olderMonthKey;
+    if (nextBtn) nextBtn.disabled = !m.newerMonthKey;
+
+    if (yearsBar) {
+      yearsBar.innerHTML = m.availableYears.map(yr => `
+        <button type="button" class="challenge-month-pill ${yr === m.activeYear ? "active" : ""}" data-recap-year="${yr}">${yr}</button>
+      `).join("");
+
+      yearsBar.querySelectorAll("[data-recap-year]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const yr = btn.getAttribute("data-recap-year");
+          const monthsInYear = m.yearsMap[yr] || [];
+          if (monthsInYear.length) {
+            selectedRecapMonth = monthsInYear[0].monthKey;
+            monthlyMetrics = computeMonthlyRecap(filteredSpins, selectedRecapMonth);
+            renderMonthlyRecapView();
+            renderCharts(currentMetrics);
+          }
+        });
+      });
+    }
+
+    if (monthsBar) {
+      const yearMonths = m.yearsMap[m.activeYear] || [];
+      monthsBar.innerHTML = yearMonths.map(item => `
+        <button type="button" class="challenge-month-pill ${item.monthKey === m.activeKey ? "active" : ""}" data-recap-month="${item.monthKey}">${escapeHtml(item.shortMonth)} (${item.count})</button>
+      `).join("");
+
+      monthsBar.querySelectorAll("[data-recap-month]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const mk = btn.getAttribute("data-recap-month");
+          if (!mk) return;
+          selectedRecapMonth = mk;
+          monthlyMetrics = computeMonthlyRecap(filteredSpins, selectedRecapMonth);
+          renderMonthlyRecapView();
+          renderCharts(currentMetrics);
+        });
+      });
+    }
+
+    // Aero Zine Hero Spotlight
+    setText(
+      "monthlyHeroKicker",
+      m.isPreviousCalendarMonth ? "PREVIOUS MONTH SPOTLIGHT • ALBUM OF THE MONTH" : "ARCHIVE RECAP SPOTLIGHT • TOP PROJECT"
+    );
+    setText("monthlyHeroTitle", `${m.monthLabel.toUpperCase()} RECAP`);
+
+    const spotImg = document.getElementById("monthlySpotlightCover");
+    const spotLink = document.getElementById("monthlySpotlightLink");
+    if (m.topPick) {
+      const ratingNum = parseFloat(m.topPick.rating);
+      const rTxt = !isNaN(ratingNum) ? `${ratingNum.toFixed(1)} ★` : "Unrated";
+      const pickEl = document.getElementById("monthlyHeroTopPick");
+      if (pickEl) {
+        pickEl.innerHTML = `No. 1 Pick: ${escapeHtml(m.topPick.title || "Untitled")} — ${escapeHtml(m.topPick.artist || "Unknown")} <span style="color: #fbbf24;">(${rTxt})</span>`;
+      }
+      if (spotImg) {
+        spotImg.src = m.topPick.cover_url || "assets/images/spins/placeholder.png";
+        spotImg.alt = m.topPick.title || "Top Album";
+      }
+      if (spotLink) {
+        spotLink.href = `sosaspins.html#spin-row-${m.topPick.id}`;
+      }
+    }
+
+    setText(
+      "monthlyHeroMood",
+      m.topDescriptors.length
+        ? `Mood Signature: ${m.topDescriptors.map(d => d.name).join(" • ")}`
+        : "Mood Signature: Varied rotation"
+    );
+
+    setText("monthlyHeroSpins", String(m.spinsCount));
+    setText("monthlyHeroDelta", m.spinDeltaText);
+    setText("monthlyHeroRuntime", m.formattedRuntime);
+    setText("monthlyHeroRating", `${m.avgRating} ★`);
+    setText("monthlyHeroDays", `${m.activeDays} / ${m.daysInMonth}`);
+
+    setText("monthlyCadenceSpanLabel", `Days 1–${m.daysInMonth}`);
+    setText(
+      "monthlyPeakDayBadge",
+      m.peakDay && m.peakDay.count > 0
+        ? `Peak: Day ${m.peakDay.day} (${m.peakDay.count})`
+        : "Peak: —"
+    );
+    setText("monthlyRelistensBadge", `${m.relistensCount} Relisten${m.relistensCount === 1 ? "" : "s"}`);
+
+    if (genresWrap) {
+      genresWrap.innerHTML = m.topGenres.map(g => `
+        <span class="panel-badge">${escapeHtml(g.name)} (${g.count})</span>
+      `).join("");
+    }
+
+    if (artistsList) {
+      artistsList.innerHTML = m.topArtists.length
+        ? m.topArtists.map((a, i) => `
+            <div class="leaderboard-row">
+              <div class="leaderboard-left">
+                <span class="leaderboard-rank">#${i + 1}</span>
+                <img src="${escapeHtml(a.cover)}" alt="${escapeHtml(a.artist)}" class="leaderboard-avatar" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+                <span class="leaderboard-name" title="${escapeHtml(a.artist)}">${escapeHtml(a.artist)}</span>
+              </div>
+              <div class="leaderboard-stats">
+                <span class="leaderboard-count-chip">${a.count} spin${a.count === 1 ? "" : "s"}</span>
+                <span class="leaderboard-score-chip">${a.avg} ★</span>
+              </div>
+            </div>
+          `).join("")
+        : `<div style="padding: 1rem; text-align: center; color: #64748b; font-size: 0.78rem;">No artist breakdown.</div>`;
+    }
+
+    setText("monthlyCollageHeading", `${m.monthLabel} Listening Collage`);
+    setText("monthlyCollageBadge", `${m.spinsCount} Release${m.spinsCount === 1 ? "" : "s"}`);
+
+    renderMonthlyCollage();
+  }
+
+  function renderMonthlyCollage() {
+    const gridEl = document.getElementById("monthlyCollageGrid");
+    if (!gridEl) return;
+
+    if (!monthlyMetrics || !monthlyMetrics.spinsCount) {
+      gridEl.innerHTML = `<div style="grid-column: 1 / -1; padding: 2rem; text-align: center; color: #64748b; font-size: 0.82rem;">No releases logged for this month in current filter.</div>`;
+      return;
+    }
+
+    const items = monthlySortView === "date" ? monthlyMetrics.sortedByDate : monthlyMetrics.sortedByRating;
+    gridEl.innerHTML = items.map(s => {
+      const rNum = parseFloat(s.rating);
+      const ratingTxt = !isNaN(rNum) ? `${rNum.toFixed(1)}★` : "—";
+      const isLow = !isNaN(rNum) && rNum < 3.0;
+      const dateTxt = s._dayKey ? formatCalendarDayShort(s._dayKey) : "";
+
+      return `
+        <a href="sosaspins.html#spin-row-${s.id}" target="_blank" class="monthly-collage-tile" title="${escapeHtml(s.title)} — ${escapeHtml(s.artist)} (${ratingTxt})">
+          <img src="${escapeHtml(s.cover_url || "assets/images/spins/placeholder.png")}" alt="${escapeHtml(s.title)}" loading="lazy" onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+          ${s.relisten ? `<span class="monthly-tile-relisten" title="Relisten"><i class='bx bx-revision'></i></span>` : ""}
+          <span class="monthly-tile-rating ${isLow ? "is-low" : ""}">${ratingTxt}</span>
+          <div class="monthly-tile-overlay">
+            <div class="monthly-tile-title">${escapeHtml(s.title || "Untitled")}</div>
+            <div class="monthly-tile-sub">${escapeHtml(s.artist || "Unknown")}${dateTxt ? " • " + dateTxt : ""}</div>
+          </div>
+        </a>
+      `;
+    }).join("");
   }
 
   // ============================================================
@@ -857,6 +2328,437 @@
   }
 
   // ============================================================
+  // Scenes & Movements Explorer
+  // ============================================================
+  function renderContextSummaryList(listEl, badgeEl, items, singularLabel, pluralLabel, targetMode) {
+    if (badgeEl) {
+      badgeEl.textContent = `${items.length} ${items.length === 1 ? singularLabel : pluralLabel}`;
+    }
+    if (!listEl) return;
+
+    if (!items.length) {
+      listEl.innerHTML = `<div style="padding: 1.5rem 1rem; text-align: center; color: #64748b; font-size: 0.8rem;">No ${pluralLabel.toLowerCase()} logged in current filter.</div>`;
+      return;
+    }
+
+    const topTen = [...items]
+      .sort((a, b) => b.count - a.count || parseFloat(b.avg) - parseFloat(a.avg))
+      .slice(0, 10);
+
+    listEl.innerHTML = topTen.map((item, i) => `
+      <button type="button" class="leaderboard-row context-summary-row" data-context-mode="${targetMode}" data-context-name="${escapeHtml(item.name)}" style="width: 100%; text-align: left; cursor: pointer;">
+        <div class="leaderboard-left">
+          <span class="leaderboard-rank">#${i + 1}</span>
+          <span class="leaderboard-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
+        </div>
+        <div class="leaderboard-stats">
+          <span class="leaderboard-count-chip">${item.count} spin${item.count === 1 ? "" : "s"}</span>
+          <span class="leaderboard-score-chip">${item.avg} ★</span>
+        </div>
+      </button>
+    `).join("");
+
+    listEl.querySelectorAll(".context-summary-row").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const mode = btn.getAttribute("data-context-mode");
+        const name = btn.getAttribute("data-context-name");
+        if (!mode || !name) return;
+        selectedContextTag = name;
+        setCloudWorkspaceMode(mode);
+      });
+    });
+  }
+
+  function renderScenesMovements() {
+    const matrixEl = document.getElementById("contextCloudMatrix");
+    const badgeEl = document.getElementById("contextCloudBadge");
+    const headingEl = document.getElementById("contextListHeading");
+    const scenesSummaryEl = document.getElementById("topScenesSummaryList");
+    const scenesBadgeEl = document.getElementById("topScenesBadge");
+    const movSummaryEl = document.getElementById("topMovementsSummaryList");
+    const movBadgeEl = document.getElementById("topMovementsBadge");
+
+    if (!currentMetrics) {
+      selectedContextTag = null;
+      if (matrixEl) matrixEl.innerHTML = `<div style="padding: 2rem; text-align: center; color: #64748b; font-size: 0.82rem;">No spins match current filter.</div>`;
+      if (badgeEl) badgeEl.textContent = "0 Tags";
+      renderContextSummaryList(scenesSummaryEl, scenesBadgeEl, [], "Scene", "Scenes", "scenes");
+      renderContextSummaryList(movSummaryEl, movBadgeEl, [], "Movement", "Movements", "movements");
+      renderContextTopAlbums();
+      return;
+    }
+
+    const allScenes = currentMetrics.allScenes || [];
+    const allMovements = currentMetrics.allMovements || [];
+
+    renderContextSummaryList(scenesSummaryEl, scenesBadgeEl, allScenes, "Scene", "Scenes", "scenes");
+    renderContextSummaryList(movSummaryEl, movBadgeEl, allMovements, "Movement", "Movements", "movements");
+
+    if (!matrixEl) return;
+
+    const isScenes = contextWorkspaceMode === "scenes";
+    const list = isScenes ? allScenes : allMovements;
+    const noun = isScenes ? "Scene" : "Movement";
+    const pluralNoun = isScenes ? "Scenes" : "Movements";
+
+    if (headingEl) {
+      headingEl.textContent = isScenes ? "Regional & Local Scenes" : "Artistic Movements & Eras";
+    }
+    if (badgeEl) {
+      badgeEl.textContent = `${list.length} ${list.length === 1 ? noun : pluralNoun}`;
+    }
+
+    if (!list.length) {
+      selectedContextTag = null;
+      matrixEl.innerHTML = `<div style="padding: 2rem; text-align: center; color: #64748b; font-size: 0.82rem;">No ${pluralNoun.toLowerCase()} logged in current filter.</div>`;
+      renderContextTopAlbums();
+      return;
+    }
+
+    const sorted = [...list];
+    if (contextSortView === "qty") {
+      sorted.sort((a, b) => b.count - a.count || parseFloat(b.avg) - parseFloat(a.avg));
+    } else {
+      sorted.sort((a, b) => parseFloat(b.avg) - parseFloat(a.avg) || b.count - a.count);
+    }
+
+    if (!selectedContextTag || !sorted.some(item => item.name.toLowerCase() === selectedContextTag.toLowerCase())) {
+      selectedContextTag = sorted[0].name;
+    }
+
+    const counts = sorted.map(item => item.count);
+    const maxC = Math.max(...counts, 1);
+    const minC = Math.min(...counts, 1);
+    const range = maxC - minC > 0 ? maxC - minC : 1;
+    const variantClass = isScenes ? "is-scene" : "is-movement";
+
+    matrixEl.innerHTML = sorted.map(item => {
+      const isSelected = item.name.toLowerCase() === selectedContextTag.toLowerCase();
+      const norm = (item.count - minC) / range;
+      const fontSize = (0.76 + norm * 0.42).toFixed(2);
+      const fontWeight = norm > 0.6 ? 700 : (norm > 0.3 ? 600 : 500);
+
+      return `
+        <span class="desc-cloud-tag context-pill ${variantClass} ${isSelected ? 'selected' : ''}" data-context-tag="${escapeHtml(item.name)}" style="font-size: ${fontSize}rem; font-weight: ${fontWeight};" title="${noun}: ${escapeHtml(item.name)} • ${item.count} spin${item.count === 1 ? '' : 's'} • Avg Rating: ${item.avg}★">
+          <span>${escapeHtml(item.name)}</span>
+          <span class="desc-cloud-count">${contextSortView === "rating" ? item.avg + "★" : item.count}</span>
+        </span>
+      `;
+    }).join("");
+
+    matrixEl.querySelectorAll(".context-pill").forEach(tag => {
+      tag.addEventListener("click", () => {
+        const name = tag.getAttribute("data-context-tag");
+        if (!name) return;
+        selectedContextTag = name;
+        matrixEl.querySelectorAll(".context-pill").forEach(t => t.classList.remove("selected"));
+        tag.classList.add("selected");
+        renderContextTopAlbums();
+      });
+    });
+
+    renderContextTopAlbums();
+  }
+
+  function renderContextTopAlbums() {
+    const listEl = document.getElementById("contextTopAlbumsList");
+    const titleEl = document.getElementById("contextSelectedTitle");
+    const badgeEl = document.getElementById("contextSelectedBadge");
+    if (!listEl) return;
+
+    if (!selectedContextTag) {
+      if (titleEl) titleEl.textContent = "Select Tag";
+      if (badgeEl) badgeEl.textContent = "0 Albums";
+      listEl.innerHTML = `<div style="padding: 2.5rem 1rem; text-align: center; color: #64748b; font-size: 0.82rem;">Select a scene or movement tag above to inspect matching releases.</div>`;
+      return;
+    }
+
+    if (titleEl) titleEl.textContent = selectedContextTag;
+    const lowerTarget = selectedContextTag.toLowerCase();
+    const fieldName = contextWorkspaceMode === "scenes" ? "scenes" : "movements";
+
+    const matchingSpins = filteredSpins.filter(s =>
+      safeToArray(s[fieldName]).some(tag => tag.toLowerCase() === lowerTarget)
+    );
+
+    if (badgeEl) {
+      badgeEl.textContent = `${matchingSpins.length} Album${matchingSpins.length === 1 ? "" : "s"}`;
+    }
+
+    renderLeaderboardSpinRows(
+      listEl,
+      matchingSpins,
+      `<div style="padding: 2.5rem 1rem; text-align: center; color: #64748b; font-size: 0.82rem;">No releases found for this tag in current filter.</div>`
+    );
+  }
+
+  // ============================================================
+  // Listening Streak & Calendar Heatmap
+  // ============================================================
+  function populateCalendarRangeSelect(cal) {
+    const selectEl = document.getElementById("calendarRangeSelect");
+    if (!selectEl) return;
+
+    const years = cal && Array.isArray(cal.availableYears) ? cal.availableYears.map(String) : [];
+    const opts = [`<option value="rolling">Rolling 12 Months</option>`];
+    years.forEach(yr => {
+      opts.push(`<option value="${yr}">${yr} Calendar Year</option>`);
+    });
+    selectEl.innerHTML = opts.join("");
+
+    if (calendarRangeMode !== "rolling" && !years.includes(calendarRangeMode)) {
+      calendarRangeMode = "rolling";
+    }
+    selectEl.value = calendarRangeMode;
+  }
+
+  function renderCalendarDayDetails(dayKey) {
+    const titleEl = document.getElementById("calendarDayTitle");
+    const countEl = document.getElementById("calendarDayCount");
+    const listEl = document.getElementById("calendarDaySpinsList");
+    if (!listEl) return;
+
+    if (!dayKey) {
+      if (titleEl) titleEl.textContent = "Select a day";
+      if (countEl) countEl.textContent = "0 Spins";
+      listEl.innerHTML = `<div style="padding: 1.5rem 1rem; text-align: center; color: #64748b; font-size: 0.8rem;">Click any green square in the calendar above to inspect albums logged on that date.</div>`;
+      return;
+    }
+
+    if (titleEl) titleEl.textContent = formatCalendarDayShort(dayKey);
+
+    const matchingSpins = (currentMetrics && currentMetrics.calendar && currentMetrics.calendar.dayMap && currentMetrics.calendar.dayMap[dayKey])
+      ? currentMetrics.calendar.dayMap[dayKey]
+      : filteredSpins.filter(s => parseSpinCalendarDay(s) === dayKey);
+    if (countEl) {
+      countEl.textContent = `${matchingSpins.length} Spin${matchingSpins.length === 1 ? "" : "s"}`;
+    }
+
+    renderLeaderboardSpinRows(
+      listEl,
+      matchingSpins,
+      `<div style="padding: 1.4rem 1rem; text-align: center; color: #64748b; font-size: 0.8rem;">No spins logged on ${escapeHtml(formatCalendarDayShort(dayKey))} in current filter.</div>`
+    );
+  }
+
+  function renderStreakCalendar() {
+    const setText = (id, txt) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = txt;
+    };
+
+    const gridEl = document.getElementById("listeningCalendarGrid");
+    const monthsEl = document.getElementById("listeningCalendarMonths");
+
+    if (!currentMetrics || !currentMetrics.calendar) {
+      setText("calCurrentStreak", "0 days");
+      setText("calCurrentStatus", "No dated spins in current filter");
+      setText("calLongestStreak", "0 days");
+      setText("calLongestRange", "—");
+      setText("calActiveDays", "0");
+      setText("calAvgPerDay", "Avg 0.0 spins / active day");
+      setText("calPeakDay", "—");
+      setText("calPeakDaySub", "0 spins logged");
+      populateCalendarRangeSelect(null);
+      if (monthsEl) monthsEl.innerHTML = "";
+      if (gridEl) gridEl.innerHTML = "";
+      selectedCalendarDay = null;
+      renderCalendarDayDetails(null);
+      return;
+    }
+
+    const cal = currentMetrics.calendar;
+    populateCalendarRangeSelect(cal);
+
+    setText("calCurrentStreak", `${cal.currentStreak || 0} day${cal.currentStreak === 1 ? "" : "s"}`);
+    if (cal.currentStreak > 0) {
+      setText("calCurrentStatus", cal.latestActiveDayKey ? `Active through ${formatCalendarDayShort(cal.latestActiveDayKey)}` : "Active streak");
+    } else if (cal.latestActiveDayKey) {
+      setText("calCurrentStatus", `Last logged: ${formatCalendarDayShort(cal.latestActiveDayKey)}`);
+    } else {
+      setText("calCurrentStatus", "Log a dated spin to start a streak");
+    }
+
+    setText("calLongestStreak", `${cal.longestStreak || 0} day${cal.longestStreak === 1 ? "" : "s"}`);
+    setText("calLongestRange", cal.longestRange || "—");
+
+    const activeDays = cal.totalActiveDays || 0;
+    const datedSpinsCount = (cal.dayKeys || []).reduce((acc, k) => acc + (cal.dayMap[k] ? cal.dayMap[k].length : 0), 0);
+    const avgPerDay = activeDays > 0 ? (datedSpinsCount / activeDays).toFixed(1) : "0.0";
+    setText("calActiveDays", activeDays.toLocaleString());
+    setText("calAvgPerDay", `Avg ${avgPerDay} spins / active day`);
+
+    if (cal.peakDayKey) {
+      setText("calPeakDay", formatCalendarDayShort(cal.peakDayKey));
+      setText("calPeakDaySub", `${cal.peakDayCount} spin${cal.peakDayCount === 1 ? "" : "s"} logged`);
+    } else {
+      setText("calPeakDay", "—");
+      setText("calPeakDaySub", "0 spins logged");
+    }
+
+    if (!gridEl) return;
+
+    const todayKey = toCalendarDayKey(new Date());
+    const anchorKey = cal.latestActiveDayKey && cal.latestActiveDayKey > todayKey ? cal.latestActiveDayKey : todayKey;
+    const [ay, am, ad] = anchorKey.split("-").map(Number);
+    const anchorDate = new Date(ay, am - 1, ad);
+
+    let rangeStart;
+    let rangeEnd;
+    if (calendarRangeMode === "rolling") {
+      rangeEnd = anchorDate;
+      rangeStart = new Date(anchorDate.getFullYear(), anchorDate.getMonth() - 11, 1);
+    } else {
+      const yearNum = parseInt(calendarRangeMode, 10) || anchorDate.getFullYear();
+      rangeStart = new Date(yearNum, 0, 1);
+      rangeEnd = new Date(yearNum, 11, 31);
+    }
+
+    const rangeStartKey = toCalendarDayKey(rangeStart);
+    const rangeEndKey = toCalendarDayKey(rangeEnd);
+    const gridStartKey = addCalendarDays(rangeStartKey, -rangeStart.getDay());
+    const gridEndKey = addCalendarDays(rangeEndKey, 6 - rangeEnd.getDay());
+
+    // Default selectedCalendarDay to peakDayKey (or latest active day in range) if unset or outside visible days
+    if (!selectedCalendarDay || selectedCalendarDay < rangeStartKey || selectedCalendarDay > rangeEndKey) {
+      if (cal.peakDayKey && cal.peakDayKey >= rangeStartKey && cal.peakDayKey <= rangeEndKey) {
+        selectedCalendarDay = cal.peakDayKey;
+      } else {
+        const rangeKeys = (cal.dayKeys || []).filter(k => k >= rangeStartKey && k <= rangeEndKey);
+        selectedCalendarDay = rangeKeys.length ? rangeKeys[rangeKeys.length - 1] : null;
+      }
+    }
+
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const cellHtml = [];
+    const monthLabels = [];
+    let cursorKey = gridStartKey;
+    let prevMonthTag = "";
+
+    while (cursorKey <= gridEndKey) {
+      let weekMonthLabel = "";
+      for (let d = 0; d < 7; d++) {
+        const dayKey = addCalendarDays(cursorKey, d);
+        const inRange = dayKey >= rangeStartKey && dayKey <= rangeEndKey;
+
+        if (!inRange) {
+          cellHtml.push(`<span class="cal-day-cell is-empty-pad" aria-hidden="true"></span>`);
+          continue;
+        }
+
+        const [cy, cm, cday] = dayKey.split("-").map(Number);
+        const ymTag = `${cy}-${cm}`;
+        if ((cday <= 7 || monthLabels.length === 0) && ymTag !== prevMonthTag && !weekMonthLabel) {
+          weekMonthLabel = monthNames[cm - 1];
+          prevMonthTag = ymTag;
+        }
+
+        const count = cal.dayMap && cal.dayMap[dayKey] ? cal.dayMap[dayKey].length : 0;
+        const lvl = getHeatmapLevel(count);
+        const isSel = selectedCalendarDay === dayKey;
+        const label = formatCalendarDayShort(dayKey);
+        cellHtml.push(
+          `<button type="button" class="cal-day-cell ${isSel ? 'is-selected' : ''}" data-day="${dayKey}" data-level="${lvl}" title="${label}: ${count} spin${count === 1 ? "" : "s"}" aria-label="${label}: ${count} spins"></button>`
+        );
+      }
+
+      monthLabels.push(`<span style="white-space: nowrap; overflow: visible;">${weekMonthLabel}</span>`);
+      cursorKey = addCalendarDays(cursorKey, 7);
+    }
+
+    if (monthsEl) monthsEl.innerHTML = monthLabels.join("");
+    gridEl.innerHTML = cellHtml.join("");
+
+    gridEl.querySelectorAll("button.cal-day-cell").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const dayKey = btn.getAttribute("data-day");
+        if (!dayKey) return;
+        selectedCalendarDay = dayKey;
+        gridEl.querySelectorAll("button.cal-day-cell").forEach(c => c.classList.remove("is-selected"));
+        btn.classList.add("is-selected");
+        renderCalendarDayDetails(dayKey);
+      });
+    });
+
+    renderCalendarDayDetails(selectedCalendarDay);
+  }
+
+  // ============================================================
+  // Explorer Navigation & Cloud Studio Switchers
+  // ============================================================
+  const EXPLORER_VIEW_LABELS = {
+    overview: "Overview",
+    monthly: "Monthly Recap",
+    clouds: "Clouds & Tags",
+    years: "Years & Eras",
+    calendar: "Calendar & Velocity",
+    artists: "Artists",
+    challenge: "Challenge Backlog"
+  };
+
+  function setActiveExplorerView(viewName) {
+    if (!EXPLORER_VIEW_LABELS[viewName]) viewName = "overview";
+    currentExplorerView = viewName;
+
+    document.querySelectorAll(".explorer-nav-btn").forEach(btn => {
+      const isActive = btn.getAttribute("data-view") === viewName;
+      btn.classList.toggle("active", isActive);
+      btn.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
+
+    document.querySelectorAll(".explorer-view-panel").forEach(panel => {
+      const isActive = panel.getAttribute("data-view") === viewName;
+      panel.classList.toggle("active", isActive);
+      panel.style.display = isActive ? "" : "none";
+    });
+
+    const crumbEl = document.getElementById("statsBreadcrumbView");
+    if (crumbEl) crumbEl.textContent = EXPLORER_VIEW_LABELS[viewName];
+
+    if (currentMetrics || challengeMetrics) {
+      // Re-render visible Chart.js charts cleanly after un-hiding a tab panel
+      setTimeout(() => {
+        renderCharts(currentMetrics);
+      }, 20);
+    }
+  }
+
+  function setCloudWorkspaceMode(mode) {
+    const valid = ["genres", "descriptors", "scenes", "movements"];
+    cloudWorkspaceMode = valid.includes(mode) ? mode : "genres";
+
+    const btns = {
+      genres: document.getElementById("btnCloudModeGenre"),
+      descriptors: document.getElementById("btnCloudModeDesc"),
+      scenes: document.getElementById("btnCloudModeScenes"),
+      movements: document.getElementById("btnCloudModeMovements")
+    };
+
+    Object.entries(btns).forEach(([k, btn]) => {
+      if (!btn) return;
+      const active = k === cloudWorkspaceMode;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-selected", active ? "true" : "false");
+    });
+
+    const paneGenres = document.getElementById("cloudModeGenresPane");
+    const paneDescs = document.getElementById("cloudModeDescsPane");
+    const paneContext = document.getElementById("cloudModeContextPane");
+
+    if (paneGenres) paneGenres.style.display = cloudWorkspaceMode === "genres" ? "" : "none";
+    if (paneDescs) paneDescs.style.display = cloudWorkspaceMode === "descriptors" ? "" : "none";
+    if (paneContext) paneContext.style.display = (cloudWorkspaceMode === "scenes" || cloudWorkspaceMode === "movements") ? "" : "none";
+
+    if (cloudWorkspaceMode === "scenes" || cloudWorkspaceMode === "movements") {
+      if (contextWorkspaceMode !== cloudWorkspaceMode) {
+        contextWorkspaceMode = cloudWorkspaceMode;
+        selectedContextTag = null;
+      }
+      renderScenesMovements();
+    }
+  }
+
+  // ============================================================
   // Chart.js Canvas Renderers
   // ============================================================
   function destroyChart(key) {
@@ -1117,11 +3019,427 @@
         }
       });
     }
+
+    // 5. Format & Re-Spin Doughnut (Overview Row 2)
+    const canvasFormatMix = document.getElementById("formatMixChart");
+    if (canvasFormatMix && metrics.formatBreakdown && metrics.formatBreakdown.length) {
+      destroyChart("formatMix");
+      const ctx = canvasFormatMix.getContext("2d");
+      chartInstances.formatMix = new Chart(ctx, {
+        type: "doughnut",
+        data: {
+          labels: metrics.formatBreakdown.map(f => f.label),
+          datasets: [{
+            data: metrics.formatBreakdown.map(f => f.count),
+            backgroundColor: metrics.formatBreakdown.map(f => f.color),
+            borderColor: isDarkMode() ? "#0c1210" : "#ffffff",
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: "62%",
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: colors.tooltipBg,
+              callbacks: {
+                label: (c) => {
+                  const item = metrics.formatBreakdown[c.dataIndex];
+                  return `${item.label}: ${item.count} (${item.pct}%) • ${item.avg}★`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // 6. Average Rating by Release Year Trend (Years & Eras View)
+    const canvasYearTrend = document.getElementById("yearTrendChart");
+    if (canvasYearTrend && metrics.allYears && metrics.allYears.length) {
+      destroyChart("yearTrend");
+      const eligibleYears = [...metrics.allYears]
+        .filter(y => y.count >= 2 && parseFloat(y.avg) > 0)
+        .sort((a, b) => a.year - b.year);
+      const badgeEl = document.getElementById("yearTrendBadge");
+      if (badgeEl) badgeEl.textContent = `${eligibleYears.length} Years (2+ Spins)`;
+
+      if (eligibleYears.length) {
+        const ctx = canvasYearTrend.getContext("2d");
+        chartInstances.yearTrend = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: eligibleYears.map(y => String(y.year)),
+            datasets: [{
+              label: "Avg Rating",
+              data: eligibleYears.map(y => parseFloat(y.avg)),
+              borderColor: colors.primaryBorder,
+              backgroundColor: "rgba(16, 185, 129, 0.16)",
+              borderWidth: 2,
+              pointRadius: 3.5,
+              pointHoverRadius: 5.5,
+              pointBackgroundColor: colors.primaryBorder,
+              fill: true,
+              tension: 0.3
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: colors.tooltipBg,
+                callbacks: {
+                  afterLabel: (c) => {
+                    const yObj = eligibleYears[c.dataIndex];
+                    return yObj ? `Volume: ${yObj.count} spins` : "";
+                  }
+                }
+              }
+            },
+            scales: {
+              x: { grid: { display: false } },
+              y: {
+                min: 2.0,
+                max: 5.0,
+                grid: { color: colors.gridColor }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    // 7. Day-of-Week Listening Rhythm (Calendar & Velocity View)
+    const canvasWeekday = document.getElementById("weekdayChart");
+    if (canvasWeekday && metrics.weekdayStats) {
+      destroyChart("weekday");
+      const ctx = canvasWeekday.getContext("2d");
+      chartInstances.weekday = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: metrics.weekdayStats.map(w => w.label),
+          datasets: [{
+            label: "Spins",
+            data: metrics.weekdayStats.map(w => w.count),
+            backgroundColor: colors.accentBar,
+            borderColor: colors.accentBorder,
+            borderWidth: 1.2,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: colors.tooltipBg,
+              callbacks: {
+                afterLabel: (c) => {
+                  const wObj = metrics.weekdayStats[c.dataIndex];
+                  return wObj ? `Avg Rating: ${wObj.avg}★` : "";
+                }
+              }
+            }
+          },
+          scales: {
+            x: { grid: { display: false } },
+            y: {
+              beginAtZero: true,
+              grid: { color: colors.gridColor },
+              ticks: { precision: 0 }
+            }
+          }
+        }
+      });
+    }
+
+    // 8. Top Artists by Listening Time (Artists View)
+    const canvasArtistRuntime = document.getElementById("artistRuntimeChart");
+    if (canvasArtistRuntime && metrics.artistRuntimeTop && metrics.artistRuntimeTop.length) {
+      destroyChart("artistRuntime");
+      const ctx = canvasArtistRuntime.getContext("2d");
+      chartInstances.artistRuntime = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: metrics.artistRuntimeTop.map(a => a.artist),
+          datasets: [{
+            label: "Hours",
+            data: metrics.artistRuntimeTop.map(a => a.hours),
+            backgroundColor: "rgba(56, 189, 248, 0.28)",
+            borderColor: colors.accentBorder,
+            borderWidth: 1.2,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: colors.tooltipBg,
+              callbacks: {
+                label: (c) => {
+                  const item = metrics.artistRuntimeTop[c.dataIndex];
+                  return item ? `${item.formattedTime} across ${item.count} spins` : `${c.raw}h`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              grid: { color: colors.gridColor },
+              ticks: { callback: (val) => `${val}h` }
+            },
+            y: { grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    // 9 & 10. Challenge Backlog Charts (Challenge Backlog View)
+    if (challengeMetrics && challengeMetrics.monthsBreakdown) {
+      const monthlyList = challengeMetrics.monthsBreakdown.filter(m => !m.isRecal);
+
+      const canvasChalMonths = document.getElementById("challengeMonthsChart");
+      if (canvasChalMonths && monthlyList.length) {
+        destroyChart("challengeMonths");
+        const ctx = canvasChalMonths.getContext("2d");
+        chartInstances.challengeMonths = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: monthlyList.map(m => m.monthLabel),
+            datasets: [
+              {
+                label: "Completed",
+                data: monthlyList.map(m => m.done),
+                backgroundColor: colors.primaryBar,
+                borderColor: colors.primaryBorder,
+                borderWidth: 1,
+                borderRadius: 3
+              },
+              {
+                label: "Remaining",
+                data: monthlyList.map(m => m.remaining),
+                backgroundColor: isDarkMode() ? "rgba(148, 163, 184, 0.25)" : "rgba(148, 163, 184, 0.42)",
+                borderColor: isDarkMode() ? "rgba(148, 163, 184, 0.4)" : "#94a3b8",
+                borderWidth: 1,
+                borderRadius: 3
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: "bottom", labels: { boxWidth: 10, font: { size: 10 } } },
+              tooltip: { backgroundColor: colors.tooltipBg }
+            },
+            scales: {
+              x: { stacked: true, grid: { display: false } },
+              y: { stacked: true, beginAtZero: true, grid: { color: colors.gridColor }, ticks: { precision: 0 } }
+            }
+          }
+        });
+      }
+
+      const canvasChalDelta = document.getElementById("challengeDeltaChart");
+      const scoredMonths = monthlyList.filter(m => m.avgRym !== null && m.avgActual !== null);
+      if (canvasChalDelta && scoredMonths.length) {
+        destroyChart("challengeDelta");
+        const ctx = canvasChalDelta.getContext("2d");
+        chartInstances.challengeDelta = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: scoredMonths.map(m => m.monthLabel),
+            datasets: [
+              {
+                label: "Avg RYM ★",
+                data: scoredMonths.map(m => parseFloat(m.avgRym)),
+                backgroundColor: colors.accentBar,
+                borderColor: colors.accentBorder,
+                borderWidth: 1,
+                borderRadius: 3
+              },
+              {
+                label: "Your Avg ★",
+                data: scoredMonths.map(m => parseFloat(m.avgActual)),
+                backgroundColor: colors.primaryBar,
+                borderColor: colors.primaryBorder,
+                borderWidth: 1,
+                borderRadius: 3
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: "bottom", labels: { boxWidth: 10, font: { size: 10 } } },
+              tooltip: { backgroundColor: colors.tooltipBg }
+            },
+            scales: {
+              x: { grid: { display: false } },
+              y: { min: 2.0, max: 5.0, grid: { color: colors.gridColor } }
+            }
+          }
+        });
+      }
+    }
+
+    // 11. Monthly Daily Cadence Chart (Days 1..end of month)
+    const canvasMonthlyDaily = document.getElementById("monthlyDailyChart");
+    if (canvasMonthlyDaily && monthlyMetrics && monthlyMetrics.dailyCadence) {
+      destroyChart("monthlyDaily");
+      const ctx = canvasMonthlyDaily.getContext("2d");
+      const days = monthlyMetrics.dailyCadence;
+      chartInstances.monthlyDaily = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: days.map(d => String(d.day)),
+          datasets: [{
+            label: "Spins",
+            data: days.map(d => d.count),
+            backgroundColor: days.map(d => d.count > 0 ? colors.primaryBar : (isDarkMode() ? "rgba(255,255,255,0.06)" : "rgba(148,163,184,0.22)")),
+            borderColor: days.map(d => d.count > 0 ? colors.primaryBorder : "transparent"),
+            borderWidth: 1,
+            borderRadius: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: colors.tooltipBg,
+              callbacks: {
+                title: (items) => {
+                  if (!items.length) return "";
+                  const dayNum = items[0].label;
+                  return `${monthlyMetrics.shortLabel.split(" ")[0]} ${dayNum}, ${monthlyMetrics.activeYear}`;
+                },
+                label: (c) => `${c.raw} spin${c.raw === 1 ? "" : "s"}`,
+                afterLabel: (c) => {
+                  const dObj = days[c.dataIndex];
+                  return dObj && dObj.titles.length ? dObj.titles.join(", ") : "";
+                }
+              }
+            }
+          },
+          scales: {
+            x: { grid: { display: false } },
+            y: { beginAtZero: true, grid: { color: colors.gridColor }, ticks: { precision: 0 } }
+          }
+        }
+      });
+    }
+
+    // 12 & 13. Challenge Backlog Composition Charts (Genres & Decades)
+    const chalBd = challengeMetrics && challengeMetrics.activeBreakdown ? challengeMetrics.activeBreakdown : null;
+    const canvasChalGenres = document.getElementById("chalGenresChart");
+    if (canvasChalGenres) {
+      destroyChart("chalGenres");
+      if (chalBd && chalBd.topPrimaryGenres && chalBd.topPrimaryGenres.length) {
+        const ctx = canvasChalGenres.getContext("2d");
+        chartInstances.chalGenres = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: chalBd.topPrimaryGenres.map(g => g.genre),
+            datasets: [{
+              label: "Albums",
+              data: chalBd.topPrimaryGenres.map(g => g.count),
+              backgroundColor: "rgba(16, 185, 129, 0.25)",
+              borderColor: colors.primaryBorder,
+              borderWidth: 1.2,
+              borderRadius: 4
+            }]
+          },
+          options: {
+            indexAxis: "y",
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: colors.tooltipBg,
+                callbacks: {
+                  afterLabel: (c) => {
+                    const gObj = chalBd.topPrimaryGenres[c.dataIndex];
+                    return gObj ? `Avg RYM: ${gObj.avgRym}★ • Done: ${gObj.doneCount}` : "";
+                  }
+                }
+              }
+            },
+            scales: {
+              x: { beginAtZero: true, grid: { color: colors.gridColor }, ticks: { precision: 0 } },
+              y: { grid: { display: false } }
+            }
+          }
+        });
+      }
+    }
+
+    const canvasChalDecades = document.getElementById("chalDecadesChart");
+    if (canvasChalDecades) {
+      destroyChart("chalDecades");
+      if (chalBd && chalBd.decadeCounts && chalBd.decadeCounts.length) {
+        const ctx = canvasChalDecades.getContext("2d");
+        chartInstances.chalDecades = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: chalBd.decadeCounts.map(d => d.decade),
+            datasets: [{
+              label: "Albums",
+              data: chalBd.decadeCounts.map(d => d.count),
+              backgroundColor: colors.accentBar,
+              borderColor: colors.accentBorder,
+              borderWidth: 1.2,
+              borderRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: colors.tooltipBg,
+                callbacks: {
+                  afterLabel: (c) => {
+                    const dObj = chalBd.decadeCounts[c.dataIndex];
+                    return dObj ? `Avg RYM: ${dObj.avgRym}★` : "";
+                  }
+                }
+              }
+            },
+            scales: {
+              x: { grid: { display: false } },
+              y: { beginAtZero: true, grid: { color: colors.gridColor }, ticks: { precision: 0 } }
+            }
+          }
+        });
+      }
+    }
   }
 
   // ============================================================
   // Filter Switcher
   // ============================================================
+  const FILTER_SCOPE_LABELS = {
+    all: "All Spins",
+    albums: "Albums",
+    singles: "Singles & EPs",
+    relistens: "Relistens"
+  };
+
   function applyFilter(filterType) {
     currentFilter = filterType;
 
@@ -1148,14 +3466,32 @@
 
     const metrics = computeStats(filteredSpins);
     currentMetrics = metrics;
-    renderKPIs(metrics);
+    monthlyMetrics = computeMonthlyRecap(filteredSpins, selectedRecapMonth);
+
+    const crumbScope = document.getElementById("statsBreadcrumbScope");
+    if (crumbScope) {
+      crumbScope.textContent = FILTER_SCOPE_LABELS[filterType] || "All Spins";
+    }
+
+    renderResourceTelemetry(metrics);
+    renderOverviewStreakSnapshot(metrics);
     renderStrictness(metrics);
     renderLeaderboards(metrics);
+    renderScenesMovements();
+    renderStreakCalendar();
+    renderMonthlyRecapView();
     renderCharts(metrics);
 
     const statusCount = document.getElementById("statsStatusRecordCount");
     if (statusCount) {
       statusCount.textContent = `${filteredSpins.length} of ${allSpins.length} records analyzed`;
+    }
+
+    const statusStreak = document.getElementById("statsStatusStreak");
+    if (statusStreak) {
+      const curS = metrics && metrics.calendar ? metrics.calendar.currentStreak : 0;
+      const bestS = metrics && metrics.calendar ? metrics.calendar.longestStreak : 0;
+      statusStreak.textContent = `Streak: ${curS}d (Best ${bestS}d)`;
     }
   }
 
@@ -1168,16 +3504,40 @@
 
     try {
       let data = [];
+      let backlogData = [];
+      let profilesData = [];
       if (supabaseClient) {
-        const res = await supabaseClient
-          .from("spins")
-          .select("*")
-          .order("id", { ascending: false });
+        const [spinsRes, backlogRes, profilesRes] = await Promise.all([
+          supabaseClient
+            .from("spins")
+            .select("*")
+            .order("id", { ascending: false }),
+          supabaseClient
+            .from("challenge_backlog")
+            .select("*"),
+          supabaseClient
+            .from("artist_profiles")
+            .select("canonical_artist,aliases,artist_kind,member_of,portrait_url")
+        ]);
 
-        if (res.data && res.data.length) {
-          data = res.data;
+        if (spinsRes && spinsRes.data && spinsRes.data.length) {
+          data = spinsRes.data;
+        }
+        if (backlogRes && backlogRes.data && backlogRes.data.length) {
+          backlogData = backlogRes.data;
+        }
+        if (profilesRes && !profilesRes.error && Array.isArray(profilesRes.data)) {
+          profilesData = profilesRes.data;
         }
       }
+
+      if (!profilesData.length) {
+        try {
+          const cachedProfs = localStorage.getItem("sosa_artist_profiles");
+          if (cachedProfs) profilesData = Object.values(JSON.parse(cachedProfs) || {});
+        } catch (_) {}
+      }
+      rebuildStatsArtistAliases(profilesData);
 
       if (!data.length) {
         const cached = localStorage.getItem("sosaspins_cache");
@@ -1199,12 +3559,20 @@
       }
 
       allSpins = data;
+      backlogEntries = backlogData;
       filteredSpins = [...allSpins];
 
-      if (loader) loader.style.display = "none";
-      if (dashboardContent) dashboardContent.style.display = "block";
+      challengeMetrics = computeChallengeStats(backlogEntries, allSpins);
 
-      applyFilter("all");
+      if (loader) loader.style.display = "none";
+      if (dashboardContent) dashboardContent.style.display = "";
+
+      setActiveExplorerView(currentExplorerView);
+      setCloudWorkspaceMode(cloudWorkspaceMode);
+      applyFilter(currentFilter || "all");
+      renderOverviewChallengePulse(challengeMetrics);
+      renderChallengeView();
+      renderCharts(currentMetrics);
     } catch (err) {
       console.error("Error loading stats:", err);
       if (loader) {
@@ -1221,7 +3589,8 @@
   // ============================================================
   // Initialization & Event Wiring
   // ============================================================
-  document.addEventListener("DOMContentLoaded", () => {
+  if (typeof document !== "undefined") {
+    document.addEventListener("DOMContentLoaded", () => {
     // 1. Filter pill click events
     document.querySelectorAll(".stats-filter-btn").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -1229,6 +3598,118 @@
         applyFilter(f);
       });
     });
+
+    // 1b. Explorer Navigation Tabs & Quick Jump Links
+    document.querySelectorAll(".explorer-nav-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const view = btn.getAttribute("data-view");
+        if (view) setActiveExplorerView(view);
+      });
+    });
+
+    const jumpCloudsBtn = document.getElementById("jumpToCloudsBtn");
+    if (jumpCloudsBtn) {
+      jumpCloudsBtn.addEventListener("click", () => setActiveExplorerView("clouds"));
+    }
+
+    const jumpCalendarBtn = document.getElementById("jumpToCalendarBtn");
+    if (jumpCalendarBtn) {
+      jumpCalendarBtn.addEventListener("click", () => setActiveExplorerView("calendar"));
+    }
+
+    const jumpChallengeBtn = document.getElementById("jumpToChallengeBtn");
+    if (jumpChallengeBtn) {
+      jumpChallengeBtn.addEventListener("click", () => setActiveExplorerView("challenge"));
+    }
+
+    // 1c. Combined Cloud Mode Switcher (Genres / Descriptors / Scenes / Movements)
+    const cloudModeButtons = {
+      genres: document.getElementById("btnCloudModeGenre"),
+      descriptors: document.getElementById("btnCloudModeDesc"),
+      scenes: document.getElementById("btnCloudModeScenes"),
+      movements: document.getElementById("btnCloudModeMovements")
+    };
+    Object.entries(cloudModeButtons).forEach(([mode, btn]) => {
+      if (btn) {
+        btn.addEventListener("click", () => setCloudWorkspaceMode(mode));
+      }
+    });
+
+    // 1d. Context Sort Controls (for Scenes & Movements pane inside Clouds & Tags)
+    const btnCtxSortQty = document.getElementById("btnContextSortQty");
+    const btnCtxSortRating = document.getElementById("btnContextSortRating");
+    if (btnCtxSortQty && btnCtxSortRating) {
+      btnCtxSortQty.addEventListener("click", () => {
+        if (contextSortView === "qty") return;
+        contextSortView = "qty";
+        btnCtxSortQty.classList.add("active");
+        btnCtxSortQty.setAttribute("aria-selected", "true");
+        btnCtxSortRating.classList.remove("active");
+        btnCtxSortRating.setAttribute("aria-selected", "false");
+        renderScenesMovements();
+      });
+      btnCtxSortRating.addEventListener("click", () => {
+        if (contextSortView === "rating") return;
+        contextSortView = "rating";
+        btnCtxSortRating.classList.add("active");
+        btnCtxSortRating.setAttribute("aria-selected", "true");
+        btnCtxSortQty.classList.remove("active");
+        btnCtxSortQty.setAttribute("aria-selected", "false");
+        renderScenesMovements();
+      });
+    }
+
+    // 1e. Release Years Directory Sort Controls
+    const yearSortBtns = {
+      chron: document.getElementById("btnYearSortChron"),
+      qty: document.getElementById("btnYearSortQty"),
+      rating: document.getElementById("btnYearSortRating")
+    };
+    Object.entries(yearSortBtns).forEach(([sortKey, btn]) => {
+      if (!btn) return;
+      btn.addEventListener("click", () => {
+        if (yearSortView === sortKey) return;
+        yearSortView = sortKey;
+        Object.entries(yearSortBtns).forEach(([k, b]) => {
+          if (!b) return;
+          const active = k === sortKey;
+          b.classList.toggle("active", active);
+          b.setAttribute("aria-selected", active ? "true" : "false");
+        });
+        renderYearsExplorer();
+      });
+    });
+
+    // 1f. Challenge Backlog Breakdown Scope Controls
+    const chalBdBtns = {
+      all: document.getElementById("btnChalBreakdownAll"),
+      remaining: document.getElementById("btnChalBreakdownRemaining"),
+      done: document.getElementById("btnChalBreakdownDone")
+    };
+    Object.entries(chalBdBtns).forEach(([scopeKey, btn]) => {
+      if (!btn) return;
+      btn.addEventListener("click", () => {
+        if (challengeBreakdownScope === scopeKey) return;
+        challengeBreakdownScope = scopeKey;
+        Object.entries(chalBdBtns).forEach(([k, b]) => {
+          if (!b) return;
+          const active = k === scopeKey;
+          b.classList.toggle("active", active);
+          b.setAttribute("aria-selected", active ? "true" : "false");
+        });
+        renderChallengeBreakdown();
+        renderCharts(currentMetrics);
+      });
+    });
+
+    // 1g. Listening Calendar Range Selector
+    const calRangeSelect = document.getElementById("calendarRangeSelect");
+    if (calRangeSelect) {
+      calRangeSelect.addEventListener("change", () => {
+        calendarRangeMode = calRangeSelect.value || "rolling";
+        renderStreakCalendar();
+      });
+    }
 
     // 2. Export / Print stats
     const exportBtn = document.getElementById("statsExportBtn");
@@ -1275,8 +3756,9 @@
           disableDarkMode();
         }
         setTimeout(() => {
-          const metrics = computeStats(filteredSpins);
-          renderCharts(metrics);
+          if (currentMetrics) {
+            renderCharts(currentMetrics);
+          }
         }, 120);
       });
     }
@@ -1393,8 +3875,69 @@
       });
     }
 
+    // 8. Monthly Recap Switcher Stepper & Collage Sort
+    const btnMonthlyPrev = document.getElementById("btnMonthlyPrev");
+    const btnMonthlyNext = document.getElementById("btnMonthlyNext");
+    if (btnMonthlyPrev) {
+      btnMonthlyPrev.addEventListener("click", () => {
+        if (!monthlyMetrics || !monthlyMetrics.olderMonthKey) return;
+        selectedRecapMonth = monthlyMetrics.olderMonthKey;
+        monthlyMetrics = computeMonthlyRecap(filteredSpins, selectedRecapMonth);
+        renderMonthlyRecapView();
+        renderCharts(currentMetrics);
+      });
+    }
+    if (btnMonthlyNext) {
+      btnMonthlyNext.addEventListener("click", () => {
+        if (!monthlyMetrics || !monthlyMetrics.newerMonthKey) return;
+        selectedRecapMonth = monthlyMetrics.newerMonthKey;
+        monthlyMetrics = computeMonthlyRecap(filteredSpins, selectedRecapMonth);
+        renderMonthlyRecapView();
+        renderCharts(currentMetrics);
+      });
+    }
+
+    const btnMSortRating = document.getElementById("btnMonthlySortRating");
+    const btnMSortDate = document.getElementById("btnMonthlySortDate");
+    if (btnMSortRating && btnMSortDate) {
+      btnMSortRating.addEventListener("click", () => {
+        if (monthlySortView === "rating") return;
+        monthlySortView = "rating";
+        btnMSortRating.classList.add("active");
+        btnMSortRating.setAttribute("aria-selected", "true");
+        btnMSortDate.classList.remove("active");
+        btnMSortDate.setAttribute("aria-selected", "false");
+        renderMonthlyCollage();
+      });
+      btnMSortDate.addEventListener("click", () => {
+        if (monthlySortView === "date") return;
+        monthlySortView = "date";
+        btnMSortDate.classList.add("active");
+        btnMSortDate.setAttribute("aria-selected", "true");
+        btnMSortRating.classList.remove("active");
+        btnMSortRating.setAttribute("aria-selected", "false");
+        renderMonthlyCollage();
+      });
+    }
+
     // Boot
     loadSpinsData();
-  });
+    });
+  }
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = {
+      parseSpinCalendarDay,
+      addCalendarDays,
+      formatCalendarDayShort,
+      computeStreakAndCalendar,
+      computeScenesAndMovements,
+      computeStats,
+      resolveChallengeMonthYear,
+      computeChallengeStats,
+      computeChallengeBreakdown,
+      computeMonthlyRecap
+    };
+  }
 })();
 

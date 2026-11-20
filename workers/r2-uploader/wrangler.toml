@@ -1,0 +1,18 @@
+name = "sosa-r2-uploader"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+
+[[r2_buckets]]
+binding = "ASSETS_BUCKET"
+bucket_name = "sosaspeaks-media"
+
+[vars]
+SUPABASE_URL = "https://gxgfuomkjrhixcjfvhvj.supabase.co"
+SUPABASE_ANON_KEY = "sb_publishable_tgeBo35B4k__uyfMyaxXnA_O5KUKlL7"
+ALLOWED_ORIGINS = "https://sosaspeaks.github.io,https://sosaspeaks.org"
+R2_PUBLIC_BASE = "https://assets.sosaspeaks.org"
+
+# Set required admin email secret before deploying:
+#   npx wrangler secret put ADMIN_EMAIL --cwd workers/r2-uploader
+# Then deploy:
+#   npx wrangler deploy --cwd workers/r2-uploader

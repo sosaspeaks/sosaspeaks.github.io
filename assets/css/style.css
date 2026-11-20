@@ -122,6 +122,7 @@ body{
     background-color: var(--bg-color);
     background-image: var(--bg-gradient);
     background-attachment: fixed;
+    transition: background-color 0.28s ease, color 0.28s ease;
 }
 
 header{
@@ -311,6 +312,174 @@ button.filter-item {
     border: var(--glass-active-border) !important;
     box-shadow: var(--glass-active-shadow)!important;
     border-top: var(--glass-active-border-top) !important;
+}
+
+.aero-filter-capsule {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: nowrap;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 9999px;
+    max-width: 100%;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.88) 0%,
+        rgba(240, 247, 255, 0.74) 48%,
+        rgba(226, 238, 249, 0.68) 52%,
+        rgba(242, 248, 255, 0.84) 100%
+    );
+    border: 1px solid rgba(140, 175, 210, 0.55);
+    box-shadow:
+        0 8px 22px rgba(15, 23, 42, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.95),
+        inset 0 -1px 0 rgba(148, 163, 184, 0.2);
+    backdrop-filter: blur(20px) saturate(165%);
+    -webkit-backdrop-filter: blur(20px) saturate(165%);
+}
+
+.aero-capsule-glider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+    pointer-events: none;
+    box-sizing: border-box;
+    border-radius: 9999px;
+    opacity: 0;
+    background: linear-gradient(
+        180deg,
+        #34d399 0%,
+        #10b981 48%,
+        #059669 52%,
+        #047857 100%
+    );
+    border: 1px solid #047857;
+    box-shadow:
+        0 2px 8px rgba(16, 185, 129, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    will-change: transform, width, height;
+}
+
+.aero-capsule-glider.is-ready {
+    transition:
+        transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+        width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+        height 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 0.16s ease;
+}
+
+.dark-mode .aero-capsule-glider,
+body.dark-mode .aero-capsule-glider {
+    border-color: rgba(110, 231, 183, 0.65);
+    box-shadow:
+        0 2px 10px rgba(16, 185, 129, 0.38),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.aero-filter-capsule button.filter-item,
+.aero-filter-capsule .filter-item {
+    position: relative;
+    z-index: 1;
+    padding: 6px 14px;
+    font-family: "Plus Jakarta Sans", sans-serif !important;
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1.25;
+    white-space: nowrap;
+    color: #334155 !important;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    border-radius: 9999px;
+    box-shadow: none !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    cursor: pointer;
+}
+
+.aero-filter-capsule button.filter-item:hover,
+.aero-filter-capsule .filter-item:hover {
+    color: #065f46 !important;
+    background: rgba(255, 255, 255, 0.72) !important;
+    border-color: rgba(140, 175, 210, 0.45) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+    transform: translateY(-1px);
+}
+
+.aero-filter-capsule button.filter-item:focus-visible,
+.aero-filter-capsule .filter-item:focus-visible {
+    outline: 2px solid #10b981;
+    outline-offset: 2px;
+}
+
+.post-filter .aero-filter-capsule button.filter-item.active-filter,
+.post-filter .aero-filter-capsule .filter-item.active-filter {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    background: linear-gradient(
+        180deg,
+        #34d399 0%,
+        #10b981 48%,
+        #059669 52%,
+        #047857 100%
+    ) !important;
+    border: 1px solid #047857 !important;
+    box-shadow:
+        0 2px 8px rgba(16, 185, 129, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.22);
+    transform: none;
+}
+
+.post-filter .aero-filter-capsule.has-aero-glider button.filter-item.active-filter,
+.post-filter .aero-filter-capsule.has-aero-glider .filter-item.active-filter,
+.post-filter .aero-filter-capsule.has-aero-glider button.filter-item.active-filter:hover,
+.post-filter .aero-filter-capsule.has-aero-glider .filter-item.active-filter:hover,
+.aero-filter-capsule.has-aero-glider button.filter-item.active-filter,
+.aero-filter-capsule.has-aero-glider .filter-item.active-filter,
+.aero-filter-capsule.has-aero-glider button.filter-item.active-filter:hover,
+.aero-filter-capsule.has-aero-glider .filter-item.active-filter:hover {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.22);
+    transform: none !important;
+}
+
+.dark-mode .post-filter .aero-filter-capsule.has-aero-glider button.filter-item.active-filter,
+.dark-mode .post-filter .aero-filter-capsule.has-aero-glider .filter-item.active-filter,
+.dark-mode .post-filter .aero-filter-capsule.has-aero-glider button.filter-item.active-filter:hover,
+.dark-mode .post-filter .aero-filter-capsule.has-aero-glider .filter-item.active-filter:hover,
+body.dark-mode .post-filter .aero-filter-capsule.has-aero-glider button.filter-item.active-filter,
+body.dark-mode .post-filter .aero-filter-capsule.has-aero-glider .filter-item.active-filter,
+body.dark-mode .post-filter .aero-filter-capsule.has-aero-glider button.filter-item.active-filter:hover,
+body.dark-mode .post-filter .aero-filter-capsule.has-aero-glider .filter-item.active-filter:hover,
+.dark-mode .aero-filter-capsule.has-aero-glider button.filter-item.active-filter,
+.dark-mode .aero-filter-capsule.has-aero-glider .filter-item.active-filter,
+.dark-mode .aero-filter-capsule.has-aero-glider button.filter-item.active-filter:hover,
+.dark-mode .aero-filter-capsule.has-aero-glider .filter-item.active-filter:hover,
+body.dark-mode .aero-filter-capsule.has-aero-glider button.filter-item.active-filter,
+body.dark-mode .aero-filter-capsule.has-aero-glider .filter-item.active-filter,
+body.dark-mode .aero-filter-capsule.has-aero-glider button.filter-item.active-filter:hover,
+body.dark-mode .aero-filter-capsule.has-aero-glider .filter-item.active-filter:hover {
+    color: #ffffff !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+    transform: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .aero-capsule-glider.is-ready {
+        transition: none !important;
+    }
 }
 
 .hide-button {
@@ -809,13 +978,61 @@ i.bx-sun:hover {
     border: 1px solid rgba(120, 255, 190, 0.4) !important;
 }
 
+body.dark-mode .aero-filter-capsule,
+.dark-mode .aero-filter-capsule {
+    background: linear-gradient(
+        180deg,
+        rgba(35, 48, 70, 0.86) 0%,
+        rgba(22, 32, 48, 0.8) 48%,
+        rgba(15, 23, 38, 0.88) 52%,
+        rgba(25, 36, 54, 0.88) 100%
+    );
+    border-color: rgba(148, 195, 255, 0.22);
+    box-shadow:
+        0 10px 26px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+}
+
+.dark-mode .aero-filter-capsule button.filter-item,
+.dark-mode .aero-filter-capsule .filter-item {
+    color: #94a3b8 !important;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+}
+
+.dark-mode .aero-filter-capsule button.filter-item:hover,
+.dark-mode .aero-filter-capsule .filter-item:hover {
+    color: #e2e8f0 !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(148, 195, 255, 0.22) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+}
+
+.dark-mode .post-filter .aero-filter-capsule button.filter-item.active-filter,
+.dark-mode .post-filter .aero-filter-capsule .filter-item.active-filter {
+    color: #ffffff !important;
+    background: linear-gradient(
+        180deg,
+        #34d399 0%,
+        #10b981 48%,
+        #059669 52%,
+        #047857 100%
+    ) !important;
+    border: 1px solid rgba(110, 231, 183, 0.65) !important;
+    box-shadow:
+        0 2px 10px rgba(16, 185, 129, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+}
+
 
 .post{
     display: grid;
     justify-content: center;
     gap:1.5rem;
     width: 100%;
-    transition: opacity 0.25s ease, transform 0.25s ease;
+    transition: opacity 0.22s ease, transform 0.26s cubic-bezier(0.22, 1, 0.36, 1);
     grid-template-columns: repeat(auto-fill,minmax(280px,1fr));
 }
 
@@ -833,17 +1050,201 @@ i.bx-sun:hover {
     opacity: 1;
     transform: translateY(0);
     transition:
-        opacity 0.28s ease,
-        transform 0.3s cubic-bezier(0.25, 1, 0.5, 1),
-        box-shadow 0.3s ease,
-        background-color 0.3s ease,
-        border-color 0.3s ease;
+        opacity 0.26s ease,
+        transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 0.28s ease,
+        background-color 0.28s ease,
+        border-color 0.28s ease;
     will-change: opacity, transform, box-shadow;
+}
+
+.post-box:hover{
+    transform: translateY(-4px);
+    box-shadow: 0 16px 34px rgba(10, 40, 25, 0.14),
+                0 4px 10px rgba(0, 0, 0, 0.05),
+                inset 0 1px 0px rgba(255, 255, 255, 0.92);
 }
 
 .post.is-filtering {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(10px) scale(0.99);
+}
+
+.aero-theme-switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    width: 74px;
+    height: 36px;
+    border-radius: 9999px;
+    cursor: pointer;
+    flex-shrink: 0;
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.28) 0%,
+        rgba(225, 242, 254, 0.16) 50%,
+        rgba(255, 255, 255, 0.22) 100%
+    );
+    border: 1px solid rgba(255, 255, 255, 0.52);
+    box-shadow:
+        0 4px 14px rgba(15, 23, 42, 0.12),
+        inset 0 1px 1px rgba(255, 255, 255, 0.72),
+        inset 0 -1px 1px rgba(15, 23, 42, 0.08);
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
+    transition: background-color 0.28s ease, border-color 0.28s ease, box-shadow 0.25s ease, transform 0.2s ease;
+}
+
+header.shadow:not(.dark-mode) .aero-theme-switch,
+body:not(.dark-mode) header.shadow .aero-theme-switch {
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.56) 0%,
+        rgba(228, 241, 252, 0.42) 50%,
+        rgba(242, 248, 255, 0.52) 100%
+    );
+    border-color: rgba(140, 175, 210, 0.48);
+}
+
+.aero-theme-switch::before,
+.aero-theme-switch::after {
+    content: none !important;
+}
+
+.aero-theme-switch:hover {
+    transform: translateY(-1px);
+    box-shadow:
+        0 6px 18px rgba(56, 189, 248, 0.22),
+        inset 0 1px 1px rgba(255, 255, 255, 0.85);
+}
+
+.aero-theme-switch:focus-visible {
+    outline: 2px solid #10b981;
+    outline-offset: 2px;
+}
+
+.aero-theme-glider {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 31px;
+    height: 26px;
+    border-radius: 9999px;
+    z-index: 0;
+    pointer-events: none;
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.9) 0%,
+        rgba(224, 248, 241, 0.72) 48%,
+        rgba(167, 243, 208, 0.62) 52%,
+        rgba(218, 248, 238, 0.82) 100%
+    );
+    border: 1px solid rgba(255, 255, 255, 0.86);
+    box-shadow:
+        0 2px 8px rgba(15, 23, 42, 0.2),
+        0 0 10px rgba(16, 185, 129, 0.24),
+        inset 0 1px 0 #ffffff;
+    transform: translate3d(0, 0, 0);
+    transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), background 0.28s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.aero-theme-opt {
+    position: relative;
+    z-index: 1;
+    width: 31px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.08rem;
+    line-height: 1;
+    transition: opacity 0.25s ease, transform 0.25s ease, filter 0.25s ease;
+}
+
+.aero-theme-opt i {
+    margin: 0 !important;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.aero-theme-opt.is-sun {
+    opacity: 1;
+    transform: scale(1.06);
+    filter:
+        drop-shadow(0 0.8px 1.2px rgba(120, 53, 15, 0.45))
+        drop-shadow(0 0 2px rgba(250, 204, 21, 0.4));
+}
+
+.aero-theme-opt.is-sun i::before {
+    background: linear-gradient(180deg, #ffffff 0%, #fef08a 26%, #facc15 48%, #d97706 52%, #f59e0b 78%, #fde047 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.aero-theme-opt.is-moon {
+    opacity: 0.72;
+    transform: scale(0.94);
+    filter:
+        drop-shadow(0 0.8px 1.2px rgba(2, 62, 115, 0.45))
+        drop-shadow(0 0 2.5px rgba(125, 211, 252, 0.35));
+}
+
+.aero-theme-opt.is-moon i::before {
+    background: linear-gradient(180deg, #ffffff 0%, #e0f2fe 26%, #7dd3fc 48%, #0284c7 52%, #38bdf8 78%, #a7f3d0 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+body.dark-mode .aero-theme-switch,
+.dark-mode .aero-theme-switch {
+    background: linear-gradient(180deg, rgba(24, 36, 56, 0.62) 0%, rgba(12, 20, 34, 0.72) 100%);
+    border-color: rgba(148, 195, 255, 0.28);
+    box-shadow:
+        0 6px 16px rgba(0, 0, 0, 0.42),
+        inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+body.dark-mode .aero-theme-glider,
+.dark-mode .aero-theme-glider {
+    transform: translate3d(35px, 0, 0);
+    background: linear-gradient(
+        180deg,
+        rgba(56, 189, 248, 0.38) 0%,
+        rgba(16, 185, 129, 0.34) 50%,
+        rgba(15, 23, 42, 0.68) 100%
+    );
+    border-color: rgba(125, 211, 252, 0.55);
+    box-shadow:
+        0 2px 10px rgba(0, 0, 0, 0.45),
+        0 0 10px rgba(56, 189, 248, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+body.dark-mode .aero-theme-opt.is-sun,
+.dark-mode .aero-theme-opt.is-sun {
+    opacity: 0.58;
+    transform: scale(0.94);
+}
+
+body.dark-mode .aero-theme-opt.is-moon,
+.dark-mode .aero-theme-opt.is-moon {
+    opacity: 1;
+    transform: scale(1.06);
+    filter:
+        drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55))
+        drop-shadow(0 0 4px rgba(125, 211, 252, 0.55));
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body, .post, .post-box, .aero-theme-switch, .aero-theme-glider, .aero-theme-opt {
+        transition: none !important;
+    }
 }
 
 .post-box.is-hidden {
@@ -5370,6 +5771,20 @@ body.top100-view-active .widgets-edge-tab {
     white-space: nowrap !important;
   }
 
+  .aero-filter-capsule {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    padding: 6px !important;
+    border-radius: 20px !important;
+  }
+
+  .aero-filter-capsule button.filter-item,
+  .aero-filter-capsule .filter-item {
+    padding: 5px 11px !important;
+    font-size: 0.82rem !important;
+  }
+
   .post.container {
     padding: 1rem 1rem 2.5rem 1rem !important;
     max-width: 100vw !important;
@@ -5400,7 +5815,7 @@ body.top100-view-active .widgets-edge-tab {
 
   .spin-top-section {
     display: grid !important;
-    grid-template-columns: auto 1fr !important;
+    grid-template-columns: 105px minmax(0, 1fr) !important;
     align-items: start !important;
     column-gap: 0.85rem !important;
     row-gap: 0.35rem !important;
@@ -5421,12 +5836,24 @@ body.top100-view-active .widgets-edge-tab {
   .spin-header {
     grid-column: 2 !important;
     grid-row: 1 !important;
+    width: 100% !important;
     min-width: 0 !important;
+    box-sizing: border-box !important;
     position: relative !important;
     padding-right: 4.5rem !important;
     flex-direction: column !important;
     align-items: flex-start !important;
     gap: 0.25rem !important;
+  }
+
+  .title-meta-group {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .spin-title {
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
   }
 
   .spin-header .post-date {
@@ -5773,6 +6200,11 @@ body.top100-view-active .widgets-edge-tab {
   .timeline-row {
     gap: 0.75rem !important;
     padding: 0.85rem 0.45rem !important;
+  }
+
+  .spin-top-section {
+    grid-template-columns: 86px minmax(0, 1fr) !important;
+    column-gap: 0.75rem !important;
   }
 
   .spin-cover-wrap {
