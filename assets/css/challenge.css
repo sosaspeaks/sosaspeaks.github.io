@@ -972,6 +972,10 @@ body.dark-mode .aero-month-popover .pop-month-pill {
     0 1px 3px rgba(0, 0, 0, 0.04) !important;
 }
 
+.challenge-progress-box.is-expanded {
+  max-height: 290px;
+}
+
 .challenge-progress-box.is-collapsed {
   max-height: 0 !important;
   opacity: 0 !important;
@@ -1004,10 +1008,115 @@ body.dark-mode .aero-month-popover .pop-month-pill {
 .progress-labels {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 8px;
   font-size: 0.9rem;
   font-weight: 700;
   color: #064e3b !important;
   letter-spacing: -0.01em;
+}
+
+.progress-labels-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.progress-expand-btn {
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px solid rgba(6, 78, 59, 0.22);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(226, 232, 240, 0.65) 100%);
+  color: #065f46;
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+  box-shadow: inset 0 1px 0 #ffffff, 0 1px 2px rgba(0, 0, 0, 0.06);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.progress-expand-btn:hover,
+.progress-expand-btn:focus-visible {
+  border-color: rgba(16, 185, 129, 0.65);
+  background: linear-gradient(180deg, #ffffff 0%, #d1fae5 100%);
+  color: #047857;
+}
+
+.progress-expand-btn i {
+  transition: transform 0.22s ease;
+}
+
+.progress-expand-btn[aria-expanded="true"] i {
+  transform: rotate(180deg);
+}
+
+.challenge-progress-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding-top: 0;
+  margin-top: -0.5rem;
+  border-top: 1px solid transparent;
+  pointer-events: none;
+  transition:
+    max-height 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.2s ease,
+    padding-top 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+    margin-top 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.2s ease;
+}
+
+.challenge-progress-box.is-expanded .challenge-progress-extra {
+  max-height: 150px;
+  opacity: 1;
+  padding-top: 0.6rem;
+  margin-top: 0;
+  border-top-color: rgba(6, 78, 59, 0.14);
+  pointer-events: auto;
+}
+
+.progress-sub-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.progress-labels.is-sub {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #0f766e !important;
+}
+
+.progress-bar-track.is-sub {
+  height: 15px !important;
+}
+
+.progress-bar-fill.is-month {
+  --w7-pg-bg: #0284c7;
+  box-shadow: inset 0 0 0 1px #ffffff35, 0 0 8px rgba(2, 132, 199, 0.4) !important;
+}
+
+.progress-bar-fill.is-pace.is-on-pace {
+  --w7-pg-bg: #10b981;
+  box-shadow: inset 0 0 0 1px #ffffff35, 0 0 10px rgba(16, 185, 129, 0.45) !important;
+}
+
+.progress-bar-fill.is-pace.is-close {
+  --w7-pg-bg: #d97706;
+  box-shadow: inset 0 0 0 1px #ffffff35, 0 0 8px rgba(217, 119, 6, 0.42) !important;
+}
+
+.progress-bar-fill.is-pace.is-behind {
+  --w7-pg-bg: #e11d48;
+  box-shadow: inset 0 0 0 1px #ffffff35, 0 0 8px rgba(225, 29, 72, 0.4) !important;
 }
 
 .progress-bar-track {
@@ -1975,6 +2084,12 @@ body.dark-mode .swap-cand-artist {
   padding: 4px 10px;
   border-right: 1px solid #cbd5e1;
   flex: 1;
+}
+
+.status-bar-duration {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  color: #0f766e;
 }
 
 @keyframes aeroBackdropFade {
@@ -4298,6 +4413,28 @@ body.dark-mode .progress-labels {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
 }
 
+body.dark-mode .progress-labels.is-sub {
+  color: #a7f3d0 !important;
+}
+
+body.dark-mode .progress-expand-btn {
+  border-color: rgba(110, 231, 183, 0.28);
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%);
+  color: #6ee7b7;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-mode .progress-expand-btn:hover,
+body.dark-mode .progress-expand-btn:focus-visible {
+  border-color: rgba(52, 211, 153, 0.7);
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.35) 0%, rgba(6, 78, 59, 0.5) 100%);
+  color: #ecfdf5;
+}
+
+body.dark-mode .challenge-progress-box.is-expanded .challenge-progress-extra {
+  border-top-color: rgba(110, 231, 183, 0.16);
+}
+
 body.dark-mode .progress-bar-track {
   border-color: rgba(148, 163, 184, 0.32) !important;
   box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.75), 0 1px 0 rgba(255, 255, 255, 0.06) !important;
@@ -4386,6 +4523,10 @@ body.dark-mode .status-bar {
 
 body.dark-mode .status-bar-field {
   border-right-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .status-bar-duration {
+  color: #6ee7b7;
 }
 
 body.dark-mode .genre-pill.genre-primary {

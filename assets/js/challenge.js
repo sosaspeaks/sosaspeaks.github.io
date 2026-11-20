@@ -20,6 +20,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   const counterEl = document.getElementById("completedCounter");
   const percentEl = document.getElementById("completedPercent");
   const progressFill = document.getElementById("progressFill");
+  const progressBox = document.getElementById("challengeProgressBox");
+  const progressExpandBtn = document.getElementById("progressExpandBtn");
+  const progressExtraEl = document.getElementById("challengeProgressExtra");
+  const monthElapsedLabelEl = document.getElementById("monthElapsedLabel");
+  const monthElapsedPercentEl = document.getElementById("monthElapsedPercent");
+  const monthElapsedFillEl = document.getElementById("monthElapsedFill");
+  const paceLabelEl = document.getElementById("paceLabel");
+  const pacePercentEl = document.getElementById("pacePercent");
+  const paceFillEl = document.getElementById("paceFill");
   const progressSubtitle = document.getElementById("progressSubtitle");
   const adminTriggerBtn = document.getElementById("adminTriggerBtn");
   const adminLockIcon = document.getElementById("adminLockIcon");
@@ -122,6 +131,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const closeDetailModal = document.getElementById("closeDetailModal");
   const modalBody = document.getElementById("modalAlbumBody");
   const statusBarSelection = document.getElementById("statusBarSelection");
+  const statusBarDuration = document.getElementById("statusBarDuration");
   const statusBarStatus = document.getElementById("statusBarStatus");
 
   // Admin Add / Edit Modal
@@ -237,8 +247,112 @@ document.addEventListener("DOMContentLoaded", async () => {
         return new Date(year, month, day).getTime();
       }
     }
+    const isoParts = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (isoParts) {
+      return new Date(
+        parseInt(isoParts[1], 10),
+        parseInt(isoParts[2], 10) - 1,
+        parseInt(isoParts[3], 10)
+      ).getTime();
+    }
     const parsed = Date.parse(raw);
     return isNaN(parsed) ? 0 : parsed;
+  }
+
+  function applyProgressExpandedState(expanded) {
+    if (!progressBox) return;
+    progressBox.classList.toggle("is-expanded", !!expanded);
+    if (progressExpandBtn) {
+      progressExpandBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
+      progressExpandBtn.title = expanded
+        ? "Hide month elapsed & projected pace"
+        : "Show month elapsed & projected pace";
+    }
+    if (progressExtraEl) {
+      progressExtraEl.setAttribute("aria-hidden", expanded ? "false" : "true");
+    }
+  }
+
+  if (progressExpandBtn && progressBox) {
+    const savedExpanded = localStorage.getItem("challenge_progress_expanded") === "1";
+    applyProgressExpandedState(savedExpanded);
+    progressExpandBtn.addEventListener("click", () => {
+      const next = !progressBox.classList.contains("is-expanded");
+      applyProgressExpandedState(next);
+      try {
+        localStorage.setItem("challenge_progress_expanded", next ? "1" : "0");
+      } catch (_) {}
+    });
+  }
+
+  function updateCurrentMonthMetrics({ isCurrentCalendarMonth, list, completedCount, total, now }) {
+    if (!isCurrentCalendarMonth) return;
+
+    const year = now.getFullYear();
+    const monthIdx = now.getMonth();
+    const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
+    const dayOfMonth = now.getDate();
+    const elapsedDaysExact = Math.max(
+      0.01,
+      (dayOfMonth - 1) + (now.getHours() * 60 + now.getMinutes()) / 1440
+    );
+    const monthPct = Math.min(100, Math.max(1, Math.round((elapsedDaysExact / daysInMonth) * 100)));
+
+    if (monthElapsedLabelEl) {
+      monthElapsedLabelEl.textContent = `Month Elapsed (Day ${dayOfMonth} / ${daysInMonth})`;
+    }
+    if (monthElapsedPercentEl) {
+      monthElapsedPercentEl.textContent = `${monthPct}%`;
+    }
+    if (monthElapsedFillEl) {
+      monthElapsedFillEl.style.width = `${monthPct}%`;
+    }
+
+    const monthStartMs = new Date(year, monthIdx, 1).getTime();
+    const monthEndMs = new Date(year, monthIdx + 1, 1).getTime();
+    let completedThisMonth = 0;
+
+    list.forEach(album => {
+      const spin = getMatchingSpin(album, false);
+      if (!spin) return;
+      const ts = parseLogDate(spin.log_date);
+      if (!ts || (ts >= monthStartMs && ts < monthEndMs)) {
+        completedThisMonth++;
+      }
+    });
+
+    const paceDenomDays = Math.max(1, elapsedDaysExact);
+    const remainingDays = Math.max(0, daysInMonth - elapsedDaysExact);
+    const dailyRate = completedThisMonth / paceDenomDays;
+    const projectedExact = completedCount + dailyRate * remainingDays;
+    const projectedCount = Math.min(total, Math.round(projectedExact));
+    const projectedPct = total > 0 ? Math.min(100, Math.round((projectedCount / total) * 100)) : 0;
+    const rateFormatted = dailyRate.toFixed(1).replace(/\.0$/, "");
+
+    if (paceLabelEl) {
+      if (total > 0 && completedCount >= total) {
+        paceLabelEl.textContent = `Pace: Complete (${total} / ${total})`;
+      } else if (total > 0 && projectedExact >= total) {
+        paceLabelEl.textContent = `Pace: All ${total} / ${total} (${rateFormatted}/day)`;
+      } else {
+        paceLabelEl.textContent = `Projected Pace: ~${projectedCount} / ${total} (${rateFormatted}/day)`;
+      }
+      paceLabelEl.title = `Based on ${completedThisMonth} completed this month over ${elapsedDaysExact.toFixed(1)} elapsed days`;
+    }
+    if (pacePercentEl) {
+      pacePercentEl.textContent = `${projectedPct}%`;
+    }
+    if (paceFillEl) {
+      paceFillEl.style.width = `${projectedPct}%`;
+      paceFillEl.classList.remove("is-on-pace", "is-close", "is-behind");
+      if (total > 0 && projectedCount >= total) {
+        paceFillEl.classList.add("is-on-pace");
+      } else if (total > 0 && projectedCount >= Math.round(total * 0.72)) {
+        paceFillEl.classList.add("is-close");
+      } else {
+        paceFillEl.classList.add("is-behind");
+      }
+    }
   }
 
   function isPendingRelistenStub(s) {
@@ -3691,6 +3805,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     return 0;
   }
 
+  function formatDurationHm(totalSec) {
+    if (!totalSec || totalSec <= 0) return "0m";
+    const totalMins = Math.round(totalSec / 60);
+    const h = Math.floor(totalMins / 60);
+    const m = totalMins % 60;
+    if (h > 0 && m > 0) return `${h}h ${m}m`;
+    if (h > 0) return `${h}h`;
+    return `${m}m`;
+  }
+
   function getAlbumSpinRating(album) {
     const isRel = (activeMonth === "recalibrate" || activeMonth === "relisten" || (album.month || "").toLowerCase() === "recalibrate" || !!album.relisten_reason);
     const match = getMatchingSpin(album, isRel);
@@ -3888,10 +4012,22 @@ document.addEventListener("DOMContentLoaded", async () => {
       progressBox.classList.toggle("is-collapsed", !isCurrentCalendarMonth);
     }
 
+    let completedRuntimeSec = 0;
+    let totalRuntimeSec = 0;
+
     list.forEach(album => {
       const itemIsRel = isSearchActive ? getEntryMonthMeta(album).isRelisten : isRelistenTab;
-      const isDone = isAlbumDone(album, itemIsRel);
+      const spin = getMatchingSpin(album, itemIsRel);
+      const isDone = !!spin;
       if (isDone) completedCount++;
+      if (isCurrentCalendarMonth) {
+        const rawRt = album.runtime || (spin && spin.runtime) || "";
+        const rtSec = parseRuntimeSec(rawRt);
+        if (rtSec > 0) {
+          totalRuntimeSec += rtSec;
+          if (isDone) completedRuntimeSec += rtSec;
+        }
+      }
     });
 
     const total = (isSearchActive || isRelistenTab) ? list.length : 36;
@@ -3905,6 +4041,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (percentEl) percentEl.textContent = `${pct}%`;
     if (progressFill) progressFill.style.width = `${pct}%`;
 
+    updateCurrentMonthMetrics({ isCurrentCalendarMonth, list, completedCount, total, now });
+
     if (statusBarSelection) {
       const sortSuffix = currentSort !== "default" ? ` • Sorted: ${SORT_LABELS[currentSort] || currentSort}` : "";
       if (isSearchActive) {
@@ -3916,6 +4054,19 @@ document.addEventListener("DOMContentLoaded", async () => {
       } else {
         const itemLabel = isRelistenTab ? `${list.length} relistens (${completedCount} recalibrated)` : `${list.length} items (${completedCount} completed)`;
         statusBarSelection.textContent = `${itemLabel}${sortSuffix}`;
+      }
+    }
+
+    if (statusBarDuration) {
+      if (isCurrentCalendarMonth && totalRuntimeSec > 0) {
+        const compLabel = formatDurationHm(completedRuntimeSec);
+        const totLabel = formatDurationHm(totalRuntimeSec);
+        const durPct = Math.min(100, Math.round((completedRuntimeSec / totalRuntimeSec) * 100));
+        statusBarDuration.textContent = `Duration: ${compLabel} / ${totLabel}`;
+        statusBarDuration.title = `Completed ${compLabel} of ${totLabel} (${durPct}%) across this month's challenge records`;
+        statusBarDuration.style.display = "";
+      } else {
+        statusBarDuration.style.display = "none";
       }
     }
 

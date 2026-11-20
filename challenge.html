@@ -21,7 +21,7 @@
   <meta property="og:description" content="Explore Sosa's 7×7 monthly album listening challenge backlog and completed spins.">
   <meta property="og:image" content="https://sosaspeaks.org/assets/images/homepics/Sosa-Icon-V3.png">
   <link rel="icon" type="image/png" href="assets/images/homepics/Sosa-Icon-V3.png">
-  <link rel="stylesheet" href="assets/css/challenge.css?v=20261118a">
+  <link rel="stylesheet" href="assets/css/challenge.css?v=20261120b">
   <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
   <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
 </head>
@@ -108,13 +108,47 @@
 
 
     <!-- Authentic Windows 7 Progress Bar with Animated Sweep -->
-    <div class="challenge-progress-box">
+    <div class="challenge-progress-box" id="challengeProgressBox">
       <div class="progress-labels">
         <span id="completedCounter">Completed: 0 / 36</span>
-        <span id="completedPercent">0%</span>
+        <div class="progress-labels-right">
+          <span id="completedPercent">0%</span>
+          <button
+            type="button"
+            id="progressExpandBtn"
+            class="progress-expand-btn"
+            aria-expanded="false"
+            aria-controls="challengeProgressExtra"
+            title="Show month elapsed &amp; projected pace"
+          >
+            <i class='bx bx-chevron-down' aria-hidden="true"></i>
+          </button>
+        </div>
       </div>
       <div class="progress-bar-track" role="progressbar">
         <div class="progress-bar-fill" id="progressFill" style="width: 0%;"></div>
+      </div>
+
+      <div class="challenge-progress-extra" id="challengeProgressExtra" aria-hidden="true">
+        <div class="progress-sub-row">
+          <div class="progress-labels is-sub">
+            <span id="monthElapsedLabel">Month Elapsed</span>
+            <span id="monthElapsedPercent">0%</span>
+          </div>
+          <div class="progress-bar-track is-sub" role="progressbar" aria-label="Percent of month elapsed">
+            <div class="progress-bar-fill is-month" id="monthElapsedFill" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <div class="progress-sub-row">
+          <div class="progress-labels is-sub">
+            <span id="paceLabel">Projected Pace: 0 / 36</span>
+            <span id="pacePercent">0%</span>
+          </div>
+          <div class="progress-bar-track is-sub" role="progressbar" aria-label="Projected end-of-month challenge pace">
+            <div class="progress-bar-fill is-pace" id="paceFill" style="width: 0%;"></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -290,6 +324,7 @@
       <!-- Window Status Bar Footer -->
       <div class="status-bar">
         <div class="status-bar-field" id="statusBarSelection">36 items</div>
+        <div class="status-bar-field status-bar-duration" id="statusBarDuration" style="display: none;"></div>
         <div class="status-bar-field" style="text-align: right; max-width: 140px;">Ready</div>
       </div>
 
@@ -689,7 +724,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
-  <script src="assets/js/challenge.js?v=20261118c"></script>
+  <script src="assets/js/challenge.js?v=20261120b"></script>
   <script src="assets/js/dock.js?v=20261115c"></script>
   <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>
 </body>
