@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<!--
+                                           _
+                                          | |
+  ___  ___  ___  __ _ ___ _ __   ___  __ _| | _____
+ / __|/ _ \/ __|/ _` / __| '_ \ / _ \/ _` | |/ / __|
+ \__ \ (_) \__ \ (_| \__ \ |_) |  __/ (_| |   <\__ \
+ |___/\___/|___/\__,_|___/ .__/ \___|\__,_|_|\_\___/
+                         | |
+                         |_|
+
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wall of Lyrics — SosaSpins</title>
+  <meta name="description" content="Wall of Lyrics &amp; Lyric Card Studio — Curated lines, mood &amp; nostalgia tags, and exportable lyric cards on SosaSpins.">
+  <meta property="og:title" content="Wall of Lyrics — SosaSpins">
+  <meta property="og:description" content="Explore Sosa's curated Wall of Lyrics, filter by mood &amp; nostalgia tags, and export lyric cards.">
+  <meta property="og:image" content="https://sosaspeaks.org/assets/images/homepics/Sosa-Icon-V3.png">
+  <link rel="icon" type="image/png" href="assets/images/homepics/Sosa-Icon-V3.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/images/homepics/apple-touch-icon.png?v=20260527" />
+  <meta name="apple-mobile-web-app-title" content="SosaSpeaks" />
+  <link rel="manifest" href="assets/images/homepics/site.webmanifest?v=20260527" />
+  <!-- Google Fonts for Lyric Card Styles -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,400&family=IBM+Plex+Mono:wght@400;500;700&family=Instrument+Sans:wght@500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,500;1,6..72,500&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Sora:wght@500;600;700;800&family=Space+Grotesk:wght@500;700&family=Syne:wght@600;700;800&display=swap">
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261118k">
+  <link rel="stylesheet" href="assets/css/lyrics.css?v=20261120h">
+  <link rel="stylesheet" href="assets/css/dock.css?v=20261119b">
+  <!-- Boxicons -->
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+</head>
+<body class="lyrics-view-active">
+  <!-- Header -->
+  <header>
+    <div class="nav container">
+      <a href="index.html" class="nav-logo-link">
+        <img src="assets/images/homepics/Sosa-Icon-V3.png" alt="SosaSpeaks Icon" class="logo-icon">
+      </a>
+      <div class="nav-right-group">
+        <button type="button" id="adminTriggerBtn" class="aero-btn" title="Admin Mode">
+          <img
+            id="adminLockIcon"
+            src="assets/icons/aero/lock_closed.png"
+            alt="Admin Status"
+            class="aero-lock-icon nav-custom-icon"
+          />
+        </button>
+        <a href="sosaspins.html" class="nav-custom-link" title="SosaSpins">
+          <img src="assets/images/homepics/Folder203.ico" class="nav-custom-icon music-icon" alt="SosaSpins">
+        </a>
+        <a href="about.html" class="nav-custom-link" title="About">
+          <img src="assets/images/homepics/msgsres_1.ico" class="nav-custom-icon msngr-icon" alt="About">
+        </a>
+        <i class='bx bx-moon theme-toggle' style="scale: 155%;" title="Theme"></i>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="main-home" id="home">
+    <div class="home-text container">
+      <h2 class="home-title">SosaSpins</h2>
+      <span class="home-subtitle">Wall of Lyrics</span>
+    </div>
+  </section>
+
+  <!-- Main Explorer Window -->
+  <main class="container lyrics-main-container">
+    <section class="lyrics-view-container">
+      <div class="window glass w7-window lyrics-window-frame" id="lyricsWindowFrame">
+        <!-- Title Bar -->
+        <div class="title-bar">
+          <div class="title-bar-text">
+            <i class='bx bxs-quote-alt-left lyrics-title-icon' aria-hidden="true"></i>
+            <span>Wall of Lyrics &amp; Lyric Card Studio</span>
+          </div>
+          <div class="title-bar-controls"></div>
+        </div>
+
+        <!-- Attached Command & Filter Toolbar -->
+        <div class="window-command-bar lyrics-command-bar">
+          <div class="lyrics-cmd-left">
+            <div class="lyrics-search-wrap">
+              <i class='bx bx-search lyrics-search-icon' aria-hidden="true"></i>
+              <input
+                type="text"
+                id="lyricsSearchInput"
+                class="sosa-search-input lyrics-search-input"
+                placeholder="Search songs, artists, albums, or lyrics..."
+                aria-label="Search lyrics"
+              >
+              <button type="button" id="lyricsSearchClearBtn" class="lyrics-search-clear" style="display: none;" aria-label="Clear search">&times;</button>
+            </div>
+
+            <!-- Theme Filter Chips -->
+            <div class="lyrics-theme-chips" id="lyricsThemeChips" role="group" aria-label="Filter by card theme">
+              <button type="button" class="lyrics-chip active" data-theme="all">All</button>
+              <button type="button" class="lyrics-chip" data-theme="cover-blur">Cover Blur</button>
+              <button type="button" class="lyrics-chip" data-theme="aero-glass">Aero Glass</button>
+              <button type="button" class="lyrics-chip" data-theme="terminal-mono">Terminal</button>
+              <button type="button" class="lyrics-chip" data-theme="editorial-paper">Editorial</button>
+              <button type="button" class="lyrics-chip" data-theme="jewel-case">Jewel Case</button>
+              <button type="button" class="lyrics-chip" data-theme="dreamcore-sky">Sky Gloss</button>
+              <button type="button" class="lyrics-chip" data-theme="midnight-vinyl">Midnight Vinyl</button>
+              <button type="button" class="lyrics-chip" data-theme="prism-mesh">Prism Aura</button>
+              <button type="button" class="lyrics-chip" data-theme="swatch-poster">Colorblock</button>
+              <button type="button" class="lyrics-chip" data-theme="oscilloscope">Wavefront</button>
+              <button type="button" class="lyrics-chip" data-theme="cassette-jcard">Tape J-Card</button>
+              <button type="button" class="lyrics-chip" data-theme="kinetic-grid">Warp Grid</button>
+              <button type="button" class="lyrics-chip" data-theme="refraction">Refraction</button>
+            </div>
+          </div>
+
+          <div class="lyrics-cmd-right">
+            <!-- Custom Aero Sort Menu -->
+            <div class="aero-sort-dropdown-wrap" style="position: relative; display: inline-block;">
+              <button type="button" id="lyricsSortBtn" class="aero-command-btn" aria-haspopup="true" aria-expanded="false">
+                <i class='bx bx-sort-alt-2'></i> <span id="lyricsSortLabel">Sort: Newest</span> <i class='bx bx-chevron-down'></i>
+              </button>
+              <div class="aero-menu-dropdown lyrics-sort-menu" id="lyricsSortMenu" style="display: none;">
+                <button type="button" class="aero-menu-item active" data-sort="newest"><i class='bx bx-time'></i> Newest First</button>
+                <button type="button" class="aero-menu-item" data-sort="oldest"><i class='bx bx-history'></i> Oldest First</button>
+                <button type="button" class="aero-menu-item" data-sort="artist-asc"><i class='bx bx-user'></i> Artist (A &rarr; Z)</button>
+                <button type="button" class="aero-menu-item" data-sort="song-asc"><i class='bx bx-music'></i> Song (A &rarr; Z)</button>
+              </div>
+            </div>
+
+            <!-- Admin + New Lyric Card Button -->
+            <button type="button" id="openNewLyricStudioBtn" class="aero-command-btn save-emerald-btn admin-only" style="display: none;">
+              <i class='bx bx-plus'></i> New Lyric Card
+            </button>
+          </div>
+        </div>
+
+        <!-- Dynamic Tag Cloud & Multi-Tag Filter Bar -->
+        <div class="lyrics-tag-bar" id="lyricsTagBar">
+          <div class="lyrics-tag-bar-meta">
+            <span class="lyrics-tag-bar-label"><i class='bx bx-purchase-tag-alt'></i> Tags</span>
+            <div class="lyrics-match-controls">
+              <div class="aero-segmented-control lyrics-match-toggle" id="lyricsMatchModeToggle" role="group" aria-label="Multi-tag match mode">
+                <button type="button" class="segmented-btn active" data-mode="or" title="Match cards with ANY selected tag">OR</button>
+                <button type="button" class="segmented-btn" data-mode="and" title="Match cards with ALL selected tags">AND</button>
+              </div>
+              <button type="button" id="lyricsClearFiltersBtn" class="aero-command-btn lyrics-clear-btn" style="display: none;">
+                <i class='bx bx-x'></i> Clear Filters
+              </button>
+            </div>
+          </div>
+          <div class="lyrics-tag-cloud" id="lyricsTagCloud" aria-label="Filter by mood and nostalgia tags"></div>
+        </div>
+
+        <!-- Main Window Body -->
+        <div class="window-body lyrics-window-body">
+          <div class="lyrics-wall-header">
+            <div class="lyrics-wall-heading-wrap">
+              <h1 class="lyrics-wall-title">WALL OF LYRICS</h1>
+              <p class="lyrics-wall-subtitle">Saved lines, bilingual bars, and late-night verses &mdash; click any tag to cross-filter or export cards as high-res PNGs.</p>
+            </div>
+            <div class="lyrics-wall-count" id="lyricsWallCount">0 cards</div>
+          </div>
+
+          <div id="lyricsWallGrid" class="lyrics-wall-grid" aria-live="polite"></div>
+
+          <div id="lyricsEmptyState" class="lyrics-empty-state" style="display: none;">
+            <i class='bx bxs-quote-alt-left lyrics-empty-icon' aria-hidden="true"></i>
+            <p class="lyrics-empty-title">No lyric cards match right now.</p>
+            <p class="lyrics-empty-sub" id="lyricsEmptySubtext">Clear active filters or sign in as admin to compose a new lyric card.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- CARD LIGHTBOX / DETAIL MODAL -->
+  <div id="lyricDetailModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="window glass w7-modal-window top100-detail-window lyrics-detail-window" role="dialog" aria-modal="true" aria-labelledby="lyricDetailTitle">
+      <div class="title-bar">
+        <div class="title-bar-text" id="lyricDetailTitle">
+          <i class='bx bxs-quote-alt-left'></i> Lyric Card
+        </div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeLyricDetailModal" aria-label="Close" class="is-close"></button>
+        </div>
+      </div>
+      <div class="window-body lyrics-detail-body" id="lyricDetailBody"></div>
+    </div>
+  </div>
+
+  <!-- ADMIN: LYRIC CARD STUDIO MODAL -->
+  <div id="lyricStudioModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="window glass w7-modal-window top100-detail-window lyrics-studio-window" role="dialog" aria-modal="true" aria-labelledby="lyricStudioHeading">
+      <div class="title-bar">
+        <div class="title-bar-text" id="lyricStudioHeading">
+          <i class='bx bx-palette'></i> Lyric Card Studio
+        </div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeLyricStudioModal" aria-label="Close" class="is-close"></button>
+        </div>
+      </div>
+
+      <div class="window-body lyrics-studio-body">
+        <form id="lyricStudioForm" class="lyrics-studio-grid" autocomplete="off">
+          <input type="hidden" id="studioEditingId">
+          <input type="hidden" id="studioSpinIdInput">
+
+          <!-- Left Column: Controls -->
+          <div class="lyrics-studio-controls">
+            <!-- Prefill from Spin -->
+            <div class="studio-field-group">
+              <div class="studio-label-row">
+                <label for="studioSpinSearchInput" class="studio-label">Prefill from Spin (Optional)</label>
+                <button type="button" id="studioClearSpinBtn" class="studio-inline-btn" style="display: none;">Unlink Spin</button>
+              </div>
+              <div class="studio-spin-combo-wrap">
+                <input
+                  type="text"
+                  id="studioSpinSearchInput"
+                  class="sosa-search-input studio-input"
+                  placeholder="Search logged spins by artist or album..."
+                >
+                <div id="studioSpinDropdown" class="aero-autocomplete-menu studio-spin-dropdown" style="display: none;"></div>
+              </div>
+            </div>
+
+            <div class="studio-grid-2">
+              <div class="studio-field-group">
+                <label for="studioSongInput" class="studio-label">Song Title *</label>
+                <input type="text" id="studioSongInput" class="sosa-search-input studio-input" required placeholder="e.g. Pagan Poetry">
+              </div>
+              <div class="studio-field-group">
+                <label for="studioArtistInput" class="studio-label">Artist *</label>
+                <input type="text" id="studioArtistInput" class="sosa-search-input studio-input" required placeholder="e.g. Björk">
+              </div>
+            </div>
+
+            <div class="studio-grid-2">
+              <div class="studio-field-group">
+                <label for="studioAlbumInput" class="studio-label">Album</label>
+                <input type="text" id="studioAlbumInput" class="sosa-search-input studio-input" placeholder="e.g. Vespertine">
+              </div>
+              <div class="studio-field-group">
+                <label for="studioYearInput" class="studio-label">Release Year</label>
+                <input type="number" id="studioYearInput" class="sosa-search-input studio-input" min="1900" max="2100" placeholder="2001">
+              </div>
+            </div>
+
+            <!-- Cover URL + R2 Upload / Mirror -->
+            <div class="studio-field-group">
+              <div class="studio-label-row">
+                <label for="studioCoverUrlInput" class="studio-label">Cover URL (R2 CORS-Ready)</label>
+                <div class="studio-cover-actions">
+                  <input type="file" id="studioCoverFileInput" accept="image/*" style="display: none;">
+                  <button type="button" id="studioUploadCoverBtn" class="studio-inline-btn" title="Upload image file to Cloudflare R2">
+                    <i class='bx bx-cloud-upload'></i> Upload Cover
+                  </button>
+                  <button type="button" id="studioMirrorR2Btn" class="studio-inline-btn" title="Mirror external image URL to Cloudflare R2 for safe PNG export">
+                    <i class='bx bx-link'></i> Mirror to R2
+                  </button>
+                </div>
+              </div>
+              <input type="url" id="studioCoverUrlInput" class="sosa-search-input studio-input" placeholder="https://assets.sosaspeaks.org/covers/...">
+            </div>
+
+            <!-- Multiline Lyrics -->
+            <div class="studio-field-group">
+              <label for="studioLyricsInput" class="studio-label">Lyrics * <span class="studio-hint">(Supports multiline &amp; CJK / bilingual bars)</span></label>
+              <textarea id="studioLyricsInput" class="sosa-search-input studio-textarea" rows="5" required placeholder="Paste or type lyric lines here..."></textarea>
+            </div>
+
+            <!-- Mood / Nostalgia Tags (TagInputManager pattern) -->
+            <div class="studio-field-group">
+              <label for="studioTagsInput" class="studio-label">Mood &amp; Nostalgia Tags <span class="studio-hint">(Enter or comma)</span></label>
+              <div class="tag-field-row">
+                <div class="tag-input-box" id="studioTagsBox">
+                  <input type="text" id="studioTagsInput" class="tag-inline-input" placeholder="nostalgia, yearning, late-night...">
+                </div>
+                <div class="aero-autocomplete-menu" id="studioTagsDropdown" style="display: none;"></div>
+                <input type="hidden" id="studioTagsHidden">
+              </div>
+            </div>
+
+            <!-- Visual Styling Controls -->
+            <div class="studio-field-group">
+              <div class="studio-label-row">
+                <label class="studio-label">Card Style <span class="studio-hint" id="studioActiveThemeName">(Cover Blur)</span></label>
+                <div class="studio-carousel-nav">
+                  <button type="button" id="studioThemePrevBtn" class="studio-carousel-arrow" aria-label="Scroll styles left"><i class='bx bx-chevron-left'></i></button>
+                  <button type="button" id="studioThemeNextBtn" class="studio-carousel-arrow" aria-label="Scroll styles right"><i class='bx bx-chevron-right'></i></button>
+                </div>
+              </div>
+              <div class="studio-theme-carousel" id="studioThemePills" role="radiogroup" aria-label="Card Theme">
+                <button type="button" class="studio-style-tile active" data-theme="cover-blur">
+                  <span class="tile-swatch sw-cover-blur"></span>
+                  <span class="tile-meta"><span class="tile-title">Cover Blur</span><span class="tile-sub">Aura</span></span>
+                </button>
+                <button type="button" class="studio-style-tile" data-theme="aero-glass">
+                  <span class="tile-swatch sw-aero-glass"></span>
+                  <span class="tile-meta"><span class="tile-title">Aero Glass</span><span class="tile-sub">Win7</span></span>
+                </button>
+                <button type="button" class="studio-style-tile" data-theme="terminal-mono">
+                  <span class="tile-swatch sw-terminal"></span>
+                  <span class="tile-meta"><span class="tile-title">Terminal</span><span class="tile-sub">POSIX</span></span>
+                </button>
+                <button type="button" class="studio-style-tile" data-theme="editorial-paper">
+                  <span class="tile-swatch sw-editorial"></span>
+                  <span class="tile-meta"><span class="tile-title">Editorial</span><span class="tile-sub">Serif</span></span>
+                </button>
+                <button type="button" class="studio-style-tile" data-theme="jewel-case">
+                  <span class="tile-swatch sw-jewel"></span>
+                  <span class="tile-meta"><span class="tile-title">Jewel Case</span><span class="tile-sub">CD Tray</span></span>
+                </button>
+                <button type="button" class="studio-style-tile" data-theme="dreamcore-sky">
+                  <span class="tile-swatch sw-sky"></span>
+                  <span class="tile-meta"><span class="tile-title">Sky Gloss</span><span class="tile-sub">Frutiger</span></span>
+                </button>
+                <button type="button" class="studio-style-tile" data-theme="midnight-vinyl">
+                  <span class="tile-swatch sw-vinyl"></span>
+                  <span class="tile-meta"><span class="tile-title">Midnight Vinyl</span><span class="tile-sub">33⅓ LP</span></span>
+                </button>
+                <button type="button" class="studio-style-tile" data-theme="prism-mesh">
+                  <span class="tile-swatch sw-prism"></span>
+                  <span class="tile-meta"><span class="tile-title">Prism Aura</span><span class="tile-sub">Mesh</span></span>
+                </button>
+                <button type="button" class="studio-style-tile" data-theme="swatch-poster">
+                  <span class="tile-swatch sw-poster"></span>
+                  <span class="tile-meta"><span class="tile-title">Colorblock</span><span class="tile-sub">Palette</span></span>
+                </button>
+                <button type="button" class="studio-style-tile" data-theme="oscilloscope">
+                  <span class="tile-swatch sw-scope"></span>
+                  <span class="tile-meta"><span class="tile-title">Wavefront</span><span class="tile-sub">Synth DSP</span></span>
+                </button>
+                <button type="button" class="studio-style-tile" data-theme="cassette-jcard">
+                  <span class="tile-swatch sw-jcard"></span>
+                  <span class="tile-meta"><span class="tile-title">Tape J-Card</span><span class="tile-sub">CrO2 II</span></span>
+                </button>
+                <button type="button" class="studio-style-tile" data-theme="kinetic-grid">
+                  <span class="tile-swatch sw-kinetic"></span>
+                  <span class="tile-meta"><span class="tile-title">Warp Grid</span><span class="tile-sub">Avant-Garde</span></span>
+                </button>
+                <button type="button" class="studio-style-tile" data-theme="refraction">
+                  <span class="tile-swatch sw-refract"></span>
+                  <span class="tile-meta"><span class="tile-title">Refraction</span><span class="tile-sub">Abstract</span></span>
+                </button>
+              </div>
+            </div>
+
+            <div class="studio-style-row">
+              <div class="studio-field-group">
+                <label class="studio-label">Aspect Ratio</label>
+                <div class="studio-segmented-pills" id="studioRatioPills" role="radiogroup" aria-label="Aspect Ratio">
+                  <button type="button" class="studio-pill active" data-ratio="4:5">4:5</button>
+                  <button type="button" class="studio-pill" data-ratio="1:1">1:1</button>
+                </div>
+              </div>
+
+              <div class="studio-field-group">
+                <label class="studio-label">Left Lyric Bar</label>
+                <div class="studio-accent-wrap">
+                  <div class="studio-segmented-pills" id="studioBarModePills" role="radiogroup" aria-label="Left Lyric Bar">
+                    <button type="button" class="studio-pill active" data-bar-mode="none" title="No vertical bar next to lyrics">None</button>
+                    <button type="button" class="studio-pill" data-bar-mode="auto" title="Match bar automatically to cover/scheme">Auto</button>
+                  </div>
+                  <label id="studioAccentSwatch" class="studio-accent-swatch is-auto" for="studioAccentInput" title="Pick custom bar color">
+                    <input type="color" id="studioAccentInput" class="studio-color-input" value="#10b981" aria-label="Choose custom left bar color">
+                    <span class="studio-accent-auto-text">Custom</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Adaptive / Preset Color Scheme -->
+            <div class="studio-field-group">
+              <label class="studio-label">Color Scheme <span class="studio-hint">(Adapts to album cover or picks a curated palette)</span></label>
+              <div class="studio-segmented-pills" id="studioSchemePills" role="radiogroup" aria-label="Color Scheme">
+                <button type="button" class="studio-pill active" data-scheme="cover"><span class="scheme-dot is-cover"></span>Cover (Auto)</button>
+                <button type="button" class="studio-pill" data-scheme="emerald"><span class="scheme-dot is-emerald"></span>Emerald</button>
+                <button type="button" class="studio-pill" data-scheme="cobalt"><span class="scheme-dot is-cobalt"></span>Cobalt</button>
+                <button type="button" class="studio-pill" data-scheme="amber"><span class="scheme-dot is-amber"></span>Amber</button>
+                <button type="button" class="studio-pill" data-scheme="rose"><span class="scheme-dot is-rose"></span>Rose</button>
+                <button type="button" class="studio-pill" data-scheme="mono"><span class="scheme-dot is-mono"></span>Mono</button>
+              </div>
+            </div>
+
+            <!-- Adjustable Element Sizes -->
+            <div class="studio-sizes-panel">
+              <div class="studio-label-row">
+                <span class="studio-label">Element Sizes</span>
+                <button type="button" id="studioResetSizesBtn" class="studio-inline-btn" title="Reset all element sizes to 100%">Reset Sizes</button>
+              </div>
+              <div class="studio-sizes-grid">
+                <label class="studio-size-control">
+                  <span class="studio-size-head"><span>Lyrics</span><span class="studio-size-val" id="studioSizeLyricsVal">100%</span></span>
+                  <input type="range" id="studioSizeLyrics" class="studio-range-input" min="55" max="145" step="5" value="100">
+                </label>
+                <label class="studio-size-control">
+                  <span class="studio-size-head"><span>Cover Art</span><span class="studio-size-val" id="studioSizeCoverVal">100%</span></span>
+                  <input type="range" id="studioSizeCover" class="studio-range-input" min="60" max="180" step="5" value="100">
+                </label>
+                <label class="studio-size-control">
+                  <span class="studio-size-head"><span>Song &amp; Artist</span><span class="studio-size-val" id="studioSizeHeaderVal">100%</span></span>
+                  <input type="range" id="studioSizeHeader" class="studio-range-input" min="65" max="160" step="5" value="100">
+                </label>
+                <label class="studio-size-control">
+                  <span class="studio-size-head"><span>Padding</span><span class="studio-size-val" id="studioSizePaddingVal">100%</span></span>
+                  <input type="range" id="studioSizePadding" class="studio-range-input" min="50" max="160" step="5" value="100">
+                </label>
+                <label class="studio-size-control">
+                  <span class="studio-size-head"><span>Watermark</span><span class="studio-size-val" id="studioSizeIconVal">100%</span></span>
+                  <input type="range" id="studioSizeIcon" class="studio-range-input" min="50" max="180" step="5" value="100">
+                </label>
+                <label class="studio-size-control">
+                  <span class="studio-size-head"><span>Lyrics Shadow</span><span class="studio-size-val" id="studioSizeShadowVal">100%</span></span>
+                  <input type="range" id="studioSizeShadow" class="studio-range-input" min="0" max="200" step="10" value="100">
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Live Preview & Export -->
+          <div class="lyrics-studio-preview-col">
+            <div class="studio-preview-label">
+              <span><i class='bx bx-show'></i> Live Export Preview</span>
+              <span id="studioExportDimLabel" class="studio-dim-badge">4:5 &bull; 3x PNG</span>
+            </div>
+            <div class="studio-preview-stage">
+              <div id="studioLivePreviewMount"></div>
+            </div>
+            <div class="studio-action-bar">
+              <button type="button" id="studioDownloadPngBtn" class="aero-command-btn">
+                <i class='bx bx-download'></i> Download PNG
+              </button>
+              <button type="submit" id="studioSaveBtn" class="aero-command-btn save-emerald-btn">
+                <i class='bx bx-save'></i> Save to Wall
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- CUSTOM AERO CONFIRM MODAL -->
+  <div id="lyricsConfirmModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="window glass w7-modal-window top100-detail-window lyrics-confirm-window" role="alertdialog" aria-modal="true" aria-labelledby="lyricsConfirmTitle">
+      <div class="title-bar">
+        <div class="title-bar-text" id="lyricsConfirmTitle">Confirm Action</div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeLyricsConfirmModal" aria-label="Close" class="is-close"></button>
+        </div>
+      </div>
+      <div class="window-body lyrics-confirm-body">
+        <p id="lyricsConfirmMsg" class="lyrics-confirm-msg"></p>
+        <div class="lyrics-confirm-footer">
+          <button type="button" id="lyricsConfirmNoBtn" class="aero-command-btn">Cancel</button>
+          <button type="button" id="lyricsConfirmYesBtn" class="aero-command-btn lyrics-danger-btn">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN AUTH MODAL -->
+  <div id="adminAuthModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="modal-dialog w7-window window glass w7-modal-window w7-auth-window">
+      <div class="title-bar">
+        <div class="title-bar-text">
+          <img src="assets/icons/aero/lock_closed.png" alt="" class="w7-title-icon" id="authModalTitleIcon">
+          <span id="authModalTitleText">Windows Security &mdash; SosaSpins Admin</span>
+        </div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeAdminAuthModalBtn" aria-label="Close" class="is-close"></button>
+        </div>
+      </div>
+      <div class="window-body w7-auth-body">
+        <form id="adminAuthForm" class="w7-auth-form" autocomplete="on">
+          <div class="w7-auth-header-row">
+            <img src="assets/icons/aero/lock_closed.png" alt="Security Lock" class="w7-auth-hero-icon" id="authHeroIcon">
+            <div class="w7-auth-copy">
+              <div class="w7-auth-heading">Windows Security</div>
+              <div class="w7-auth-subtext">Enter your administrator credentials to sign in.</div>
+            </div>
+          </div>
+
+          <div class="w7-auth-fields-wrap" style="display: flex; flex-direction: column; gap: 12px; margin: 1rem 1.2rem 1.1rem 1.2rem;">
+            <div class="w7-auth-field-group">
+              <label for="authEmailInput" class="w7-auth-subtext" style="display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.8rem;">Email</label>
+              <input type="email" id="authEmailInput" class="sosa-search-input w7-pass-input" placeholder="admin@sosaspeaks.org" autocomplete="username" required>
+            </div>
+            <div class="w7-auth-field-group" style="position: relative;">
+              <label for="authPasswordInput" class="w7-auth-subtext" style="display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.8rem;">Password</label>
+              <div style="position: relative; display: flex; align-items: center;">
+                <input type="password" id="authPasswordInput" class="sosa-search-input w7-pass-input" placeholder="••••••••" autocomplete="current-password" required>
+                <button type="button" id="togglePassVisibilityBtn" class="w7-pass-eye-btn" title="Show / Hide Password" tabindex="-1">
+                  <i class="bx bx-hide" id="togglePassEyeIcon"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div id="authErrorMessage" class="w7-auth-error" style="display: none;">
+            <i class="bx bx-error-circle"></i>
+            <span class="auth-error-text"></span>
+          </div>
+
+          <div class="w7-auth-footer">
+            <button type="button" id="cancelAuthBtn" class="aero-btn-action w7-auth-btn-secondary">Cancel</button>
+            <button type="submit" id="submitAuthBtn" class="aero-btn-action primary-save-btn w7-auth-btn-primary">Log On</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Aero Toast Notification -->
+  <div id="lyricsAeroToast" class="top100-aero-toast" style="display: none;" role="status" aria-live="polite">
+    <i class='bx bxs-check-circle toast-icon'></i>
+    <div class="toast-content">
+      <div class="toast-title" id="lyricsAeroToastTitle">Saved</div>
+      <div class="toast-msg" id="lyricsAeroToastMsg">Lyric card updated.</div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer container" style="margin-top: 4rem;">
+    <p class="footer-copyright">
+      &#169; SosaSpeaks. All non-quoted material is the original writing of SosaSpeaks and its authors.
+    </p>
+    <p class="footer-links">
+      <a href="https://github.com/SosaSpeaks/sosaspeaks.github.io" target="_blank" rel="noopener noreferrer">
+        <i class='bx bxl-github'></i> Source code via GitHub
+      </a>
+      <span class="footer-divider">&middot;</span>
+      <a href="mailto:sosa@sosaspeaks.org">
+        <i class='bx bx-envelope'></i> sosa@sosaspeaks.org
+      </a>
+    </p>
+  </footer>
+
+  <!-- Windows 7 Aero Taskbar ("Superbar") -->
+  <nav class="aero-taskbar-container" id="aeroTaskbar" aria-label="SosaSpins Taskbar">
+    <div class="taskbar-inner">
+      <a href="sosaspins.html" class="taskbar-start-orb" id="taskbarStartOrb" aria-label="Timeline Feed">
+        <span class="taskbar-tooltip">Timeline Feed</span>
+        <div class="start-orb-glass">
+          <div class="start-orb-reflection"></div>
+          <img src="assets/images/homepics/Folder203.ico" alt="Timeline Feed" class="start-orb-icon">
+        </div>
+      </a>
+
+      <div class="taskbar-apps" role="toolbar" aria-label="Running Portals">
+        <a href="challenge.html" class="taskbar-app-btn" data-portal="challenge" aria-label="Challenge Grid">
+          <span class="taskbar-tooltip">Challenge Grid</span>
+          <div class="app-btn-plate">
+            <img src="assets/icons/aero/challenge.ico" alt="Challenge Grid" class="win7-app-icon challenge-icon">
+          </div>
+        </a>
+        <a href="top100.html" class="taskbar-app-btn" data-portal="top100" aria-label="Top 100 Showcase">
+          <span class="taskbar-tooltip">Top 100 Showcase</span>
+          <div class="app-btn-plate">
+            <img src="assets/icons/aero/top100.png" alt="Top 100 Showcase" class="win7-app-icon top100-icon">
+          </div>
+        </a>
+        <a href="sosacore.html" class="taskbar-app-btn" data-portal="sosacore" aria-label="Sosa-Core">
+          <span class="taskbar-tooltip">Sosa-Core</span>
+          <div class="app-btn-plate">
+            <img src="assets/icons/aero/favtrack.png" alt="Sosa-Core" class="win7-app-icon sosacore-icon">
+          </div>
+        </a>
+        <a href="lyrics.html" class="taskbar-app-btn" data-portal="lyrics" aria-label="Wall of Lyrics">
+          <span class="taskbar-tooltip">Wall of Lyrics</span>
+          <div class="app-btn-plate">
+            <img src="assets/icons/aero/audio.png" alt="Wall of Lyrics" class="win7-app-icon lyrics-icon">
+          </div>
+        </a>
+        <a href="stats.html" class="taskbar-app-btn" data-portal="stats" aria-label="Listening Stats">
+          <span class="taskbar-tooltip">Listening Stats</span>
+          <div class="app-btn-plate">
+            <img src="assets/icons/aero/stats.png" alt="Listening Stats" class="win7-app-icon stats-icon">
+          </div>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"></script>
+  <script src="assets/js/lyrics.js?v=20261120h"></script>
+  <script src="assets/js/dock.js?v=20261119b"></script>
+  <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>
+</body>
+</html>

@@ -11,3 +11,4 @@ r2-migration/
 workers/r2-uploader/.wrangler/
 workers/r2-uploader/.dev.vars
 .wrangler/
+SOSA-CORE-CONTEXT.md

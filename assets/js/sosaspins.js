@@ -7473,6 +7473,12 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
               <div class="spin-footer-bar">
                 ${favHtml || '<div class="fav-tracks-spacer" aria-hidden="true"></div>'}
                 <div class="row-actions">
+                  <button type="button" class="action-icon-btn lyric-card-btn admin-only" onclick="makeLyricCardFromSpin(${spinId})" aria-label="Make Lyric Card">
+                    <span class="action-tooltip">Make Lyric Card</span>
+                    <div class="action-icon-stage lyric-icon-stage">
+                      <i class='bx bxs-quote-alt-left' aria-hidden="true"></i>
+                    </div>
+                  </button>
                   <button type="button" class="action-icon-btn edit-btn admin-only" onclick="editSpin(${originalIdx})" aria-label="Edit Spin">
                     <span class="action-tooltip">Edit Spin</span>
                     <div class="action-icon-stage edit-icon-stage">
@@ -8674,6 +8680,11 @@ if (addTrackRatingRowBtn && trackRatingsList) {
   // ============================================================
   // EDIT / DELETE ACTIONS
   // ============================================================
+  window.makeLyricCardFromSpin = function(spinId) {
+    if (!isAdmin || spinId === null || spinId === undefined) return;
+    window.location.href = `lyrics.html?spin_id=${encodeURIComponent(spinId)}`;
+  };
+
   window.editSpin = function(idx) {
     if (!isAdmin) return;
     const item = allEntries[idx];

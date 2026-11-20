@@ -20,6 +20,8 @@
 
     if (currentPath.includes("stats")) {
       activePortal = "stats";
+    } else if (currentPath.includes("lyrics")) {
+      activePortal = "lyrics";
     } else if (currentPath.includes("sosacore")) {
       activePortal = "sosacore";
     } else if (currentPath.includes("top100")) {
@@ -53,6 +55,32 @@
         btn.removeAttribute("aria-current");
       }
     });
+
+    // Tuck dock away smoothly whenever any modal backdrop is visible
+    function syncModalTuckState() {
+      const modals = document.querySelectorAll(".sosa-modal-backdrop, .modal.show, [role='dialog'][aria-modal='true']");
+      let hasOpenModal = false;
+      modals.forEach((m) => {
+        if (m.classList.contains("is-closing")) return;
+        const backdrop = m.closest(".sosa-modal-backdrop") || m;
+        const style = window.getComputedStyle(backdrop);
+        if (style.display !== "none" && style.visibility !== "hidden" && parseFloat(style.opacity) > 0) {
+          hasOpenModal = true;
+        }
+      });
+      taskbar.classList.toggle("is-modal-tucked", hasOpenModal);
+    }
+
+    syncModalTuckState();
+    if (typeof MutationObserver === "function") {
+      const modalObserver = new MutationObserver(syncModalTuckState);
+      document.querySelectorAll(".sosa-modal-backdrop").forEach((backdrop) => {
+        modalObserver.observe(backdrop, {
+          attributes: true,
+          attributeFilter: ["style", "class", "aria-hidden"]
+        });
+      });
+    }
   }
 
   if (document.readyState === "loading") {
