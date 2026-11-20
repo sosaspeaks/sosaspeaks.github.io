@@ -22,7 +22,7 @@
     <meta name="apple-mobile-web-app-title" content="SosaSpeaks" />
     <link rel="manifest" href="assets/images/homepics/site.webmanifest?v=20260527" />
     <!-- Link to CSS -->
-    <link rel="stylesheet" href="assets/css/style.css?v=20261115d">
+    <link rel="stylesheet" href="assets/css/style.css?v=20261116k">
     <!-- Box icons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 
@@ -56,7 +56,11 @@
                 <a href="about.html" class="nav-custom-link" title="About">
                     <img src="assets/images/homepics/msgsres_1.ico" class="nav-custom-icon msngr-icon" alt="About">
                 </a>
-                <i class='bx bx-moon theme-toggle' style="scale: 155%;" title="Theme"></i>
+                <button type="button" class="aero-theme-switch theme-toggle" aria-label="Toggle Light/Dark Theme" title="Theme">
+                    <span class="aero-theme-glider" aria-hidden="true"></span>
+                    <span class="aero-theme-opt is-sun" aria-hidden="true"><i class='bx bxs-sun'></i></span>
+                    <span class="aero-theme-opt is-moon" aria-hidden="true"><i class='bx bxs-moon'></i></span>
+                </button>
             </div>
         </div>
     </header>
@@ -69,11 +73,13 @@
     </section>
     <!-- Post Filter -->
     <div class="post-filter container">
-        <span class="filter-item active-filter" data-filter="all">All</span>
-        <span class="filter-item" data-filter="ethics">Ethics</span>
-        <span class="filter-item" data-filter="media">Media</span>
-        <span class="filter-item" data-filter="politics">Politics</span>
-        <span class="filter-item" data-filter="history">History</span>
+        <div class="aero-filter-capsule" role="group" aria-label="Category filters">
+            <button type="button" class="filter-item active-filter" data-filter="all">All</button>
+            <button type="button" class="filter-item" data-filter="ethics">Ethics</button>
+            <button type="button" class="filter-item" data-filter="media">Media</button>
+            <button type="button" class="filter-item" data-filter="politics">Politics</button>
+            <button type="button" class="filter-item" data-filter="history">History</button>
+        </div>
     </div>
     <!-- Posts -->
     <section class="post container" id="postGrid">
@@ -388,7 +394,8 @@
     <!-- Link to JS -->
     <button class="to-top"><i class='bx bx-up-arrow-alt' style="scale: 250%;"></i></button>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="assets/js/home-feed.js?v=20261115d"></script>
-    <script src="assets/js/main.js?v=20261115d"></script>
+    <script src="assets/js/home-feed.js?v=20261116c"></script>
+    <script src="assets/js/main.js?v=20261116g"></script>
+    <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>
 </body>
 </html>
