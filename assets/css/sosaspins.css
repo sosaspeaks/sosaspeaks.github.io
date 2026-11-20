@@ -1190,19 +1190,33 @@ body.dark-mode .aero-filter-capsule button.filter-item.active,
 }
 
 .cf-status-badge.recalibrate-queue {
-  background: rgba(245, 158, 11, 0.2);
-  border: 1px solid rgba(251, 191, 36, 0.6);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  background: linear-gradient(135deg, rgba(254, 240, 138, 0.28) 0%, rgba(245, 158, 11, 0.32) 100%);
+  border: 1px solid rgba(251, 191, 36, 0.72);
   color: #fde047;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.35);
   text-decoration: none;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.cf-status-badge.recalibrate-queue:hover {
-  background: rgba(245, 158, 11, 0.35);
+.cf-status-badge.recalibrate-queue i {
+  font-size: 0.86rem;
+  line-height: 1;
+}
+
+.cf-status-badge.recalibrate-queue:hover,
+.cf-status-badge.recalibrate-queue:focus-visible {
+  background: linear-gradient(135deg, rgba(254, 240, 138, 0.42) 0%, rgba(245, 158, 11, 0.48) 100%);
   border-color: #fbbf24;
   color: #ffffff;
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 .cf-status-badge.unlistened {
@@ -2676,15 +2690,15 @@ body.dark-mode .context-meta-pill.is-movement:hover,
 }
 
 .category.recalibrate-queue-tag {
-  display: inline-flex;
+  position: relative;
+  display: inline-flex !important;
   align-items: center;
-  gap: 4px;
-  padding: 2px 7px !important;
+  justify-content: center;
+  padding: 2px 5px !important;
+  margin-left: 5px;
   font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 0.68rem !important;
+  font-size: 0.82rem !important;
   font-weight: 800 !important;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
   text-decoration: none;
   cursor: pointer;
   color: #78350f !important;
@@ -2694,10 +2708,17 @@ body.dark-mode .context-meta-pill.is-movement:hover,
   box-shadow: 0 0 10px rgba(245, 158, 11, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.85) !important;
   transform: translateY(-1px);
   vertical-align: middle;
+  line-height: 1;
   transition: all 0.15s ease;
 }
 
-.category.recalibrate-queue-tag:hover {
+.category.recalibrate-queue-tag i {
+  font-size: 0.88rem;
+  line-height: 1;
+}
+
+.category.recalibrate-queue-tag:hover,
+.category.recalibrate-queue-tag:focus-visible {
   background: linear-gradient(135deg, #ffffff 0%, #fef08a 35%, #fbbf24 100%) !important;
   box-shadow: 0 0 14px rgba(245, 158, 11, 0.65), inset 0 1px 0 #ffffff !important;
   border-color: #b45309 !important;
@@ -2712,10 +2733,66 @@ body.dark-mode .context-meta-pill.is-movement:hover,
   border-color: #fbbf24 !important;
 }
 
-.dark-mode .category.recalibrate-queue-tag:hover {
+.dark-mode .category.recalibrate-queue-tag:hover,
+.dark-mode .category.recalibrate-queue-tag:focus-visible {
   background: linear-gradient(135deg, #ffffff 0%, #fef08a 40%, #f59e0b 100%) !important;
   box-shadow: 0 0 16px rgba(251, 191, 36, 0.75), inset 0 1px 0 #ffffff !important;
   color: #291002 !important;
+}
+
+.recal-tooltip {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+  z-index: 120;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(240, 245, 250, 0.94) 100%);
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), inset 0 1px 0 #ffffff;
+  color: #1e293b;
+}
+
+.recal-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 4px;
+  border-style: solid;
+  border-color: rgba(240, 245, 250, 0.94) transparent transparent transparent;
+}
+
+.category.recalibrate-queue-tag:hover .recal-tooltip,
+.category.recalibrate-queue-tag:focus-visible .recal-tooltip,
+.cf-status-badge.recalibrate-queue:hover .recal-tooltip,
+.cf-status-badge.recalibrate-queue:focus-visible .recal-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+body.dark-mode .recal-tooltip,
+.dark-mode .recal-tooltip {
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.97) 0%, rgba(15, 23, 42, 0.97) 100%);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #f1f5f9;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+body.dark-mode .recal-tooltip::after,
+.dark-mode .recal-tooltip::after {
+  border-color: rgba(15, 23, 42, 0.97) transparent transparent transparent;
 }
 
 .spin-memo-entry blockquote {

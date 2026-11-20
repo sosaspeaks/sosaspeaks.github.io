@@ -4318,7 +4318,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
         const recalMeta = getActiveRecalibrateMeta(item);
         if (recalMeta) {
           const reasonLabel = recalMeta.relisten_reason ? ` (${escapeHtml(recalMeta.relisten_reason)})` : "";
-          infoPills.push(`<a href="challenge.html#recalibrate" class="cf-status-badge recalibrate-queue" title="Active in Recalibrate Queue${reasonLabel} &bull; Click to view in Challenge"><i class='bx bx-revision'></i> RECALIBRATE QUEUE</a>`);
+          infoPills.push(`<a href="challenge.html#recalibrate" class="cf-status-badge recalibrate-queue" aria-label="Recalibrate Queue${reasonLabel}"><i class='bx bx-revision' aria-hidden="true"></i><span class="recal-tooltip">Recalibrate Queue${reasonLabel}</span></a>`);
         }
       }
       if (infoPills.length) {
@@ -7354,7 +7354,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
                 const recalMeta = getActiveRecalibrateMeta(item);
                 if (!recalMeta) return "";
                 const reasonLabel = recalMeta.relisten_reason ? ` (${escapeHtml(recalMeta.relisten_reason)})` : "";
-                return `<a href="challenge.html#recalibrate" class="category recalibrate-queue-tag" title="Active in Recalibrate Queue${reasonLabel} &bull; Click to view in Challenge"><i class='bx bx-revision'></i> RECALIBRATE QUEUE</a>`;
+                return `<a href="challenge.html#recalibrate" class="category recalibrate-queue-tag" aria-label="Recalibrate Queue${reasonLabel}"><i class='bx bx-revision' aria-hidden="true"></i><span class="recal-tooltip">Recalibrate Queue${reasonLabel}</span></a>`;
               })()}
             </div>
             <span class="post-date">${item.log_date || ""}</span>
