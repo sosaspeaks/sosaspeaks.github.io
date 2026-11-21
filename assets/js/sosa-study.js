@@ -5,7 +5,11 @@
   const SUPABASE_URL = "https://gxgfuomkjrhixcjfvhvj.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_tgeBo35B4k__uyfMyaxXnA_O5KUKlL7";
 
-  const sb = window.supabaseClient || (window.supabase && window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY));
+  const sb =
+    window.supabaseClient ||
+    (typeof window.createSosaSupabaseClient === "function"
+      ? window.createSosaSupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      : window.supabase && window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY));
   if (!sb) return;
 
   // 1. Parse Artist & Title from #studySubheadingArtist + #studySubheadingAlbum, or legacy #studySubheading ("Artist - Album")

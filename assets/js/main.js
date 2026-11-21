@@ -121,26 +121,55 @@ const adminLockIcon = document.getElementById("adminLockIcon");
 const studioQuickLink = document.getElementById("studioQuickLink");
 
 if (adminTriggerBtn) {
-  // Check if active Supabase auth session exists in localStorage
-  const hasAuth = Object.keys(localStorage).some(key => key.includes('sb-') && key.includes('-auth-token'));
-  if (hasAuth) {
+  const rootPrefix = window.location.pathname.includes("/articles/") ? "../" : "";
+  const syncNavAdminState = (unlocked) => {
     if (adminLockIcon) {
-      adminLockIcon.src = "assets/icons/aero/lock_open.png";
-      adminTriggerBtn.title = "Admin Mode (Active)";
+      adminLockIcon.src = unlocked
+        ? `${rootPrefix}assets/icons/aero/lock_open.png`
+        : `${rootPrefix}assets/icons/aero/lock_closed.png`;
+      adminLockIcon.alt = unlocked ? "Unlocked" : "Locked";
     }
+    adminTriggerBtn.title = unlocked ? "Admin Mode (Active)" : "Admin Mode";
     if (studioQuickLink) {
-      studioQuickLink.style.display = "inline-flex";
+      studioQuickLink.style.display = unlocked ? "inline-flex" : "none";
     }
+  };
+
+  const hasAuth = typeof window.sosaHasStoredAuthToken === "function"
+    ? window.sosaHasStoredAuthToken()
+    : Object.keys(localStorage).some(key => {
+        if (!key.includes("sb-") || !key.includes("-auth-token")) return false;
+        try {
+          const parsed = JSON.parse(localStorage.getItem(key) || "null");
+          return !!(parsed && (parsed.access_token || parsed.refresh_token));
+        } catch (_) {
+          return false;
+        }
+      });
+
+  if (hasAuth) {
+    syncNavAdminState(true);
+  }
+
+  if (window.supabaseClient && window.supabaseClient.auth) {
+    window.supabaseClient.auth
+      .getSession()
+      .then(({ data }) => syncNavAdminState(!!(data && data.session)))
+      .catch(() => {});
+    window.supabaseClient.auth.onAuthStateChange((_ev, session) => {
+      syncNavAdminState(!!session);
+    });
   }
 
   adminTriggerBtn.addEventListener("click", () => {
-    window.location.href = "sosaspins.html";
+    window.location.href = `${rootPrefix}sosaspins.html`;
   });
 }
 
 window.addEventListener("keydown", (e) => {
   if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "a") {
     e.preventDefault();
-    window.location.href = "sosaspins.html";
+    const rootPrefix = window.location.pathname.includes("/articles/") ? "../" : "";
+    window.location.href = `${rootPrefix}sosaspins.html`;
   }
 });

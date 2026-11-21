@@ -9,7 +9,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const LASTFM_API_KEY = localStorage.getItem("lastfm_api_key") || "54dae88eb8fc817f7745c41968fca582";
 
   let sb = window.supabaseClient;
-  if (!sb && window.supabase) {
+  if (!sb && typeof window.createSosaSupabaseClient === "function") {
+    sb = window.createSosaSupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } else if (!sb && window.supabase) {
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     window.supabaseClient = sb;
   }

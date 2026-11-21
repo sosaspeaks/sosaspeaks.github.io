@@ -13,8 +13,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   const sb =
-    window.supabase &&
-    window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    typeof window.createSosaSupabaseClient === "function"
+      ? window.createSosaSupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      : window.supabase &&
+        window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   // --- DOM REFERENCES ---
   const lockScreen = document.getElementById("studioLockScreen");

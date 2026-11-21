@@ -10,8 +10,12 @@
   const SUPABASE_URL = "https://gxgfuomkjrhixcjfvhvj.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_tgeBo35B4k__uyfMyaxXnA_O5KUKlL7";
   const hasWindow = typeof window !== "undefined";
-  const supabaseClient = (hasWindow && window.supabase)
-    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  const supabaseClient = hasWindow
+    ? (typeof window.createSosaSupabaseClient === "function"
+        ? window.createSosaSupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+        : window.supabase
+        ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+        : null)
     : null;
 
   const DEFAULT_ARTIST_ALIASES = [
@@ -3922,6 +3926,59 @@
 
     // Boot
     loadSpinsData();
+
+    // Sync Admin Lock Icon & Trigger with Supabase Auth Session
+    const adminTriggerBtn = document.getElementById("adminTriggerBtn");
+    const adminLockIcon = document.getElementById("adminLockIcon");
+    let statsIsAdmin = false;
+
+    function updateStatsAdminUi(session) {
+      statsIsAdmin = !!session;
+      document.body.classList.toggle("is-admin", statsIsAdmin);
+      if (adminLockIcon) {
+        adminLockIcon.src = statsIsAdmin
+          ? "assets/icons/aero/lock_open.png"
+          : "assets/icons/aero/lock_closed.png";
+        adminLockIcon.alt = statsIsAdmin ? "Unlocked" : "Locked";
+      }
+      if (adminTriggerBtn) {
+        adminTriggerBtn.title = statsIsAdmin
+          ? "Admin Active (Click to Logout)"
+          : "Admin Locked (Click to Sign In)";
+        adminTriggerBtn.style.color = statsIsAdmin ? "#10b981" : "";
+      }
+    }
+
+    if (supabaseClient && supabaseClient.auth) {
+      supabaseClient.auth
+        .getSession()
+        .then(({ data }) => updateStatsAdminUi(data && data.session))
+        .catch(() => updateStatsAdminUi(null));
+      supabaseClient.auth.onAuthStateChange((_event, nextSession) => {
+        updateStatsAdminUi(nextSession);
+      });
+    }
+
+    async function handleStatsAdminAction() {
+      if (statsIsAdmin && supabaseClient && supabaseClient.auth) {
+        if (confirm("Log out of Admin mode?")) {
+          await supabaseClient.auth.signOut();
+        }
+      } else {
+        window.location.href = "sosaspins.html";
+      }
+    }
+
+    if (adminTriggerBtn) {
+      adminTriggerBtn.addEventListener("click", handleStatsAdminAction);
+    }
+
+    window.addEventListener("keydown", (e) => {
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        handleStatsAdminAction();
+      }
+    });
     });
   }
 

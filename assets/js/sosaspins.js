@@ -35,7 +35,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     return raw;
   }
-  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const supabaseClient = typeof window.createSosaSupabaseClient === "function"
+    ? window.createSosaSupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const sb = supabaseClient;
   window.supabaseClient = supabaseClient;
   const LASTFM_API_KEY = localStorage.getItem("lastfm_api_key") || "54dae88eb8fc817f7745c41968fca582";
@@ -826,8 +828,13 @@ function getDominantColorFromImg(imgUrl) {
   // ============================================================
   // NATIVE SUPABASE CLIENT ADMIN AUTHENTICATION (AERO MODAL)
   // ============================================================
-  const { data: { session } } = await sb.auth.getSession();
-  let isAdmin = !!session;
+  let isAdmin = false;
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    isAdmin = !!session;
+  } catch (authErr) {
+    console.warn("Auth getSession error:", authErr);
+  }
 
   sb.auth.onAuthStateChange((_event, newSession) => {
     isAdmin = !!newSession;

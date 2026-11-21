@@ -7,7 +7,9 @@
 
   const sb =
     window.supabaseClient ||
-    (window.supabase && window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY));
+    (typeof window.createSosaSupabaseClient === "function"
+      ? window.createSosaSupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      : window.supabase && window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY));
 
   if (sb && !window.supabaseClient) {
     window.supabaseClient = sb;
