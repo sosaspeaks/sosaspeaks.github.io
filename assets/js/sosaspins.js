@@ -9346,35 +9346,276 @@ if (addTrackRatingRowBtn && trackRatingsList) {
   };
 
   // ============================================================
-  // RYM CLIPBOARD IMPORTER
+  // RYM CLIPBOARD IMPORTER (Full Release, Tracks & Ratings, Descriptors)
   // ============================================================
-  const rymImportBtn = document.getElementById("rymImportBtn");
-  if (rymImportBtn) {
-    rymImportBtn.addEventListener("click", async () => {
-      let jsonText = "";
-      try {
-        if (navigator.clipboard && navigator.clipboard.readText) {
-          jsonText = await navigator.clipboard.readText();
-        }
-      } catch (err) {
-        console.warn("Clipboard read permission issue:", err);
-      }
+  const KNOWN_SCENE_TAGS = new Set([
+    "southern hip hop", "west coast hip hop", "east coast hip hop", "midwest hip hop",
+    "dmv hip hop", "uk hip hop", "south florida soundcloud rap",
+    "new brunswick basement scene", "bristol sound", "louisville sound",
+    "san diego sound", "detroit sound", "houston sound", "minneapolis sound",
+    "nashville sound", "palm desert scene", "shibuya-kei", "shimokita-kei", "mandopop"
+  ]);
 
-      if (!jsonText || !jsonText.trim().startsWith("{")) {
-        jsonText = prompt("Paste the Rate Your Music JSON below:", jsonText || "");
-      }
+  const KNOWN_MOVEMENT_TAGS = new Set([
+    "afrofuturism", "beijing new sound", "new rave", "hauntology",
+    "indie sleaze revival", "furry music", "seapunk", "scene", "rabm", "new romantic"
+  ]);
 
-      if (!jsonText || !jsonText.trim()) return;
+  function dedupeRymTaxonomyTags(rawGenres, rawSecondaryGenres, rawScenes, rawMovements) {
+    const scenes = [];
+    const movements = [];
+    const genres = [];
+    const secondaryGenres = [];
+    const seenS = new Set();
+    const seenM = new Set();
+    const seenG = new Set();
+    const seenSG = new Set();
+
+    const pushUnique = (list, seen, val) => {
+      const clean = String(val || "").trim();
+      if (!clean) return;
+      const key = clean.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      list.push(clean);
+    };
+
+    (Array.isArray(rawScenes) ? rawScenes : []).forEach(v => pushUnique(scenes, seenS, v));
+    (Array.isArray(rawMovements) ? rawMovements : []).forEach(v => pushUnique(movements, seenM, v));
+
+    const routeTag = (raw, list, seen) => {
+      const clean = String(raw || "").trim();
+      if (!clean) return;
+      const key = clean.toLowerCase();
+      if (seenS.has(key) || KNOWN_SCENE_TAGS.has(key)) {
+        pushUnique(scenes, seenS, clean);
+        return;
+      }
+      if (seenM.has(key) || KNOWN_MOVEMENT_TAGS.has(key)) {
+        pushUnique(movements, seenM, clean);
+        return;
+      }
+      pushUnique(list, seen, clean);
+    };
+
+    (Array.isArray(rawGenres) ? rawGenres : []).forEach(g => routeTag(g, genres, seenG));
+    (Array.isArray(rawSecondaryGenres) ? rawSecondaryGenres : []).forEach(g => {
+      const key = String(g || "").trim().toLowerCase();
+      if (key && seenG.has(key)) return;
+      routeTag(g, secondaryGenres, seenSG);
+    });
+
+    return { genres, secondaryGenres, scenes, movements };
+  }
+
+  function cleanImportedDescriptors(rawInput) {
+    const rawList = Array.isArray(rawInput)
+      ? rawInput
+      : String(rawInput || "").replace(/^\s*descriptors\s*:?\s*/i, "").split(/[,\n]+/);
+    const cleanDescriptors = [];
+    const seen = new Set();
+    rawList.forEach(d => {
+      if (!d) return;
+      const s = String(d).replace(/^\s*descriptors\s*:?\s*/i, "").trim();
+      if (!s || s.toLowerCase() === "descriptors") return;
+      if (s.split(/\s+/).length > 5 || s.length > 45) return;
+      const key = s.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      cleanDescriptors.push(s);
+    });
+    return cleanDescriptors;
+  }
+
+  async function readClipboardTextWithPrompt(promptMessage, { requireJsonObject = true } = {}) {
+    let text = "";
+    try {
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        text = await navigator.clipboard.readText();
+      }
+    } catch (err) {
+      console.warn("Clipboard read permission issue:", err);
+    }
+
+    const trimmed = String(text || "").trim();
+    if (!trimmed || (requireJsonObject && !trimmed.startsWith("{"))) {
+      text = prompt(promptMessage, trimmed);
+    }
+    return String(text || "").trim();
+  }
+
+  function flashRymButtonFeedback(btn, successHtml = `<i class='bx bx-check'></i> Pasted!`, durationMs = 1800) {
+    if (!btn) return;
+    const origHtml = btn.dataset.origHtml || btn.innerHTML;
+    btn.dataset.origHtml = origHtml;
+    btn.innerHTML = successHtml;
+    btn.classList.add("btn-import-success");
+    if (btn._flashTimer) clearTimeout(btn._flashTimer);
+    btn._flashTimer = setTimeout(() => {
+      btn.innerHTML = origHtml;
+      btn.classList.remove("btn-import-success");
+    }, durationMs);
+  }
+
+  function applyDescriptorsOnlyToModal(rawDescriptors) {
+    const clean = cleanImportedDescriptors(rawDescriptors);
+    if (!clean.length) return 0;
+    if (window.logDescriptorsManager) {
+      window.logDescriptorsManager.setTags(clean);
+    }
+    return clean.length;
+  }
+
+  function applyTracksOnlyToModal(data, { preserveExistingRuntime = true } = {}) {
+    const hasTracklist = Array.isArray(data && data.tracklist) && data.tracklist.length > 0;
+    const hasTrackRatings = Array.isArray(data && data.track_ratings) && data.track_ratings.length > 0;
+    if (!hasTracklist && !hasTrackRatings) return false;
+
+    const existingRows = typeof collectTrackRatingRows === "function" ? collectTrackRatingRows() : [];
+    const existingUrlByTitle = new Map();
+    const existingRatingByTitle = new Map();
+    existingRows.forEach(row => {
+      const k = String(row.title || "").trim().toLowerCase();
+      if (!k) return;
+      if (row.url) existingUrlByTitle.set(k, row.url);
+      if (row.rating !== null && row.rating !== undefined && row.rating !== "") {
+        existingRatingByTitle.set(k, row.rating);
+      }
+    });
+
+    const mergeExistingMeta = (items) =>
+      (Array.isArray(items) ? items : []).map(item => {
+        if (!item || typeof item !== "object") return item;
+        const k = String(item.title || "").trim().toLowerCase();
+        const url = item.url || existingUrlByTitle.get(k) || "";
+        const rating = (item.rating !== null && item.rating !== undefined && item.rating !== "")
+          ? item.rating
+          : (hasTrackRatings ? null : (existingRatingByTitle.get(k) ?? null));
+        return { ...item, url, rating };
+      });
+
+    const enrichedPayload = {
+      ...data,
+      tracklist: mergeExistingMeta(data.tracklist),
+      track_ratings: mergeExistingMeta(data.track_ratings)
+    };
+
+    const logRuntimeEl = document.getElementById("logRuntime");
+    const existingRuntimeVal = preserveExistingRuntime && logRuntimeEl ? logRuntimeEl.value : "";
+
+    const importedTypeVal = document.getElementById("logType") ? document.getElementById("logType").value : (data.type || "");
+    const isImportedSingle = importedTypeVal.trim().toLowerCase() === "single";
+    applyImportedTracksToModal(enrichedPayload, {
+      isSingle: isImportedSingle,
+      overwriteExistingTrackRatings: true
+    });
+
+    if (preserveExistingRuntime && existingRuntimeVal && existingRuntimeVal.trim() && logRuntimeEl) {
+      logRuntimeEl.value = existingRuntimeVal;
+    } else if (!preserveExistingRuntime && data.runtime && logRuntimeEl) {
+      logRuntimeEl.value = data.runtime;
+    }
+
+    return true;
+  }
+
+  const pasteTrackRatingsBtn = document.getElementById("pasteTrackRatingsBtn");
+  if (pasteTrackRatingsBtn) {
+    pasteTrackRatingsBtn.addEventListener("click", async () => {
+      const jsonText = await readClipboardTextWithPrompt("Paste the Rate Your Music Tracks JSON below:");
+      if (!jsonText) return;
 
       let data;
       try {
-        data = JSON.parse(jsonText.trim());
+        data = JSON.parse(jsonText);
+      } catch (e) {
+        alert("Could not parse clipboard data as JSON. Copy tracks using the RYM Exporter 'Tracks' button.");
+        return;
+      }
+
+      if (!applyTracksOnlyToModal(data, { preserveExistingRuntime: true })) {
+        alert("Clipboard JSON does not contain a tracklist or track ratings.");
+        return;
+      }
+
+      flashRymButtonFeedback(pasteTrackRatingsBtn, `<i class='bx bx-check'></i> Pasted!`);
+    });
+  }
+
+  const pasteDescriptorsBtn = document.getElementById("pasteDescriptorsBtn");
+  if (pasteDescriptorsBtn) {
+    pasteDescriptorsBtn.addEventListener("click", async () => {
+      const rawText = await readClipboardTextWithPrompt(
+        "Paste RYM Descriptors JSON or comma-separated descriptors:",
+        { requireJsonObject: false }
+      );
+      if (!rawText) return;
+
+      let descriptorSource = rawText;
+      if (rawText.startsWith("{") || rawText.startsWith("[")) {
+        try {
+          const parsed = JSON.parse(rawText);
+          if (Array.isArray(parsed)) {
+            descriptorSource = parsed;
+          } else if (parsed && Array.isArray(parsed.descriptors)) {
+            descriptorSource = parsed.descriptors;
+          } else {
+            alert("Clipboard JSON does not contain descriptors.");
+            return;
+          }
+        } catch (e) {
+          // Fall back to comma-separated text parsing
+        }
+      }
+
+      const appliedCount = applyDescriptorsOnlyToModal(descriptorSource);
+      if (!appliedCount) {
+        alert("No valid descriptors found to paste.");
+        return;
+      }
+
+      flashRymButtonFeedback(pasteDescriptorsBtn, `<i class='bx bx-check'></i> Pasted!`);
+    });
+  }
+
+  const rymImportBtn = document.getElementById("rymImportBtn");
+  if (rymImportBtn) {
+    rymImportBtn.addEventListener("click", async () => {
+      const jsonText = await readClipboardTextWithPrompt("Paste the Rate Your Music JSON below:");
+      if (!jsonText) return;
+
+      let data;
+      try {
+        data = JSON.parse(jsonText);
       } catch (e) {
         alert("Could not parse clipboard data as JSON. Please ensure you copied data from RYM.");
         return;
       }
 
-      if (!data || (!data.artist && !data.title)) {
+      if (!data || typeof data !== "object") {
+        alert("Clipboard JSON is invalid.");
+        return;
+      }
+
+      if (data.export_type === "tracks") {
+        if (!applyTracksOnlyToModal(data, { preserveExistingRuntime: true })) {
+          alert("Clipboard JSON does not contain any tracklist or track ratings.");
+          return;
+        }
+        flashRymButtonFeedback(rymImportBtn, `<i class='bx bx-check'></i> Tracks Pasted!`);
+        return;
+      }
+
+      if (data.export_type === "descriptors") {
+        if (!applyDescriptorsOnlyToModal(data.descriptors || [])) {
+          alert("Clipboard JSON does not contain any descriptors.");
+          return;
+        }
+        flashRymButtonFeedback(rymImportBtn, `<i class='bx bx-check'></i> Descriptors Pasted!`);
+        return;
+      }
+
+      if (!data.artist && !data.title) {
         alert("Clipboard JSON does not contain valid album data (missing artist or title).");
         return;
       }
@@ -9431,31 +9672,29 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         if (downloadArtBtn) downloadArtBtn.style.display = "inline-block";
       }
 
+      // Deduplicate Genres vs Scenes / Movements
+      const dedupedTaxonomy = dedupeRymTaxonomyTags(
+        data.genres || [],
+        data.secondary_genres || [],
+        data.scenes || [],
+        data.movements || []
+      );
+
       // Tag Managers
       if (window.logGenresManager) {
-        window.logGenresManager.setTags(data.genres || []);
+        window.logGenresManager.setTags(dedupedTaxonomy.genres);
       }
       if (window.logSecondaryGenresManager) {
-        window.logSecondaryGenresManager.setTags(data.secondary_genres || []);
+        window.logSecondaryGenresManager.setTags(dedupedTaxonomy.secondaryGenres);
       }
       if (window.logDescriptorsManager) {
-        let cleanDescriptors = [];
-        if (Array.isArray(data.descriptors)) {
-          data.descriptors.forEach(d => {
-            if (!d) return;
-            const s = String(d).replace(/^\s*descriptors\s*:?\s*/i, "").trim();
-            if (!s || s.toLowerCase() === "descriptors") return;
-            if (s.split(/\s+/).length > 5 || s.length > 45) return;
-            if (!cleanDescriptors.includes(s)) cleanDescriptors.push(s);
-          });
-        }
-        window.logDescriptorsManager.setTags(cleanDescriptors);
+        window.logDescriptorsManager.setTags(cleanImportedDescriptors(data.descriptors || []));
       }
-      if (window.logScenesManager && data.scenes) {
-        window.logScenesManager.setTags(data.scenes);
+      if (window.logScenesManager && dedupedTaxonomy.scenes) {
+        window.logScenesManager.setTags(dedupedTaxonomy.scenes);
       }
-      if (window.logMovementsManager && data.movements) {
-        window.logMovementsManager.setTags(data.movements);
+      if (window.logMovementsManager && dedupedTaxonomy.movements) {
+        window.logMovementsManager.setTags(dedupedTaxonomy.movements);
       }
 
       const importedTypeVal = document.getElementById("logType") ? document.getElementById("logType").value : (data.type || "");
@@ -9465,14 +9704,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         overwriteExistingTrackRatings: Array.isArray(data.track_ratings) && data.track_ratings.length > 0
       });
 
-      // Visual success confirmation on button
-      const origHtml = rymImportBtn.innerHTML;
-      rymImportBtn.innerHTML = `<i class='bx bx-check'></i> Imported!`;
-      rymImportBtn.classList.add("btn-import-success");
-      setTimeout(() => {
-        rymImportBtn.innerHTML = origHtml;
-        rymImportBtn.classList.remove("btn-import-success");
-      }, 1800);
+      flashRymButtonFeedback(rymImportBtn, `<i class='bx bx-check'></i> Imported!`);
     });
   }
 

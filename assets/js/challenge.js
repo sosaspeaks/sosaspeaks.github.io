@@ -2405,7 +2405,79 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
 
-      if (!data || (!data.artist && !data.title)) {
+      if (!data) {
+        alert("Clipboard JSON does not contain valid album data.");
+        return;
+      }
+
+      const dedupeChallengeRymTags = (rawGenres, rawSec, rawScenes, rawMovements) => {
+        const scenes = [], movements = [], genres = [], secondary = [];
+        const sSet = new Set(), mSet = new Set(), gSet = new Set(), sgSet = new Set();
+        const knownS = new Set([
+          "southern hip hop", "west coast hip hop", "east coast hip hop", "midwest hip hop",
+          "dmv hip hop", "uk hip hop", "south florida soundcloud rap",
+          "new brunswick basement scene", "bristol sound", "louisville sound",
+          "san diego sound", "detroit sound", "houston sound", "minneapolis sound",
+          "nashville sound", "palm desert scene", "shibuya-kei", "shimokita-kei", "mandopop"
+        ]);
+        const knownM = new Set([
+          "afrofuturism", "beijing new sound", "new rave", "hauntology",
+          "indie sleaze revival", "furry music", "seapunk", "scene", "rabm", "new romantic"
+        ]);
+        const pushU = (arr, set, v) => {
+          const c = String(v || "").trim();
+          if (!c) return;
+          const k = c.toLowerCase();
+          if (set.has(k)) return;
+          set.add(k);
+          arr.push(c);
+        };
+        (Array.isArray(rawScenes) ? rawScenes : []).forEach(v => pushU(scenes, sSet, v));
+        (Array.isArray(rawMovements) ? rawMovements : []).forEach(v => pushU(movements, mSet, v));
+        const route = (v, arr, set) => {
+          const c = String(v || "").trim();
+          if (!c) return;
+          const k = c.toLowerCase();
+          if (sSet.has(k) || knownS.has(k)) { pushU(scenes, sSet, c); return; }
+          if (mSet.has(k) || knownM.has(k)) { pushU(movements, mSet, c); return; }
+          pushU(arr, set, c);
+        };
+        (Array.isArray(rawGenres) ? rawGenres : []).forEach(v => route(v, genres, gSet));
+        (Array.isArray(rawSec) ? rawSec : []).forEach(v => {
+          const k = String(v || "").trim().toLowerCase();
+          if (k && gSet.has(k)) return;
+          route(v, secondary, sgSet);
+        });
+        return { genres, secondary, scenes, movements };
+      };
+
+      if (data.export_type === "descriptors") {
+        if (window.addDescriptorsManager && Array.isArray(data.descriptors)) {
+          const cleanDescriptors = [];
+          data.descriptors.forEach(d => {
+            if (!d) return;
+            const s = String(d).replace(/^\s*descriptors\s*:?\s*/i, "").trim();
+            if (!s || s.toLowerCase() === "descriptors" || s.split(/\s+/).length > 5 || s.length > 45) return;
+            if (!cleanDescriptors.includes(s)) cleanDescriptors.push(s);
+          });
+          window.addDescriptorsManager.setTags(cleanDescriptors);
+        }
+        const origHtml = rymImportBtn.innerHTML;
+        rymImportBtn.innerHTML = `<i class='bx bx-check'></i> Descriptors Pasted!`;
+        rymImportBtn.classList.add("btn-import-success");
+        setTimeout(() => {
+          rymImportBtn.innerHTML = origHtml;
+          rymImportBtn.classList.remove("btn-import-success");
+        }, 1800);
+        return;
+      }
+
+      if (data.export_type === "tracks") {
+        alert("Challenge backlog entries do not store per-track ratings. Copy the full Release (Alt+S) to import album metadata here.");
+        return;
+      }
+
+      if (!data.artist && !data.title) {
         alert("Clipboard JSON does not contain valid album data (missing artist or title).");
         return;
       }
@@ -2443,12 +2515,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (addPreviewImg) addPreviewImg.src = data.cover_url;
       }
 
+      const dedupedTax = dedupeChallengeRymTags(
+        data.genres || [],
+        data.secondary_genres || [],
+        data.scenes || [],
+        data.movements || []
+      );
+
       // Tag Managers
       if (window.addGenresManager) {
-        window.addGenresManager.setTags(data.genres || []);
+        window.addGenresManager.setTags(dedupedTax.genres);
       }
       if (window.addSecondaryGenresManager) {
-        window.addSecondaryGenresManager.setTags(data.secondary_genres || []);
+        window.addSecondaryGenresManager.setTags(dedupedTax.secondary);
       }
       if (window.addDescriptorsManager) {
         let cleanDescriptors = [];
@@ -2463,11 +2542,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         window.addDescriptorsManager.setTags(cleanDescriptors);
       }
-      if (window.addScenesManager && Array.isArray(data.scenes)) {
-        window.addScenesManager.setTags(data.scenes);
+      if (window.addScenesManager && Array.isArray(dedupedTax.scenes)) {
+        window.addScenesManager.setTags(dedupedTax.scenes);
       }
-      if (window.addMovementsManager && Array.isArray(data.movements)) {
-        window.addMovementsManager.setTags(data.movements);
+      if (window.addMovementsManager && Array.isArray(dedupedTax.movements)) {
+        window.addMovementsManager.setTags(dedupedTax.movements);
       }
 
       // Visual success confirmation

@@ -7103,6 +7103,93 @@ body.dark-mode .modal-form-group .add-track-btn:hover {
   gap: 0.4rem;
 }
 
+.tr-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.tag-box-with-action {
+  display: flex;
+  align-items: stretch;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.tag-box-with-action .tag-input-box {
+  flex: 1 1 auto !important;
+  min-width: 0;
+  width: auto !important;
+}
+
+.field-paste-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0 0.65rem;
+  min-height: 36px;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.74rem;
+  font-weight: 700;
+  background: rgba(14, 165, 233, 0.12);
+  color: #0369a1;
+  border: 1px solid rgba(14, 165, 233, 0.38);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.field-paste-btn:hover {
+  background: #0ea5e9;
+  color: #ffffff;
+  border-color: #0284c7;
+}
+
+body.dark-mode .field-paste-btn {
+  background: rgba(56, 189, 248, 0.16);
+  color: #bae6fd;
+  border-color: rgba(56, 189, 248, 0.38);
+}
+
+body.dark-mode .field-paste-btn:hover {
+  background: #38bdf8;
+  color: #0f172a;
+}
+
+.modal-form-group .add-track-btn.tr-paste-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: rgba(14, 165, 233, 0.12);
+  color: #0369a1;
+  border-color: rgba(14, 165, 233, 0.38);
+}
+
+.modal-form-group .add-track-btn.tr-paste-btn:hover {
+  background: #0ea5e9;
+  color: #ffffff;
+  border-color: #0284c7;
+}
+
+body.dark-mode .modal-form-group .add-track-btn.tr-paste-btn {
+  background: rgba(56, 189, 248, 0.16);
+  color: #bae6fd;
+  border-color: rgba(56, 189, 248, 0.38);
+}
+
+body.dark-mode .modal-form-group .add-track-btn.tr-paste-btn:hover {
+  background: #38bdf8;
+  color: #0f172a;
+}
+
+.field-paste-btn.btn-import-success,
+.modal-form-group .add-track-btn.btn-import-success {
+  background: #10b981 !important;
+  color: #ffffff !important;
+  border-color: #059669 !important;
+}
+
 .tr-count-badge {
   display: inline-flex;
   align-items: center;
