@@ -498,6 +498,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     return fallbackYear ? parseInt(fallbackYear, 10) : 2026;
   }
 
+  function resolveBacklogMonthTabYear(monthKey, optionYear = null) {
+    const clean = String(monthKey || "").trim().toLowerCase();
+    if (!clean || clean === "recalibrate" || clean === "relisten") return 2026;
+    const tabBtn = document.querySelector(`menu.w7-month-tabs button[data-month="${clean}"]`);
+    const tabYear = tabBtn ? tabBtn.getAttribute("data-year") : null;
+    return resolveChallengeMonthYear(clean, optionYear || tabYear);
+  }
+
   function getInitialChallengeMonth() {
     const urlParams = new URLSearchParams(window.location.search);
     const urlTab = (urlParams.get("tab") || urlParams.get("month") || "").toLowerCase().trim();
@@ -3400,7 +3408,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // Load Data
-  async function loadData() {
+  async function loadData(preferredMonth = null) {
+    const wasDataLoaded = isDataLoaded;
     try {
       const [backlogRes, spinsRes] = await Promise.all([
         sb.from("challenge_backlog").select("*"),
@@ -3438,7 +3447,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       isDataLoaded = true;
       syncMonthTabs();
 
-      const targetMonth = getInitialChallengeMonth();
+      const targetMonth = preferredMonth || (wasDataLoaded && activeMonth ? activeMonth : getInitialChallengeMonth());
       setActiveMonthTab(targetMonth);
 
       updateAdminVisibility();
@@ -4494,10 +4503,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const sourcePos = sourceAlbum.position;
     const targetPos = targetAlbum.position;
 
-    // Swap month and position in memory
+    // Keep year synchronized with the destination month tab when swapping across months
     sourceAlbum.month = targetMonth;
+    sourceAlbum.year = resolveBacklogMonthTabYear(targetMonth);
     sourceAlbum.position = targetPos;
     targetAlbum.month = sourceMonth;
+    targetAlbum.year = resolveBacklogMonthTabYear(sourceMonth);
     targetAlbum.position = sourcePos;
 
     backlogEntries.sort((a, b) => {
@@ -4517,7 +4528,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       await Promise.all(
         affectedItems.map(item =>
           sb.from("challenge_backlog")
-            .update({ month: item.month, position: item.position })
+            .update({ month: item.month, year: resolveBacklogMonthTabYear(item.month), position: item.position })
             .eq("id", item.id)
         )
       );
@@ -4543,6 +4554,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     targetList.forEach((item, idx) => { item.position = idx; });
 
     sourceAlbum.month = targetMonth;
+    sourceAlbum.year = resolveBacklogMonthTabYear(targetMonth);
     sourceAlbum.position = targetList.length;
 
     backlogEntries.sort((a, b) => {
@@ -4560,7 +4572,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       await Promise.all(
         affectedItems.map(item =>
           sb.from("challenge_backlog")
-            .update({ month: item.month, position: item.position })
+            .update({ month: item.month, year: resolveBacklogMonthTabYear(item.month), position: item.position })
             .eq("id", item.id)
         )
       );
@@ -4793,15 +4805,11 @@ document.addEventListener("DOMContentLoaded", async () => {
               -1
             );
             updatePayload.position = maxPos + 1;
-
-            const selectedOption = addMonth ? addMonth.options[addMonth.selectedIndex] : null;
-            const optYear = selectedOption ? selectedOption.getAttribute("data-year") : null;
-            const targetTabBtn = document.querySelector(`menu.w7-month-tabs button[data-month="${targetMonth}"]`);
-            const tabYear = targetTabBtn ? targetTabBtn.getAttribute("data-year") : null;
-            const monthIdx = MONTH_NAMES.findIndex(m => m.toLowerCase() === targetMonth);
-            const resolvedYear = optYear ? parseInt(optYear, 10) : (tabYear ? parseInt(tabYear, 10) : (monthIdx !== -1 && monthIdx < 9 ? 2027 : 2026));
-            updatePayload.year = resolvedYear;
           }
+
+          const selectedOption = addMonth ? addMonth.options[addMonth.selectedIndex] : null;
+          const optYear = selectedOption ? selectedOption.getAttribute("data-year") : null;
+          updatePayload.year = resolveBacklogMonthTabYear(targetMonth, optYear);
 
           try {
             const { error } = await sb
@@ -4929,7 +4937,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (window.addMovementsManager) window.addMovementsManager.setTags([]);
           if (addPreviewImg) addPreviewImg.src = FALLBACK_PLACEHOLDER;
 
-        await loadData();
+        await loadData(targetMonth);
 
       } catch (err) {
         console.error("Save error:", err);

@@ -6827,7 +6827,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
           targetHash = "recalibrate";
         } else {
           let mName = mRaw;
-          let y = b.year ? parseInt(b.year, 10) : null;
+          let y = null;
           const matchWithYear = mRaw.match(/^([a-z]+)[-_ ](?:'|20)?(\d{2,4})$/);
           if (matchWithYear) {
             mName = matchWithYear[1];
@@ -6839,10 +6839,12 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
           const capitalized = monthIdx !== -1 ? MONTH_NAMES_LIST[monthIdx] : (mName.charAt(0).toUpperCase() + mName.slice(1));
 
           if (!y) {
-            // Challenge timeline started October 2026:
-            // Oct (9), Nov (10), Dec (11) -> 2026
-            // Jan (0) through Sep (8) -> 2027
-            y = (monthIdx >= 9) ? 2026 : 2027;
+            // Year 1 challenge months use canonical calendar mapping when no explicit
+            // year suffix is stored on `month` (matching challenge.js & stats.js):
+            // Oct (9), Nov (10), Dec (11) -> 2026; Jan (0)..Sep (8) -> 2027.
+            y = monthIdx !== -1
+              ? (monthIdx >= 9 ? 2026 : 2027)
+              : (b.year ? parseInt(b.year, 10) : 2026);
           }
 
           groupKey = `${mName}_${y}`;
