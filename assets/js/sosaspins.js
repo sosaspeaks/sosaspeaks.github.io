@@ -9457,6 +9457,29 @@ if (addTrackRatingRowBtn && trackRatingsList) {
 
   function flashRymButtonFeedback(btn, successHtml = `<i class='bx bx-check'></i> Pasted!`, durationMs = 1800) {
     if (!btn) return;
+    if (btn.classList.contains("box-floating-paste-btn")) {
+      const iconEl = btn.querySelector("i");
+      const tipEl = btn.querySelector(".aero-icon-tooltip");
+      const origIconCls = btn.dataset.origIconClass || (iconEl ? iconEl.className : "bx bx-clipboard");
+      const origTipText = btn.dataset.origTipText || (tipEl ? tipEl.textContent : "");
+      btn.dataset.origIconClass = origIconCls;
+      btn.dataset.origTipText = origTipText;
+
+      if (iconEl) iconEl.className = "bx bx-check";
+      if (tipEl) {
+        const cleanLabel = String(successHtml || "").replace(/<[^>]*>/g, "").trim();
+        if (cleanLabel) tipEl.textContent = cleanLabel;
+      }
+      btn.classList.add("btn-import-success");
+      if (btn._flashTimer) clearTimeout(btn._flashTimer);
+      btn._flashTimer = setTimeout(() => {
+        if (iconEl) iconEl.className = origIconCls;
+        if (tipEl) tipEl.textContent = origTipText;
+        btn.classList.remove("btn-import-success");
+      }, durationMs);
+      return;
+    }
+
     const origHtml = btn.dataset.origHtml || btn.innerHTML;
     btn.dataset.origHtml = origHtml;
     btn.innerHTML = successHtml;

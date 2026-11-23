@@ -21,7 +21,7 @@
   <meta property="og:description" content="Explore Sosa's 6x6 monthly album listening challenge backlog and completed spins.">
   <meta property="og:image" content="https://sosaspeaks.org/assets/images/homepics/Sosa-Icon-V3.png">
   <link rel="icon" type="image/png" href="assets/images/homepics/Sosa-Icon-V3.png">
-  <link rel="stylesheet" href="assets/css/challenge.css?v=20261122b">
+  <link rel="stylesheet" href="assets/css/challenge.css?v=20261122d">
   <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
   <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
 </head>
@@ -368,14 +368,13 @@
                 onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
             </div>
             <div class="modal-cover-btns">
-              <button type="button" id="fetchCoverBtn" class="aero-btn-action modal-cover-action-btn" title="Fetch high-res album artwork">
-                <i class='bx bx-image'></i> Fetch Art
+              <button type="button" id="fetchSpinCoverBtn" class="aero-btn-action modal-cover-icon-btn" aria-label="Get Spin Cover">
+                <i class='bx bx-disc'></i>
+                <span class="aero-icon-tooltip">Get Spin Cover</span>
               </button>
-              <button type="button" id="fetchSpinCoverBtn" class="aero-btn-action modal-cover-action-btn" title="Match cover from previously logged spins">
-                <i class='bx bx-disc'></i> Get Spin Cover
-              </button>
-              <button type="button" id="rymImportBtn" class="aero-btn-action rym-import-btn modal-cover-action-btn" title="Import release data from Rate Your Music clipboard">
-                <i class='bx bx-clipboard'></i> Import RYM
+              <button type="button" id="rymImportBtn" class="aero-btn-action rym-import-btn modal-cover-icon-btn" aria-label="Import RYM">
+                <i class='bx bx-clipboard'></i>
+                <span class="aero-icon-tooltip">Import RYM</span>
               </button>
             </div>
           </div>
@@ -441,18 +440,11 @@
           </div>
         </div>
 
-        <!-- Cover Selector Carousel -->
-        <div id="artCandidatesContainer" class="art-candidates-picker is-hidden" style="display: none;">
-          <span class="picker-label">Select Artwork:</span>
-          <div id="artThumbnailsRow" class="thumbnails-scroll-row"></div>
+        <div class="modal-compact-meta-row">
+          <input type="text" id="addRuntime" class="sosa-search-input compact-meta-input" placeholder="Runtime (e.g. 42m)" title="Project Runtime">
+          <input type="number" id="addRymRating" class="sosa-search-input compact-meta-input" placeholder="RYM Avg" step="0.01" min="0" max="5.0" title="RYM Average Rating">
+          <input type="text" id="addCoverUrl" class="sosa-search-input compact-meta-input" placeholder="Cover URL" title="Cover Art URL">
         </div>
-
-        <div class="modal-split-row">
-          <input type="text" id="addRuntime" class="sosa-search-input" placeholder="Runtime (e.g. 42m 15s)">
-          <input type="number" id="addRymRating" class="sosa-search-input" placeholder="RYM Rating (e.g. 3.75)" step="0.01" min="0" max="5.0">
-        </div>
-
-                <input type="text" id="addCoverUrl" class="sosa-search-input" placeholder="Cover URL">
        <!-- Primary Genres Tag Box -->
         <div class="tag-field-row">
           <div class="tag-input-box" id="genresTagBox">
@@ -473,13 +465,14 @@
 
 
         <!-- Descriptors Tag Box -->
-        <div class="tag-field-row">
-          <div class="tag-box-with-action">
-            <div class="tag-input-box" id="descriptorsTagBox">
-              <input type="text" id="addDescriptorsInput" class="tag-inline-input" placeholder="Add Descriptor..." autocomplete="off">
-            </div>
-            <button type="button" id="pasteDescriptorsBtn" class="field-paste-btn" title="Paste RYM Descriptors (or full RYM JSON / comma-separated list)"><i class='bx bx-clipboard'></i> Paste</button>
+        <div class="tag-field-row has-floating-paste-row">
+          <div class="tag-input-box has-floating-paste is-compact-descriptors" id="descriptorsTagBox">
+            <input type="text" id="addDescriptorsInput" class="tag-inline-input" placeholder="Add Descriptor..." autocomplete="off">
           </div>
+          <button type="button" id="pasteDescriptorsBtn" class="box-floating-paste-btn" aria-label="Paste RYM Descriptors">
+            <i class='bx bx-clipboard'></i>
+            <span class="aero-icon-tooltip">Paste Descriptors</span>
+          </button>
           <div class="aero-autocomplete-menu" id="descriptorsDropdown" style="display: none;"></div>
         </div>
         <input type="hidden" id="addDescriptors" value="">
@@ -748,7 +741,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="assets/js/sosa-auth.js?v=20261121a"></script>
   <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
-  <script src="assets/js/challenge.js?v=20261122e"></script>
+  <script src="assets/js/challenge.js?v=20261122f"></script>
   <script src="assets/js/dock.js?v=20261115c"></script>
   <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>
 </body>

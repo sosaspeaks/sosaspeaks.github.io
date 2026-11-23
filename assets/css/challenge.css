@@ -2297,6 +2297,35 @@ select.sosa-search-input {
   min-width: 0 !important;
 }
 
+.modal-compact-meta-row {
+  display: grid !important;
+  grid-template-columns: 88px 80px minmax(0, 1fr) !important;
+  gap: 5px !important;
+  width: 100% !important;
+  align-items: center !important;
+}
+
+.sosa-search-input.compact-meta-input {
+  padding: 5px 7px !important;
+  font-size: 0.77rem !important;
+  min-height: 29px !important;
+  height: 29px !important;
+  box-sizing: border-box !important;
+}
+
+#addRymRating.compact-meta-input {
+  text-align: center;
+}
+
+@media (max-width: 520px) {
+  .modal-compact-meta-row {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .modal-compact-meta-row #addCoverUrl {
+    grid-column: 1 / -1;
+  }
+}
+
 /* Custom Month / Queue Aero Dropdown */
 .custom-month-dropdown-wrap {
   position: relative !important;
@@ -2544,17 +2573,17 @@ body.dark-mode .custom-month-item.queue-item.active .queue-icon {
 .modal-cover-preview {
   display: flex !important;
   flex-direction: column !important;
-  gap: 6px !important;
-  width: 112px !important;
-  min-width: 112px !important;
-  flex: 0 0 112px !important;
+  gap: 5px !important;
+  width: 92px !important;
+  min-width: 92px !important;
+  flex: 0 0 92px !important;
 }
 
 .w7-preview-box {
-  width: 112px !important;
-  height: 112px !important;
-  min-width: 112px !important;
-  flex: 0 0 112px !important;
+  width: 92px !important;
+  height: 92px !important;
+  min-width: 92px !important;
+  flex: 0 0 92px !important;
   border-radius: 0 !important;
   border: 1px solid #9aa7b2 !important;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.25) !important;
@@ -2574,18 +2603,92 @@ body.dark-mode .custom-month-item.queue-item.active .queue-icon {
 }
 
 .modal-cover-btns {
-  display: flex !important;
-  flex-direction: column !important;
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
   gap: 5px !important;
   width: 100% !important;
 }
 
-.modal-cover-action-btn {
+.modal-cover-icon-btn {
+  position: relative !important;
   width: 100% !important;
+  height: 25px !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
   justify-content: center !important;
-  padding: 4px 6px !important;
-  font-size: 0.72rem !important;
-  gap: 4px !important;
+  font-size: 0.92rem !important;
+  line-height: 1 !important;
+  overflow: visible !important;
+}
+
+/* Windows 7 Aero Hover Tooltip for Icon Buttons */
+.aero-icon-tooltip {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-2px);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: #0f172a;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(235, 245, 255, 0.96) 100%);
+  border: 1px solid rgba(118, 152, 185, 0.72);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2), inset 0 1px 0 #ffffff;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2500;
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+
+.aero-icon-tooltip::after {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-bottom-color: rgba(255, 255, 255, 0.96);
+}
+
+.modal-cover-icon-btn:hover .aero-icon-tooltip,
+.modal-cover-icon-btn:focus-visible .aero-icon-tooltip,
+.box-floating-paste-btn:hover .aero-icon-tooltip,
+.box-floating-paste-btn:focus-visible .aero-icon-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.box-floating-paste-btn .aero-icon-tooltip {
+  left: auto;
+  right: 0;
+  transform: translateY(-2px);
+}
+
+.box-floating-paste-btn .aero-icon-tooltip::after {
+  left: auto;
+  right: 8px;
+  transform: none;
+}
+
+.box-floating-paste-btn:hover .aero-icon-tooltip,
+.box-floating-paste-btn:focus-visible .aero-icon-tooltip {
+  transform: translateY(0);
+}
+
+body.dark-mode .aero-icon-tooltip {
+  color: #e2e8f0;
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 0.98) 100%);
+  border-color: rgba(56, 189, 248, 0.45);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+body.dark-mode .aero-icon-tooltip::after {
+  border-bottom-color: rgba(30, 41, 59, 0.98);
 }
 
 .add-album-top-row {
@@ -4269,58 +4372,79 @@ a.inline-quoted-track.song-embed-link:hover {
   z-index: 1000 !important; /* Stacks active input & dropdown above subsequent fields */
 }
 
-.tag-box-with-action {
-  display: flex;
-  align-items: stretch;
-  gap: 0.4rem;
-  width: 100%;
+.tag-input-box.has-floating-paste {
+  padding-right: 32px !important;
 }
 
-.tag-box-with-action .tag-input-box {
-  flex: 1 1 auto !important;
-  min-width: 0;
-  width: auto !important;
+.tag-input-box.is-compact-descriptors {
+  min-height: 29px !important;
+  max-height: 74px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 3px 30px 3px 6px !important;
+  gap: 3px 4px !important;
 }
 
-.field-paste-btn {
-  flex-shrink: 0;
+.tag-input-box.is-compact-descriptors .tag-chip.chip-descriptor {
+  font-size: 0.68rem !important;
+  padding: 1.5px 6px !important;
+  line-height: 1.25 !important;
+  gap: 3px !important;
+}
+
+.tag-input-box.is-compact-descriptors .tag-inline-input {
+  font-size: 0.75rem !important;
+  min-height: 21px !important;
+  padding: 1px 2px !important;
+}
+
+.box-floating-paste-btn {
+  position: absolute;
+  top: 3.5px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
   display: inline-flex;
   align-items: center;
-  gap: 0.28rem;
-  padding: 0 0.65rem;
-  min-height: 38px;
-  font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 0.74rem;
-  font-weight: 700;
-  background: rgba(14, 165, 233, 0.12);
+  justify-content: center;
+  font-size: 0.78rem;
   color: #0369a1;
-  border: 1px solid rgba(14, 165, 233, 0.38);
-  border-radius: 3px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(224, 242, 254, 0.88) 52%, rgba(186, 230, 253, 0.78) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.55);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 1px 3px rgba(2, 132, 199, 0.16);
   cursor: pointer;
+  z-index: 6;
+  overflow: visible;
   transition: all 0.15s ease;
 }
 
-.field-paste-btn:hover {
-  background: #0ea5e9;
-  color: #ffffff;
-  border-color: #0284c7;
+.box-floating-paste-btn:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #bae6fd 52%, #7dd3fc 100%);
+  border-color: #0ea5e9;
+  color: #0c4a6e;
+  box-shadow: inset 0 1px 0 #ffffff, 0 0 8px rgba(56, 189, 248, 0.45);
 }
 
-.field-paste-btn.btn-import-success {
-  background: #10b981 !important;
+.box-floating-paste-btn.btn-import-success {
+  background: linear-gradient(180deg, #34d399 0%, #059669 100%) !important;
   color: #ffffff !important;
   border-color: #047857 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 0 8px rgba(16, 185, 129, 0.45) !important;
 }
 
-body.dark-mode .field-paste-btn {
-  background: rgba(56, 189, 248, 0.16);
+body.dark-mode .box-floating-paste-btn {
   color: #bae6fd;
-  border-color: rgba(56, 189, 248, 0.38);
+  background: linear-gradient(180deg, rgba(30, 58, 138, 0.55) 0%, rgba(15, 23, 42, 0.88) 100%);
+  border-color: rgba(56, 189, 248, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
-body.dark-mode .field-paste-btn:hover {
-  background: #38bdf8;
-  color: #0f172a;
+body.dark-mode .box-floating-paste-btn:hover {
+  color: #ffffff;
+  border-color: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.42);
 }
 
 /* ============================================================
@@ -5924,19 +6048,14 @@ body.dark-mode .w7-auth-footer {
   }
 
   .modal-cover-preview {
-    width: 100% !important;
+    width: 92px !important;
     align-items: center !important;
   }
 
   .modal-cover-btns {
-    flex-direction: row !important;
-    flex-wrap: wrap !important;
-    justify-content: center !important;
-  }
-
-  .modal-cover-action-btn {
-    width: auto !important;
-    min-width: 105px !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    width: 100% !important;
   }
 
   .add-album-fields-col {

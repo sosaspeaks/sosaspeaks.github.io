@@ -6,7 +6,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const u = String(url || "").trim();
     return u.includes("assets.sosaspeaks.org") || u.includes("supabase.co/storage");
   }
-  const LASTFM_API_KEY = localStorage.getItem("lastfm_api_key") || "54dae88eb8fc817f7745c41968fca582";
 
   let sb = window.supabaseClient;
   if (!sb && typeof window.createSosaSupabaseClient === "function") {
@@ -141,7 +140,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const closeAddModal = document.getElementById("closeAddModal");
   const addAlbumForm = document.getElementById("addAlbumForm");
   const editEntryId = document.getElementById("editEntryId");
-  const fetchCoverBtn = document.getElementById("fetchCoverBtn");
   const fetchSpinCoverBtn = document.getElementById("fetchSpinCoverBtn");
   const addPreviewImg = document.getElementById("addPreviewImg");
   const addArtist = document.getElementById("addArtist");
@@ -156,8 +154,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const customMonthTriggerText = document.getElementById("customMonthTriggerText");
   const customMonthMenu = document.getElementById("customMonthMenu");
   const submitAddAlbumBtn = document.getElementById("submitAddAlbumBtn");
-  const artCandidatesContainer = document.getElementById("artCandidatesContainer");
-  const artThumbnailsRow = document.getElementById("artThumbnailsRow");
   const FALLBACK_PLACEHOLDER = "assets/images/spins/placeholder.png";
 
   // Recalibrate / Relisten Controls & Storage
@@ -1023,7 +1019,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       this.input.setAttribute("data-placeholder", this.input.placeholder || "");
 
       this.container.addEventListener("click", (e) => {
-        if (!e.target.classList.contains("tag-chip-remove")) {
+        if (!e.target.classList.contains("tag-chip-remove") && !e.target.closest(".box-floating-paste-btn")) {
           this.input.focus();
         }
       });
@@ -1944,6 +1940,30 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function flashChallengeRymButton(btn, successHtml = `<i class='bx bx-check'></i> Imported!`, durationMs = 1800) {
     if (!btn) return;
+    const isIconOnly = btn.classList.contains("modal-cover-icon-btn") || btn.classList.contains("box-floating-paste-btn");
+    if (isIconOnly) {
+      const iconEl = btn.querySelector("i");
+      const tipEl = btn.querySelector(".aero-icon-tooltip");
+      const origIconCls = btn.dataset.origIconClass || (iconEl ? iconEl.className : "bx bx-clipboard");
+      const origTipText = btn.dataset.origTipText || (tipEl ? tipEl.textContent : "");
+      btn.dataset.origIconClass = origIconCls;
+      btn.dataset.origTipText = origTipText;
+
+      if (iconEl) iconEl.className = "bx bx-check";
+      if (tipEl) {
+        const cleanLabel = String(successHtml || "").replace(/<[^>]*>/g, "").trim();
+        if (cleanLabel) tipEl.textContent = cleanLabel;
+      }
+      btn.classList.add("btn-import-success");
+      if (btn._flashTimer) clearTimeout(btn._flashTimer);
+      btn._flashTimer = setTimeout(() => {
+        if (iconEl) iconEl.className = origIconCls;
+        if (tipEl) tipEl.textContent = origTipText;
+        btn.classList.remove("btn-import-success");
+      }, durationMs);
+      return;
+    }
+
     const origHtml = btn.dataset.origHtml || btn.innerHTML;
     btn.dataset.origHtml = origHtml;
     btn.innerHTML = successHtml;
@@ -2265,206 +2285,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
   });
-  // Cover Fetcher
-  window.selectCandidateArt = function(url, element) {
-    if (addPreviewImg) addPreviewImg.src = url;
-    if (addCoverUrl) addCoverUrl.value = url;
-    document.querySelectorAll(".art-choice-item").forEach(el => el.classList.remove("selected"));
-    if (element) element.classList.add("selected");
-  };
-
-  // Helper: Fetch candidate artwork from Last.fm
-  async function fetchLastFmCovers(artist, title) {
-    if (!LASTFM_API_KEY) return [];
-    const covers = [];
-
-    const extractBestImage = (images) => {
-      if (!Array.isArray(images)) return null;
-      const valid = images.filter(i => i && i["#text"] && !i["#text"].includes("2a96cbd8b46e442fc41c2b86b821562f"));
-      if (!valid.length) return null;
-      const best = valid.find(i => i.size === "mega") ||
-                   valid.find(i => i.size === "extralarge") ||
-                   valid.find(i => i.size === "large") ||
-                   valid[valid.length - 1];
-      if (!best || !best["#text"]) return null;
-      return best["#text"].replace(/\/300x300\//, "/770x0/").replace(/\/174s\//, "/770x0/").replace(/\/64s\//, "/770x0/");
-    };
-
-    try {
-      // 1. Try album.getinfo (exact match)
-      const infoUrl = `https://ws.audioscrobbler.com/2.0/?method=album.getinfo&api_key=${LASTFM_API_KEY}&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(title)}&format=json&autocorrect=1`;
-      const res = await fetch(infoUrl);
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.album) {
-          const hiRes = extractBestImage(data.album.image);
-          if (hiRes) {
-            let yr = null;
-            if (data.album.wiki && data.album.wiki.published) {
-              const yMatch = data.album.wiki.published.match(/\b(19\d\d|20\d\d)\b/);
-              if (yMatch) yr = parseInt(yMatch[1], 10);
-            }
-            covers.push({ url: hiRes, source: "Last.fm", year: yr });
-          }
-        }
-      }
-
-      // 2. If getinfo didn't find artwork, try album.search
-      if (covers.length === 0) {
-        const searchUrl = `https://ws.audioscrobbler.com/2.0/?method=album.search&album=${encodeURIComponent(title)}&api_key=${LASTFM_API_KEY}&format=json&limit=6`;
-        const sRes = await fetch(searchUrl);
-        if (sRes.ok) {
-          const sData = await sRes.json();
-          const matches = sData?.results?.albummatches?.album;
-          if (Array.isArray(matches)) {
-            matches.forEach(m => {
-              const hiRes = extractBestImage(m.image);
-              if (hiRes && !covers.some(c => c.url === hiRes)) {
-                covers.push({ url: hiRes, source: "Last.fm", year: null });
-              }
-            });
-          }
-        }
-      }
-    } catch (e) {
-      console.warn("Last.fm cover search skipped:", e);
-    }
-
-    return covers;
-  }
-
-  if (fetchCoverBtn) {
-    fetchCoverBtn.addEventListener("click", async () => {
-      const rawArtist = (addArtist.value || "").trim();
-      const rawTitle = (addTitle.value || "").trim();
-
-      if (!rawArtist || !rawTitle) {
-        alert("Please enter both Artist and Release Title first.");
-        return;
-      }
-
-      fetchCoverBtn.innerHTML = `<span class="w7-spinner"></span> Fetching...`;
-      fetchCoverBtn.disabled = true;
-
-      if (artThumbnailsRow) artThumbnailsRow.innerHTML = "";
-      if (artCandidatesContainer) {
-        artCandidatesContainer.style.display = "none";
-        artCandidatesContainer.classList.add("is-hidden");
-      }
-
-      const candidateCovers = [];
-
-      const spinMatch = loggedSpins.find(s =>
-        s.artist && s.title &&
-        s.artist.toLowerCase().trim() === rawArtist.toLowerCase() &&
-        s.title.toLowerCase().trim() === rawTitle.toLowerCase()
-      );
-      if (spinMatch && spinMatch.cover_url) {
-        let sc = spinMatch.cover_url;
-        if (sc.startsWith("../assets/")) sc = sc.replace(/^\.\.\//, "");
-        candidateCovers.push({ url: sc, source: "Your Spins" });
-      }
-
-      const cleanA = rawArtist.replace(/[^\w\s]/gi, " ").replace(/\s+/g, " ").trim();
-      const cleanT = rawTitle.replace(/\[.*?\]|\(.*?\)/g, "").replace(/[^\w\s]/gi, " ").replace(/\s+/g, " ").trim();
-
-      try {
-        // Run Apple/iTunes, Last.fm, and MusicBrainz concurrently
-        const itunesPromise = (async () => {
-          try {
-            const itunesQuery = encodeURIComponent(`${cleanA} ${cleanT}`);
-            const res = await fetch(`https://itunes.apple.com/search?term=${itunesQuery}&entity=album&limit=8`);
-            const data = await res.json();
-            if (data.results && data.results.length > 0) {
-              data.results.forEach(match => {
-                if (match.artworkUrl100) {
-                  const hires = match.artworkUrl100.replace("100x100bb.jpg", "600x600bb.jpg");
-                  if (!candidateCovers.some(c => c.url === hires)) {
-                    candidateCovers.push({ url: hires, source: "Apple" });
-                  }
-                  if (match.releaseDate && addReleaseYear && !addReleaseYear.value) {
-                    addReleaseYear.value = new Date(match.releaseDate).getFullYear();
-                  }
-                }
-              });
-            }
-          } catch (err) {
-            console.warn("iTunes search skipped:", err);
-          }
-        })();
-
-        const lastFmPromise = (async () => {
-          try {
-            const lfmCovers = await fetchLastFmCovers(cleanA, cleanT);
-            lfmCovers.forEach(item => {
-              if (!candidateCovers.some(c => c.url === item.url)) {
-                candidateCovers.push(item);
-              }
-              if (item.year && addReleaseYear && !addReleaseYear.value) {
-                addReleaseYear.value = item.year;
-              }
-            });
-          } catch (err) {
-            console.warn("Last.fm search skipped:", err);
-          }
-        })();
-
-        const mbPromise = (async () => {
-          try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3000);
-            const mbQuery = encodeURIComponent(`"${cleanT}" AND artist:"${cleanA}"`);
-            const mbUrl = `https://musicbrainz.org/ws/2/release/?query=${mbQuery}&fmt=json&limit=3`;
-            const proxyRes = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(mbUrl)}`, {
-              signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-
-            if (proxyRes.ok) {
-              const mbData = await proxyRes.json();
-              if (mbData.releases && mbData.releases.length > 0) {
-                for (const rel of mbData.releases) {
-                  const caaUrl = `https://coverartarchive.org/release/${rel.id}/front-500`;
-                  if (!candidateCovers.some(c => c.url === caaUrl)) {
-                    candidateCovers.push({ url: caaUrl, source: "MusicBrainz" });
-                  }
-                }
-              }
-            }
-          } catch (mbErr) {
-            console.warn("MusicBrainz search skipped:", mbErr);
-          }
-        })();
-
-        await Promise.allSettled([itunesPromise, lastFmPromise, mbPromise]);
-
-        if (candidateCovers.length === 0) {
-          alert(`No covers found for "${rawArtist} — ${rawTitle}". You can paste an image URL into the Cover field.`);
-          return;
-        }
-
-        if (artCandidatesContainer) {
-          artCandidatesContainer.classList.remove("is-hidden");
-          artCandidatesContainer.style.display = "flex";
-        }
-        artThumbnailsRow.innerHTML = candidateCovers.map((item, idx) => `
-          <div class="art-choice-item ${idx === 0 ? 'selected' : ''}" onclick="selectCandidateArt('${item.url}', this)">
-            <img src="${item.url}" alt="Option ${idx + 1}" loading="lazy" onerror="this.parentElement.remove()">
-            <span class="source-tag">${item.source}</span>
-          </div>
-        `).join("");
-
-        selectCandidateArt(candidateCovers[0].url, artThumbnailsRow.querySelector(".art-choice-item"));
-
-      } catch (fatalErr) {
-        console.error("Cover fetcher error:", fatalErr);
-      } finally {
-        fetchCoverBtn.innerHTML = `<i class='bx bx-image'></i> Fetch Art`;
-        fetchCoverBtn.disabled = false;
-      }
-    });
-  }
-
+  // Get Spin Cover Button (Icon-only with tooltip)
   if (fetchSpinCoverBtn) {
     fetchSpinCoverBtn.addEventListener("click", () => {
       const artist = (addArtist.value || "").trim().toLowerCase();
@@ -2486,7 +2307,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (spinCover.startsWith("../assets/")) spinCover = spinCover.replace(/^\.\.\//, "");
         addCoverUrl.value = spinCover;
         addPreviewImg.src = spinCover;
-        alert(`Loaded cover from existing spin!`);
+        flashChallengeRymButton(fetchSpinCoverBtn, "Cover Loaded!");
       } else {
         alert("No matching spin found in database.");
       }
@@ -2850,7 +2671,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Descriptors-Only Clipboard Paste
   const pasteDescriptorsBtn = document.getElementById("pasteDescriptorsBtn");
   if (pasteDescriptorsBtn) {
-    pasteDescriptorsBtn.addEventListener("click", async () => {
+    pasteDescriptorsBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       const rawText = await readChallengeClipboardWithPrompt(
         "Paste RYM Descriptors JSON or comma-separated descriptors:",
         { requireJsonObject: false }
@@ -3670,11 +3493,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function closeAddChallengeModal() {
     closeAeroModal(addModal, () => {
-      if (artCandidatesContainer) {
-        artCandidatesContainer.style.display = "none";
-        artCandidatesContainer.classList.add("is-hidden");
-      }
-      if (artThumbnailsRow) artThumbnailsRow.innerHTML = "";
       closeCustomMonthMenu();
     });
   }
@@ -5263,11 +5081,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (displayCover.startsWith("../assets/")) displayCover = displayCover.replace(/^\.\.\//, "");
     if (addPreviewImg) addPreviewImg.src = displayCover;
 
-    if (artCandidatesContainer) {
-      artCandidatesContainer.style.display = "none";
-      artCandidatesContainer.classList.add("is-hidden");
-    }
-    if (artThumbnailsRow) artThumbnailsRow.innerHTML = "";
     closeCustomMonthMenu();
     syncCustomMonthDropdownUI();
 
@@ -5316,11 +5129,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (window.addMovementsManager) window.addMovementsManager.setTags([]);
       setChallengeModalTrackRows([]);
 
-      if (artCandidatesContainer) {
-        artCandidatesContainer.style.display = "none";
-        artCandidatesContainer.classList.add("is-hidden");
-      }
-      if (artThumbnailsRow) artThumbnailsRow.innerHTML = "";
       closeCustomMonthMenu();
       syncCustomMonthDropdownUI();
 

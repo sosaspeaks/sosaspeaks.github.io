@@ -29,19 +29,24 @@ function parseAllowedOrigins(env) {
     .filter(Boolean);
 }
 
+function isLocalDevOrigin(origin) {
+  return /^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?$/i.test(String(origin || "").trim());
+}
+
 function buildCorsHeaders(request, env) {
   const origin = request.headers.get("Origin") || "";
   const allowed = parseAllowedOrigins(env);
+  const originPermitted = Boolean(origin && (allowed.includes(origin) || isLocalDevOrigin(origin)));
   const headers = {
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Authorization, Content-Type",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
   };
-  if (origin && allowed.includes(origin)) {
+  if (originPermitted) {
     headers["Access-Control-Allow-Origin"] = origin;
   }
-  return { headers, isAllowedOrigin: !origin || allowed.includes(origin) };
+  return { headers, isAllowedOrigin: !origin || originPermitted };
 }
 
 function jsonResponse(data, status, corsHeaders) {

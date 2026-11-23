@@ -6070,7 +6070,18 @@ body.dark-mode .modal-clipboard-actions .action-tooltip::after,
 }
 
 .input-row.cover-rym-row {
-  grid-template-columns: 1.55fr 0.85fr;
+  grid-template-columns: minmax(0, 1fr) 92px;
+}
+
+#logRuntime,
+#logRymRating {
+  padding: 5px 7px;
+  font-size: 0.78rem;
+  min-height: 30px;
+}
+
+#logRymRating {
+  text-align: center;
 }
 
 .input-row.context-tags-row {
@@ -7109,52 +7120,126 @@ body.dark-mode .modal-form-group .add-track-btn:hover {
   gap: 0.35rem;
 }
 
-.tag-box-with-action {
-  display: flex;
-  align-items: stretch;
-  gap: 0.4rem;
-  width: 100%;
+.tag-input-box.has-floating-paste {
+  padding-right: 32px !important;
 }
 
-.tag-box-with-action .tag-input-box {
-  flex: 1 1 auto !important;
-  min-width: 0;
-  width: auto !important;
+.tag-input-box.is-compact-descriptors {
+  min-height: 29px !important;
+  max-height: 74px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 3px 30px 3px 6px !important;
+  gap: 3px 4px !important;
 }
 
-.field-paste-btn {
-  flex-shrink: 0;
+.tag-input-box.is-compact-descriptors .tag-chip.chip-descriptor {
+  font-size: 0.68rem !important;
+  padding: 1.5px 6px !important;
+  line-height: 1.25 !important;
+  gap: 3px !important;
+}
+
+.tag-input-box.is-compact-descriptors .tag-inline-input {
+  font-size: 0.75rem !important;
+  min-height: 21px !important;
+  padding: 1px 2px !important;
+}
+
+.box-floating-paste-btn {
+  position: absolute;
+  top: 3.5px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
   display: inline-flex;
   align-items: center;
-  gap: 0.28rem;
-  padding: 0 0.65rem;
-  min-height: 36px;
-  font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 0.74rem;
-  font-weight: 700;
-  background: rgba(14, 165, 233, 0.12);
+  justify-content: center;
+  font-size: 0.78rem;
   color: #0369a1;
-  border: 1px solid rgba(14, 165, 233, 0.38);
-  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(224, 242, 254, 0.88) 52%, rgba(186, 230, 253, 0.78) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.55);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 1px 3px rgba(2, 132, 199, 0.16);
   cursor: pointer;
+  z-index: 6;
+  overflow: visible;
   transition: all 0.15s ease;
 }
 
-.field-paste-btn:hover {
-  background: #0ea5e9;
-  color: #ffffff;
-  border-color: #0284c7;
+.box-floating-paste-btn:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #bae6fd 52%, #7dd3fc 100%);
+  border-color: #0ea5e9;
+  color: #0c4a6e;
+  box-shadow: inset 0 1px 0 #ffffff, 0 0 8px rgba(56, 189, 248, 0.45);
 }
 
-body.dark-mode .field-paste-btn {
-  background: rgba(56, 189, 248, 0.16);
+.box-floating-paste-btn.btn-import-success {
+  background: linear-gradient(180deg, #34d399 0%, #059669 100%) !important;
+  color: #ffffff !important;
+  border-color: #047857 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 0 8px rgba(16, 185, 129, 0.45) !important;
+}
+
+body.dark-mode .box-floating-paste-btn {
   color: #bae6fd;
-  border-color: rgba(56, 189, 248, 0.38);
+  background: linear-gradient(180deg, rgba(30, 58, 138, 0.55) 0%, rgba(15, 23, 42, 0.88) 100%);
+  border-color: rgba(56, 189, 248, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
-body.dark-mode .field-paste-btn:hover {
-  background: #38bdf8;
+body.dark-mode .box-floating-paste-btn:hover {
+  color: #ffffff;
+  border-color: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.42);
+}
+
+.box-floating-paste-btn .aero-icon-tooltip {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  transform: translateY(-2px);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
   color: #0f172a;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(235, 245, 255, 0.96) 100%);
+  border: 1px solid rgba(118, 152, 185, 0.72);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2), inset 0 1px 0 #ffffff;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2500;
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+
+.box-floating-paste-btn .aero-icon-tooltip::after {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  right: 7px;
+  border: 4px solid transparent;
+  border-bottom-color: rgba(255, 255, 255, 0.96);
+}
+
+.box-floating-paste-btn:hover .aero-icon-tooltip,
+.box-floating-paste-btn:focus-visible .aero-icon-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+body.dark-mode .box-floating-paste-btn .aero-icon-tooltip {
+  color: #e2e8f0;
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 0.98) 100%);
+  border-color: rgba(56, 189, 248, 0.45);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+body.dark-mode .box-floating-paste-btn .aero-icon-tooltip::after {
+  border-bottom-color: rgba(30, 41, 59, 0.98);
 }
 
 .modal-form-group .add-track-btn.tr-paste-btn {

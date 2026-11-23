@@ -25,7 +25,7 @@
     <meta name="apple-mobile-web-app-title" content="SosaSpeaks" />
     <link rel="manifest" href="assets/images/homepics/site.webmanifest?v=20260527" />
     <!-- Link to CSS -->
-    <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261122a">
+    <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261122b">
     <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
     <!-- Box icons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
@@ -459,13 +459,14 @@
               <input type="hidden" id="logSecondaryGenres" value="">
 
               <!-- Descriptors Tag Box -->
-              <div class="tag-field-row">
-                <div class="tag-box-with-action">
-                  <div class="tag-input-box" id="descriptorsTagBox">
-                    <input type="text" id="logDescriptorsInput" class="tag-inline-input" placeholder="Add Descriptor..." autocomplete="off">
-                  </div>
-                  <button type="button" id="pasteDescriptorsBtn" class="add-track-btn field-paste-btn" title="Paste RYM Descriptors (or full RYM JSON / comma-separated list)"><i class='bx bx-clipboard'></i> Paste</button>
+              <div class="tag-field-row has-floating-paste-row">
+                <div class="tag-input-box has-floating-paste is-compact-descriptors" id="descriptorsTagBox">
+                  <input type="text" id="logDescriptorsInput" class="tag-inline-input" placeholder="Add Descriptor..." autocomplete="off">
                 </div>
+                <button type="button" id="pasteDescriptorsBtn" class="box-floating-paste-btn" aria-label="Paste RYM Descriptors">
+                  <i class='bx bx-clipboard'></i>
+                  <span class="aero-icon-tooltip">Paste Descriptors</span>
+                </button>
                 <div class="aero-autocomplete-menu" id="descriptorsDropdown" style="display: none;"></div>
               </div>
               <input type="hidden" id="logDescriptors" value="">
@@ -1042,7 +1043,7 @@
   </nav>
 
   <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
-  <script src="assets/js/sosaspins.js?v=20261122c"></script>
+  <script src="assets/js/sosaspins.js?v=20261122d"></script>
   <script src="assets/js/dock.js?v=20261115c"></script>
   <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>
 </body>
