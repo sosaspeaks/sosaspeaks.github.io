@@ -25,7 +25,7 @@
     <meta name="apple-mobile-web-app-title" content="SosaSpeaks" />
     <link rel="manifest" href="assets/images/homepics/site.webmanifest?v=20260527" />
     <!-- Link to CSS -->
-    <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261122b">
+    <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261122c">
     <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
     <!-- Box icons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
@@ -398,7 +398,7 @@
                   <input type="text" id="logTitle" placeholder="Release Title" required class="sosa-search-input">
                 </div>
 
-                <div class="input-row triple">
+                <div class="input-row triple type-year-rating-row">
                   <select id="logType" class="sosa-search-input">
                     <option value="Album">Album</option>
                     <option value="EP">EP</option>
@@ -408,7 +408,17 @@
                     <option value="Extra">Extra</option>
                   </select>
                   <input type="number" id="logYear" placeholder="Year" class="sosa-search-input">
-                  <input type="number" id="logRating" placeholder="Rating (0.5–5.0)" min="0.5" max="5.0" step="0.5" class="sosa-search-input">
+                  <div class="rym-star-picker is-spin-picker" id="logRatingPicker" tabindex="0" role="slider" aria-label="Spin Rating" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0" title="Hover &amp; click stars to rate (click active star to clear)">
+                    <input type="hidden" id="logRating" value="">
+                    <div class="rym-stars-strip">
+                      <i class="bx bx-star" data-star="1"></i>
+                      <i class="bx bx-star" data-star="2"></i>
+                      <i class="bx bx-star" data-star="3"></i>
+                      <i class="bx bx-star" data-star="4"></i>
+                      <i class="bx bx-star" data-star="5"></i>
+                    </div>
+                    <span class="rym-star-readout is-empty">—</span>
+                  </div>
                 </div>
 
                 <!-- Runtime | Date | Relisten Checkbox -->
@@ -1043,7 +1053,7 @@
   </nav>
 
   <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
-  <script src="assets/js/sosaspins.js?v=20261122d"></script>
+  <script src="assets/js/sosaspins.js?v=20261122e"></script>
   <script src="assets/js/dock.js?v=20261115c"></script>
   <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>
 </body>

@@ -6516,6 +6516,157 @@ body.dark-mode .spin-track-ratings-card {
   grid-template-columns: 1.15fr 0.9fr 1.1fr;
 }
 
+.input-row.triple.type-year-rating-row {
+  grid-template-columns: minmax(0, 1fr) 70px minmax(140px, 1.3fr);
+}
+
+/* ============================================================
+   RYM-STYLE INTERACTIVE STAR RATING PICKERS (Spins & Tracks)
+   ============================================================ */
+.rym-star-picker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  min-width: 0;
+  box-sizing: border-box;
+  border-radius: 5px;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  transition: border-color 0.14s ease, background 0.14s ease, box-shadow 0.14s ease;
+}
+
+.rym-star-picker.is-spin-picker {
+  width: 100%;
+  height: 36px;
+  padding: 0 9px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(140, 175, 210, 0.55);
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.rym-star-picker.is-spin-picker:hover,
+.rym-star-picker.is-spin-picker:focus-visible {
+  background: #ffffff;
+  border-color: rgba(14, 165, 233, 0.72);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2), inset 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.rym-star-picker.is-track-picker {
+  width: 100%;
+  height: 26px;
+  padding: 0 5px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.rym-star-picker.is-track-picker:hover,
+.rym-star-picker.is-track-picker:focus-visible {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(14, 165, 233, 0.65);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.18);
+}
+
+.rym-stars-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.5px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.rym-stars-strip i.bx {
+  font-size: 0.96rem;
+  color: rgba(100, 116, 139, 0.44);
+  transition: color 0.1s ease, transform 0.1s ease, filter 0.1s ease;
+  pointer-events: none;
+}
+
+.rym-star-picker.is-spin-picker .rym-stars-strip i.bx {
+  font-size: 1.12rem;
+}
+
+.rym-stars-strip i.bx.bxs-star,
+.rym-stars-strip i.bx.bxs-star-half {
+  color: #f59e0b;
+  filter: drop-shadow(0 1px 1px rgba(245, 158, 11, 0.28));
+}
+
+.rym-star-picker.is-hovering .rym-stars-strip i.bx.bxs-star,
+.rym-star-picker.is-hovering .rym-stars-strip i.bx.bxs-star-half {
+  color: #fbbf24;
+  transform: scale(1.06);
+  filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.52));
+}
+
+.rym-star-readout {
+  font-family: "Noto Sans Mono", monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #b45309;
+  min-width: 22px;
+  text-align: right;
+  line-height: 1;
+}
+
+.rym-star-picker.is-spin-picker .rym-star-readout {
+  font-size: 0.78rem;
+  min-width: 24px;
+}
+
+.rym-star-readout.is-empty {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.rym-star-picker.is-hovering .rym-star-readout:not(.is-empty) {
+  color: #d97706;
+}
+
+body.dark-mode .rym-star-picker.is-spin-picker {
+  background: rgba(0, 0, 0, 0.35);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-mode .rym-star-picker.is-spin-picker:hover,
+body.dark-mode .rym-star-picker.is-spin-picker:focus-visible {
+  background: rgba(15, 23, 42, 0.85);
+  border-color: rgba(56, 189, 248, 0.65);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.22);
+}
+
+body.dark-mode .rym-star-picker.is-track-picker {
+  background: rgba(0, 0, 0, 0.22);
+}
+
+body.dark-mode .rym-star-picker.is-track-picker:hover,
+body.dark-mode .rym-star-picker.is-track-picker:focus-visible {
+  background: rgba(15, 23, 42, 0.85);
+  border-color: rgba(56, 189, 248, 0.65);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.22);
+}
+
+body.dark-mode .rym-stars-strip i.bx {
+  color: rgba(148, 163, 184, 0.35);
+}
+
+body.dark-mode .rym-stars-strip i.bx.bxs-star,
+body.dark-mode .rym-stars-strip i.bx.bxs-star-half {
+  color: #fbbf24;
+  filter: drop-shadow(0 0 3px rgba(251, 191, 36, 0.45));
+}
+
+body.dark-mode .rym-star-readout {
+  color: #fbbf24;
+}
+
+body.dark-mode .rym-star-readout.is-empty {
+  color: #64748b;
+}
+
 .input-row.align-center {
   align-items: center;
 }
@@ -7299,7 +7450,7 @@ body.dark-mode .tr-count-badge {
 
 .tr-list-header {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1.5fr) 48px minmax(0, 0.85fr) 108px 18px;
+  grid-template-columns: 22px minmax(0, 1.35fr) 48px minmax(0, 0.72fr) 124px 18px;
   align-items: center;
   gap: 0.25rem;
   padding: 0.28rem 0.35rem 0.22rem;
@@ -7335,7 +7486,7 @@ body.dark-mode .tr-list-header {
 
 .track-rating-input-row {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1.5fr) 48px minmax(0, 0.85fr) 108px 18px;
+  grid-template-columns: 22px minmax(0, 1.35fr) 48px minmax(0, 0.72fr) 124px 18px;
   align-items: center;
   gap: 0.25rem;
   padding: 3px 0.35rem;
@@ -9755,7 +9906,8 @@ body.top100-view-active .widgets-edge-tab {
     grid-column: 2 / 3;
   }
 
-  .track-rating-input-row .tr-rating-select {
+  .track-rating-input-row .tr-rating-select,
+  .track-rating-input-row .tr-rating-picker {
     grid-column: 3 / 5;
   }
 

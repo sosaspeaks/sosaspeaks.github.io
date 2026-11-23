@@ -2286,7 +2286,9 @@ function getDominantColorFromImg(imgUrl) {
       if (window.logMovementsManager) window.logMovementsManager.setTags([]);
       if (window.logFavTracksManager) window.logFavTracksManager.setTracks([]);
       if (logFavTracks) logFavTracks.value = "";
-      if (logSingleAudioUrl) logSingleAudioUrl.value = "";
+      if (logRuntime) logRuntime.value = "";
+      if (logRymRating) logRymRating.value = "";
+      syncRymStarPicker(document.getElementById("logRating"));
       if (trackRatingsList) trackRatingsList.innerHTML = "";
       syncTrackRatingIndices();
       pendingModalTracklist = [];
@@ -2355,6 +2357,7 @@ function getDominantColorFromImg(imgUrl) {
     if (logRuntime) logRuntime.value = "";
     if (logRymRating) logRymRating.value = "";
     if (logSingleAudioUrl) logSingleAudioUrl.value = "";
+    syncRymStarPicker(document.getElementById("logRating"));
     pendingModalTracklist = [];
     populateFavTrackSuggestions([]);
     closeMemoEmbedPopover();
@@ -7853,6 +7856,115 @@ function normalizeTrackStarRating(raw) {
 }
 
 /**
+ * Renders 5 RYM-style stars (empty outlined when unset) and numeric readout onto a picker.
+ */
+function renderRymStarPickerVisual(pickerEl, displayVal) {
+  if (!pickerEl) return;
+  const norm = normalizeTrackStarRating(displayVal);
+  const numeric = norm ? parseFloat(norm) : 0;
+  const icons = pickerEl.querySelectorAll(".rym-stars-strip i.bx");
+  icons.forEach((icon, idx) => {
+    const starNum = idx + 1;
+    if (numeric >= starNum) {
+      icon.className = "bx bxs-star";
+    } else if (numeric >= starNum - 0.5) {
+      icon.className = "bx bxs-star-half";
+    } else {
+      icon.className = "bx bx-star";
+    }
+  });
+  const readoutEl = pickerEl.querySelector(".rym-star-readout");
+  if (readoutEl) {
+    readoutEl.textContent = norm || "—";
+    readoutEl.classList.toggle("is-empty", !norm);
+  }
+  pickerEl.setAttribute("aria-valuenow", String(numeric));
+}
+
+function syncRymStarPicker(hiddenInputEl) {
+  if (!hiddenInputEl) return;
+  const pickerEl = hiddenInputEl.closest(".rym-star-picker");
+  if (!pickerEl) return;
+  const norm = normalizeTrackStarRating(hiddenInputEl.value);
+  hiddenInputEl.value = norm;
+  pickerEl.classList.remove("is-hovering");
+  pickerEl.classList.toggle("is-rated", !!norm);
+  renderRymStarPickerVisual(pickerEl, norm);
+}
+
+function initRymStarPicker(pickerEl) {
+  if (!pickerEl || pickerEl.dataset.rymBound === "1") return pickerEl;
+  pickerEl.dataset.rymBound = "1";
+  const hiddenInput = pickerEl.querySelector("input[type='hidden']");
+  const strip = pickerEl.querySelector(".rym-stars-strip");
+  if (!hiddenInput || !strip) return pickerEl;
+
+  const computeValFromPointer = (clientX) => {
+    const rect = strip.getBoundingClientRect();
+    if (!rect.width) return null;
+    const rel = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const step = Math.min(10, Math.max(1, Math.ceil(rel * 10)));
+    return (step / 2).toFixed(1);
+  };
+
+  const commitValue = (nextVal) => {
+    const norm = normalizeTrackStarRating(nextVal);
+    hiddenInput.value = norm;
+    pickerEl.classList.toggle("is-rated", !!norm);
+    renderRymStarPickerVisual(pickerEl, norm);
+    hiddenInput.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+
+  strip.addEventListener("mousemove", (e) => {
+    const hoverVal = computeValFromPointer(e.clientX);
+    if (!hoverVal) return;
+    pickerEl.classList.add("is-hovering");
+    renderRymStarPickerVisual(pickerEl, hoverVal);
+  });
+
+  strip.addEventListener("mouseleave", () => {
+    pickerEl.classList.remove("is-hovering");
+    renderRymStarPickerVisual(pickerEl, hiddenInput.value);
+  });
+
+  strip.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const clickedVal = computeValFromPointer(e.clientX);
+    if (!clickedVal) return;
+    const currentNorm = normalizeTrackStarRating(hiddenInput.value);
+    // Clicking the active score clears back to unrated (RYM toggle behavior)
+    commitValue(currentNorm === clickedVal ? "" : clickedVal);
+  });
+
+  pickerEl.addEventListener("keydown", (e) => {
+    const current = parseFloat(normalizeTrackStarRating(hiddenInput.value) || "0") || 0;
+    if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+      e.preventDefault();
+      e.stopPropagation();
+      const next = Math.min(5.0, current === 0 ? 0.5 : current + 0.5);
+      commitValue(next.toFixed(1));
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+      e.preventDefault();
+      e.stopPropagation();
+      const next = current - 0.5;
+      commitValue(next >= 0.5 ? next.toFixed(1) : "");
+    } else if (/^[1-5]$/.test(e.key)) {
+      e.preventDefault();
+      e.stopPropagation();
+      commitValue(`${e.key}.0`);
+    } else if (e.key === "0" || e.key === "Backspace" || e.key === "Delete") {
+      e.preventDefault();
+      e.stopPropagation();
+      commitValue("");
+    }
+  });
+
+  syncRymStarPicker(hiddenInput);
+  return pickerEl;
+}
+
+/**
  * Sanitizes an RYM Exporter tracklist array into normalized track objects.
  */
 function normalizeImportedTracklist(rawTracklist) {
@@ -8100,7 +8212,7 @@ function bindTrackRowKeyboardFlow(row) {
   const titleEl = row.querySelector(".tr-title-input");
   const durEl = row.querySelector(".tr-duration-input");
   const urlEl = row.querySelector(".tr-url-input");
-  const rateEl = row.querySelector(".tr-rating-select");
+  const rateEl = row.querySelector(".tr-rating-picker") || row.querySelector(".tr-rating-select");
   const removeBtn = row.querySelector(".tr-remove-btn");
 
   const focusStep = (el) => {
@@ -8147,7 +8259,7 @@ function bindTrackRowKeyboardFlow(row) {
   }
 }
 
-function createTrackRatingRow(title = "", rating = "5.0", url = "", duration = "", durationSec = null) {
+function createTrackRatingRow(title = "", rating = "", url = "", duration = "", durationSec = null) {
   const row = document.createElement("div");
   row.className = "track-rating-input-row";
   if (Number.isFinite(Number(durationSec)) && Number(durationSec) > 0) {
@@ -8159,23 +8271,32 @@ function createTrackRatingRow(title = "", rating = "5.0", url = "", duration = "
     <input type="text" class="tr-title-input" placeholder="Track title" value="${escapeHtml(title)}" required>
     <input type="text" class="tr-duration-input" placeholder="0:00" value="${escapeHtml(duration)}" title="Track duration (e.g. 3:45)">
     <input type="text" class="tr-url-input" placeholder="URL (opt)" value="${escapeHtml(url)}">
-    <select class="tr-rating-select">
-      <option value="" ${!normRating ? 'selected' : ''}>— Unrated</option>
-      <option value="5.0" ${normRating === "5.0" ? 'selected' : ''}>★★★★★ 5.0</option>
-      <option value="4.5" ${normRating === "4.5" ? 'selected' : ''}>★★★★½ 4.5</option>
-      <option value="4.0" ${normRating === "4.0" ? 'selected' : ''}>★★★★☆ 4.0</option>
-      <option value="3.5" ${normRating === "3.5" ? 'selected' : ''}>★★★½☆ 3.5</option>
-      <option value="3.0" ${normRating === "3.0" ? 'selected' : ''}>★★★☆☆ 3.0</option>
-      <option value="2.5" ${normRating === "2.5" ? 'selected' : ''}>★★½☆☆ 2.5</option>
-      <option value="2.0" ${normRating === "2.0" ? 'selected' : ''}>★★☆☆☆ 2.0</option>
-      <option value="1.5" ${normRating === "1.5" ? 'selected' : ''}>★½☆☆☆ 1.5</option>
-      <option value="1.0" ${normRating === "1.0" ? 'selected' : ''}>★☆☆☆☆ 1.0</option>
-      <option value="0.5" ${normRating === "0.5" ? 'selected' : ''}>½☆☆☆☆ 0.5</option>
-    </select>
+    <div class="rym-star-picker is-track-picker tr-rating-picker" tabindex="0" role="slider" aria-label="Track rating" aria-valuemin="0" aria-valuemax="5" aria-valuenow="${normRating || 0}" title="Hover &amp; click stars to rate track (click active star to clear)">
+      <input type="hidden" class="tr-rating-select" value="${escapeHtml(normRating)}">
+      <div class="rym-stars-strip">
+        <i class="bx bx-star" data-star="1"></i>
+        <i class="bx bx-star" data-star="2"></i>
+        <i class="bx bx-star" data-star="3"></i>
+        <i class="bx bx-star" data-star="4"></i>
+        <i class="bx bx-star" data-star="5"></i>
+      </div>
+      <span class="rym-star-readout ${normRating ? "" : "is-empty"}">${normRating || "—"}</span>
+    </div>
     <button type="button" class="tr-remove-btn" title="Remove track">&times;</button>
   `;
+  initRymStarPicker(row.querySelector(".tr-rating-picker"));
   bindTrackRowKeyboardFlow(row);
   return row;
+}
+
+const logRatingPickerEl = document.getElementById("logRatingPicker");
+if (logRatingPickerEl) {
+  initRymStarPicker(logRatingPickerEl);
+}
+if (spinForm) {
+  spinForm.addEventListener("reset", () => {
+    requestAnimationFrame(() => syncRymStarPicker(document.getElementById("logRating")));
+  });
 }
 
 if (addTrackRatingRowBtn && trackRatingsList) {
@@ -8706,7 +8827,11 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     if (logTitle) logTitle.value = item.title || "";
     document.getElementById("logType").value = item.type || "Album";
     document.getElementById("logYear").value = item.year || "";
-    document.getElementById("logRating").value = item.rating || "";
+    const logRatingEl = document.getElementById("logRating");
+    if (logRatingEl) {
+      logRatingEl.value = item.rating || "";
+      syncRymStarPicker(logRatingEl);
+    }
     document.getElementById("logDate").value = item.log_date || "";
     if (window.logSecondaryGenresManager) {
       window.logSecondaryGenresManager.setTags(item.secondary_genres || []);
@@ -9002,11 +9127,14 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       }
       if (document.getElementById("logRating")) {
         document.getElementById("logRating").value = "";
-        document.getElementById("logRating").focus();
+        syncRymStarPicker(document.getElementById("logRating"));
+        const pickerEl = document.getElementById("logRatingPicker");
+        if (pickerEl) pickerEl.focus();
       }
     } else {
       if (document.getElementById("logRating") && !document.getElementById("logRating").value && spinData.rating) {
         document.getElementById("logRating").value = spinData.rating;
+        syncRymStarPicker(document.getElementById("logRating"));
       }
     }
 
@@ -9691,6 +9819,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
       const logRatingEl = document.getElementById("logRating");
       if (data.rating !== undefined && data.rating !== null && logRatingEl) {
         logRatingEl.value = data.rating;
+        syncRymStarPicker(logRatingEl);
       }
 
       const logRuntimeEl = document.getElementById("logRuntime");
