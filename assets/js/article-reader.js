@@ -547,7 +547,9 @@
           <div id="studyPrimaryGenres" class="study-genre-row primary-genres-row"></div>
           <div id="studySecondaryGenres" class="study-genre-row secondary-genres-row"></div>
           <div id="studyDescriptors" class="study-desc-row"></div>
+          <div id="studyContextSlot" class="study-context-row"></div>
           <div id="studyFavTracksSlot" class="study-fav-tracks-row"></div>
+          <div id="studyTrackRatingsSlot" class="study-track-ratings-wrap"></div>
         </div>
 
         <div class="article-metadata-row">
@@ -655,7 +657,7 @@
     const isPoetry = article.post_type === "poetry";
 
     if (isStudy) {
-      await swapStylesheet("assets/css/review.css?v=20261123b");
+      await swapStylesheet("assets/css/review.css?v=20261123d");
       renderSosaStudyHeader(article);
     } else {
       renderStandardHeader(article);
@@ -666,6 +668,11 @@
     enhancePoetryStanzas(bodySection);
     setupPoetryAnnotations(bodySection);
     enhanceAeroArticleMedia(bodySection, { isStudy });
+
+    document.body.dataset.heroTintEnabled = article.hero_tint_enabled ? "1" : "0";
+    document.body.dataset.heroTintColor = article.hero_tint_color ? String(article.hero_tint_color) : "";
+    window.__applyHeroColorTint = applyHeroColorTint;
+    window.__extractHeroAccentColor = extractHeroAccentColor;
 
     if (article.hero_tint_enabled) {
       if (article.hero_tint_color) {
@@ -683,7 +690,7 @@
 
     if (article.post_type === "sosa-study") {
       try {
-        await loadScript("assets/js/sosa-study.js?v=20261116a");
+        await loadScript("assets/js/sosa-study.js?v=20261123b");
       } catch (scriptErr) {
         console.warn("Could not load sosa-study.js:", scriptErr);
       }

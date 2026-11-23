@@ -64,9 +64,53 @@
 
   function toList(val) {
     if (!val) return [];
-    if (Array.isArray(val)) return val;
+    if (Array.isArray(val)) return val.map(s => String(s || "").trim()).filter(Boolean);
     if (typeof val === "string") return val.split(",").map(s => s.trim()).filter(Boolean);
     return [];
+  }
+
+  function escapeStudyHtml(str) {
+    return String(str || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function renderTrackStars(rating) {
+    const num = parseFloat(rating);
+    const val = Number.isFinite(num) ? num : 0;
+    let stars = "";
+    for (let i = 1; i <= 5; i++) {
+      if (val >= i) stars += "<i class='bx bxs-star'></i>";
+      else if (val >= i - 0.5) stars += "<i class='bx bxs-star-half'></i>";
+      else stars += "<i class='bx bx-star'></i>";
+    }
+    return stars;
+  }
+
+  function parseTrackRatings(raw) {
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === "string" && raw.trim()) {
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (_) {}
+    }
+    return [];
+  }
+
+  function buildContextGroupHtml(kind, items) {
+    if (!items.length) return "";
+    const labelText = kind === "scene"
+      ? (items.length === 1 ? "scene:" : "scenes:")
+      : (items.length === 1 ? "movement:" : "movements:");
+    const kindClass = kind === "scene" ? "is-scene" : "is-movement";
+    const pillsHtml = items
+      .map(val => `<span class="context-meta-pill ${kindClass}">${escapeStudyHtml(val)}</span>`)
+      .join("");
+    return `<span class="context-meta-group"><span class="desc-label context-meta-label">${labelText}</span>${pillsHtml}</span>`;
   }
 
   // Helper: Format review date into "Month <day>, <year>" (e.g. "May 25, 2026")
@@ -229,6 +273,20 @@
       }
     }
 
+    if (
+      finalCover &&
+      document.body.dataset.heroTintEnabled === "1" &&
+      !document.body.dataset.heroTintColor &&
+      !document.body.classList.contains("has-hero-tint") &&
+      typeof window.__extractHeroAccentColor === "function" &&
+      typeof window.__applyHeroColorTint === "function"
+    ) {
+      const sampledCoverHex = await window.__extractHeroAccentColor(finalCover);
+      if (sampledCoverHex) {
+        window.__applyHeroColorTint(document, true, sampledCoverHex);
+      }
+    }
+
     if (caption) {
       caption.innerHTML = `${spin.artist} — <em>${spin.title}</em> ${spin.year ? `(${spin.year})` : ""}`;
     }
@@ -280,10 +338,29 @@
         descSlot.innerHTML = `
         <div class="descriptors-wrapper">
           <span class="desc-label">descriptors:</span>
-          ${descriptors.map(d => `<span class="descriptor-pill">${d}</span>`).join("")}
+          ${descriptors.map(d => `<span class="descriptor-pill">${escapeStudyHtml(d)}</span>`).join("")}
         </div>
         `;
       }
+    }
+
+    // --- D2. SCENES & MOVEMENTS ---
+    const scenesList = toList(spin.scenes);
+    const movementsList = toList(spin.movements);
+    let contextSlot = document.getElementById("studyContextSlot");
+    if (!contextSlot && (scenesList.length || movementsList.length) && descSlot && descSlot.parentNode) {
+      contextSlot = document.createElement("div");
+      contextSlot.id = "studyContextSlot";
+      contextSlot.className = "study-context-row";
+      descSlot.insertAdjacentElement("afterend", contextSlot);
+    }
+    if (contextSlot && (scenesList.length || movementsList.length)) {
+      contextSlot.innerHTML = `
+        <div class="context-meta-wrapper in-study">
+          ${buildContextGroupHtml("scene", scenesList)}
+          ${buildContextGroupHtml("movement", movementsList)}
+        </div>
+      `;
     }
 
     // --- E. FAVORITE TRACKS (With Mini-Player Hook) ---
@@ -301,10 +378,10 @@
           const safeName = cleanName.replace(/'/g, "\\'");
           return `
             <span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${url}', '${safeName}', '${safeArt}', '${safeAlb}', '${safeCov}')">
-              <span class="aero-play-wrap"><img src="/assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${cleanName}
+              <span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeStudyHtml(cleanName)}
             </span>`;
         }
-        return `<span class="fav-track-chip"><img src="/assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon"> ${t}</span>`;
+        return `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon"> ${escapeStudyHtml(t)}</span>`;
       }).join("");
 
       favSlot.innerHTML = `
@@ -315,6 +392,117 @@
           </div>
         </div>
       `;
+    }
+
+    // --- F. TRACK RATINGS (Clean Collapsible Explorer Accordion) ---
+    const trackRatings = parseTrackRatings(spin.track_ratings);
+    let trackSlot = document.getElementById("studyTrackRatingsSlot");
+    if (!trackSlot && trackRatings.length) {
+      const anchor = favSlot || contextSlot || descSlot;
+      if (anchor && anchor.parentNode) {
+        trackSlot = document.createElement("div");
+        trackSlot.id = "studyTrackRatingsSlot";
+        trackSlot.className = "study-track-ratings-wrap";
+        anchor.insertAdjacentElement("afterend", trackSlot);
+      }
+    }
+    if (trackSlot && trackRatings.length) {
+      const favTitleSet = new Set(
+        favList.map(rawFav => {
+          const part = String(rawFav || "").split("|")[0].trim().replace(/^["“']|["”']$/g, "");
+          return part.toLowerCase();
+        }).filter(Boolean)
+      );
+      const ratedVals = trackRatings
+        .map(tr => parseFloat(tr && tr.rating))
+        .filter(n => !isNaN(n) && n > 0);
+      const avgNum = ratedVals.length
+        ? (ratedVals.reduce((a, b) => a + b, 0) / ratedVals.length).toFixed(1)
+        : "";
+      const avgBadgeHtml = avgNum
+        ? `<span class="track-ratings-avg">Avg <span class="track-avg-val">${avgNum}</span> ★</span>`
+        : "";
+
+      const rowsHtml = trackRatings.map((tr, tIdx) => {
+        const rawUrl = tr && tr.url ? String(tr.url).trim() : "";
+        const hasUrl = rawUrl.length > 0;
+        const parsedRating = (tr && tr.rating !== null && tr.rating !== undefined && tr.rating !== "")
+          ? parseFloat(tr.rating)
+          : NaN;
+        const hasTrRating = !isNaN(parsedRating) && parsedRating > 0;
+        const rawTitle = String((tr && tr.title) || "");
+        const isFavTrack = favTitleSet.has(rawTitle.trim().toLowerCase());
+        const durHtml = tr && tr.duration
+          ? `<span class="track-duration">${escapeStudyHtml(tr.duration)}</span>`
+          : "";
+        const favGutterStarHtml = isFavTrack
+          ? `<span class="track-fav-star" data-fav-tooltip="Favorite Track" title="Favorite Track" aria-label="Favorite Track"><i class='bx bxs-star'></i></span>`
+          : "";
+        const playSlotHtml = hasUrl
+          ? `<button type="button" class="track-play-slot has-play" data-play-url="${escapeStudyHtml(rawUrl)}" data-play-title="${escapeStudyHtml(rawTitle)}" title="Play ${escapeStudyHtml(rawTitle)}"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon track-play-icon"><span class="play-sheen-shine"></span></span></button>`
+          : `<span class="track-play-slot is-empty" aria-hidden="true"></span>`;
+        const titleHtml = hasUrl
+          ? `<span class="track-name song-embed-link" data-play-url="${escapeStudyHtml(rawUrl)}" data-play-title="${escapeStudyHtml(rawTitle)}">${escapeStudyHtml(rawTitle)}</span>`
+          : `<span class="track-name">${escapeStudyHtml(rawTitle)}</span>`;
+
+        return `
+          <div class="track-rating-row ${isFavTrack ? "is-fav-track" : ""} ${parsedRating >= 5 ? "is-five-star" : ""}">
+            <span class="track-num">${favGutterStarHtml}${tIdx + 1}.</span>
+            ${playSlotHtml}
+            ${titleHtml}
+            <span class="track-leader" aria-hidden="true"></span>
+            ${durHtml}
+            ${hasTrRating ? `
+              <span class="track-stars">${renderTrackStars(parsedRating)}</span>
+              <small class="track-score">${parsedRating.toFixed(1)}</small>
+            ` : `
+              <span class="track-stars is-empty-stars">${renderTrackStars(0)}</span>
+              <small class="track-score is-unrated">—</small>
+            `}
+          </div>
+        `;
+      }).join("");
+
+      trackSlot.innerHTML = `
+        <div class="track-ratings-wrapper study-track-ratings">
+          <button type="button" class="track-ratings-toggle-btn" id="studyTrackRatingsToggleBtn" aria-expanded="false" aria-controls="studyTrackRatingsList">
+            <span class="track-ratings-label"><i class='bx bx-list-ol'></i> Track Ratings (${trackRatings.length})</span>
+            <span class="track-accordion-right">${avgBadgeHtml}<span class="ratings-arrow">▾</span></span>
+          </button>
+          <div class="track-ratings-list" id="studyTrackRatingsList" style="display: none;">
+            <div class="track-ratings-list-head" aria-hidden="true">
+              <span class="tr-col-num">#</span>
+              <span class="tr-col-play"></span>
+              <span class="tr-col-title">Track Title</span>
+              <span class="tr-col-time">Time</span>
+              <span class="tr-col-rate">Rating</span>
+            </div>
+            ${rowsHtml}
+          </div>
+        </div>
+      `;
+
+      const toggleBtn = document.getElementById("studyTrackRatingsToggleBtn");
+      const listEl = document.getElementById("studyTrackRatingsList");
+      if (toggleBtn && listEl) {
+        toggleBtn.addEventListener("click", () => {
+          const opening = listEl.style.display === "none";
+          listEl.style.display = opening ? "flex" : "none";
+          toggleBtn.classList.toggle("is-open", opening);
+          toggleBtn.setAttribute("aria-expanded", String(opening));
+          const arrow = toggleBtn.querySelector(".ratings-arrow");
+          if (arrow) arrow.textContent = opening ? "▴" : "▾";
+        });
+
+        listEl.addEventListener("click", (ev) => {
+          const trigger = ev.target.closest("[data-play-url]");
+          if (!trigger || typeof window.playAudioTrack !== "function") return;
+          const playUrl = trigger.getAttribute("data-play-url") || "";
+          const playTitle = trigger.getAttribute("data-play-title") || "Track";
+          if (!playUrl) return;
+          window.playAudioTrack(playUrl, playTitle, spin.artist || artist, spin.title || album, finalCover || "");
+        });
+      }
     }
 
   } catch (err) {

@@ -806,8 +806,38 @@ i.bx-sun:hover {
 
 
 .dark-mode header.shadow {
-    background: var(--dark-bg-color);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    background: rgba(16, 18, 22, 0.58);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow:
+        0 4px 20px rgba(0, 0, 0, 0.36),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(14px) saturate(150%);
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
+}
+
+.dark-mode .to-top {
+    background: radial-gradient(
+        circle at 35% 28%,
+        rgba(255, 255, 255, 0.18) 0%,
+        rgba(22, 30, 26, 0.78) 54%,
+        rgba(10, 14, 12, 0.9) 100%
+    );
+    border-color: rgba(255, 255, 255, 0.24);
+    box-shadow:
+        inset 0 1px 3px rgba(255, 255, 255, 0.24),
+        inset 0 -8px 14px rgba(52, 211, 153, 0.16),
+        0 4px 14px rgba(0, 0, 0, 0.52),
+        0 0 14px rgba(52, 211, 153, 0.22);
+}
+
+.dark-mode .to-top:hover {
+    border-color: rgba(110, 231, 183, 0.55);
+}
+
+.dark-mode .to-top i.bx-up-arrow-alt,
+.dark-mode i.bx-up-arrow-alt {
+    color: #e2e8f0;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.75));
 }
 
 .dark-mode .post-header {
@@ -7892,12 +7922,74 @@ body.dark-mode.has-hero-tint .poem-note {
   border-top-color: rgba(var(--hero-tint-rgb, 52, 211, 153), 0.28);
 }
 
+body.has-hero-tint header.shadow {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.48) 0%,
+    rgba(var(--hero-tint-rgb, 200, 240, 225), 0.16) 100%
+  );
+  border-bottom: 1px solid rgba(var(--hero-tint-rgb, 16, 185, 129), 0.24);
+  box-shadow:
+    0 4px 20px rgba(15, 23, 42, 0.08),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(14px) saturate(155%);
+  -webkit-backdrop-filter: blur(14px) saturate(155%);
+}
+
+body.dark-mode.has-hero-tint header.shadow {
+  background: linear-gradient(
+    180deg,
+    rgba(16, 18, 22, 0.66) 0%,
+    rgba(var(--hero-tint-rgb, 16, 185, 129), 0.14) 100%
+  );
+  border-bottom: 1px solid rgba(var(--hero-tint-rgb, 52, 211, 153), 0.26);
+  box-shadow:
+    0 4px 22px rgba(0, 0, 0, 0.42),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(14px) saturate(155%);
+  -webkit-backdrop-filter: blur(14px) saturate(155%);
+}
+
 body.has-hero-tint .to-top {
+  background: radial-gradient(
+    circle at 35% 28%,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(var(--hero-tint-rgb, 210, 245, 228), 0.18) 58%,
+    rgba(var(--hero-tint-rgb, 80, 180, 130), 0.3) 100%
+  );
+  border-color: rgba(255, 255, 255, 0.8);
   box-shadow:
     inset 0 2px 5px rgba(255, 255, 255, 0.9),
     inset 0 -8px 14px rgba(var(--hero-tint-rgb, 80, 180, 130), 0.22),
     0 3px 8px rgba(0, 0, 0, 0.18),
     0 0 14px rgba(var(--hero-tint-rgb, 120, 255, 190), 0.35);
+}
+
+body.has-hero-tint .to-top i.bx-up-arrow-alt {
+  color: var(--hero-tint-deep, #06150d);
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.65));
+}
+
+body.dark-mode.has-hero-tint .to-top {
+  background: radial-gradient(
+    circle at 35% 28%,
+    rgba(255, 255, 255, 0.2) 0%,
+    rgba(var(--hero-tint-rgb, 52, 211, 153), 0.26) 52%,
+    rgba(10, 14, 16, 0.88) 100%
+  );
+  border-color: rgba(var(--hero-tint-rgb, 120, 255, 190), 0.52);
+  box-shadow:
+    inset 0 1px 3px rgba(255, 255, 255, 0.26),
+    inset 0 -8px 14px rgba(var(--hero-tint-rgb, 80, 180, 130), 0.22),
+    0 4px 14px rgba(0, 0, 0, 0.55),
+    0 0 16px rgba(var(--hero-tint-rgb, 120, 255, 190), 0.32);
+}
+
+body.dark-mode.has-hero-tint .to-top i.bx-up-arrow-alt {
+  color: color-mix(in srgb, var(--hero-tint-bright, #ecfdf5) 68%, #ffffff);
+  filter:
+    drop-shadow(0 1px 2px rgba(0, 0, 0, 0.78))
+    drop-shadow(0 0 6px rgba(var(--hero-tint-rgb, 120, 255, 190), 0.42));
 }
 
 /* ============================================================
