@@ -17,6 +17,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // DOM References
   const topsterGrid = document.getElementById("topsterGrid");
+  const monthlyRecalSection = document.getElementById("monthlyRecalSection");
+  const MAX_MONTHLY_ALBUMS = 36;
+  const MAX_MONTHLY_RECALIBRATE = 6;
   const monthFilterButtons = document.querySelectorAll(".post-filter .filter-item[data-month]");
   const counterEl = document.getElementById("completedCounter");
   const percentEl = document.getElementById("completedPercent");
@@ -311,7 +314,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     let completedThisMonth = 0;
 
     list.forEach(album => {
-      const spin = getMatchingSpin(album, false);
+      const spin = getMatchingSpin(album, isRecalEntry(album));
       if (!spin) return;
       const ts = parseLogDate(spin.log_date);
       if (!ts || (ts >= monthStartMs && ts < monthEndMs)) {
@@ -382,11 +385,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     return getAlbumSpins(album)[0] || null;
   }
 
+  function isRecalEntry(album) {
+    if (!album) return false;
+    const m = (album.month || "").toLowerCase().trim();
+    return m === "recalibrate" || m === "relisten" || !!album.relisten_reason || !!album.is_spin_source;
+  }
+
+  function isUnscheduledRecalEntry(album) {
+    if (!album) return false;
+    const m = (album.month || "").toLowerCase().trim();
+    return m === "recalibrate" || m === "relisten" || !!album.is_spin_source;
+  }
+
   function getMatchingSpin(album, isRecalContext) {
     if (!album) return null;
     const isRecal = isRecalContext !== undefined
       ? isRecalContext
-      : (activeMonth === "recalibrate" || activeMonth === "relisten" || (album.month || "").toLowerCase() === "recalibrate" || !!album.relisten_reason);
+      : (activeMonth === "recalibrate" || activeMonth === "relisten" || isRecalEntry(album));
 
     const spins = getAlbumSpins(album);
     if (!spins.length) return null;
@@ -460,10 +475,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function getRelistenEntries() {
+    // Only unscheduled Recalibrate queue entries live in the main Recalibrate tab
     const fromBacklog = backlogEntries.filter(item => {
-      const m = (item.month || "").toLowerCase();
-      return m === "recalibrate" || m === "relisten" || !!item.relisten_reason;
+      const m = (item.month || "").toLowerCase().trim();
+      return m === "recalibrate" || m === "relisten";
     });
+
+    const scheduledRecalKeys = new Set(
+      backlogEntries
+        .filter(item => !isUnscheduledRecalEntry(item) && isRecalEntry(item))
+        .map(item => `${(item.artist || "").toLowerCase().trim()}::${(item.title || "").toLowerCase().trim()}`)
+    );
 
     const pendingSpins = loggedSpins.filter(s => {
       return s.relisten_pending === true || (s.relisten === true && (s.rating === null || s.rating === undefined || s.rating === ""));
@@ -488,6 +510,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const list = [...fromBacklog];
     pendingSpins.forEach(sp => {
+      const spKey = `${(sp.artist || "").toLowerCase().trim()}::${(sp.title || "").toLowerCase().trim()}`;
+      if (scheduledRecalKeys.has(spKey)) return;
       const exists = list.some(b =>
         b.artist && sp.artist && b.title && sp.title &&
         b.artist.toLowerCase().trim() === sp.artist.toLowerCase().trim() &&
@@ -536,7 +560,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       return "recalibrate";
     }
     if (urlTab) return urlTab;
-    if (hash && MONTH_NAMES.some(m => m.toLowerCase() === hash)) return hash;
+    if (hash && (MONTH_NAMES.some(m => m.toLowerCase() === hash) || /^[a-z]+[-_ ]?(?:'|20)?\d{2,4}$/.test(hash))) return hash;
 
     const curMonth = MONTH_NAMES[new Date().getMonth()].toLowerCase();
     const existingTab = document.querySelector(`menu.w7-month-tabs button[data-month="${curMonth}"]`);
@@ -848,7 +872,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (hash === "recalibrate" || hash === "relisten") {
         setActiveMonthTab("recalibrate");
         renderGrid();
-      } else if (hash && MONTH_NAMES.some(m => m.toLowerCase() === hash)) {
+      } else if (hash && (MONTH_NAMES.some(m => m.toLowerCase() === hash) || document.querySelector(`menu.w7-month-tabs button[data-month="${hash}"]`))) {
         setActiveMonthTab(hash);
         renderGrid();
       }
@@ -1837,7 +1861,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!isAdmin) return alert("Admin authentication required.");
 
       const targets = backlogEntries.filter(album => {
-        const isFinished = isAlbumDone(album, (album.month || "").toLowerCase() === "recalibrate");
+        const isFinished = isAlbumDone(album, isRecalEntry(album));
 
         if (isFinished) return false;
 
@@ -2270,6 +2294,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     const swapModalEl = document.getElementById("swapAlbumModal");
     if (!isAdmin && swapModalEl) {
       swapModalEl.style.setProperty("display", "none", "important");
+    }
+    const pullRecalModalEl = document.getElementById("pullRecalibrateModal");
+    if (!isAdmin && pullRecalModalEl) {
+      pullRecalModalEl.style.setProperty("display", "none", "important");
     }
     if (isAdmin && isDataLoaded) {
       migrateLegacyReasonsInDatabase();
@@ -3061,11 +3089,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     let formatted = cleanText.replace(/\r?\n/g, "<br>")
-      .replace(/<(blockquote|bilingual)([^>]*)>\s*<br\s*\/?>/gi, "<$1$2>")
-      .replace(/<br\s*\/?>\s*<\/(blockquote|bilingual)>/gi, "</$1>")
-      .replace(/<(div|p)([^>]*)>\s*<br\s*\/?>/gi, "<$1$2>")
-      .replace(/<br\s*\/?>\s*<\/(div|p)>/gi, "</$1>")
-      .replace(/<\/div>\s*<br\s*\/?>\s*<div/gi, "</div><div");
+      .replace(/<(blockquote|bilingual)([^>]*)>(?:\s*<br\s*\/?>\s*)+/gi, "<$1$2>")
+      .replace(/(?:\s*<br\s*\/?>\s*)+<\/(blockquote|bilingual)>/gi, "</$1>")
+      .replace(/<\/(blockquote|bilingual)>\s*(?:<br\s*\/?>\s*)+<(blockquote|bilingual)\b/gi, "</$1><$2")
+      .replace(/<(div|p)([^>]*)>(?:\s*<br\s*\/?>\s*)+/gi, "<$1$2>")
+      .replace(/(?:\s*<br\s*\/?>\s*)+<\/(div|p)>/gi, "</$1>")
+      .replace(/<\/(div|p)>\s*(?:<br\s*\/?>\s*)+<(div|p)/gi, "</$1><$2");
 
     spinPlaceholders.forEach((html, idx) => {
       formatted = formatted.replace(`__CHALLENGE_SPIN_EMBED_${idx}__`, html);
@@ -3711,6 +3740,54 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  if (monthlyRecalSection) {
+    monthlyRecalSection.addEventListener("click", (e) => {
+      const pullBtn = e.target.closest("#openPullRecalBtn, [data-action='pull-recal']");
+      if (pullBtn) {
+        e.stopPropagation();
+        openPullRecalibrateModal();
+        return;
+      }
+
+      const actionBtn = e.target.closest("button[data-action]");
+      if (actionBtn) {
+        e.stopPropagation();
+        const action = actionBtn.getAttribute("data-action");
+        const id = actionBtn.getAttribute("data-id");
+        if (action === "edit") openEditModal(e, id);
+        if (action === "return-queue") returnAlbumToRecalibrateQueue(e, id);
+        if (action === "delete") deleteFromBacklog(e, id);
+        return;
+      }
+
+      const tile = e.target.closest(".topster-tile");
+      if (!tile) return;
+
+      const albumId = tile.getAttribute("data-id");
+      if (albumId) {
+        openAlbumDetail(albumId);
+      }
+    });
+
+    monthlyRecalSection.addEventListener("mouseover", (e) => {
+      const tile = e.target.closest(".topster-tile");
+      if (!tile || !statusBarStatus) return;
+
+      const id = tile.getAttribute("data-id");
+      const album = backlogEntries.find(a => String(a.id) === String(id));
+      if (album) {
+        statusBarStatus.textContent = `${album.artist} — ${album.title}`;
+      }
+    });
+
+    monthlyRecalSection.addEventListener("mouseout", (e) => {
+      const tile = e.target.closest(".topster-tile");
+      if (tile && statusBarStatus) {
+        statusBarStatus.textContent = "Ready";
+      }
+    });
+  }
+
   function closeAddChallengeModal() {
     closeAeroModal(addModal, () => {
       closeCustomMonthMenu();
@@ -3908,6 +3985,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       topsterGrid.classList.remove("size-standard", "size-compact", "size-fitsheet");
       topsterGrid.classList.add(current.className);
+      if (monthlyRecalSection) {
+        monthlyRecalSection.classList.remove("size-standard", "size-compact", "size-fitsheet");
+        monthlyRecalSection.classList.add(current.className);
+      }
       gridSizeBtn.innerHTML = `<i class='bx bx-grid-alt'></i> <span class="cmd-prefix">Size: </span><span id="gridSizeBtnLabel">${current.name}</span>`;
     });
   }
@@ -4448,6 +4529,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             `;
           }
         }
+        const isScheduledRecal = isRel && !isUnscheduledRecalEntry(activeAlbum);
         actionsHtml += `
           <button type="button" class="cf-action-btn" onclick="openEditModal(event, ${safeIdArg})">
             <i class='bx bx-edit-alt'></i> Edit
@@ -4456,7 +4538,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             <button type="button" class="cf-action-btn" onclick="openSwapAlbumModal(event, ${safeIdArg})">
               <i class='bx bx-transfer-alt'></i> Swap
             </button>
-          ` : ""}
+          ` : (isScheduledRecal ? `
+            <button type="button" class="cf-action-btn" onclick="returnAlbumToRecalibrateQueue(event, ${safeIdArg})">
+              <i class='bx bx-undo'></i> Return to Queue
+            </button>
+          ` : "")}
         `;
       }
       cfAlbumActions.innerHTML = actionsHtml;
@@ -4591,7 +4677,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return copy.sort((a, b) => getAlbumRymRating(b) - getAlbumRymRating(a));
 
       case "status":
-        return copy.sort((a, b) => (isAlbumDone(b, isRelTab) ? 1 : 0) - (isAlbumDone(a, isRelTab) ? 1 : 0));
+        return copy.sort((a, b) => (isAlbumDone(b, isRelTab || isRecalEntry(b)) ? 1 : 0) - (isAlbumDone(a, isRelTab || isRecalEntry(a)) ? 1 : 0));
 
       case "default":
       default:
@@ -4653,43 +4739,167 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  function renderTileMarkup(album, idx, { isMonthlyRecal = false, isSearchActive = false, isRelistenTab = false } = {}) {
+    const monthMeta = getEntryMonthMeta(album);
+    const itemIsRel = isMonthlyRecal || isRelistenTab || isRecalEntry(album);
+    const match = getMatchingSpin(album, itemIsRel);
+    const isDone = !!match;
+    const priorSpin = getPriorSpin(album);
+
+    let coverSrc = (isDone && match && match.cover_url)
+      ? match.cover_url
+      : (album.cover_url || (priorSpin ? priorSpin.cover_url : "") || FALLBACK_PLACEHOLDER);
+    if (coverSrc.startsWith("../assets/")) coverSrc = coverSrc.replace(/^\.\.\//, "");
+
+    const rNum = (isDone && match && match.rating !== null && match.rating !== undefined && match.rating !== "")
+      ? parseFloat(match.rating)
+      : NaN;
+    let ratingBadgeHtml = "";
+    if (!isNaN(rNum)) {
+      ratingBadgeHtml = `<span class="pill-rating">${rNum.toFixed(1)}<span class="pill-star">★</span></span>`;
+    }
+
+    const rymScore = album.rym_rating !== null && album.rym_rating !== undefined ? album.rym_rating : (getLocalRymRatings()[album.id] || null);
+    const rymTooltip = rymScore ? ` • RYM: ${parseFloat(rymScore).toFixed(2)} ★` : "";
+    const yearTooltip = (album.release_year || album.year) ? ` (${album.release_year || album.year})` : "";
+    const runtimeTooltip = album.runtime ? ` • ${album.runtime}` : "";
+
+    const reason = itemIsRel ? getAlbumRelistenReason(album) : "";
+    const prevRating = itemIsRel ? getAlbumPrevRating(album) : null;
+    const reasonTooltip = itemIsRel && reason ? ` [${reason}]` : "";
+    const monthTooltip = isSearchActive ? ` • ${monthMeta.label}` : "";
+
+    let badgeHtml = "";
+    if (isDone) {
+      if (isMonthlyRecal) {
+        const shiftTextHtml = !isNaN(rNum)
+          ? (prevRating !== null
+            ? `<span class="pill-rating"><span class="pill-prev-shift">${prevRating.toFixed(1)}→</span>${rNum.toFixed(1)}<span class="pill-star">★</span></span>`
+            : `<span class="pill-rating">${rNum.toFixed(1)}<span class="pill-star">★</span></span>`)
+          : "";
+        badgeHtml = `
+          <div class="aero-completed-pill is-recal-done">
+            <i class='bx bx-revision pill-recal-icon' aria-hidden="true"></i>
+            ${shiftTextHtml}
+          </div>
+        `;
+      } else {
+        badgeHtml = `
+          <div class="aero-completed-pill">
+            <svg viewBox="0 0 16 16" class="pill-check-icon" aria-hidden="true">
+              <path d="M2.75 8.25L6.25 11.75L13.25 4.25"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"/>
+            </svg>
+            ${ratingBadgeHtml}
+          </div>
+        `;
+      }
+    }
+
+    const monthBadgeHtml = isSearchActive ? `
+      <div class="tile-month-pill ${monthMeta.isRelisten ? "is-recal" : ""}" title="Backlog Month: ${escapeHtml(monthMeta.label)}">${escapeHtml(monthMeta.shortLabel)}</div>
+    ` : "";
+
+    const reasonPillHtml = (itemIsRel && reason) ? `
+      <div class="tile-reason-pill" title="Recalibration Reason: ${escapeHtml(reason)}">
+        <i class='bx ${isMonthlyRecal ? "bx-revision" : "bx-tag-alt"}'></i> ${escapeHtml(reason)}
+      </div>
+    ` : "";
+
+    const prevRatingTooltip = (itemIsRel && prevRating !== null) ? ` (Prior: ${prevRating.toFixed(1)} ★)` : "";
+    const canDrag = !isSearchActive && isAdmin && !isRelistenTab && currentSort === "default";
+
+    const tileClasses = [
+      "topster-tile",
+      isDone ? "is-completed" : (itemIsRel ? "is-relisten" : ""),
+      isMonthlyRecal ? "is-monthly-recal" : ""
+    ].filter(Boolean).join(" ");
+
+    let middleAdminBtn = "";
+    if (isMonthlyRecal) {
+      middleAdminBtn = `<button type="button" class="tile-icon-btn return-queue" data-action="return-queue" data-id="${escapeHtml(album.id)}" title="Return to Recalibrate Queue">↩</button>`;
+    } else if (!itemIsRel) {
+      middleAdminBtn = `<button type="button" class="tile-icon-btn swap" data-action="swap" data-id="${escapeHtml(album.id)}" title="Swap position with another album">⇄</button>`;
+    }
+
+    return `
+      <div class="${tileClasses}"
+           draggable="${canDrag}"
+           data-id="${escapeHtml(album.id)}"
+           data-index="${idx}"
+           data-tile-group="${isMonthlyRecal ? "recal" : "discovery"}"
+           title="${escapeHtml(album.artist)} — ${escapeHtml(album.title)}${escapeHtml(yearTooltip)}${escapeHtml(runtimeTooltip)}${escapeHtml(rymTooltip)}${escapeHtml(monthTooltip)}${escapeHtml(prevRatingTooltip)}${escapeHtml(reasonTooltip)}">
+
+        <div class="tile-admin-actions">
+          <button type="button" class="tile-icon-btn edit" data-action="edit" data-id="${escapeHtml(album.id)}" title="Edit">✎</button>
+          ${middleAdminBtn}
+          <button type="button" class="tile-icon-btn delete" data-action="delete" data-id="${escapeHtml(album.id)}" title="Remove">✕</button>
+        </div>
+
+        <img src="${escapeHtml(coverSrc)}" alt="${escapeHtml(album.title)}" class="tile-art" loading="lazy">
+
+        ${monthBadgeHtml}
+        ${badgeHtml}
+        ${reasonPillHtml}
+
+        <div class="tile-tooltip">${escapeHtml(album.artist)} — ${escapeHtml(album.title)}${monthTooltip ? ` <span style="color:#a7f3d0;">(${escapeHtml(monthMeta.shortLabel)})</span>` : ""}${escapeHtml(prevRatingTooltip)}${escapeHtml(reasonTooltip)}</div>
+      </div>
+    `;
+  }
+
   function renderGrid() {
     const trimmedSearch = (backlogSearchQuery || "").trim();
     const isSearchActive = trimmedSearch.length > 0;
     const isRelistenTab = (activeMonth === "recalibrate" || activeMonth === "relisten");
-    let rawList;
+    const isMonthlyView = !isSearchActive && !isRelistenTab;
+
+    let discoveryList = [];
+    let recalList = [];
+    let list = [];
+
     if (isSearchActive) {
-      rawList = getAllSearchableBacklogEntries().filter(item => {
+      const rawList = getAllSearchableBacklogEntries().filter(item => {
         const mMeta = getEntryMonthMeta(item);
         return matchesBacklogSearch(item, mMeta, trimmedSearch);
       });
+      if (currentSort === "default") {
+        list = [...rawList].sort((a, b) => {
+          const mA = getEntryMonthMeta(a);
+          const mB = getEntryMonthMeta(b);
+          if (mA.sortKey !== mB.sortKey) return mA.sortKey - mB.sortKey;
+          const posA = a.position !== null && a.position !== undefined ? a.position : (Number(a.id) || 0);
+          const posB = b.position !== null && b.position !== undefined ? b.position : (Number(b.id) || 0);
+          return posA - posB;
+        });
+      } else {
+        list = sortAlbums(rawList, currentSort);
+      }
+      discoveryList = list;
     } else if (isRelistenTab) {
       const allRelistens = getRelistenEntries();
-      if (activeRelistenReason !== "all") {
-        rawList = allRelistens.filter(a => getAlbumRelistenReason(a).toLowerCase() === activeRelistenReason.toLowerCase());
-      } else {
-        rawList = allRelistens;
-      }
+      const filtered = activeRelistenReason !== "all"
+        ? allRelistens.filter(a => getAlbumRelistenReason(a).toLowerCase() === activeRelistenReason.toLowerCase())
+        : allRelistens;
+      list = sortAlbums(filtered, currentSort);
+      discoveryList = list;
     } else {
-      rawList = backlogEntries.filter(item => (item.month || "").toLowerCase() === activeMonth);
+      const monthEntries = backlogEntries.filter(item => (item.month || "").toLowerCase() === activeMonth);
+      const rawDiscovery = monthEntries.filter(item => !isRecalEntry(item));
+      const rawRecal = monthEntries.filter(item => isRecalEntry(item));
+      const sortedRecal = sortAlbums(rawRecal, currentSort);
+      const sortedDiscovery = sortAlbums(rawDiscovery, currentSort);
+      recalList = sortedRecal.slice(0, MAX_MONTHLY_RECALIBRATE);
+      discoveryList = sortedDiscovery.slice(0, Math.max(0, MAX_MONTHLY_ALBUMS - recalList.length));
+      list = [...discoveryList, ...recalList];
     }
 
-    let sorted;
-    if (isSearchActive && currentSort === "default") {
-      sorted = [...rawList].sort((a, b) => {
-        const mA = getEntryMonthMeta(a);
-        const mB = getEntryMonthMeta(b);
-        if (mA.sortKey !== mB.sortKey) return mA.sortKey - mB.sortKey;
-        const posA = a.position !== null && a.position !== undefined ? a.position : (Number(a.id) || 0);
-        const posB = b.position !== null && b.position !== undefined ? b.position : (Number(b.id) || 0);
-        return posA - posB;
-      });
-    } else {
-      sorted = sortAlbums(rawList, currentSort);
-    }
-
-    const list = (isSearchActive || isRelistenTab) ? sorted : sorted.slice(0, 36);
     currentMonthItems = list;
+    let discoveryDone = 0;
+    let recalDone = 0;
     let completedCount = 0;
 
     updateSearchSummaryBar(list, trimmedSearch);
@@ -4712,7 +4922,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const currentCalendarMonth = MONTH_NAMES[now.getMonth()].toLowerCase();
     const currentCalendarYear = now.getFullYear();
     const activeYearNum = activeYear ? parseInt(activeYear, 10) : currentCalendarYear;
-    const isCurrentCalendarMonth = !isSearchActive && !isRelistenTab && (activeMonth === currentCalendarMonth) && (activeYearNum === currentCalendarYear);
+    const isCurrentCalendarMonth = isMonthlyView && (activeMonth === currentCalendarMonth) && (activeYearNum === currentCalendarYear);
     if (progressBox) {
       progressBox.style.removeProperty("display");
       progressBox.classList.toggle("is-collapsed", !isCurrentCalendarMonth);
@@ -4722,10 +4932,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     let totalRuntimeSec = 0;
 
     list.forEach(album => {
-      const itemIsRel = isSearchActive ? getEntryMonthMeta(album).isRelisten : isRelistenTab;
+      const itemIsRel = isRelistenTab || isRecalEntry(album);
       const spin = getMatchingSpin(album, itemIsRel);
       const isDone = !!spin;
-      if (isDone) completedCount++;
+      if (isDone) {
+        completedCount++;
+        if (isMonthlyView) {
+          if (itemIsRel) recalDone++;
+          else discoveryDone++;
+        }
+      }
       if (isCurrentCalendarMonth) {
         const rawRt = album.runtime || (spin && spin.runtime) || "";
         const rtSec = parseRuntimeSec(rawRt);
@@ -4736,13 +4952,17 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
 
-    const total = (isSearchActive || isRelistenTab) ? list.length : 36;
+    const total = (isSearchActive || isRelistenTab) ? list.length : MAX_MONTHLY_ALBUMS;
     const pct = total > 0 ? Math.round((completedCount / total) * 100) : 0;
 
     if (counterEl) {
-      counterEl.textContent = isRelistenTab
-        ? `Recalibrated: ${completedCount} / ${total}`
-        : `Completed: ${completedCount} / ${total}`;
+      if (isRelistenTab) {
+        counterEl.textContent = `Recalibrated: ${completedCount} / ${total}`;
+      } else if (isMonthlyView && recalList.length > 0) {
+        counterEl.innerHTML = `Completed: ${completedCount} / ${total} <span class="progress-recal-split">(${discoveryDone} New &bull; ${recalDone} Recalibrate)</span>`;
+      } else {
+        counterEl.textContent = `Completed: ${completedCount} / ${total}`;
+      }
     }
     if (percentEl) percentEl.textContent = `${pct}%`;
     if (progressFill) progressFill.style.width = `${pct}%`;
@@ -4757,9 +4977,12 @@ document.addEventListener("DOMContentLoaded", async () => {
           : `${list.length} backlog ${list.length === 1 ? "match" : "matches"} (${completedCount} completed)${sortSuffix}`;
       } else if (list.length === 0) {
         statusBarSelection.textContent = `0 items for ${displayMonth}`;
+      } else if (isRelistenTab) {
+        statusBarSelection.textContent = `${list.length} relistens (${completedCount} recalibrated)${sortSuffix}`;
+      } else if (recalList.length > 0) {
+        statusBarSelection.textContent = `${list.length} items (${discoveryList.length} new • ${recalList.length} recalibrate) • ${completedCount} completed${sortSuffix}`;
       } else {
-        const itemLabel = isRelistenTab ? `${list.length} relistens (${completedCount} recalibrated)` : `${list.length} items (${completedCount} completed)`;
-        statusBarSelection.textContent = `${itemLabel}${sortSuffix}`;
+        statusBarSelection.textContent = `${list.length} items (${completedCount} completed)${sortSuffix}`;
       }
     }
 
@@ -4782,7 +5005,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       } else if (isRelistenTab) {
         statusBarStatus.textContent = list.length === 0 ? "Queue Empty" : "Ready";
       } else {
-        statusBarStatus.textContent = list.length === 36 ? "Month Full" : "Ready";
+        statusBarStatus.textContent = list.length >= MAX_MONTHLY_ALBUMS ? "Month Full" : "Ready";
       }
     }
 
@@ -4795,113 +5018,98 @@ document.addEventListener("DOMContentLoaded", async () => {
       } else {
         topsterGrid.innerHTML = `<div class="grid-loader">${isRelistenTab ? "No albums in recalibrate queue for this filter." : `No albums added for ${displayMonth} yet.`}</div>`;
       }
+      if (monthlyRecalSection) {
+        if (isMonthlyView) {
+          monthlyRecalSection.classList.add("is-empty-admin");
+          monthlyRecalSection.style.display = "";
+          monthlyRecalSection.innerHTML = `
+            <div class="monthly-recal-header">
+              <span class="monthly-recal-line"></span>
+              <div class="monthly-recal-pull-footer">
+                <button type="button" id="openPullRecalBtn" class="monthly-recal-pull-btn" data-action="pull-recal" title="Pull albums from the Recalibrate Queue into ${escapeHtml(displayMonth)} (up to ${MAX_MONTHLY_RECALIBRATE})">
+                  <i class='bx bx-plus'></i> Pull from Queue
+                </button>
+              </div>
+              <span class="monthly-recal-line is-right"></span>
+            </div>
+          `;
+        } else {
+          monthlyRecalSection.style.display = "none";
+          monthlyRecalSection.innerHTML = "";
+        }
+      }
       updateRecalibrateTabVisibility();
       if (isSearchActive && recalibrateFilterBar) recalibrateFilterBar.style.display = "none";
       return;
     }
 
-    topsterGrid.innerHTML = list.map((album, idx) => {
-      const monthMeta = getEntryMonthMeta(album);
-      const itemIsRel = isSearchActive ? monthMeta.isRelisten : isRelistenTab;
-      const match = getMatchingSpin(album, itemIsRel);
-      const isDone = isAlbumDone(album, itemIsRel);
-      const priorSpin = getPriorSpin(album);
+    if (discoveryList.length > 0) {
+      topsterGrid.style.removeProperty("display");
+      topsterGrid.innerHTML = discoveryList.map((album, idx) =>
+        renderTileMarkup(album, idx, {
+          isMonthlyRecal: isSearchActive && !isUnscheduledRecalEntry(album) && isRecalEntry(album),
+          isSearchActive,
+          isRelistenTab
+        })
+      ).join("");
+    } else {
+      topsterGrid.innerHTML = "";
+      topsterGrid.style.display = "none";
+    }
 
-      let coverSrc = (isDone && match && match.cover_url)
-        ? match.cover_url
-        : (album.cover_url || (priorSpin ? priorSpin.cover_url : "") || FALLBACK_PLACEHOLDER);
-      if (coverSrc.startsWith("../assets/")) coverSrc = coverSrc.replace(/^\.\.\//, "");
+    if (monthlyRecalSection) {
+      if (isMonthlyView) {
+        const hasRecal = recalList.length > 0;
+        const canPullMore = recalList.length < MAX_MONTHLY_RECALIBRATE;
+        monthlyRecalSection.classList.toggle("is-empty-admin", !hasRecal);
+        monthlyRecalSection.style.display = "";
 
-      let ratingBadgeHtml = "";
-      if (isDone && match && match.rating !== null && match.rating !== undefined && match.rating !== "") {
-        const rNum = parseFloat(match.rating);
-        if (!isNaN(rNum)) {
-          ratingBadgeHtml = `<span class="pill-rating">${rNum.toFixed(1)}<span class="pill-star">★</span></span>`;
-        }
-      }
-
-      const rymScore = album.rym_rating !== null && album.rym_rating !== undefined ? album.rym_rating : (getLocalRymRatings()[album.id] || null);
-      const rymTooltip = rymScore ? ` • RYM: ${parseFloat(rymScore).toFixed(2)} ★` : "";
-      const yearTooltip = (album.release_year || album.year) ? ` (${album.release_year || album.year})` : "";
-      const runtimeTooltip = album.runtime ? ` • ${album.runtime}` : "";
-
-      const reason = itemIsRel ? getAlbumRelistenReason(album) : "";
-      const prevRating = itemIsRel ? getAlbumPrevRating(album) : null;
-      const reasonTooltip = itemIsRel && reason ? ` [${reason}]` : "";
-      const monthTooltip = isSearchActive ? ` • ${monthMeta.label}` : "";
-
-      let badgeHtml = "";
-      if (itemIsRel) {
-        if (isDone) {
-          badgeHtml = `
-            <div class="aero-completed-pill">
-              <svg viewBox="0 0 16 16" class="pill-check-icon" aria-hidden="true">
-                <path d="M2.75 8.25L6.25 11.75L13.25 4.25"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2.6"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"/>
-              </svg>
-              ${ratingBadgeHtml}
+        if (hasRecal) {
+          const pullFooterHtml = canPullMore ? `
+            <div class="monthly-recal-pull-footer">
+              <button type="button" id="openPullRecalBtn" class="monthly-recal-pull-btn" data-action="pull-recal" title="Pull albums from the Recalibrate Queue into ${escapeHtml(displayMonth)} (${recalList.length}/${MAX_MONTHLY_RECALIBRATE} used)">
+                <i class='bx bx-plus'></i> Pull from Queue
+              </button>
             </div>
+          ` : "";
+
+          monthlyRecalSection.innerHTML = `
+            <div class="monthly-recal-header">
+              <span class="monthly-recal-line"></span>
+              <div class="monthly-recal-header-meta">
+                <span class="monthly-recal-label"><i class='bx bx-revision'></i> Recalibrate (${recalList.length})</span>
+                <span class="monthly-recal-sub">${recalDone} / ${recalList.length} done</span>
+              </div>
+              <span class="monthly-recal-line is-right"></span>
+            </div>
+            <div class="monthly-recal-row" id="monthlyRecalRow">
+              ${recalList.map((album, idx) => renderTileMarkup(album, idx, { isMonthlyRecal: true, isSearchActive: false, isRelistenTab: false })).join("")}
+            </div>
+            ${pullFooterHtml}
           `;
         } else {
-          badgeHtml = "";
+          monthlyRecalSection.innerHTML = `
+            <div class="monthly-recal-header">
+              <span class="monthly-recal-line"></span>
+              <div class="monthly-recal-pull-footer">
+                <button type="button" id="openPullRecalBtn" class="monthly-recal-pull-btn" data-action="pull-recal" title="Pull albums from the Recalibrate Queue into ${escapeHtml(displayMonth)} (up to ${MAX_MONTHLY_RECALIBRATE})">
+                  <i class='bx bx-plus'></i> Pull from Queue
+                </button>
+              </div>
+              <span class="monthly-recal-line is-right"></span>
+            </div>
+          `;
         }
-      } else if (isDone) {
-        badgeHtml = `
-          <div class="aero-completed-pill">
-            <svg viewBox="0 0 16 16" class="pill-check-icon" aria-hidden="true">
-              <path d="M2.75 8.25L6.25 11.75L13.25 4.25"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.6"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"/>
-            </svg>
-            ${ratingBadgeHtml}
-          </div>
-        `;
+      } else {
+        monthlyRecalSection.style.display = "none";
+        monthlyRecalSection.innerHTML = "";
       }
+    }
 
-      const monthBadgeHtml = isSearchActive ? `
-        <div class="tile-month-pill ${monthMeta.isRelisten ? "is-recal" : ""}" title="Backlog Month: ${escapeHtml(monthMeta.label)}">${escapeHtml(monthMeta.shortLabel)}</div>
-      ` : "";
-
-      const reasonPillHtml = (itemIsRel && reason) ? `
-        <div class="tile-reason-pill" title="Recalibration Reason: ${escapeHtml(reason)}">
-          <i class='bx bx-tag-alt'></i> ${escapeHtml(reason)}
-        </div>
-      ` : "";
-
-      const prevRatingTooltip = (itemIsRel && prevRating !== null) ? ` (Prior: ${prevRating.toFixed(1)} ★)` : "";
-
-      return `
-        <div class="topster-tile ${isDone ? 'is-completed' : (itemIsRel ? 'is-relisten' : '')}"
-             draggable="${!isSearchActive && isAdmin && !isRelistenTab && currentSort === 'default'}"
-             data-id="${escapeHtml(album.id)}"
-             data-index="${idx}"
-             title="${escapeHtml(album.artist)} — ${escapeHtml(album.title)}${escapeHtml(yearTooltip)}${escapeHtml(runtimeTooltip)}${escapeHtml(rymTooltip)}${escapeHtml(monthTooltip)}${escapeHtml(prevRatingTooltip)}${escapeHtml(reasonTooltip)}">
-
-          <div class="tile-admin-actions">
-            <button type="button" class="tile-icon-btn edit" data-action="edit" data-id="${escapeHtml(album.id)}" title="Edit">✎</button>
-            ${!itemIsRel ? `<button type="button" class="tile-icon-btn swap" data-action="swap" data-id="${escapeHtml(album.id)}" title="Swap position with another album">⇄</button>` : ""}
-            <button type="button" class="tile-icon-btn delete" data-action="delete" data-id="${escapeHtml(album.id)}" title="Remove">✕</button>
-          </div>
-
-          <img src="${escapeHtml(coverSrc)}" alt="${escapeHtml(album.title)}" class="tile-art" loading="lazy">
-
-          ${monthBadgeHtml}
-          ${badgeHtml}
-          ${reasonPillHtml}
-
-          <div class="tile-tooltip">${escapeHtml(album.artist)} — ${escapeHtml(album.title)}${monthTooltip ? ` <span style="color:#a7f3d0;">(${escapeHtml(monthMeta.shortLabel)})</span>` : ""}${escapeHtml(prevRatingTooltip)}${escapeHtml(reasonTooltip)}</div>
-        </div>
-      `;
-    }).join("");
-
-    if (!isSearchActive && isAdmin && !isRelistenTab && currentSort === "default") setupDragAndDrop();
+    if (isMonthlyView && isAdmin && currentSort === "default") {
+      setupDragAndDrop();
+      setupRecalRowDragAndDrop();
+    }
     updateRecalibrateTabVisibility();
     if (isSearchActive && recalibrateFilterBar) recalibrateFilterBar.style.display = "none";
   }
@@ -4952,7 +5160,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const targetId = parseInt(dropTarget.getAttribute("data-id"), 10);
 
         const currentMonthList = backlogEntries.filter(
-          item => (item.month || "").toLowerCase() === activeMonth
+          item => (item.month || "").toLowerCase() === activeMonth && !isRecalEntry(item)
         );
 
         const fromIdx = currentMonthList.findIndex(item => item.id === draggedId);
@@ -4976,6 +5184,88 @@ document.addEventListener("DOMContentLoaded", async () => {
           await Promise.all(updates);
         } catch (err) {
           console.error("Failed to save reordered positions:", err);
+        }
+      });
+    });
+  }
+
+  function setupRecalRowDragAndDrop() {
+    if (!isAdmin || currentSort !== "default") return;
+    const recalRow = document.getElementById("monthlyRecalRow");
+    if (!recalRow) return;
+    let draggedRecalEl = null;
+    const tiles = recalRow.querySelectorAll(".topster-tile");
+    tiles.forEach(tile => {
+      tile.addEventListener("dragstart", (e) => {
+        draggedRecalEl = tile;
+        tile.classList.add("dragging");
+        e.dataTransfer.effectAllowed = "move";
+      });
+
+      tile.addEventListener("dragend", () => {
+        if (draggedRecalEl) draggedRecalEl.classList.remove("dragging");
+        tiles.forEach(t => t.classList.remove("drag-over"));
+        draggedRecalEl = null;
+      });
+
+      tile.addEventListener("dragover", (e) => {
+        if (!draggedRecalEl) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        const targetTile = e.target.closest(".topster-tile");
+        if (targetTile && targetTile !== draggedRecalEl && recalRow.contains(targetTile)) {
+          targetTile.classList.add("drag-over");
+        }
+      });
+
+      tile.addEventListener("dragleave", (e) => {
+        const targetTile = e.target.closest(".topster-tile");
+        if (targetTile) targetTile.classList.remove("drag-over");
+      });
+
+      tile.addEventListener("drop", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const dropTarget = e.target.closest(".topster-tile");
+        if (dropTarget) dropTarget.classList.remove("drag-over");
+
+        if (!draggedRecalEl || !dropTarget || draggedRecalEl === dropTarget || !recalRow.contains(dropTarget)) return;
+
+        const draggedId = parseInt(draggedRecalEl.getAttribute("data-id"), 10);
+        const targetId = parseInt(dropTarget.getAttribute("data-id"), 10);
+
+        const currentRecalList = backlogEntries.filter(
+          item => (item.month || "").toLowerCase() === activeMonth && isRecalEntry(item)
+        );
+
+        const fromIdx = currentRecalList.findIndex(item => item.id === draggedId);
+        const toIdx = currentRecalList.findIndex(item => item.id === targetId);
+        if (fromIdx === -1 || toIdx === -1) return;
+
+        const [movedItem] = currentRecalList.splice(fromIdx, 1);
+        currentRecalList.splice(toIdx, 0, movedItem);
+
+        currentRecalList.forEach((item, index) => {
+          item.position = index;
+        });
+
+        backlogEntries.sort((a, b) => {
+          const posA = a.position !== null && a.position !== undefined ? a.position : (Number(a.id) || 0);
+          const posB = b.position !== null && b.position !== undefined ? b.position : (Number(b.id) || 0);
+          return posA - posB;
+        });
+
+        renderGrid();
+
+        try {
+          await Promise.all(
+            currentRecalList.map((item, index) =>
+              sb.from("challenge_backlog").update({ position: index }).eq("id", item.id)
+            )
+          );
+        } catch (err) {
+          console.error("Failed to save reordered recalibrate positions:", err);
         }
       });
     });
@@ -5013,7 +5303,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   function getOrderedMonthAlbums(monthKey) {
     const clean = (monthKey || "").toLowerCase().trim();
     return backlogEntries
-      .filter(a => (a.month || "").toLowerCase().trim() === clean)
+      .filter(a => (a.month || "").toLowerCase().trim() === clean && !isRecalEntry(a))
       .sort((a, b) => {
         const posA = a.position !== null && a.position !== undefined ? a.position : (Number(a.id) || 0);
         const posB = b.position !== null && b.position !== undefined ? b.position : (Number(b.id) || 0);
@@ -5085,7 +5375,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         return hay.includes(qNorm);
       });
 
-    const canMoveToOpenSlot = swapTargetMonth !== sourceMonth && targetList.length < 36;
+    const targetTotalMonthCount = backlogEntries.filter(a => (a.month || "").toLowerCase().trim() === swapTargetMonth).length;
+    const canMoveToOpenSlot = swapTargetMonth !== sourceMonth && targetTotalMonthCount < MAX_MONTHLY_ALBUMS;
     const moveDirectBtnHtml = canMoveToOpenSlot ? `
       <button type="button" class="swap-move-open-btn" id="swapMoveToOpenSlotBtn" title="Move directly into Slot #${targetList.length + 1} of ${escapeHtml(targetMonthLabel)}">
         <i class='bx bx-right-arrow-alt'></i> Move to Slot #${targetList.length + 1} in ${escapeHtml(targetMonthLabel)}
@@ -5294,6 +5585,290 @@ document.addEventListener("DOMContentLoaded", async () => {
     openAeroModal(swapAlbumModal);
   };
 
+  // ============================================================
+  // PULL FROM RECALIBRATE QUEUE MODAL & RETURN TO QUEUE (ADMIN)
+  // ============================================================
+  const pullRecalibrateModal = document.getElementById("pullRecalibrateModal");
+  const pullRecalModalBody = document.getElementById("pullRecalModalBody");
+  const closePullRecalModalBtn = document.getElementById("closePullRecalModalBtn");
+  let pullRecalSearchQuery = "";
+  let pullRecalReasonFilter = "all";
+
+  function closePullRecalibrateModal() {
+    closeAeroModal(pullRecalibrateModal, () => {
+      pullRecalSearchQuery = "";
+      pullRecalReasonFilter = "all";
+    });
+  }
+
+  if (closePullRecalModalBtn) {
+    closePullRecalModalBtn.addEventListener("click", closePullRecalibrateModal);
+  }
+  if (pullRecalibrateModal) {
+    pullRecalibrateModal.addEventListener("click", (e) => {
+      if (e.target === pullRecalibrateModal) closePullRecalibrateModal();
+    });
+  }
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && pullRecalibrateModal && pullRecalibrateModal.style.display === "flex") {
+      closePullRecalibrateModal();
+    }
+  });
+
+  function renderPullRecalibrateModalContent() {
+    if (!pullRecalModalBody) return;
+    const targetMonth = (activeMonth || "").toLowerCase().trim();
+    if (!targetMonth || targetMonth === "recalibrate" || targetMonth === "relisten") return;
+
+    const activeTabBtn = document.querySelector(`menu.w7-month-tabs button[data-month="${targetMonth}"]`);
+    const targetYear = activeTabBtn ? activeTabBtn.getAttribute("data-year") : null;
+    const targetMonthLabel = formatMonthDisplay(targetMonth, targetYear);
+
+    const monthEntries = backlogEntries.filter(a => (a.month || "").toLowerCase().trim() === targetMonth);
+    const currentRecalCount = monthEntries.filter(a => isRecalEntry(a)).length;
+    const currentTotalCount = monthEntries.length;
+    const recalFull = currentRecalCount >= MAX_MONTHLY_RECALIBRATE;
+    const monthFull = currentTotalCount >= MAX_MONTHLY_ALBUMS;
+    const canPull = !recalFull && !monthFull;
+
+    // Only real challenge_backlog rows in the unscheduled Recalibrate queue can be moved directly
+    const queueEntries = getRelistenEntries().filter(item => !String(item.id).startsWith("spin_"));
+
+    const reasonCounts = new Map();
+    queueEntries.forEach(item => {
+      const r = getAlbumRelistenReason(item);
+      reasonCounts.set(r, (reasonCounts.get(r) || 0) + 1);
+    });
+
+    const reasonPillsHtml = [
+      `<button type="button" class="swap-m-pill${pullRecalReasonFilter === "all" ? " active" : ""}" data-pull-reason="all"><span>All</span> <span class="swap-m-count">(${queueEntries.length})</span></button>`,
+      ...RELISTEN_REASONS
+        .filter(r => (reasonCounts.get(r) || 0) > 0)
+        .map(r => `
+          <button type="button" class="swap-m-pill${pullRecalReasonFilter === r ? " active" : ""}" data-pull-reason="${escapeHtml(r)}">
+            <span>${escapeHtml(r)}</span> <span class="swap-m-count">(${reasonCounts.get(r)})</span>
+          </button>
+        `)
+    ].join("");
+
+    const qNorm = normalizeSearchText(pullRecalSearchQuery);
+    const filteredQueue = queueEntries.filter(item => {
+      if (pullRecalReasonFilter !== "all" && getAlbumRelistenReason(item).toLowerCase() !== pullRecalReasonFilter.toLowerCase()) {
+        return false;
+      }
+      if (!qNorm) return true;
+      const hay = normalizeSearchText(`${item.artist || ""} ${item.title || ""} ${item.release_year || ""} ${getAlbumRelistenReason(item)}`);
+      return hay.includes(qNorm);
+    });
+
+    const fullNoticeHtml = !canPull ? `
+      <div class="pull-recal-full-notice">
+        <i class='bx bx-info-circle'></i>
+        <span>${recalFull
+          ? `${escapeHtml(targetMonthLabel)} already has all ${MAX_MONTHLY_RECALIBRATE} Recalibrate slots filled.`
+          : `${escapeHtml(targetMonthLabel)} is already full (${currentTotalCount}/${MAX_MONTHLY_ALBUMS}). Move or remove a discovery album to free a slot.`}</span>
+      </div>
+    ` : "";
+
+    const candidatesHtml = filteredQueue.length
+      ? filteredQueue.map(item => {
+          const priorSpin = getPriorSpin(item);
+          let cUrl = item.cover_url || (priorSpin ? priorSpin.cover_url : "") || FALLBACK_PLACEHOLDER;
+          if (cUrl.startsWith("../assets/")) cUrl = cUrl.replace(/^\.\.\//, "");
+          const reason = getAlbumRelistenReason(item);
+          const prevR = getAlbumPrevRating(item);
+          const prevStr = prevR !== null ? ` • ${prevR.toFixed(1)}★` : "";
+          return `
+            <button type="button" class="swap-cand-card" data-pull-recal-id="${escapeHtml(item.id)}" ${canPull ? "" : "disabled"} title="Add ${escapeHtml(item.artist)} — ${escapeHtml(item.title)} to ${escapeHtml(targetMonthLabel)}">
+              <img src="${escapeHtml(cUrl)}" alt="${escapeHtml(item.title)}" loading="lazy" onerror="this.src='${FALLBACK_PLACEHOLDER}'">
+              <div class="swap-cand-meta">
+                <div class="swap-cand-title">${escapeHtml(item.title || "Untitled")}</div>
+                <div class="swap-cand-artist">${escapeHtml(item.artist || "Unknown Artist")}</div>
+                <div class="pull-recal-cand-reason"><i class='bx bx-revision'></i> ${escapeHtml(reason)}${escapeHtml(prevStr)}</div>
+              </div>
+              <span class="swap-cand-icon" aria-hidden="true"><i class='bx bx-plus-circle'></i></span>
+            </button>
+          `;
+        }).join("")
+      : `<div class="swap-empty-note">${queueEntries.length === 0 ? "Your Recalibrate Queue is empty!" : "No queued relistens match this filter."}</div>`;
+
+    pullRecalModalBody.innerHTML = `
+      <div class="swap-modal-inner">
+        <div class="swap-source-banner pull-recal-banner">
+          <div class="swap-source-left">
+            <div class="swap-source-text">
+              <div class="swap-source-kicker">Scheduling Into ${escapeHtml(targetMonthLabel)}</div>
+              <div class="swap-source-title">Pick up to ${MAX_MONTHLY_RECALIBRATE} albums from your Recalibrate Queue</div>
+            </div>
+          </div>
+          <div class="pull-recal-cap-pills">
+            <span class="pull-cap-pill${recalFull ? " is-full" : ""}"><i class='bx bx-revision'></i> ${currentRecalCount} / ${MAX_MONTHLY_RECALIBRATE} Recal</span>
+            <span class="pull-cap-pill${monthFull ? " is-full" : ""}"><i class='bx bx-grid-alt'></i> ${currentTotalCount} / ${MAX_MONTHLY_ALBUMS} Total</span>
+          </div>
+        </div>
+
+        ${fullNoticeHtml}
+
+        <div class="swap-controls-row">
+          <div class="swap-month-pills" role="tablist" aria-label="Filter by Relisten Reason">
+            ${reasonPillsHtml}
+          </div>
+          <div class="swap-search-wrap">
+            <i class='bx bx-search swap-search-icon'></i>
+            <input type="text" id="pullRecalSearchInput" class="sosa-search-input swap-search-input" placeholder="Search Recalibrate queue by artist, title, or reason..." value="${escapeHtml(pullRecalSearchQuery)}">
+          </div>
+        </div>
+
+        <div class="swap-candidates-grid" id="pullRecalCandidatesGrid">
+          ${candidatesHtml}
+        </div>
+      </div>
+    `;
+
+    pullRecalModalBody.querySelectorAll(".swap-m-pill[data-pull-reason]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        pullRecalReasonFilter = btn.getAttribute("data-pull-reason") || "all";
+        renderPullRecalibrateModalContent();
+      });
+    });
+
+    const searchEl = document.getElementById("pullRecalSearchInput");
+    if (searchEl) {
+      searchEl.addEventListener("input", () => {
+        pullRecalSearchQuery = searchEl.value || "";
+        const caret = searchEl.selectionStart;
+        renderPullRecalibrateModalContent();
+        const nextInput = document.getElementById("pullRecalSearchInput");
+        if (nextInput) {
+          nextInput.focus();
+          try { nextInput.setSelectionRange(caret, caret); } catch (_) {}
+        }
+      });
+    }
+
+    pullRecalModalBody.querySelectorAll(".swap-cand-card[data-pull-recal-id]").forEach(card => {
+      card.addEventListener("click", () => {
+        const albumId = card.getAttribute("data-pull-recal-id");
+        if (albumId) executePullFromRecalibrateQueue(albumId);
+      });
+    });
+  }
+
+  function openPullRecalibrateModal() {
+    if (!isAdmin || !pullRecalibrateModal) return;
+    if (activeMonth === "recalibrate" || activeMonth === "relisten") return;
+    pullRecalSearchQuery = "";
+    pullRecalReasonFilter = "all";
+    renderPullRecalibrateModalContent();
+    openAeroModal(pullRecalibrateModal);
+  }
+  window.openPullRecalibrateModal = openPullRecalibrateModal;
+
+  async function executePullFromRecalibrateQueue(albumId) {
+    if (!isAdmin) return;
+    const targetMonth = (activeMonth || "").toLowerCase().trim();
+    if (!targetMonth || targetMonth === "recalibrate" || targetMonth === "relisten") return;
+
+    const album = backlogEntries.find(a => String(a.id) === String(albumId));
+    if (!album) return;
+
+    const monthEntries = backlogEntries.filter(a => (a.month || "").toLowerCase().trim() === targetMonth);
+    const currentRecalList = monthEntries.filter(a => isRecalEntry(a));
+    if (currentRecalList.length >= MAX_MONTHLY_RECALIBRATE) {
+      alert(`This month already has ${MAX_MONTHLY_RECALIBRATE} Recalibrate albums.`);
+      return;
+    }
+    if (monthEntries.length >= MAX_MONTHLY_ALBUMS) {
+      alert(`This month is full (${MAX_MONTHLY_ALBUMS}/${MAX_MONTHLY_ALBUMS}). Remove or move a discovery album first.`);
+      return;
+    }
+
+    const ensuredReason = getAlbumRelistenReason(album);
+    const maxPos = currentRecalList.reduce(
+      (max, entry) => Math.max(max, entry.position !== null && entry.position !== undefined ? entry.position : -1),
+      -1
+    );
+    const targetYear = resolveBacklogMonthTabYear(targetMonth);
+    const nextPos = maxPos + 1;
+
+    album.month = targetMonth;
+    album.year = targetYear;
+    album.position = nextPos;
+    album.relisten_reason = ensuredReason;
+
+    backlogEntries.sort((a, b) => {
+      const posA = a.position !== null && a.position !== undefined ? a.position : (Number(a.id) || 0);
+      const posB = b.position !== null && b.position !== undefined ? b.position : (Number(b.id) || 0);
+      return posA - posB;
+    });
+
+    updateMonthPillCounts();
+    renderGrid();
+    renderPullRecalibrateModalContent();
+
+    try {
+      const { error } = await sb
+        .from("challenge_backlog")
+        .update({
+          month: targetMonth,
+          year: targetYear,
+          position: nextPos,
+          relisten_reason: ensuredReason
+        })
+        .eq("id", album.id);
+      if (error) throw error;
+    } catch (err) {
+      console.error("Failed to pull album from Recalibrate Queue:", err);
+      alert("Failed to save to database: " + err.message);
+      await loadData(targetMonth);
+    }
+  }
+
+  window.returnAlbumToRecalibrateQueue = async function(e, albumId) {
+    if (e) e.stopPropagation();
+    if (!isAdmin) return;
+    const album = backlogEntries.find(a => String(a.id) === String(albumId));
+    if (!album) return;
+
+    const currentMonthKey = activeMonth;
+    const queueEntries = backlogEntries.filter(a => {
+      const m = (a.month || "").toLowerCase().trim();
+      return m === "recalibrate" || m === "relisten";
+    });
+    const maxPos = queueEntries.reduce(
+      (max, entry) => Math.max(max, entry.position !== null && entry.position !== undefined ? entry.position : -1),
+      -1
+    );
+    const nextPos = maxPos + 1;
+
+    album.month = "recalibrate";
+    album.year = 2026;
+    album.position = nextPos;
+
+    backlogEntries.sort((a, b) => {
+      const posA = a.position !== null && a.position !== undefined ? a.position : (Number(a.id) || 0);
+      const posB = b.position !== null && b.position !== undefined ? b.position : (Number(b.id) || 0);
+      return posA - posB;
+    });
+
+    updateMonthPillCounts();
+    renderGrid();
+
+    try {
+      const { error } = await sb
+        .from("challenge_backlog")
+        .update({ month: "recalibrate", year: 2026, position: nextPos })
+        .eq("id", album.id);
+      if (error) throw error;
+    } catch (err) {
+      console.error("Failed to return album to Recalibrate Queue:", err);
+      alert("Failed to return album to Recalibrate Queue: " + err.message);
+      await loadData(currentMonthKey);
+    }
+  };
+
+  let isEditingRecalEntry = false;
+
   // Admin Modal Logic
   window.openEditModal = function(e, albumId) {
     if (e) e.stopPropagation();
@@ -5322,7 +5897,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const albumMonth = (album.month || activeMonth).toLowerCase();
     if (addMonth) addMonth.value = albumMonth;
 
-    const isRel = albumMonth === "recalibrate" || !!album.relisten_reason;
+    const isRel = albumMonth === "recalibrate" || isRecalEntry(album);
+    isEditingRecalEntry = isRel;
     if (relistenFieldsContainer) relistenFieldsContainer.style.display = isRel ? "block" : "none";
     if (addRelistenReason) addRelistenReason.value = getAlbumRelistenReason(album);
     if (addPrevRating) {
@@ -5382,6 +5958,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (addMonth) addMonth.value = activeMonth.toLowerCase();
 
       const isRel = (activeMonth === "recalibrate" || activeMonth === "relisten");
+      isEditingRecalEntry = false;
       if (relistenFieldsContainer) relistenFieldsContainer.style.display = isRel ? "block" : "none";
       if (addRelistenReason) addRelistenReason.value = "Memory Fog";
       if (addPrevRating) addPrevRating.value = "";
@@ -5403,7 +5980,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   if (addMonth) {
     addMonth.addEventListener("change", () => {
-      const isRel = (addMonth.value || "").toLowerCase() === "recalibrate";
+      const isRel = (addMonth.value || "").toLowerCase() === "recalibrate" || isEditingRecalEntry;
       if (relistenFieldsContainer) relistenFieldsContainer.style.display = isRel ? "block" : "none";
       syncCustomMonthDropdownUI();
     });
@@ -5484,7 +6061,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             month: targetMonth
           };
 
-          if (targetMonth === "recalibrate") {
+          const shouldSaveRelistenMeta = targetMonth === "recalibrate" || (currentAlbum && isRecalEntry(currentAlbum));
+          if (shouldSaveRelistenMeta) {
             updatePayload.relisten_reason = relistenReasonVal;
             updatePayload.prev_rating = prevRatingVal;
           }
@@ -5537,7 +6115,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
           saveLocalRymRating(editEntryId.value, rymRatingVal);
           saveLocalChallengeTracks(editEntryId.value, trackRatings);
-          if (targetMonth === "recalibrate") {
+          if (shouldSaveRelistenMeta) {
             saveLocalRelistenMeta(editEntryId.value, { relisten_reason: relistenReasonVal, prev_rating: prevRatingVal });
           }
 

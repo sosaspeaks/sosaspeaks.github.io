@@ -21,7 +21,7 @@
   <meta property="og:description" content="Explore Sosa's 6x6 monthly album listening challenge backlog and completed spins.">
   <meta property="og:image" content="https://sosaspeaks.org/assets/images/homepics/Sosa-Icon-V3.png">
   <link rel="icon" type="image/png" href="assets/images/homepics/Sosa-Icon-V3.png">
-  <link rel="stylesheet" href="assets/css/challenge.css?v=20261123k">
+  <link rel="stylesheet" href="assets/css/challenge.css?v=20261123m">
   <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
   <link rel="stylesheet" href="assets/css/track-url-fetcher.css?v=20261122b">
   <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
@@ -291,6 +291,8 @@
               <div class="progress-bar-track marquee" role="progressbar"></div>
             </div>
           </div>
+          <!-- Dedicated Centered Monthly Recalibrate Row (Counts inside the 36) -->
+          <div id="monthlyRecalSection" class="monthly-recal-section size-standard" style="display: none;"></div>
         </div>
 
         <!-- iPod / iTunes Cover Flow 3D Carousel View -->
@@ -608,6 +610,22 @@
     </div>
   </div>
 
+  <!-- Pull from Recalibrate Queue Modal (Admin Only) -->
+  <div id="pullRecalibrateModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="window w7-modal-window swap-modal-window pull-recal-modal-window" role="dialog" aria-labelledby="pullRecalModalTitleText">
+      <div class="title-bar">
+        <div class="title-bar-text" id="pullRecalModalTitleText">
+          <i class='bx bx-revision' style="color: #d97706; vertical-align: middle; margin-right: 4px;"></i>
+          <span>Pull from Recalibrate Queue</span>
+        </div>
+        <div class="title-bar-controls">
+          <button type="button" id="closePullRecalModalBtn" class="is-close" aria-label="Close"></button>
+        </div>
+      </div>
+      <div class="window-body" id="pullRecalModalBody"></div>
+    </div>
+  </div>
+
   <footer class="footer container">
         <p class="footer-copyright">
             &#169; SosaSpeaks. All non-quoted material is the original writing of SosaSpeaks and its authors.
@@ -744,7 +762,7 @@
   <script src="assets/js/sosa-auth.js?v=20261121a"></script>
   <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
   <script src="assets/js/track-url-fetcher.js?v=20261123a"></script>
-  <script src="assets/js/challenge.js?v=20261123k"></script>
+  <script src="assets/js/challenge.js?v=20261123m"></script>
   <script src="assets/js/miniplayer-drag.js?v=20261123a" defer></script>
   <script src="assets/js/dock.js?v=20261115c"></script>
   <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>

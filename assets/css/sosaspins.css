@@ -3099,6 +3099,17 @@ body.dark-mode .recal-tooltip::after,
   overflow: visible;
 }
 
+.spin-memo-entry blockquote + blockquote,
+.spin-memo-entry blockquote + bilingual,
+.spin-memo-entry bilingual + blockquote,
+.spin-memo-entry bilingual + bilingual,
+.cf-memo-preview blockquote + blockquote,
+.cf-memo-preview blockquote + bilingual,
+.cf-memo-preview bilingual + blockquote,
+.cf-memo-preview bilingual + bilingual {
+  margin-top: 0.5rem !important;
+}
+
 .dark-mode .spin-memo-entry blockquote {
   color: #a7f3d0;
   background: linear-gradient(

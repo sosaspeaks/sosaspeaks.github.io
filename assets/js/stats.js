@@ -798,7 +798,8 @@
 
     entries.forEach(entry => {
       const rawMonth = String(entry.month || "").trim().toLowerCase();
-      const isRecal = rawMonth === "recalibrate" || rawMonth === "relisten" || !!entry.relisten_reason;
+      const isUnscheduledRecal = rawMonth === "recalibrate" || rawMonth === "relisten";
+      const isRecal = isUnscheduledRecal || !!entry.relisten_reason;
 
       const key = `${String(entry.artist || "").trim().toLowerCase()}::${String(entry.title || "").trim().toLowerCase()}`;
       const matchedList = spinMap[key] || [];
@@ -813,7 +814,7 @@
       let monthLabel = "Recalibrate";
       let sortOrder = 999999;
 
-      if (!isRecal) {
+      if (!isUnscheduledRecal) {
         const mBase = rawMonth.replace(/[-_ ]*(?:'|20)?\d{2,4}$/, "");
         const mIdx = CHALLENGE_MONTH_NAMES.findIndex(x => x.toLowerCase() === mBase);
         const yNum = resolveChallengeMonthYear(rawMonth, entry.year);
@@ -833,7 +834,7 @@
           monthKey,
           monthLabel,
           sortOrder,
-          isRecal,
+          isRecal: isUnscheduledRecal,
           done: 0,
           remaining: 0,
           total: 0,
@@ -855,7 +856,8 @@
       if (isRecal) {
         recalTotal += 1;
         if (isDone) recalDone += 1;
-      } else {
+      }
+      if (!isUnscheduledRecal) {
         totalMonthly += 1;
         if (isDone) {
           completedMonthly += 1;

@@ -2604,6 +2604,7 @@ function getDominantColorFromImg(imgUrl) {
     let formatted = cleanText.replace(/\r?\n/g, "<br>")
       .replace(/<(blockquote|bilingual)([^>]*)>(?:\s*<br\s*\/?>\s*)+/gi, "<$1$2>")
       .replace(/(?:\s*<br\s*\/?>\s*)+<\/(blockquote|bilingual)>/gi, "</$1>")
+      .replace(/<\/(blockquote|bilingual)>\s*(?:<br\s*\/?>\s*)+<(blockquote|bilingual)\b/gi, "</$1><$2")
       .replace(/<(div|p)([^>]*)>(?:\s*<br\s*\/?>\s*)+/gi, "<$1$2>")
       .replace(/(?:\s*<br\s*\/?>\s*)+<\/(div|p)>/gi, "</$1>")
       .replace(/<\/(div|p)>\s*(?:<br\s*\/?>\s*)+<(div|p)/gi, "</$1><$2");
@@ -4508,8 +4509,8 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
       } else {
         const recalMeta = getActiveRecalibrateMeta(item);
         if (recalMeta) {
-          const reasonLabel = recalMeta.relisten_reason ? ` (${escapeHtml(recalMeta.relisten_reason)})` : "";
-          infoPills.push(`<a href="challenge.html#recalibrate" class="cf-status-badge recalibrate-queue" aria-label="Recalibrate Queue${reasonLabel}"><i class='bx bx-revision' aria-hidden="true"></i><span class="recal-tooltip">Recalibrate Queue${reasonLabel}</span></a>`);
+          const linkInfo = getRecalibrateLinkMeta(recalMeta);
+          infoPills.push(`<a href="${linkInfo.href}" class="cf-status-badge recalibrate-queue" aria-label="${escapeHtml(linkInfo.label)}"><i class='bx bx-revision' aria-hidden="true"></i><span class="recal-tooltip">${escapeHtml(linkInfo.label)}</span></a>`);
         }
       }
       if (infoPills.length) {
@@ -4789,6 +4790,25 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
     if (item.relisten && !item.relisten_pending) return null;
     const key = `${(item.artist || "").trim().toLowerCase()}::${(item.title || "").trim().toLowerCase()}`;
     return activeRecalibrateMap.get(key) || null;
+  }
+
+  function getRecalibrateLinkMeta(recalMeta) {
+    const reasonLabel = recalMeta && recalMeta.relisten_reason ? ` (${recalMeta.relisten_reason})` : "";
+    const mRaw = String((recalMeta && recalMeta.month) || "").trim().toLowerCase();
+    if (mRaw && mRaw !== "recalibrate" && mRaw !== "relisten") {
+      const mBase = mRaw.replace(/[-_ ](?:'|20)?\d{2,4}$/, "");
+      const capMonth = mBase.charAt(0).toUpperCase() + mBase.slice(1);
+      const yr = recalMeta.year ? String(recalMeta.year).slice(-2) : "";
+      const monthLabel = yr && parseInt(recalMeta.year, 10) > 2026 ? `${capMonth} '${yr}` : capMonth;
+      return {
+        href: `challenge.html#${encodeURIComponent(mRaw)}`,
+        label: `Recalibrate • ${monthLabel}${reasonLabel}`
+      };
+    }
+    return {
+      href: "challenge.html#recalibrate",
+      label: `Recalibrate Queue${reasonLabel}`
+    };
   }
 
   function getSpinById(id) {
@@ -7003,11 +7023,12 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
 
       backlogItems.forEach(b => {
         const mRaw = (b.month || "").toLowerCase().trim();
-        const isRecal = mRaw === "recalibrate" || mRaw === "relisten" || !!b.relisten_reason;
+        const isUnscheduledRecal = mRaw === "recalibrate" || mRaw === "relisten";
+        const isRecal = isUnscheduledRecal || !!b.relisten_reason;
 
         let groupKey, groupLabel, sortVal, icon, targetHash;
 
-        if (isRecal) {
+        if (isUnscheduledRecal) {
           groupKey = "recalibrate";
           groupLabel = "Recalibrate Queue";
           sortVal = -1;
@@ -7038,8 +7059,8 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
           groupKey = `${mName}_${y}`;
           groupLabel = `${capitalized} ${y}`;
           sortVal = (y * 100) + (monthIdx !== -1 ? monthIdx : 99);
-          icon = "bx-calendar";
-          targetHash = mName;
+          icon = isRecal ? "bx-rotate-left" : "bx-calendar";
+          targetHash = mRaw;
         }
 
         if (!groupsMap.has(groupKey)) {
@@ -7048,7 +7069,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
             groupLabel,
             sortVal,
             icon,
-            isRecal,
+            isRecal: isUnscheduledRecal,
             targetHash,
             items: []
           });
@@ -7550,8 +7571,8 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
               ${(() => {
                 const recalMeta = getActiveRecalibrateMeta(item);
                 if (!recalMeta) return "";
-                const reasonLabel = recalMeta.relisten_reason ? ` (${escapeHtml(recalMeta.relisten_reason)})` : "";
-                return `<a href="challenge.html#recalibrate" class="category recalibrate-queue-tag" aria-label="Recalibrate Queue${reasonLabel}"><i class='bx bx-revision' aria-hidden="true"></i><span class="recal-tooltip">Recalibrate Queue${reasonLabel}</span></a>`;
+                const linkInfo = getRecalibrateLinkMeta(recalMeta);
+                return `<a href="${linkInfo.href}" class="category recalibrate-queue-tag" aria-label="${escapeHtml(linkInfo.label)}"><i class='bx bx-revision' aria-hidden="true"></i><span class="recal-tooltip">${escapeHtml(linkInfo.label)}</span></a>`;
               })()}
             </div>
             <span class="post-date">${item.log_date || ""}</span>
