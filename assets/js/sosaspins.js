@@ -2602,11 +2602,11 @@ function getDominantColorFromImg(imgUrl) {
     });
 
     let formatted = cleanText.replace(/\r?\n/g, "<br>")
-      .replace(/<(blockquote|bilingual)([^>]*)>\s*<br\s*\/?>/gi, "<$1$2>")
-      .replace(/<br\s*\/?>\s*<\/(blockquote|bilingual)>/gi, "</$1>")
-      .replace(/<(div|p)([^>]*)>\s*<br\s*\/?>/gi, "<$1$2>")
-      .replace(/<br\s*\/?>\s*<\/(div|p)>/gi, "</$1>")
-      .replace(/<\/div>\s*<br\s*\/?>\s*<div/gi, "</div><div");
+      .replace(/<(blockquote|bilingual)([^>]*)>(?:\s*<br\s*\/?>\s*)+/gi, "<$1$2>")
+      .replace(/(?:\s*<br\s*\/?>\s*)+<\/(blockquote|bilingual)>/gi, "</$1>")
+      .replace(/<(div|p)([^>]*)>(?:\s*<br\s*\/?>\s*)+/gi, "<$1$2>")
+      .replace(/(?:\s*<br\s*\/?>\s*)+<\/(div|p)>/gi, "</$1>")
+      .replace(/<\/(div|p)>\s*(?:<br\s*\/?>\s*)+<(div|p)/gi, "</$1><$2");
 
     spinPlaceholders.forEach((html, idx) => {
       formatted = formatted.replace(`__SOSA_SPIN_EMBED_${idx}__`, html);
@@ -3899,6 +3899,33 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
   const spinsCfMeta = document.getElementById("spinsCfMeta");
   const spinsCfFavTracks = document.getElementById("spinsCfFavTracks");
   const spinsCfMemo = document.getElementById("spinsCfMemo");
+  const spinsCfMemoExpandBtn = document.getElementById("spinsCfMemoExpandBtn");
+
+  function syncCfMemoExpandBtn() {
+    if (!spinsCfMemo || !spinsCfMemoExpandBtn) return;
+    if (getComputedStyle(spinsCfMemo).display === "none") {
+      spinsCfMemoExpandBtn.style.display = "none";
+      return;
+    }
+    const expanded = spinsCfMemo.classList.contains("is-expanded");
+    const overflows = expanded || spinsCfMemo.scrollHeight > spinsCfMemo.clientHeight + 8;
+    if (!overflows) {
+      spinsCfMemoExpandBtn.style.display = "none";
+      return;
+    }
+    spinsCfMemoExpandBtn.style.display = "inline-flex";
+    spinsCfMemoExpandBtn.setAttribute("aria-expanded", String(expanded));
+    spinsCfMemoExpandBtn.innerHTML = expanded
+      ? `<i class='bx bx-chevron-up'></i> Collapse Memo`
+      : `<i class='bx bx-chevron-down'></i> Read Full Memo`;
+  }
+
+  if (spinsCfMemoExpandBtn && spinsCfMemo) {
+    spinsCfMemoExpandBtn.addEventListener("click", () => {
+      spinsCfMemo.classList.toggle("is-expanded");
+      syncCfMemoExpandBtn();
+    });
+  }
   const spinsCfActions = document.getElementById("spinsCfActions");
   const spinsCfPrevBtn = document.getElementById("spinsCfPrevBtn");
   const spinsCfNextBtn = document.getElementById("spinsCfNextBtn");
@@ -4194,7 +4221,10 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
   });
 
   window.addEventListener("resize", () => {
-    if (isSpinsCoverFlow) updateSpinsCoverFlowPositions();
+    if (isSpinsCoverFlow) {
+      updateSpinsCoverFlowPositions();
+      window.requestAnimationFrame(syncCfMemoExpandBtn);
+    }
   });
 
   function renderClickableArtists(artistStr) {
@@ -4356,7 +4386,13 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
       if (spinsCfArtist) spinsCfArtist.textContent = "";
       if (spinsCfMeta) spinsCfMeta.innerHTML = "";
       if (spinsCfFavTracks) { spinsCfFavTracks.style.display = "none"; spinsCfFavTracks.innerHTML = ""; }
-      if (spinsCfMemo) { spinsCfMemo.style.display = "none"; spinsCfMemo.innerHTML = ""; }
+      if (spinsCfMemo) {
+        spinsCfMemo.style.display = "none";
+        spinsCfMemo.innerHTML = "";
+        spinsCfMemo.classList.remove("is-expanded");
+        spinsCfMemo.scrollTop = 0;
+        syncCfMemoExpandBtn();
+      }
       if (spinsCfActions) spinsCfActions.innerHTML = "";
       if (spinsCfScrubber) {
         spinsCfScrubber.min = 0;
@@ -4556,13 +4592,17 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
     }
 
     if (spinsCfMemo) {
+      spinsCfMemo.classList.remove("is-expanded");
+      spinsCfMemo.scrollTop = 0;
       if (item.memo && item.memo.trim()) {
         const cfMemoHtml = formatSpinMemoHtml(item.memo, { safeArtist, safeAlbum, safeCover });
         spinsCfMemo.style.display = "block";
         spinsCfMemo.innerHTML = cfMemoHtml;
+        window.requestAnimationFrame(syncCfMemoExpandBtn);
       } else {
         spinsCfMemo.style.display = "none";
         spinsCfMemo.innerHTML = "";
+        syncCfMemoExpandBtn();
       }
     }
 
