@@ -1356,6 +1356,8 @@ body.dark-mode .aero-theme-opt.is-moon,
 
 .post-date{
     display: flex;
+    align-items: center;
+    flex-wrap: wrap;
     margin-top: 4px;
     margin-bottom: 2px;
     font-family: "Plus Jakarta Sans", sans-serif;
@@ -1378,17 +1380,272 @@ body.dark-mode .aero-theme-opt.is-moon,
     text-transform: lowercase;
 }
 
-.review-rating{
-    display: flex;
-    margin-top:2px;
-    margin-left:5px;
+.review-rating {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 1.5px;
+    margin-left: 5px;
     font-family: "Plus Jakarta Sans", sans-serif;
-    font-size: 0.8rem;
-    font-weight: 430;
-    color: var(--glass-hover-text-color);
-    opacity: 60%;
+    font-size: 0.85rem;
+    color: #f59e0b;
+    opacity: 1;
+    line-height: 1;
+    cursor: help;
+}
+
+.review-rating[data-review-tooltip]::after {
+    content: attr(data-review-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%) translateY(3px);
+    opacity: 0;
+    pointer-events: none;
+    white-space: nowrap;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: none;
+    color: #78350f;
+    background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+    border: 1px solid rgba(245, 158, 11, 0.55);
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.14), inset 0 1px 0 #ffffff;
+    transition: opacity 0.14s ease, transform 0.14s ease;
+    z-index: 20;
+}
+
+.review-rating[data-review-tooltip]:hover::after {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.dark-mode .review-rating[data-review-tooltip]::after {
+    color: #fde68a;
+    background: linear-gradient(180deg, rgba(69, 26, 3, 0.96) 0%, rgba(41, 18, 4, 0.98) 100%);
+    border-color: rgba(251, 191, 36, 0.48);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.review-rating i {
+    filter: drop-shadow(0 1px 1.5px rgba(245, 158, 11, 0.35));
+}
+
+.review-rating i.bx-star {
+    color: rgba(15, 23, 42, 0.22);
+    filter: none;
+}
+
+.dark-mode .review-rating {
+    color: #fbbf24;
+}
+
+.dark-mode .review-rating i {
+    filter: drop-shadow(0 0 3px rgba(251, 191, 36, 0.5));
+}
+
+.dark-mode .review-rating i.bx-star {
+    color: rgba(255, 255, 255, 0.2);
+    filter: none;
+}
+
+.post-date .meta-dot {
+    margin: 0 2px 0 5px;
+}
+
+/* Sosa Study Homepage Card (Rich Blur + Glossy Reflection + Bottom-Right Pill) */
+.img-wrapper.is-study-cover-wrapper {
+    text-decoration: none;
+}
+
+.study-corner-badge {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    z-index: 6;
+    padding: 2.5px 8px;
+    border-radius: 999px;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 0.56rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
-    text-transform: lowercase;
+    line-height: 1.25;
+    color: #ffffff;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.72) 0%, rgba(15, 23, 42, 0.88) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.34);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.study-corner-kind {
+    opacity: 0.78;
+    font-weight: 700;
+}
+
+.study-blur-stage {
+    --study-sleeve-size: 142px;
+    --study-stage-pt: 10px;
+    --study-reflect-h: 32px;
+    --study-floor-h: 45px;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding-top: var(--study-stage-pt);
+    border-radius: 0.4rem;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    background: #0f1715;
+}
+
+.study-blur-stage::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: radial-gradient(circle at 50% 42%, transparent 32%, rgba(0, 0, 0, 0.45) 100%);
+    pointer-events: none;
+}
+
+.study-blur-bg {
+    position: absolute;
+    inset: -18px;
+    z-index: 0;
+    background-size: cover;
+    background-position: center;
+    filter: blur(16px) brightness(0.72) saturate(1.32);
+    transform: scale(1.14);
+}
+
+.study-cf-floor {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: var(--study-floor-h);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.11) 0%, rgba(0, 0, 0, 0.68) 100%);
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    z-index: 2;
+    pointer-events: none;
+}
+
+.study-card-sleeve {
+    position: relative;
+    z-index: 4;
+    width: var(--study-sleeve-size);
+    height: var(--study-sleeve-size);
+    flex-shrink: 0;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 12px 26px rgba(0, 0, 0, 0.58), 0 0 0 1px rgba(255, 255, 255, 0.3);
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.post-box.is-study-post:hover .study-card-sleeve {
+    transform: translateY(-1px) scale(1.03);
+}
+
+.study-card-sleeve .post-img {
+    border: none;
+    border-radius: 0;
+}
+
+.study-card-sleeve::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.24) 0%, transparent 45%);
+    pointer-events: none;
+}
+
+.study-cf-reflect {
+    position: relative;
+    z-index: 3;
+    width: var(--study-sleeve-size);
+    height: var(--study-reflect-h);
+    margin-top: 2px;
+    flex-shrink: 0;
+    border-radius: 4px;
+    overflow: hidden;
+    opacity: 0.48;
+    pointer-events: none;
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.86) 0%, transparent 94%);
+    -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.86) 0%, transparent 94%);
+    filter: blur(0.5px);
+    transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.study-cf-reflect-img {
+    display: block;
+    width: var(--study-sleeve-size);
+    height: var(--study-sleeve-size);
+    object-fit: cover;
+    transform: scaleY(-1);
+}
+
+.post-box.is-study-post:hover .study-cf-reflect {
+    opacity: 0.32;
+    transform: translateY(1px) scaleX(1.03);
+}
+
+.post-title.is-study-title {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    text-decoration: none !important;
+    line-clamp: unset;
+    -webkit-line-clamp: unset;
+    overflow: visible;
+    overflow-wrap: anywhere;
+}
+
+.study-card-artist {
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 0.84rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: #047857;
+    letter-spacing: 0.01em;
+}
+
+.study-card-album {
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 1.24rem;
+    font-weight: 800;
+    line-height: 1.22;
+    color: var(--text-color);
+    overflow-wrap: anywhere;
+}
+
+.post-title.is-study-title:hover .study-card-album {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+}
+
+.study-card-year {
+    font-family: "Noto Sans Mono", monospace;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.dark-mode .study-card-artist {
+    color: #6ee7b7 !important;
+}
+
+.dark-mode .study-card-album {
+    color: var(--dark-text-color) !important;
+}
+
+.dark-mode .study-card-year {
+    color: #94a3b8 !important;
 }
 
 .post-description{
@@ -6078,6 +6335,13 @@ body.top100-view-active .widgets-edge-tab {
     height: 185px !important;
   }
 
+  .study-blur-stage {
+    --study-sleeve-size: 130px;
+    --study-stage-pt: 9px;
+    --study-reflect-h: 28px;
+    --study-floor-h: 43px;
+  }
+
   .post-title {
     font-size: 1.2rem !important;
     line-height: 1.35 !important;
@@ -6293,6 +6557,20 @@ body.top100-view-active .widgets-edge-tab {
 
   .img-wrapper {
     height: 165px !important;
+  }
+
+  .study-corner-badge {
+    bottom: 6px;
+    right: 6px;
+    font-size: 0.52rem;
+    padding: 2px 7px;
+  }
+
+  .study-blur-stage {
+    --study-sleeve-size: 114px;
+    --study-stage-pt: 8px;
+    --study-reflect-h: 24px;
+    --study-floor-h: 39px;
   }
 }
 
