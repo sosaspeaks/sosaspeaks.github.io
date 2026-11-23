@@ -6236,6 +6236,11 @@ body.top100-view-active .widgets-edge-tab {
     max-width: none !important;
   }
 
+  .aero-player-dock.is-dragged {
+    width: calc(100vw - 20px) !important;
+    max-width: 352px !important;
+  }
+
   .sosa-modal-backdrop {
     padding: 0.75rem !important;
   }

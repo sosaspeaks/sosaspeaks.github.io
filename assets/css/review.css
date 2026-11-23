@@ -2578,6 +2578,10 @@ body.dark-mode .aero-player-dock {
   justify-content: space-between;
   align-items: center;
   padding: 7px 10px 7px 12px;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
   font-family: "Plus Jakarta Sans", sans-serif;
   background: linear-gradient(
     180deg,
@@ -2587,6 +2591,21 @@ body.dark-mode .aero-player-dock {
     rgba(225, 245, 254, 0.56) 100%
   ) !important;
   border-bottom: 1px solid rgba(148, 197, 233, 0.45);
+}
+
+.aero-player-dock.is-dragging {
+  transition: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+.aero-player-dock.is-dragging .aero-player-titlebar {
+  cursor: grabbing !important;
+}
+
+.aero-player-dock.is-dragging iframe,
+.aero-player-dock.is-dragging video {
+  pointer-events: none !important;
 }
 
 body.dark-mode .aero-player-titlebar {
@@ -4808,6 +4827,13 @@ body.dark-mode.has-hero-tint .post-content hr {
     bottom: 76px !important;
     width: auto !important;
     max-width: none !important;
+  }
+
+  .aero-player-dock.is-dragged,
+  .aero-player-dock.is-dragged.is-video,
+  .aero-player-dock.is-dragged.is-youtube {
+    width: calc(100vw - 20px) !important;
+    max-width: 352px !important;
   }
 }
 
