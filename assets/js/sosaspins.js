@@ -3162,14 +3162,134 @@ function getDominantColorFromImg(imgUrl) {
     return (Number(candidate.id) || 0) > (Number(existing.id) || 0);
   }
 
+  function getLocalChallengeTracksFallbackMap() {
+    try {
+      const raw = localStorage.getItem("sosa_challenge_track_ratings");
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function findBacklogTracksForSpin(spinItem) {
+    if (!spinItem || !Array.isArray(backlogTagEntries) || !backlogTagEntries.length) return [];
+    const sArtist = String(spinItem.artist || "").trim().toLowerCase();
+    const sTitle = String(spinItem.title || "").trim().toLowerCase();
+    if (!sArtist || !sTitle) return [];
+
+    const localMap = getLocalChallengeTracksFallbackMap();
+    for (const entry of backlogTagEntries) {
+      const bArtist = String(entry?.artist || "").trim().toLowerCase();
+      const bTitle = String(entry?.title || "").trim().toLowerCase();
+      if (bArtist !== sArtist || bTitle !== sTitle) continue;
+      const tracks = (Array.isArray(entry.track_ratings) && entry.track_ratings.length > 0)
+        ? entry.track_ratings
+        : (entry.id && Array.isArray(localMap[entry.id]) ? localMap[entry.id] : []);
+      if (tracks.length > 0) return tracks;
+    }
+    return [];
+  }
+
+  function mergeBacklogTracksIntoSpinTracks(spinTracksRaw, backlogTracksRaw) {
+    const spinTracks = Array.isArray(spinTracksRaw) ? spinTracksRaw : [];
+    const backlogTracks = Array.isArray(backlogTracksRaw) ? backlogTracksRaw : [];
+    if (!backlogTracks.length) return { tracks: spinTracks, changed: false };
+
+    const cleanTrackObj = (tr) => ({
+      title: String(tr?.title || "").trim(),
+      rating: tr?.rating !== null && tr?.rating !== undefined && tr?.rating !== "" ? tr.rating : null,
+      url: tr?.url ? String(tr.url).trim() : "",
+      duration: tr?.duration ? String(tr.duration).trim() : "",
+      duration_sec: Number.isFinite(Number(tr?.duration_sec)) && Number(tr.duration_sec) > 0
+        ? Math.round(Number(tr.duration_sec))
+        : null
+    });
+
+    if (!spinTracks.length) {
+      const inherited = backlogTracks
+        .filter(tr => tr && typeof tr === "object" && String(tr.title || "").trim())
+        .map(cleanTrackObj);
+      return { tracks: inherited, changed: inherited.length > 0 };
+    }
+
+    const byTitle = new Map();
+    backlogTracks.forEach((tr) => {
+      const k = String(tr?.title || "").trim().toLowerCase();
+      if (k && !byTitle.has(k)) byTitle.set(k, tr);
+    });
+
+    let changed = false;
+    const merged = spinTracks.map((tr, idx) => {
+      if (!tr || typeof tr !== "object") return tr;
+      const k = String(tr.title || "").trim().toLowerCase();
+      const bMatch = (k && byTitle.get(k))
+        || (backlogTracks.length === spinTracks.length ? backlogTracks[idx] : null);
+      if (!bMatch) return tr;
+
+      const curUrl = tr.url ? String(tr.url).trim() : "";
+      const bUrl = bMatch.url ? String(bMatch.url).trim() : "";
+      const nextUrl = curUrl || bUrl;
+      const curDur = tr.duration ? String(tr.duration).trim() : "";
+      const bDur = bMatch.duration ? String(bMatch.duration).trim() : "";
+      const nextDur = curDur || bDur;
+      const nextDurSec = (Number.isFinite(Number(tr.duration_sec)) && Number(tr.duration_sec) > 0)
+        ? Math.round(Number(tr.duration_sec))
+        : (Number.isFinite(Number(bMatch.duration_sec)) && Number(bMatch.duration_sec) > 0 ? Math.round(Number(bMatch.duration_sec)) : null);
+      const hasRating = tr.rating !== null && tr.rating !== undefined && tr.rating !== "";
+      const nextRating = hasRating
+        ? tr.rating
+        : (bMatch.rating !== null && bMatch.rating !== undefined && bMatch.rating !== "" ? bMatch.rating : null);
+
+      if (nextUrl !== curUrl || nextDur !== curDur || nextDurSec !== (tr.duration_sec || null) || (!hasRating && nextRating !== null)) {
+        changed = true;
+      }
+      return {
+        ...tr,
+        url: nextUrl,
+        duration: nextDur,
+        duration_sec: nextDurSec,
+        rating: nextRating
+      };
+    });
+
+    return { tracks: merged, changed };
+  }
+
+  let isSyncingBacklogTracksToSpins = false;
+  async function syncBacklogTracksToSpinsDatabase(spinsToSync) {
+    if (!supabaseClient || !isAdmin || isSyncingBacklogTracksToSpins) return;
+    const pending = (spinsToSync || []).filter(s => s && s.id && Array.isArray(s.track_ratings) && s.track_ratings.length > 0);
+    if (!pending.length) return;
+    isSyncingBacklogTracksToSpins = true;
+    try {
+      for (const s of pending) {
+        await supabaseClient
+          .from("spins")
+          .update({ track_ratings: s.track_ratings })
+          .eq("id", s.id);
+      }
+    } catch (err) {
+      console.warn("Backlog->Spin track sync notice:", err);
+    } finally {
+      isSyncingBacklogTracksToSpins = false;
+    }
+  }
+
   async function loadSpins() {
     try {
       await loadArtistAliases();
-      const [{ data, error }, backlogRes] = await Promise.all([
+      let [{ data, error }, backlogRes] = await Promise.all([
         supabaseClient.from("spins").select("*"),
-        supabaseClient.from("challenge_backlog").select("id, artist, title, month, year, release_year, cover_url, position, relisten_reason, prev_rating, genres, secondary_genres, descriptors, scenes, movements"),
+        supabaseClient.from("challenge_backlog").select("id, artist, title, month, year, release_year, cover_url, position, relisten_reason, prev_rating, genres, secondary_genres, descriptors, scenes, movements, track_ratings"),
         loadComments()
       ]);
+
+      if (backlogRes?.error && String(backlogRes.error.message || "").toLowerCase().includes("track_ratings")) {
+        backlogRes = await supabaseClient
+          .from("challenge_backlog")
+          .select("id, artist, title, month, year, release_year, cover_url, position, relisten_reason, prev_rating, genres, secondary_genres, descriptors, scenes, movements");
+      }
 
       if (error) throw error;
       if (backlogRes && backlogRes.data) {
@@ -3189,6 +3309,20 @@ function getDominantColorFromImg(imgUrl) {
         // Fallback to insertion ID if two spins have the exact same date
         return (b.id || 0) - (a.id || 0);
       });
+
+      const spinsGainingBacklogTracks = [];
+      allEntries.forEach((spin) => {
+        const bTracks = findBacklogTracksForSpin(spin);
+        if (!bTracks.length) return;
+        const { tracks, changed } = mergeBacklogTracksIntoSpinTracks(spin.track_ratings, bTracks);
+        if (changed) {
+          spin.track_ratings = tracks;
+          spinsGainingBacklogTracks.push(spin);
+        }
+      });
+      if (spinsGainingBacklogTracks.length > 0 && isAdmin) {
+        syncBacklogTracksToSpinsDatabase(spinsGainingBacklogTracks);
+      }
 
       allEntriesById = null;
       await fetchTopAlbumsData();
@@ -7492,6 +7626,20 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
             const isOpen = openDiscussSpinIds.has(Number(spinId));
             const safePlaceholderTitle = escapeHtml(item.title || "this spin");
 
+            const hasTrackRatings = Array.isArray(item.track_ratings) && item.track_ratings.length > 0;
+            const ratedVals = hasTrackRatings
+              ? item.track_ratings.map(tr => parseFloat(tr && tr.rating)).filter(n => !isNaN(n) && n > 0)
+              : [];
+            const avgNum = ratedVals.length
+              ? (ratedVals.reduce((a, b) => a + b, 0) / ratedVals.length).toFixed(1)
+              : "";
+            const avgBadgeHtml = avgNum
+              ? `<span class="track-ratings-avg">Avg <span class="track-avg-val">${avgNum}</span> ★</span>`
+              : "";
+            const trackToggleBtnHtml = hasTrackRatings
+              ? `<button type="button" class="track-ratings-toggle-btn" onclick="toggleTrackRatings(${originalIdx}, this)"><span class="track-ratings-label"><i class='bx bx-list-ol'></i> Track Ratings (${item.track_ratings.length})</span><span class="track-accordion-right">${avgBadgeHtml}<span class="ratings-arrow">▾</span></span></button>`
+              : "";
+
             return `
               <div class="spin-footer-bar">
                 ${favHtml || '<div class="fav-tracks-spacer" aria-hidden="true"></div>'}
@@ -7521,33 +7669,57 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
                 </div>
               </div>
 
-              <!-- 2. Track Ratings (Safe string escaping + Clean nesting) -->
-              ${item.track_ratings && item.track_ratings.length ? `
+              <!-- 2. Track Ratings (Concept 1 Aero ListView + Dotted Ledger + Subtle Fav Highlight) -->
+              ${hasTrackRatings ? (() => {
+                const favTitleSet = new Set(
+                  (Array.isArray(favList) ? favList : []).map(rawFav => {
+                    const part = String(rawFav || "").split("|")[0].trim().replace(/^["“']|["”']$/g, "");
+                    return part.toLowerCase();
+                  }).filter(Boolean)
+                );
+                return `
                 <div class="track-ratings-wrapper">
-                  <button type="button" class="track-ratings-toggle-btn" onclick="toggleTrackRatings(${originalIdx}, this)">
-                    <span class="track-ratings-label"><i class='bx bx-list-ol'></i> Track Ratings (${item.track_ratings.length})</span>
-                    <span class="ratings-arrow">▾</span>
-                  </button>
+                  ${trackToggleBtnHtml}
                   <div class="track-ratings-list" id="track-ratings-${originalIdx}" style="display: none;">
+                    <div class="track-ratings-list-head" aria-hidden="true">
+                      <span class="tr-col-num">#</span>
+                      <span class="tr-col-play"></span>
+                      <span class="tr-col-title">Track Title</span>
+                      <span class="tr-col-time">Time</span>
+                      <span class="tr-col-rate">Rating</span>
+                    </div>
                     ${item.track_ratings.map((tr, tIdx) => {
                       const hasUrl = tr.url && tr.url.trim().length > 0;
                       const safeTrTitle = (tr.title || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-                      const hasTrRating = tr.rating !== null && tr.rating !== undefined && tr.rating !== "" && !isNaN(parseFloat(tr.rating));
+                      const parsedRating = (tr.rating !== null && tr.rating !== undefined && tr.rating !== "") ? parseFloat(tr.rating) : NaN;
+                      const hasTrRating = !isNaN(parsedRating);
+                      const isFavTrack = favTitleSet.has(String(tr.title || "").trim().toLowerCase());
+                      const scoreTierCls = !hasTrRating
+                        ? "is-unrated"
+                        : (parsedRating >= 5 ? "tier-5" : (parsedRating >= 4.5 ? "tier-45" : (parsedRating >= 3.5 ? "tier-4" : "tier-low")));
                       const durHtml = tr.duration ? `<span class="track-duration">${escapeHtml(tr.duration)}</span>` : "";
+                      const playOrbHtml = hasUrl
+                        ? `<button type="button" class="track-play-slot has-play" onclick="playAudioTrack('${tr.url.trim()}', '${safeTrTitle}', '${safeArtist}', '${safeAlbum}', '${safeCover}')" title="Play ${escapeHtml(tr.title || "")}"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon track-play-icon"><span class="play-sheen-shine"></span></span></button>`
+                        : `<span class="track-play-slot is-empty" aria-hidden="true"></span>`;
+                      const favGutterStarHtml = isFavTrack
+                        ? `<span class="track-fav-star" data-fav-tooltip="Favorite Track" title="Favorite Track" aria-label="Favorite Track"><i class='bx bxs-star'></i></span>`
+                        : "";
                       return `
-                        <div class="track-rating-row">
-                          <span class="track-num">${tIdx + 1}.</span>
+                        <div class="track-rating-row ${isFavTrack ? "is-fav-track" : ""} ${parsedRating >= 5 ? "is-five-star" : ""}">
+                          <span class="track-num">${favGutterStarHtml}${tIdx + 1}.</span>
+                          ${playOrbHtml}
                           ${hasUrl ? `
-                            <span class="track-name song-embed-link" onclick="playAudioTrack('${tr.url.trim()}', '${safeTrTitle}', '${safeArtist}', '${safeAlbum}', '${safeCover}')">
-                            ${escapeHtml(tr.title || "")}<span class="aero-play-wrap" style="margin-left: 6px; margin-right: 0;"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon track-play-icon"><span class="play-sheen-shine"></span></span></span>
+                            <span class="track-name song-embed-link" onclick="playAudioTrack('${tr.url.trim()}', '${safeTrTitle}', '${safeArtist}', '${safeAlbum}', '${safeCover}')">${escapeHtml(tr.title || "")}</span>
                           ` : `
                             <span class="track-name">${escapeHtml(tr.title || "")}</span>
                           `}
+                          <span class="track-leader" aria-hidden="true"></span>
                           ${durHtml}
                           ${hasTrRating ? `
                             <span class="track-stars">${getStarString(tr.rating)}</span>
-                            <small class="track-score">${Number(tr.rating).toFixed(1)}</small>
+                            <small class="track-score">${parsedRating.toFixed(1)}</small>
                           ` : `
+                            <span class="track-stars is-empty-stars">${getStarString(0)}</span>
                             <small class="track-score is-unrated">—</small>
                           `}
                         </div>
@@ -7555,7 +7727,8 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
                     }).join("")}
                   </div>
                 </div>
-              ` : ""}
+              `;
+              })() : ""}
 
               <!-- Full Review Link Button -->
               ${item.review_url ? `
@@ -8270,7 +8443,10 @@ function createTrackRatingRow(title = "", rating = "", url = "", duration = "", 
     <span class="tr-row-num">1.</span>
     <input type="text" class="tr-title-input" placeholder="Track title" value="${escapeHtml(title)}" required>
     <input type="text" class="tr-duration-input" placeholder="0:00" value="${escapeHtml(duration)}" title="Track duration (e.g. 3:45)">
-    <input type="text" class="tr-url-input" placeholder="URL (opt)" value="${escapeHtml(url)}">
+    <div class="tr-url-cell">
+      <input type="text" class="tr-url-input" placeholder="URL (opt)" value="${escapeHtml(url)}">
+      <button type="button" class="tr-url-fetch-btn" title="Search &amp; pick playable URL for this track"><i class='bx bx-search-alt-2'></i></button>
+    </div>
     <div class="rym-star-picker is-track-picker tr-rating-picker" tabindex="0" role="slider" aria-label="Track rating" aria-valuemin="0" aria-valuemax="5" aria-valuenow="${normRating || 0}" title="Hover &amp; click stars to rate track (click active star to clear)">
       <input type="hidden" class="tr-rating-select" value="${escapeHtml(normRating)}">
       <div class="rym-stars-strip">
@@ -8891,7 +9067,9 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     document.getElementById("logMemo").value = item.memo || "";
     if (logRuntime) logRuntime.value = item.runtime || "";
     if (logRymRating) logRymRating.value = (item.rym_rating !== null && item.rym_rating !== undefined && item.rym_rating !== "") ? item.rym_rating : "";
-    const editTrackRows = Array.isArray(item.track_ratings) ? item.track_ratings : [];
+    const rawEditTracks = Array.isArray(item.track_ratings) ? item.track_ratings : [];
+    const matchingBacklogTracks = findBacklogTracksForSpin(item);
+    const { tracks: editTrackRows } = mergeBacklogTracksIntoSpinTracks(rawEditTracks, matchingBacklogTracks);
     pendingModalTracklist = normalizeImportedTracklist(item.tracklist);
     populateFavTrackSuggestions(pendingModalTracklist.length > 0 ? pendingModalTracklist : editTrackRows);
     if (trackRatingsList) {
@@ -9628,6 +9806,32 @@ if (addTrackRatingRowBtn && trackRatingsList) {
     return clean.length;
   }
 
+  let currentRymSeedUrl = "";
+  let currentRymSeedPair = "";
+
+  function captureRymSeedFromData(data, fallbackArtist, fallbackTitle) {
+    const candidateSeed = String(
+      data?.seed_url || (Array.isArray(data?.media_urls) ? data.media_urls[0] : "") || ""
+    ).trim();
+    if (!candidateSeed) return;
+    currentRymSeedUrl = candidateSeed;
+    const a = String(fallbackArtist ?? data?.artist ?? "").trim().toLowerCase();
+    const t = String(fallbackTitle ?? data?.title ?? "").trim().toLowerCase();
+    currentRymSeedPair = `${a}::${t}`;
+  }
+
+  function getActiveRymSeedUrl() {
+    if (!currentRymSeedUrl) return "";
+    const curA = String(logArtist?.value || "").trim().toLowerCase();
+    const curT = String(logTitle?.value || "").trim().toLowerCase();
+    if (currentRymSeedPair && `${curA}::${curT}` !== currentRymSeedPair) {
+      currentRymSeedUrl = "";
+      currentRymSeedPair = "";
+      return "";
+    }
+    return currentRymSeedUrl;
+  }
+
   function applyTracksOnlyToModal(data, { preserveExistingRuntime = true } = {}) {
     const hasTracklist = Array.isArray(data && data.tracklist) && data.tracklist.length > 0;
     const hasTrackRatings = Array.isArray(data && data.track_ratings) && data.track_ratings.length > 0;
@@ -9700,7 +9904,35 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         return;
       }
 
+      captureRymSeedFromData(data, logArtist?.value || data.artist, logTitle?.value || data.title);
       flashRymButtonFeedback(pasteTrackRatingsBtn, `<i class='bx bx-check'></i> Pasted!`);
+    });
+  }
+
+  if (window.SosaTrackUrlFetcher && trackRatingsList) {
+    window.SosaTrackUrlFetcher.attachModal({
+      modalEl: document.getElementById("logModal") || trackRatingsList.closest(".sosa-modal-backdrop, .w7-modal-window") || document.body,
+      tracksListEl: trackRatingsList,
+      fetchBatchBtnEl: document.getElementById("fetchTrackUrlsBtn"),
+      getContext: () => ({
+        artist: String(logArtist?.value || "").trim(),
+        album: String(logTitle?.value || "").trim(),
+        seedUrl: getActiveRymSeedUrl()
+      }),
+      setSeedUrl: (url) => {
+        currentRymSeedUrl = String(url || "").trim();
+        const curA = String(logArtist?.value || "").trim().toLowerCase();
+        const curT = String(logTitle?.value || "").trim().toLowerCase();
+        currentRymSeedPair = currentRymSeedUrl ? `${curA}::${curT}` : "";
+      },
+      getAccessToken: async () => {
+        if (typeof supabaseClient === "undefined") return "";
+        const { data } = await supabaseClient.auth.getSession();
+        return data?.session?.access_token || "";
+      },
+      onUrlsUpdated: () => {
+        if (typeof syncTrackRatingIndices === "function") syncTrackRatingIndices();
+      }
     });
   }
 
@@ -9867,6 +10099,7 @@ if (addTrackRatingRowBtn && trackRatingsList) {
         overwriteExistingTrackRatings: Array.isArray(data.track_ratings) && data.track_ratings.length > 0
       });
 
+      captureRymSeedFromData(data, cleanArtist || logArtist?.value, cleanTitle || logTitle?.value);
       flashRymButtonFeedback(rymImportBtn, `<i class='bx bx-check'></i> Imported!`);
     });
   }

@@ -1,0 +1,461 @@
+/* ============================================================
+   SHARED TRACK URL FETCHER (CELL, BUTTON & AERO POPOVER)
+   ============================================================ */
+
+.tr-url-cell {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  width: 100%;
+  position: relative;
+}
+
+.tr-url-cell .tr-url-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+}
+
+.tr-url-fetch-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(142, 157, 168, 0.35);
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(226, 232, 240, 0.72) 100%);
+  color: #0284c7;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.tr-url-fetch-btn:hover {
+  background: linear-gradient(180deg, #f0f9ff 0%, #bae6fd 100%);
+  border-color: rgba(14, 165, 233, 0.6);
+  color: #0369a1;
+  box-shadow: 0 1px 4px rgba(14, 165, 233, 0.22);
+}
+
+.tr-url-fetch-btn.is-matched {
+  background: linear-gradient(180deg, #ecfdf5 0%, #a7f3d0 100%);
+  border-color: #10b981;
+  color: #047857;
+}
+
+.tr-url-fetch-btn.is-loading,
+.add-track-btn.tr-fetch-btn.is-loading {
+  opacity: 0.85;
+  cursor: wait;
+}
+
+body.dark-mode .tr-url-fetch-btn {
+  background: linear-gradient(180deg, rgba(51, 65, 85, 0.85) 0%, rgba(30, 41, 59, 0.88) 100%);
+  border-color: rgba(148, 163, 184, 0.25);
+  color: #38bdf8;
+}
+
+body.dark-mode .tr-url-fetch-btn:hover {
+  background: linear-gradient(180deg, rgba(14, 116, 144, 0.75) 0%, rgba(12, 74, 110, 0.85) 100%);
+  border-color: rgba(56, 189, 248, 0.65);
+  color: #e0f2fe;
+}
+
+body.dark-mode .tr-url-fetch-btn.is-matched {
+  background: linear-gradient(180deg, rgba(6, 95, 70, 0.85) 0%, rgba(6, 78, 59, 0.92) 100%);
+  border-color: rgba(52, 211, 153, 0.65);
+  color: #6ee7b7;
+}
+
+.add-track-btn.tr-fetch-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #0369a1;
+  border-color: rgba(14, 165, 233, 0.42);
+  background: linear-gradient(180deg, rgba(240, 249, 255, 0.95) 0%, rgba(224, 242, 254, 0.88) 100%);
+}
+
+.add-track-btn.tr-fetch-btn:hover {
+  color: #0c4a6e;
+  border-color: rgba(14, 165, 233, 0.75);
+  background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 100%);
+}
+
+body.dark-mode .add-track-btn.tr-fetch-btn {
+  color: #7dd3fc;
+  border-color: rgba(56, 189, 248, 0.35);
+  background: linear-gradient(180deg, rgba(12, 74, 110, 0.62) 0%, rgba(15, 23, 42, 0.78) 100%);
+}
+
+body.dark-mode .add-track-btn.tr-fetch-btn:hover {
+  color: #e0f2fe;
+  border-color: rgba(56, 189, 248, 0.7);
+  background: linear-gradient(180deg, rgba(2, 132, 199, 0.55) 0%, rgba(12, 74, 110, 0.82) 100%);
+}
+
+/* Floating Aero Lookup & Batch Popover */
+.tr-url-popover {
+  position: fixed;
+  z-index: 10000050 !important;
+  max-height: min(420px, calc(100vh - 28px));
+  display: flex;
+  flex-direction: column;
+  border-radius: 9px;
+  border: 1px solid rgba(116, 149, 178, 0.72);
+  background: linear-gradient(180deg, rgba(244, 249, 255, 0.96) 0%, rgba(226, 237, 248, 0.97) 100%);
+  box-shadow:
+    0 14px 32px rgba(15, 23, 42, 0.28),
+    0 0 0 1px rgba(255, 255, 255, 0.65) inset;
+  backdrop-filter: blur(12px);
+  color: #0f172a;
+  font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+  overflow: hidden;
+}
+
+body.dark-mode .tr-url-popover {
+  border-color: rgba(100, 116, 139, 0.6);
+  background: linear-gradient(180deg, rgba(24, 34, 52, 0.97) 0%, rgba(15, 23, 42, 0.98) 100%);
+  box-shadow:
+    0 16px 36px rgba(0, 0, 0, 0.62),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  color: #e2e8f0;
+}
+
+.tr-url-popover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  background: linear-gradient(180deg, rgba(221, 237, 252, 0.92) 0%, rgba(196, 221, 245, 0.88) 100%);
+  border-bottom: 1px solid rgba(148, 173, 198, 0.55);
+}
+
+body.dark-mode .tr-url-popover-head {
+  background: linear-gradient(180deg, rgba(30, 58, 95, 0.88) 0%, rgba(17, 36, 62, 0.9) 100%);
+  border-bottom-color: rgba(148, 163, 184, 0.22);
+}
+
+.tr-url-popover-title {
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tr-url-popover-close {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  background: rgba(255, 255, 255, 0.55);
+  color: #334155;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tr-url-popover-close:hover {
+  background: #ef4444;
+  border-color: #dc2626;
+  color: #fff;
+}
+
+body.dark-mode .tr-url-popover-close {
+  background: rgba(30, 41, 59, 0.7);
+  border-color: rgba(148, 163, 184, 0.28);
+  color: #cbd5e1;
+}
+
+.tr-url-popover-body {
+  padding: 9px 10px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 0.74rem;
+}
+
+.tr-url-popover-status,
+.tr-url-popover-empty {
+  padding: 12px 6px;
+  text-align: center;
+  color: #475569;
+  font-size: 0.74rem;
+}
+
+body.dark-mode .tr-url-popover-status,
+body.dark-mode .tr-url-popover-empty {
+  color: #94a3b8;
+}
+
+.tr-url-popover-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tr-url-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  user-select: none;
+}
+
+body.dark-mode .tr-url-check {
+  color: #cbd5e1;
+}
+
+.tr-url-popover-warn,
+.tr-warn-text {
+  font-size: 0.71rem;
+  color: #b45309;
+  background: rgba(254, 243, 199, 0.85);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 5px;
+  padding: 4px 7px;
+  display: block;
+}
+
+body.dark-mode .tr-url-popover-warn,
+body.dark-mode .tr-warn-text {
+  color: #fcd34d;
+  background: rgba(120, 53, 15, 0.45);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.tr-url-cand-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tr-url-cand-item {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.tr-url-cand-pick {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+  padding: 5px 7px;
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(255, 255, 255, 0.72);
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: all 0.12s ease;
+}
+
+.tr-url-cand-pick:hover {
+  background: rgba(224, 242, 254, 0.92);
+  border-color: rgba(14, 165, 233, 0.65);
+}
+
+body.dark-mode .tr-url-cand-pick {
+  background: rgba(30, 41, 59, 0.74);
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+body.dark-mode .tr-url-cand-pick:hover {
+  background: rgba(12, 74, 110, 0.68);
+  border-color: rgba(56, 189, 248, 0.58);
+}
+
+.tr-url-cand-top {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.tr-url-cand-title {
+  font-size: 0.74rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tr-url-cand-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.67rem;
+  color: #64748b;
+}
+
+body.dark-mode .tr-url-cand-meta {
+  color: #94a3b8;
+}
+
+.tr-url-src-pill {
+  flex: 0 0 auto;
+  font-size: 0.63rem;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.25px;
+}
+
+.tr-url-src-pill.src-youtube {
+  background: rgba(239, 68, 68, 0.14);
+  color: #b91c1c;
+}
+
+.tr-url-src-pill.src-bandcamp {
+  background: rgba(6, 182, 212, 0.16);
+  color: #0e7490;
+}
+
+.tr-url-src-pill.src-soundcloud {
+  background: rgba(249, 115, 22, 0.16);
+  color: #c2410c;
+}
+
+.tr-url-src-pill.src-itunes {
+  background: rgba(139, 92, 246, 0.16);
+  color: #6d28d9;
+}
+
+body.dark-mode .tr-url-src-pill.src-youtube {
+  background: rgba(239, 68, 68, 0.26);
+  color: #fca5a5;
+}
+
+body.dark-mode .tr-url-src-pill.src-bandcamp {
+  background: rgba(6, 182, 212, 0.26);
+  color: #67e8f9;
+}
+
+body.dark-mode .tr-url-src-pill.src-soundcloud {
+  background: rgba(249, 115, 22, 0.26);
+  color: #fdba74;
+}
+
+body.dark-mode .tr-url-src-pill.src-itunes {
+  background: rgba(139, 92, 246, 0.26);
+  color: #ddd6fe;
+}
+
+.tr-url-cand-open {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(255, 255, 255, 0.62);
+  color: #475569;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.tr-url-cand-open:hover {
+  background: #e0f2fe;
+  color: #0369a1;
+  border-color: rgba(14, 165, 233, 0.55);
+}
+
+body.dark-mode .tr-url-cand-open {
+  background: rgba(30, 41, 59, 0.74);
+  border-color: rgba(148, 163, 184, 0.22);
+  color: #94a3b8;
+}
+
+body.dark-mode .tr-url-cand-open:hover {
+  background: rgba(12, 74, 110, 0.72);
+  color: #7dd3fc;
+}
+
+.tr-batch-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tr-batch-field label {
+  font-size: 0.71rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+body.dark-mode .tr-batch-field label {
+  color: #cbd5e1;
+}
+
+.tr-batch-hint {
+  font-weight: 500;
+  font-size: 0.66rem;
+  opacity: 0.82;
+}
+
+.tr-batch-seed-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  border-radius: 5px;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: rgba(255, 255, 255, 0.88);
+  color: #0f172a;
+  font-size: 0.73rem;
+}
+
+body.dark-mode .tr-batch-seed-input {
+  background: rgba(15, 23, 42, 0.86);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: #e2e8f0;
+}
+
+.tr-batch-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.tr-batch-run-btn {
+  padding: 5px 11px !important;
+  font-size: 0.74rem !important;
+  font-weight: 700 !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tr-url-popover-status-box {
+  font-size: 0.72rem;
+  line-height: 1.4;
+  padding: 6px 8px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.32);
+}
+
+body.dark-mode .tr-url-popover-status-box {
+  background: rgba(30, 41, 59, 0.75);
+  border-color: rgba(148, 163, 184, 0.24);
+}
+
+@media (max-width: 560px) {
+  .track-rating-input-row .tr-url-cell {
+    grid-column: 1 / -1;
+  }
+}

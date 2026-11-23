@@ -1,22 +1,95 @@
 // ==UserScript==
 // @name         RYM to SosaSpins & Challenge Exporter
 // @namespace    https://sosaspeaks.org/
-// @version      1.8
-// @description  Extracts release data, user rating, genres (deduped from scenes/movements), descriptors, tracklists, and expanded-only track ratings from Rate Your Music (RYM) — plus standalone Tracks & Ratings or Descriptors copy modes.
+// @version      2.0
+// @description  Extracts release data, user rating, genres (deduped from scenes/movements), descriptors, tracklists, Bandcamp track links, and expanded-only track ratings from Rate Your Music (RYM) — plus standalone Tracks & Ratings or Descriptors copy modes.
 // @author       SosaSpins
 // @match        *://rateyourmusic.com/*
 // @match        *://*.rateyourmusic.com/*
+// @match        *://bandcamp.com/EmbeddedPlayer/*
 // @icon         https://rateyourmusic.com/favicon.ico
 // @grant        GM_setClipboard
 // @grant        GM_notification
+// @grant        GM_xmlhttpRequest
 // @grant        unsafeWindow
+// @connect      bandcamp.com
+// @connect      *.bandcamp.com
+// @connect      *
 // @run-at       document-idle
 // @inject-into  content
-// @noframes
 // ==/UserScript==
 
 (function () {
   "use strict";
+
+  // ============================================================
+  // BANDCAMP EMBEDDEDPLAYER IFRAME BRIDGE (RUNS INSIDE RYM IFRAME)
+  // ============================================================
+  function runBandcampEmbedBridge() {
+    let sent = false;
+    const tryExtractAndPost = () => {
+      if (sent) return true;
+      let parsed = null;
+      const dataEl = document.querySelector("script[data-player-data], [data-player-data]");
+      if (dataEl) {
+        const raw = dataEl.getAttribute("data-player-data");
+        if (raw) {
+          try {
+            parsed = JSON.parse(raw);
+          } catch (_) {}
+        }
+      }
+      if (!parsed && typeof unsafeWindow !== "undefined") {
+        try {
+          if (unsafeWindow.playerdata) parsed = unsafeWindow.playerdata;
+        } catch (_) {}
+      }
+      const rawTracks = parsed?.tracks || parsed?.main?.tracks || parsed?.trackinfo;
+      if (!Array.isArray(rawTracks) || !rawTracks.length) return false;
+
+      const pathAlbumMatch = location.pathname.match(/album=(\d+)/i);
+      const pathTrackMatch = location.pathname.match(/track=(\d+)/i);
+      const albumId = String(parsed?.album_id || parsed?.main?.album_id || parsed?.current?.album_id || parsed?.id || pathAlbumMatch?.[1] || "").trim();
+
+      const tracks = rawTracks
+        .map((t, idx) => {
+          const trackId = t?.track_id || t?.id || (rawTracks.length === 1 ? pathTrackMatch?.[1] : "");
+          if (!trackId || !t?.title) return null;
+          return {
+            track_id: String(trackId),
+            title: String(t.title),
+            duration: Number.isFinite(Number(t.duration)) ? Math.round(Number(t.duration)) : null,
+            tracknum: Number.isFinite(Number(t.tracknum)) ? Number(t.tracknum) + 1 : idx + 1
+          };
+        })
+        .filter(Boolean);
+
+      if (!tracks.length) return false;
+      sent = true;
+      window.parent.postMessage({ type: "SOSA_BC_EMBED_TRACKS", albumId: albumId || "single", realAlbumId: albumId, tracks }, "*");
+      return true;
+    };
+
+    if (tryExtractAndPost()) return;
+    let attempts = 0;
+    const timer = setInterval(() => {
+      attempts++;
+      if (tryExtractAndPost() || attempts >= 40) {
+        clearInterval(timer);
+      }
+    }, 300);
+  }
+
+  if (location.hostname.includes("bandcamp.com") && location.pathname.includes("/EmbeddedPlayer")) {
+    if (window !== window.top) {
+      runBandcampEmbedBridge();
+    }
+    return;
+  }
+
+  if (!location.hostname.includes("rateyourmusic.com") || window !== window.top) {
+    return;
+  }
 
   // Known SosaSpins Scenes & Movements (prevents RYM scene/movement tags from duplicating inside genres)
   const KNOWN_SCENES = new Set([
@@ -749,6 +822,340 @@
   // ============================================================
   // PARTIAL EXPORT MODES: TRACKS ONLY & DESCRIPTORS ONLY
   // ============================================================
+  // ============================================================
+  // MEDIA SEEDS & BANDCAMP TRACK LINK RESOLVER
+  // ============================================================
+  const cachedBandcampEmbedByAlbumId = new Map();
+
+  window.addEventListener("message", (event) => {
+    const msg = event?.data;
+    if (!msg || msg.type !== "SOSA_BC_EMBED_TRACKS" || !msg.albumId || !Array.isArray(msg.tracks)) return;
+    const realAlbumId = msg.realAlbumId !== undefined ? String(msg.realAlbumId) : (msg.albumId === "single" ? "" : String(msg.albumId));
+    cachedBandcampEmbedByAlbumId.set(String(msg.albumId), {
+      albumId: realAlbumId,
+      tracks: msg.tracks
+    });
+  });
+
+  function normalizeBandcampMatchText(str) {
+    return String(str || "")
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\((?:feat\.?|ft\.?|with)\s+[^)]*\)/gi, " ")
+      .replace(/\[(?:feat\.?|ft\.?|with)\s+[^\]]*\]/gi, " ")
+      .replace(/[^\p{L}\p{N}\s]+/gu, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function bandcampTitleSimilarity(aRaw, bRaw) {
+    const a = normalizeBandcampMatchText(aRaw);
+    const b = normalizeBandcampMatchText(bRaw);
+    if (!a || !b) return 0;
+    if (a === b) return 1.0;
+    if (a.includes(b) || b.includes(a)) {
+      const ratio = Math.min(a.length, b.length) / Math.max(a.length, b.length);
+      if (ratio >= 0.55) return 0.9;
+    }
+    const setA = new Set(a.split(" ").filter(Boolean));
+    const setB = new Set(b.split(" ").filter(Boolean));
+    if (!setA.size || !setB.size) return 0;
+    let overlap = 0;
+    for (const t of setA) {
+      if (setB.has(t)) overlap++;
+    }
+    const jaccard = overlap / (setA.size + setB.size - overlap);
+    const recall = overlap / setA.size;
+    return jaccard * 0.55 + recall * 0.45;
+  }
+
+  function buildBandcampEmbeddedPlayerUrl(albumId, trackId) {
+    if (albumId && trackId) {
+      return `https://bandcamp.com/EmbeddedPlayer/album=${albumId}/size=large/bgcol=ffffff/linkcol=0687f5/tracklist=false/artwork=small/track=${trackId}/transparent=true/`;
+    }
+    if (albumId) {
+      return `https://bandcamp.com/EmbeddedPlayer/album=${albumId}/size=large/bgcol=ffffff/linkcol=0687f5/tracklist=false/artwork=small/transparent=true/`;
+    }
+    if (trackId) {
+      return `https://bandcamp.com/EmbeddedPlayer/track=${trackId}/size=large/bgcol=ffffff/linkcol=0687f5/tracklist=false/artwork=small/transparent=true/`;
+    }
+    return "";
+  }
+
+  function extractReleaseMediaSeeds() {
+    const mediaUrls = [];
+    const seen = new Set();
+    let bandcampAlbumId = "";
+    let bandcampUrl = "";
+    let youtubeUrl = "";
+    let soundcloudUrl = "";
+
+    const normalizeProtoUrl = (raw) => {
+      if (!raw || typeof raw !== "string") return "";
+      let u = raw.trim();
+      if (!u) return "";
+      if (u.startsWith("//")) u = "https:" + u;
+      else if (!/^https?:\/\//i.test(u) && /^[a-z0-9.-]+\.[a-z]{2,}\//i.test(u)) u = "https://" + u;
+      return /^https?:\/\//i.test(u) ? u.split("#")[0] : "";
+    };
+
+    const pushUrl = (raw, { allowCustomBandcamp = false } = {}) => {
+      const clean = normalizeProtoUrl(raw);
+      if (!clean) return "";
+      const isKnownMedia = /(?:bandcamp\.com|youtube\.com|youtu\.be|soundcloud\.com)/i.test(clean);
+      if (!isKnownMedia && !allowCustomBandcamp) return "";
+      if (/(?:youtube\.com\/(?:channel|user|@|results|feed|shorts)|bandcamp\.com\/(?:login|signup|discover))/i.test(clean)) return "";
+      if (!seen.has(clean)) {
+        seen.add(clean);
+        mediaUrls.push(clean);
+      }
+      return clean;
+    };
+
+    // 1. Parse RYM structured data-links JSON (handles Bandcamp IDs, custom Bandcamp domains, SoundCloud, YouTube)
+    document.querySelectorAll("[data-links]").forEach((el) => {
+      const rawJson = el.getAttribute("data-links");
+      if (!rawJson) return;
+      try {
+        const parsed = JSON.parse(rawJson);
+        if (parsed?.bandcamp && typeof parsed.bandcamp === "object") {
+          for (const [bcId, info] of Object.entries(parsed.bandcamp)) {
+            if (/^\d+$/.test(bcId) && (!bandcampAlbumId || info?.default)) {
+              bandcampAlbumId = bcId;
+            }
+            if (info?.url) {
+              const fullBc = pushUrl(info.url, { allowCustomBandcamp: true });
+              if (fullBc && (!bandcampUrl || info?.default)) bandcampUrl = fullBc;
+            }
+          }
+        }
+        if (parsed?.soundcloud && typeof parsed.soundcloud === "object") {
+          for (const info of Object.values(parsed.soundcloud)) {
+            if (info?.url) {
+              const fullSc = pushUrl(info.url);
+              if (fullSc && (!soundcloudUrl || info?.default)) soundcloudUrl = fullSc;
+            }
+          }
+        }
+        if (parsed?.youtube && typeof parsed.youtube === "object") {
+          for (const [ytKey, info] of Object.entries(parsed.youtube)) {
+            let fullYt = info?.url ? pushUrl(info.url) : "";
+            if (!fullYt && ytKey) {
+              const guess = ytKey.startsWith("PL") || ytKey.startsWith("OLAK")
+                ? `https://www.youtube.com/playlist?list=${ytKey}`
+                : `https://www.youtube.com/watch?v=${ytKey}`;
+              fullYt = pushUrl(guess);
+            }
+            if (fullYt && (!youtubeUrl || info?.default)) youtubeUrl = fullYt;
+          }
+        }
+      } catch (_) {}
+    });
+
+    // 2. Scan RYM UI media buttons (including custom-domain Bandcamp buttons) & links
+    document.querySelectorAll(".ui_media_links a.ui_media_link_btn[href], .ui_media_links a[href]").forEach((a) => {
+      const isBcBtn = a.classList.contains("ui_media_link_btn_bandcamp") || /bandcamp/i.test(a.title || a.getAttribute("aria-label") || "");
+      const u = pushUrl(a.href || a.getAttribute("href"), { allowCustomBandcamp: isBcBtn });
+      if (isBcBtn && u && !bandcampUrl) bandcampUrl = u;
+      if (a.classList.contains("ui_media_link_btn_soundcloud") && u && !soundcloudUrl) soundcloudUrl = u;
+      if (a.classList.contains("ui_media_link_btn_youtube") && u && !youtubeUrl) youtubeUrl = u;
+    });
+
+    // 3. Scan embedded Bandcamp / YouTube / SoundCloud iframes & fallback page anchors
+    document
+      .querySelectorAll("iframe[src*='bandcamp.com/EmbeddedPlayer'], iframe[data-src*='bandcamp.com/EmbeddedPlayer'], .section_listen iframe[src], iframe[src*='youtube.com'], iframe[src*='soundcloud.com']")
+      .forEach((f) => {
+        const src = f.src || f.getAttribute("src") || f.getAttribute("data-src") || "";
+        const m = src.match(/album=(\d+)/i);
+        if (m && !bandcampAlbumId) bandcampAlbumId = m[1];
+        pushUrl(src);
+      });
+
+    document
+      .querySelectorAll(".section_listen a[href], #media_link_container a[href], .release_media a[href], table.album_info a[href], a[href*='bandcamp.com'], a[href*='youtube.com/playlist'], a[href*='soundcloud.com']")
+      .forEach((a) => {
+        const u = pushUrl(a.href || a.getAttribute("href"));
+        if (u && /bandcamp\.com/i.test(u) && !bandcampUrl) bandcampUrl = u;
+      });
+
+    const embedUrl = bandcampAlbumId
+      ? `https://bandcamp.com/EmbeddedPlayer/album=${bandcampAlbumId}/size=large/bgcol=ffffff/linkcol=0687f5/tracklist=false/artwork=small/transparent=true/`
+      : "";
+
+    const seedUrl =
+      bandcampUrl ||
+      embedUrl ||
+      mediaUrls.find((u) => /youtube\.com\/.*[?&]list=/i.test(u)) ||
+      soundcloudUrl ||
+      youtubeUrl ||
+      mediaUrls[0] ||
+      "";
+
+    return { seedUrl, mediaUrls, bandcampAlbumId, bandcampUrl };
+  }
+
+  function parseBandcampHtmlForTracks(html, fallbackAlbumId = "") {
+    if (!html || html.includes("_fs-ch-")) return null;
+    const playerMatch = html.match(/data-player-data=(["'])([\s\S]*?)\1/i);
+    if (playerMatch) {
+      try {
+        const rawJson = playerMatch[2]
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/&amp;/g, "&");
+        const parsed = JSON.parse(rawJson);
+        const rawTracks = parsed?.tracks || parsed?.main?.tracks;
+        const albumId = String(parsed?.album_id || parsed?.main?.album_id || parsed?.current?.album_id || fallbackAlbumId || "").trim();
+        if (Array.isArray(rawTracks) && rawTracks.length) {
+          return {
+            albumId,
+            tracks: rawTracks
+              .map((t, idx) => {
+                const tid = t?.track_id || t?.id;
+                return tid && t?.title ? { track_id: String(tid), title: String(t.title), tracknum: idx + 1 } : null;
+              })
+              .filter(Boolean)
+          };
+        }
+      } catch (_) {}
+    }
+
+    const tralbumMatch = html.match(/data-tralbum=(["'])([\s\S]*?)\1/i);
+    if (tralbumMatch) {
+      try {
+        const rawJson = tralbumMatch[2]
+          .replace(/&quot;/g, '"')
+          .replace(/&#34;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/&amp;/g, "&");
+        const tralbum = JSON.parse(rawJson);
+        const domAlbumMatch = html.match(/data-item-id=["']album-(\d+)["']/i);
+        const albumId = String(
+          tralbum?.item_type === "album"
+            ? tralbum.id
+            : (tralbum?.current?.album_id || domAlbumMatch?.[1] || fallbackAlbumId || "")
+        ).trim();
+        const rawTracks = tralbum?.trackinfo;
+        if (Array.isArray(rawTracks) && rawTracks.length) {
+          return {
+            albumId,
+            tracks: rawTracks
+              .map((t, idx) => {
+                const tid = t?.track_id || t?.id || tralbum?.current?.id;
+                return tid && t?.title ? { track_id: String(tid), title: String(t.title), tracknum: idx + 1 } : null;
+              })
+              .filter(Boolean)
+          };
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  function fetchBandcampTracksViaGM(albumId, pageUrl) {
+    if (typeof GM_xmlhttpRequest !== "function") return Promise.resolve(null);
+    const targets = [];
+    if (pageUrl) targets.push(pageUrl);
+    if (albumId) {
+      targets.push(`https://bandcamp.com/EmbeddedPlayer/album=${albumId}/size=large/bgcol=ffffff/linkcol=0687f5/tracklist=false/artwork=small/transparent=true/`);
+    }
+    if (!targets.length) return Promise.resolve(null);
+
+    const fetchOne = (url) =>
+      new Promise((resolve) => {
+        try {
+          GM_xmlhttpRequest({
+            method: "GET",
+            url,
+            timeout: 3500,
+            onload: (res) => {
+              const parsed = parseBandcampHtmlForTracks(res?.responseText || "", albumId);
+              if (parsed?.albumId && parsed?.tracks?.length) {
+                cachedBandcampEmbedByAlbumId.set(parsed.albumId, parsed);
+                resolve(parsed);
+              } else {
+                resolve(null);
+              }
+            },
+            onerror: () => resolve(null),
+            ontimeout: () => resolve(null)
+          });
+        } catch (_) {
+          resolve(null);
+        }
+      });
+
+    return (async () => {
+      for (const tUrl of targets) {
+        const hit = await fetchOne(tUrl);
+        if (hit) return hit;
+      }
+      return null;
+    })();
+  }
+
+  function applyBandcampCollectionToPayload(payload, bcData) {
+    if (!payload || !Array.isArray(bcData?.tracks) || !bcData.tracks.length) return 0;
+    const bcTracks = bcData.tracks;
+    let attached = 0;
+
+    const findUrlForTrack = (title, idx) => {
+      let best = null;
+      let bestScore = 0;
+      bcTracks.forEach((bt) => {
+        let s = bandcampTitleSimilarity(title, bt.title);
+        if (idx >= 0 && bt.tracknum === idx + 1 && s >= 0.45) s += 0.1;
+        if (s > bestScore) {
+          bestScore = s;
+          best = bt;
+        }
+      });
+      if (best && bestScore >= 0.52) {
+        return buildBandcampEmbeddedPlayerUrl(bcData.albumId, best.track_id);
+      }
+      // Safe positional fallback when release and Bandcamp track counts match identically
+      if (bcTracks.length === (payload.tracklist?.length || payload.track_ratings?.length) && bcTracks[idx]?.track_id) {
+        return buildBandcampEmbeddedPlayerUrl(bcData.albumId, bcTracks[idx].track_id);
+      }
+      return "";
+    };
+
+    if (Array.isArray(payload.tracklist)) {
+      payload.tracklist = payload.tracklist.map((t, idx) => {
+        if (!t || typeof t !== "object") return t;
+        const url = t.url || findUrlForTrack(t.title, idx);
+        if (url && !t.url) attached++;
+        return url ? { ...t, url } : t;
+      });
+    }
+    if (Array.isArray(payload.track_ratings)) {
+      payload.track_ratings = payload.track_ratings.map((t, idx) => {
+        if (!t || typeof t !== "object") return t;
+        const url = t.url || findUrlForTrack(t.title, idx);
+        return url ? { ...t, url } : t;
+      });
+    }
+    return attached;
+  }
+
+  async function enrichPayloadWithBandcampTracks(payload, mediaSeeds) {
+    if (!payload) return payload;
+    const albumId = mediaSeeds?.bandcampAlbumId || "";
+    let bcData = albumId ? cachedBandcampEmbedByAlbumId.get(albumId) : null;
+    if (!bcData && cachedBandcampEmbedByAlbumId.size === 1 && !albumId) {
+      bcData = Array.from(cachedBandcampEmbedByAlbumId.values())[0];
+    }
+    if (!bcData && (albumId || mediaSeeds?.bandcampUrl)) {
+      bcData = await fetchBandcampTracksViaGM(albumId, mediaSeeds.bandcampUrl);
+    }
+    if (bcData) {
+      const count = applyBandcampCollectionToPayload(payload, bcData);
+      if (count > 0) payload.bandcamp_tracks_matched = count;
+    }
+    return payload;
+  }
+
   function extractTracksOnlyData() {
     const infoRows = Array.from(document.querySelectorAll("table.album_info tr"));
     const header = extractReleaseHeaderMeta(infoRows);
@@ -756,7 +1163,8 @@
     const trackRatings = buildTrackRatingsFromTracklist(tracklist);
     const runtime = extractReleaseRuntime(infoRows, tracklist);
 
-    return {
+    const mediaSeeds = extractReleaseMediaSeeds();
+    const payload = {
       source: "RateYourMusic",
       export_type: "tracks",
       artist: header.artist,
@@ -764,8 +1172,16 @@
       runtime,
       tracklist,
       track_ratings: trackRatings,
+      seed_url: mediaSeeds.seedUrl,
+      media_urls: mediaSeeds.mediaUrls,
       url: header.url
     };
+    const bcCached = mediaSeeds.bandcampAlbumId ? cachedBandcampEmbedByAlbumId.get(mediaSeeds.bandcampAlbumId) : null;
+    if (bcCached) {
+      const count = applyBandcampCollectionToPayload(payload, bcCached);
+      if (count > 0) payload.bandcamp_tracks_matched = count;
+    }
+    return { payload, mediaSeeds };
   }
 
   function extractDescriptorsOnlyData() {
@@ -932,7 +1348,9 @@
       coverUrl = coverUrl.replace(/\/i\/[0-9]+\//, "/i/600/");
     }
 
-    return {
+    // Optional Media / Listen Seeds (Bandcamp album, YouTube playlist/video, SoundCloud)
+    const mediaSeeds = extractReleaseMediaSeeds();
+    const payload = {
       source: "RateYourMusic",
       export_type: "release",
       artist: header.artist,
@@ -951,8 +1369,16 @@
       tracklist,
       track_ratings: trackRatings,
       cover_url: coverUrl,
+      seed_url: mediaSeeds.seedUrl,
+      media_urls: mediaSeeds.mediaUrls,
       url: header.url
     };
+    const bcCached = mediaSeeds.bandcampAlbumId ? cachedBandcampEmbedByAlbumId.get(mediaSeeds.bandcampAlbumId) : null;
+    if (bcCached) {
+      const count = applyBandcampCollectionToPayload(payload, bcCached);
+      if (count > 0) payload.bandcamp_tracks_matched = count;
+    }
+    return payload;
   }
 
   // ============================================================
@@ -1094,6 +1520,7 @@
       headline = "✔ Copied Tracks & Ratings!";
       summaryLine = [
         tracksMeta,
+        data.bandcamp_tracks_matched ? `🎧 ${data.bandcamp_tracks_matched} Bandcamp URLs` : "",
         data.runtime ? `⏱ ${data.runtime}` : ""
       ].filter(Boolean).join(" • ");
     } else if (mode === "descriptors") {
@@ -1107,6 +1534,7 @@
         data.rating !== null && data.rating !== undefined ? `★ ${data.rating}` : "",
         data.runtime ? `⏱ ${data.runtime}` : "",
         trackCount > 0 ? tracksMeta : "",
+        data.bandcamp_tracks_matched ? `🎧 ${data.bandcamp_tracks_matched} Bandcamp URLs` : "",
         (data.genres || []).slice(0, 2).join(", "),
         (data.scenes || []).length > 0 ? `🎬 ${(data.scenes || []).length} scene(s)` : "",
         (data.movements || []).length > 0 ? `🌊 ${(data.movements || []).length} movement(s)` : ""
@@ -1244,7 +1672,26 @@
     tracksBtn.innerHTML = `<span style="font-size: 0.95rem; line-height: 1;">🎵</span><span>Tracks</span>`;
     tracksBtn.title = "Copy ONLY Tracklist & Track Ratings JSON (Shortcut: Alt+T)";
     styleDockButton(tracksBtn, "tracks");
-    tracksBtn.onclick = () => copyToClipboard(extractTracksOnlyData());
+    async function copyFullReleaseWithMedia() {
+      const mediaSeeds = extractReleaseMediaSeeds();
+      const data = extractReleasePageData();
+      if (!data.bandcamp_tracks_matched && (mediaSeeds.bandcampAlbumId || mediaSeeds.bandcampUrl)) {
+        await enrichPayloadWithBandcampTracks(data, mediaSeeds);
+      }
+      await copyToClipboard(data);
+      return data;
+    }
+
+    async function copyTracksWithMedia() {
+      const { payload, mediaSeeds } = extractTracksOnlyData();
+      if (!payload.bandcamp_tracks_matched && (mediaSeeds.bandcampAlbumId || mediaSeeds.bandcampUrl)) {
+        await enrichPayloadWithBandcampTracks(payload, mediaSeeds);
+      }
+      await copyToClipboard(payload);
+      return payload;
+    }
+
+    tracksBtn.onclick = () => copyTracksWithMedia();
 
     const descBtn = document.createElement("button");
     descBtn.id = "sosa-floating-descriptors-btn";
@@ -1260,7 +1707,7 @@
     mainBtn.innerHTML = `<span style="font-size: 1rem; line-height: 1;">📋</span><span>Copy Release</span>`;
     mainBtn.title = "Copy full Release JSON for SosaSpins / Challenge modal (Shortcut: Alt+S)";
     styleDockButton(mainBtn, "primary");
-    mainBtn.onclick = () => copyToClipboard(extractReleasePageData());
+    mainBtn.onclick = () => copyFullReleaseWithMedia();
 
     dock.appendChild(tracksBtn);
     dock.appendChild(descBtn);
@@ -1323,10 +1770,23 @@
     if (!e.altKey) return;
     if (e.code === "KeyS") {
       e.preventDefault();
-      copyToClipboard(extractReleasePageData());
+      (async () => {
+        const mediaSeeds = extractReleaseMediaSeeds();
+        const data = extractReleasePageData();
+        if (!data.bandcamp_tracks_matched && (mediaSeeds.bandcampAlbumId || mediaSeeds.bandcampUrl)) {
+          await enrichPayloadWithBandcampTracks(data, mediaSeeds);
+        }
+        await copyToClipboard(data);
+      })();
     } else if (e.code === "KeyT") {
       e.preventDefault();
-      copyToClipboard(extractTracksOnlyData());
+      (async () => {
+        const { payload, mediaSeeds } = extractTracksOnlyData();
+        if (!payload.bandcamp_tracks_matched && (mediaSeeds.bandcampAlbumId || mediaSeeds.bandcampUrl)) {
+          await enrichPayloadWithBandcampTracks(payload, mediaSeeds);
+        }
+        await copyToClipboard(payload);
+      })();
     } else if (e.code === "KeyD") {
       e.preventDefault();
       copyToClipboard(extractDescriptorsOnlyData());
@@ -1336,15 +1796,22 @@
   // ============================================================
   // INITIALIZATION & CONSOLE EXPORT HELPERS
   // ============================================================
-  const exportFn = function () {
+  const exportFn = async function () {
+    const mediaSeeds = extractReleaseMediaSeeds();
     const data = extractReleasePageData();
-    copyToClipboard(data);
+    if (!data.bandcamp_tracks_matched && (mediaSeeds.bandcampAlbumId || mediaSeeds.bandcampUrl)) {
+      await enrichPayloadWithBandcampTracks(data, mediaSeeds);
+    }
+    await copyToClipboard(data);
     return data;
   };
-  const exportTracksFn = function () {
-    const data = extractTracksOnlyData();
-    copyToClipboard(data);
-    return data;
+  const exportTracksFn = async function () {
+    const { payload, mediaSeeds } = extractTracksOnlyData();
+    if (!payload.bandcamp_tracks_matched && (mediaSeeds.bandcampAlbumId || mediaSeeds.bandcampUrl)) {
+      await enrichPayloadWithBandcampTracks(payload, mediaSeeds);
+    }
+    await copyToClipboard(payload);
+    return payload;
   };
   const exportDescriptorsFn = function () {
     const data = extractDescriptorsOnlyData();
@@ -1370,6 +1837,13 @@
 
     if (isReleasePage) {
       injectReleaseButton();
+      // Pre-warm Bandcamp cache in background if no EmbeddedPlayer iframe responded within 1.5s
+      setTimeout(() => {
+        const mediaSeeds = extractReleaseMediaSeeds();
+        if (mediaSeeds.bandcampAlbumId && !cachedBandcampEmbedByAlbumId.has(mediaSeeds.bandcampAlbumId)) {
+          fetchBandcampTracksViaGM(mediaSeeds.bandcampAlbumId, mediaSeeds.bandcampUrl);
+        }
+      }, 1500);
     }
 
     injectRowButtons();
@@ -1386,5 +1860,5 @@
     init();
   }
 
-  console.log("%c[SosaSpins] RYM Exporter v1.8 Ready! Shortcuts: Alt+S (Full), Alt+T (Tracks), Alt+D (Descriptors)", "color: #10b981; font-weight: bold;");
+  console.log("%c[SosaSpins] RYM Exporter v2.0 Ready! Shortcuts: Alt+S (Full), Alt+T (Tracks), Alt+D (Descriptors)", "color: #10b981; font-weight: bold;");
 })();

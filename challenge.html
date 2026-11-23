@@ -21,8 +21,9 @@
   <meta property="og:description" content="Explore Sosa's 6x6 monthly album listening challenge backlog and completed spins.">
   <meta property="og:image" content="https://sosaspeaks.org/assets/images/homepics/Sosa-Icon-V3.png">
   <link rel="icon" type="image/png" href="assets/images/homepics/Sosa-Icon-V3.png">
-  <link rel="stylesheet" href="assets/css/challenge.css?v=20261122e">
+  <link rel="stylesheet" href="assets/css/challenge.css?v=20261123k">
   <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
+  <link rel="stylesheet" href="assets/css/track-url-fetcher.css?v=20261122b">
   <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
 </head>
 <body>
@@ -500,6 +501,7 @@
           <label>
             <span class="tr-header-title">Tracklist &amp; Ratings <span id="trackRatingsCountBadge" class="tr-count-badge" style="display: none;">0</span></span>
             <span class="tr-header-actions">
+              <button type="button" id="fetchTrackUrlsBtn" class="add-track-btn tr-fetch-btn" title="Auto-fetch song URLs for empty track rows (Bandcamp, YouTube, or iTunes 30s fallback)"><i class='bx bx-link-alt'></i> Fetch URLs</button>
               <button type="button" id="pasteTrackRatingsBtn" class="add-track-btn tr-paste-btn" title="Paste RYM Tracklist &amp; Track Ratings from clipboard"><i class='bx bx-clipboard'></i> Paste Tracks</button>
               <button type="button" id="addTrackRatingRowBtn" class="add-track-btn">+ Add Track</button>
             </span>
@@ -741,7 +743,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="assets/js/sosa-auth.js?v=20261121a"></script>
   <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
-  <script src="assets/js/challenge.js?v=20261122g"></script>
+  <script src="assets/js/track-url-fetcher.js?v=20261123a"></script>
+  <script src="assets/js/challenge.js?v=20261123k"></script></script></script>
   <script src="assets/js/dock.js?v=20261115c"></script>
   <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>
 </body>

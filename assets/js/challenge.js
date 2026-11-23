@@ -400,6 +400,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     return spins[0];
   }
 
+  function getSpinTrackRatingsForAlbum(album) {
+    if (!album) return [];
+    const primary = getMatchingSpin(album);
+    const candidates = [primary, ...getAlbumSpins(album)].filter(Boolean);
+    for (const spin of candidates) {
+      if (Array.isArray(spin.track_ratings) && spin.track_ratings.length > 0) {
+        return spin.track_ratings
+          .filter(tr => tr && typeof tr === "object" && String(tr.title || "").trim())
+          .map(tr => ({
+            title: String(tr.title).trim(),
+            rating: tr.rating !== null && tr.rating !== undefined && tr.rating !== "" ? tr.rating : null,
+            url: tr.url ? String(tr.url).trim() : "",
+            duration: tr.duration ? String(tr.duration).trim() : "",
+            duration_sec: Number.isFinite(Number(tr.duration_sec)) && Number(tr.duration_sec) > 0
+              ? Math.round(Number(tr.duration_sec))
+              : null
+          }));
+      }
+    }
+    return [];
+  }
+
   function isAlbumDone(album, isRecalContext) {
     return !!getMatchingSpin(album, isRecalContext);
   }
@@ -2617,7 +2639,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       <span class="tr-row-num">1.</span>
       <input type="text" class="tr-title-input" placeholder="Track title" value="${escapeHtml(title)}" required>
       <input type="text" class="tr-duration-input" placeholder="0:00" value="${escapeHtml(duration)}" title="Track duration (e.g. 3:45)">
-      <input type="text" class="tr-url-input" placeholder="URL (opt)" value="${escapeHtml(url)}">
+      <div class="tr-url-cell">
+        <input type="text" class="tr-url-input" placeholder="URL (opt)" value="${escapeHtml(url)}">
+        <button type="button" class="tr-url-fetch-btn" title="Search &amp; pick playable URL for this track"><i class='bx bx-search-alt-2'></i></button>
+      </div>
       <div class="rym-star-picker is-track-picker tr-rating-picker" tabindex="0" role="slider" aria-label="Track rating" aria-valuemin="0" aria-valuemax="5" aria-valuenow="${normRating || 0}" title="Hover &amp; click stars to rate track (click active star to clear)">
         <input type="hidden" class="tr-rating-select" value="${escapeHtml(normRating)}">
         <div class="rym-stars-strip">
@@ -2684,6 +2709,32 @@ document.addEventListener("DOMContentLoaded", async () => {
       );
     });
     syncTrackRatingIndices();
+  }
+
+  let currentChallengeSeedUrl = "";
+  let currentChallengeSeedPair = "";
+
+  function captureChallengeSeedFromData(data, fallbackArtist, fallbackTitle) {
+    const candidateSeed = String(
+      data?.seed_url || (Array.isArray(data?.media_urls) ? data.media_urls[0] : "") || ""
+    ).trim();
+    if (!candidateSeed) return;
+    currentChallengeSeedUrl = candidateSeed;
+    const a = String(fallbackArtist ?? data?.artist ?? "").trim().toLowerCase();
+    const t = String(fallbackTitle ?? data?.title ?? "").trim().toLowerCase();
+    currentChallengeSeedPair = `${a}::${t}`;
+  }
+
+  function getActiveChallengeSeedUrl() {
+    if (!currentChallengeSeedUrl) return "";
+    const curA = String(addArtist?.value || "").trim().toLowerCase();
+    const curT = String(addTitle?.value || "").trim().toLowerCase();
+    if (currentChallengeSeedPair && `${curA}::${curT}` !== currentChallengeSeedPair) {
+      currentChallengeSeedUrl = "";
+      currentChallengeSeedPair = "";
+      return "";
+    }
+    return currentChallengeSeedUrl;
   }
 
   function applyImportedTracksToChallengeModal(data, { preserveExistingRuntime = true } = {}) {
@@ -2760,7 +2811,35 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
 
+      captureChallengeSeedFromData(data, addArtist?.value || data.artist, addTitle?.value || data.title);
       flashChallengeRymButton(pasteTrackRatingsBtn, `<i class='bx bx-check'></i> Pasted!`);
+    });
+  }
+
+  if (window.SosaTrackUrlFetcher && trackRatingsList) {
+    window.SosaTrackUrlFetcher.attachModal({
+      modalEl: trackRatingsList.closest(".sosa-modal-backdrop, .w7-modal-window") || document.body,
+      tracksListEl: trackRatingsList,
+      fetchBatchBtnEl: document.getElementById("fetchTrackUrlsBtn"),
+      getContext: () => ({
+        artist: String(addArtist?.value || "").trim(),
+        album: String(addTitle?.value || "").trim(),
+        seedUrl: getActiveChallengeSeedUrl()
+      }),
+      setSeedUrl: (url) => {
+        currentChallengeSeedUrl = String(url || "").trim();
+        const curA = String(addArtist?.value || "").trim().toLowerCase();
+        const curT = String(addTitle?.value || "").trim().toLowerCase();
+        currentChallengeSeedPair = currentChallengeSeedUrl ? `${curA}::${curT}` : "";
+      },
+      getAccessToken: async () => {
+        if (typeof sb === "undefined") return "";
+        const { data } = await sb.auth.getSession();
+        return data?.session?.access_token || "";
+      },
+      onUrlsUpdated: () => {
+        syncTrackRatingIndices();
+      }
     });
   }
 
@@ -2912,6 +2991,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       applyImportedTracksToChallengeModal(data, { preserveExistingRuntime: false });
 
+      captureChallengeSeedFromData(data, cleanArtist || addArtist?.value, cleanTitle || addTitle?.value);
       flashChallengeRymButton(rymImportBtn, `<i class='bx bx-check'></i> Imported!`);
     });
   }
@@ -3002,30 +3082,66 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (btn) btn.classList.toggle("is-open", isHidden);
   };
 
-  function renderChallengeTrackRatingsHtml(rawTracks, panelId = "challenge-detail-track-ratings") {
+  function renderChallengeTrackRatingsHtml(rawTracks, panelId = "challenge-detail-track-ratings", favTracksRaw = "") {
     const tracks = Array.isArray(rawTracks)
       ? rawTracks.filter(t => t && typeof t === "object" && String(t.title || "").trim())
       : [];
     if (!tracks.length) return "";
 
+    const rawFavList = Array.isArray(favTracksRaw)
+      ? favTracksRaw
+      : (typeof favTracksRaw === "string" && favTracksRaw.trim()
+        ? favTracksRaw.split(/[\n;]+/).map(s => s.trim()).filter(Boolean)
+        : []);
+    const favTitleSet = new Set(
+      rawFavList.map(rawFav => {
+        const part = String(rawFav || "").split("|")[0].trim().replace(/^["“']|["”']$/g, "");
+        return part.toLowerCase();
+      }).filter(Boolean)
+    );
+
+    const ratedVals = tracks
+      .map(tr => parseFloat(tr && tr.rating))
+      .filter(n => !isNaN(n) && n > 0);
+    const avgNum = ratedVals.length
+      ? (ratedVals.reduce((a, b) => a + b, 0) / ratedVals.length).toFixed(1)
+      : "";
+    const avgBadgeHtml = avgNum
+      ? `<span class="track-ratings-avg">Avg <span class="track-avg-val">${avgNum}</span> ★</span>`
+      : "";
+
     const rowsHtml = tracks.map((tr, tIdx) => {
       const hasUrl = tr.url && String(tr.url).trim().length > 0;
       const safeUrl = hasUrl ? escapeHtml(String(tr.url).trim()) : "";
-      const hasTrRating = tr.rating !== null && tr.rating !== undefined && tr.rating !== "" && !isNaN(parseFloat(tr.rating));
+      const parsedRating = (tr.rating !== null && tr.rating !== undefined && tr.rating !== "") ? parseFloat(tr.rating) : NaN;
+      const hasTrRating = !isNaN(parsedRating);
+      const isFavTrack = favTitleSet.has(String(tr.title || "").trim().toLowerCase());
+      const scoreTierCls = !hasTrRating
+        ? "is-unrated"
+        : (parsedRating >= 5 ? "tier-5" : (parsedRating >= 4.5 ? "tier-45" : (parsedRating >= 3.5 ? "tier-4" : "tier-low")));
       const durHtml = tr.duration ? `<span class="track-duration">${escapeHtml(tr.duration)}</span>` : "";
+      const favGutterStarHtml = isFavTrack
+        ? `<span class="track-fav-star" data-fav-tooltip="Favorite Track" title="Favorite Track" aria-label="Favorite Track"><i class='bx bxs-star'></i></span>`
+        : "";
+      const playSlotHtml = hasUrl
+        ? `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="track-play-slot has-play" title="Open track link"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon track-play-icon"><span class="play-sheen-shine"></span></span></a>`
+        : `<span class="track-play-slot is-empty" aria-hidden="true"></span>`;
       const nameHtml = hasUrl
-        ? `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="track-name">${escapeHtml(tr.title || "")} <i class='bx bx-link-external' style="font-size:0.75em;opacity:0.75;"></i></a>`
+        ? `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="track-name">${escapeHtml(tr.title || "")}</a>`
         : `<span class="track-name">${escapeHtml(tr.title || "")}</span>`;
 
       return `
-        <div class="track-rating-row">
-          <span class="track-num">${tIdx + 1}.</span>
+        <div class="track-rating-row ${isFavTrack ? "is-fav-track" : ""} ${parsedRating >= 5 ? "is-five-star" : ""}">
+          <span class="track-num">${favGutterStarHtml}${tIdx + 1}.</span>
+          ${playSlotHtml}
           ${nameHtml}
+          <span class="track-leader" aria-hidden="true"></span>
           ${durHtml}
           ${hasTrRating ? `
             <span class="track-stars">${getStarString(tr.rating)}</span>
-            <small class="track-score">${Number(tr.rating).toFixed(1)}</small>
+            <small class="track-score">${parsedRating.toFixed(1)}</small>
           ` : `
+            <span class="track-stars is-empty-stars">${getStarString(0)}</span>
             <small class="track-score is-unrated">—</small>
           `}
         </div>
@@ -3037,9 +3153,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         <div class="track-ratings-wrapper">
           <button type="button" class="track-ratings-toggle-btn" onclick="toggleChallengeTrackRatings('${panelId}', this)">
             <span class="track-ratings-label"><i class='bx bx-list-ol'></i> Tracklist &amp; Ratings (${tracks.length})</span>
-            <span class="ratings-arrow">▾</span>
+            <span class="track-accordion-right">${avgBadgeHtml}<span class="ratings-arrow">▾</span></span>
           </button>
           <div class="track-ratings-list" id="${panelId}" style="display: none;">
+            <div class="track-ratings-list-head" aria-hidden="true">
+              <span class="tr-col-num">#</span>
+              <span class="tr-col-play"></span>
+              <span class="tr-col-title">Track Title</span>
+              <span class="tr-col-time">Time</span>
+              <span class="tr-col-rate">Rating</span>
+            </div>
             ${rowsHtml}
           </div>
         </div>
@@ -3325,7 +3448,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           : (Array.isArray(album.track_ratings) ? album.track_ratings : []);
         const matchedTrackRatingsHtml = renderChallengeTrackRatingsHtml(
           matchedTrackRatings,
-          `challenge-detail-tracks-${String(album.id || "item").replace(/[^a-zA-Z0-9_-]/g, "")}`
+          `challenge-detail-tracks-${String(album.id || "item").replace(/[^a-zA-Z0-9_-]/g, "")}`,
+          match?.fav_tracks || ""
         );
 
         const spinHistoryHtml = renderSpinHistoryHtml(
@@ -3972,6 +4096,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         return (Number(b.id) || 0) - (Number(a.id) || 0);
       });
 
+      // Inherit tracklists/ratings from matching logged spins for any challenge entry without its own tracks
+      backlogEntries.forEach(entry => {
+        if (!Array.isArray(entry.track_ratings) || entry.track_ratings.length === 0) {
+          const spinTracks = getSpinTrackRatingsForAlbum(entry);
+          if (spinTracks.length > 0) {
+            entry.track_ratings = spinTracks;
+            entry._syncTracksFromSpin = true;
+            if (entry.id) saveLocalChallengeTracks(entry.id, spinTracks);
+          }
+        }
+      });
+
       isDataLoaded = true;
       syncMonthTabs();
 
@@ -3983,6 +4119,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       if (isAdmin) {
         migrateLegacyReasonsInDatabase();
+        syncSpinTracksToBacklogDatabase();
       }
 
     } catch (err) {
@@ -4023,6 +4160,36 @@ document.addEventListener("DOMContentLoaded", async () => {
       console.warn("Reason migration sync notice:", err);
     } finally {
       isMigratingReasons = false;
+    }
+  }
+
+  let isSyncingSpinTracks = false;
+  async function syncSpinTracksToBacklogDatabase() {
+    if (!sb || !isAdmin || isSyncingSpinTracks) return;
+    try {
+      const pending = (backlogEntries || []).filter(
+        e => e._syncTracksFromSpin && e.id && !String(e.id).startsWith("spin_") && Array.isArray(e.track_ratings) && e.track_ratings.length > 0
+      );
+      if (pending.length === 0) return;
+
+      isSyncingSpinTracks = true;
+      for (const item of pending) {
+        const { error } = await sb
+          .from("challenge_backlog")
+          .update({ track_ratings: item.track_ratings })
+          .eq("id", item.id);
+        if (error) {
+          if (String(error.message || "").toLowerCase().includes("track_ratings")) {
+            break;
+          }
+        } else {
+          item._syncTracksFromSpin = false;
+        }
+      }
+    } catch (err) {
+      console.warn("Spin track sync notice:", err);
+    } finally {
+      isSyncingSpinTracks = false;
     }
   }
 
@@ -5168,9 +5335,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.addDescriptorsManager.setTags(album.descriptors);
     if (window.addScenesManager) window.addScenesManager.setTags(album.scenes || []);
     if (window.addMovementsManager) window.addMovementsManager.setTags(album.movements || []);
-    const editTrackRows = Array.isArray(album.track_ratings) && album.track_ratings.length
+    const localEditTracks = getLocalChallengeTracks()[album.id] || [];
+    const editTrackRows = (Array.isArray(album.track_ratings) && album.track_ratings.length)
       ? album.track_ratings
-      : (getLocalChallengeTracks()[album.id] || []);
+      : (localEditTracks.length ? localEditTracks : getSpinTrackRatingsForAlbum(album));
     setChallengeModalTrackRows(editTrackRows);
 
     let displayCover = album.cover_url || FALLBACK_PLACEHOLDER;
