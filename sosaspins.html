@@ -25,7 +25,7 @@
     <meta name="apple-mobile-web-app-title" content="SosaSpeaks" />
     <link rel="manifest" href="assets/images/homepics/site.webmanifest?v=20260527" />
     <!-- Link to CSS -->
-    <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261123o">
+    <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261123p">
     <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
     <link rel="stylesheet" href="assets/css/track-url-fetcher.css?v=20261122b">
     <!-- Box icons -->
@@ -301,6 +301,9 @@
           <i class='bx bx-chevron-right'></i>
         </button>
       </div>
+
+      <!-- Song of the Day Sidebar Widget (Widget 3: Today + 7-Day Mini Strip) -->
+      <div class="sidebar-card aero-card sotd-sidebar-widget" id="sotdSidebarWidget" style="display: none;"></div>
 
       <div class="sidebar-card">
         <h3 class="sidebar-heading">Search</h3>
@@ -1051,15 +1054,21 @@
             <img src="assets/icons/aero/stats.png" alt="Listening Stats" class="win7-app-icon stats-icon">
           </div>
         </a>
+        <a href="sotd.html" class="taskbar-app-btn" data-portal="sotd" aria-label="Song of the Day">
+          <span class="taskbar-tooltip">Song of the Day</span>
+          <div class="app-btn-plate">
+            <img src="assets/icons/aero/wmp.ico" alt="Song of the Day" class="win7-app-icon sotd-icon">
+          </div>
+        </a>
       </div>
     </div>
   </nav>
 
   <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
   <script src="assets/js/track-url-fetcher.js?v=20261123a"></script>
-  <script src="assets/js/sosaspins.js?v=20261123o"></script>
+  <script src="assets/js/sosaspins.js?v=20261123p"></script>
   <script src="assets/js/miniplayer-drag.js?v=20261123a" defer></script>
-  <script src="assets/js/dock.js?v=20261115c"></script>
+  <script src="assets/js/dock.js?v=20261123a"></script>
   <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>
 </body>
 </html>

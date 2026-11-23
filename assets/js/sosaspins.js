@@ -650,6 +650,9 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
   const coverDatalist = document.getElementById("coverPathSuggestions");
 
   let allEntries = [];
+  let sotdWidgetEntriesByDate = new Map();
+  let sotdWidgetLatestList = [];
+  let sotdWidgetSelectedDate = "";
   let allComments = [];
   let usingLocalCommentsFallback = false;
   const LOCAL_COMMENTS_KEY = "sosaspins_comments_fallback";
@@ -994,6 +997,9 @@ function getDominantColorFromImg(imgUrl) {
     const spinsAdminBarWrap = document.getElementById("spinsAdminBarWrap");
     if (spinsAdminBarWrap) {
       spinsAdminBarWrap.style.display = isAdmin ? "block" : "none";
+    }
+    if (typeof renderSotdSidebarWidget === "function") {
+      renderSotdSidebarWidget();
     }
 
     document.querySelectorAll(".admin-only").forEach(el => {
@@ -3329,6 +3335,7 @@ function getDominantColorFromImg(imgUrl) {
       await fetchTopAlbumsData();
       buildActiveRecalibrateMap();
       buildSidebarWidgets(allEntries);
+      loadSotdSidebarWidget();
       populatePathSuggestions();
       if (!document.getElementById("top100DedicatedPage")) {
         const urlParams = new URLSearchParams(window.location.search);
@@ -4741,6 +4748,163 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
         top100AeroToast.style.display = "none";
       }, 300);
     }, 3200);
+  }
+
+  function getLocalTodayIsoForSotd() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  function formatSotdWidgetDate(iso, todayIso) {
+    const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return iso || "";
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const lbl = `${months[parseInt(m[2], 10) - 1]} ${parseInt(m[3], 10)}`;
+    return iso === todayIso ? `Today • ${lbl}` : `${lbl}, ${m[1]}`;
+  }
+
+  function renderSotdSidebarWidget() {
+    const widgetEl = document.getElementById("sotdSidebarWidget");
+    if (!widgetEl) return;
+
+    const todayIso = getLocalTodayIsoForSotd();
+    const hasToday = sotdWidgetEntriesByDate.has(todayIso);
+    const activeEntry = sotdWidgetEntriesByDate.get(sotdWidgetSelectedDate)
+      || sotdWidgetEntriesByDate.get(todayIso)
+      || sotdWidgetLatestList[0]
+      || null;
+
+    if (!activeEntry) {
+      if (isAdmin) {
+        widgetEl.style.display = "flex";
+        widgetEl.innerHTML = `
+          <div class="sotd-w-head">
+            <h3 class="sidebar-heading"><i class='bx bxs-music' style="color:#10b981;"></i> Song of the Day</h3>
+            <a href="sotd.html" class="sotd-w-cal-link">Calendar ↗</a>
+          </div>
+          <div class="sotd-w-empty-admin">
+            <span>No songs logged yet.</span>
+            <a href="sotd.html?log=today" class="sotd-w-add-pill">+ Log Today</a>
+          </div>
+        `;
+      } else {
+        widgetEl.style.display = "none";
+      }
+      return;
+    }
+
+    sotdWidgetSelectedDate = activeEntry.entry_date;
+    const coverSrc = normalizeLegacyStorageUrl(activeEntry.cover_url) || "assets/images/spins/placeholder.png";
+    const hasAudio = !!(activeEntry.audio_url && activeEntry.audio_url.trim());
+    const dowLetters = ["S", "M", "T", "W", "T", "F", "S"];
+
+    // Build last 7 calendar days ending on today
+    const stripCells = [];
+    const baseNow = new Date();
+    for (let offset = 6; offset >= 0; offset--) {
+      const d = new Date(baseNow.getFullYear(), baseNow.getMonth(), baseNow.getDate() - offset);
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const dow = dowLetters[d.getDay()];
+      const dayEntry = sotdWidgetEntriesByDate.get(iso);
+      const isToday = iso === todayIso;
+      const isSelected = iso === sotdWidgetSelectedDate;
+
+      if (dayEntry) {
+        const thumbSrc = normalizeLegacyStorageUrl(dayEntry.cover_url) || "assets/images/spins/placeholder.png";
+        stripCells.push(`
+          <button type="button" class="sotd-w-day has-song ${isToday ? "is-today" : ""} ${isSelected ? "is-selected" : ""}" data-sotd-date="${iso}" title="${escapeHtml(formatSotdWidgetDate(iso, todayIso))}: ${escapeHtml(dayEntry.artist)} — ${escapeHtml(dayEntry.title)}">
+            <span class="sotd-w-dow">${dow}</span>
+            <img src="${escapeHtml(thumbSrc)}" alt="${escapeHtml(dayEntry.title)}" class="sotd-w-thumb" loading="lazy" onerror="this.onerror=null;this.src='assets/images/spins/placeholder.png';">
+          </button>
+        `);
+      } else {
+        stripCells.push(`
+          <div class="sotd-w-day ${isToday ? "is-today" : ""}" title="${escapeHtml(formatSotdWidgetDate(iso, todayIso))} — No song logged">
+            <span class="sotd-w-dow">${dow}</span>
+            <div class="sotd-w-empty-dot"></div>
+          </div>
+        `);
+      }
+    }
+
+    const adminTodayPill = (isAdmin && !hasToday)
+      ? `<a href="sotd.html?log=today" class="sotd-w-add-pill" title="Log today's Song of the Day">+ Today</a>`
+      : "";
+
+    widgetEl.style.display = "flex";
+    widgetEl.innerHTML = `
+      <div class="sotd-w-head">
+        <h3 class="sidebar-heading"><i class='bx bxs-music' style="color:#10b981;"></i> Song of the Day</h3>
+        <div class="sotd-w-head-links">
+          ${adminTodayPill}
+          <a href="sotd.html" class="sotd-w-cal-link">Full Calendar ↗</a>
+        </div>
+      </div>
+      <div class="sotd-w-row">
+        <button type="button" class="sotd-w-art-btn ${hasAudio ? "is-playable" : ""}" id="sotdWidgetPlayBtn" title="${hasAudio ? `Play ${escapeHtml(activeEntry.title)}` : escapeHtml(activeEntry.title)}">
+          <img src="${escapeHtml(coverSrc)}" alt="${escapeHtml(activeEntry.title)}" class="sotd-w-art" onerror="this.onerror=null;this.src='assets/images/spins/placeholder.png';">
+          ${hasAudio ? `<span class="sotd-w-play-overlay"><img src="assets/icons/aero/play.ico" alt="Play"></span>` : ""}
+        </button>
+        <div class="sotd-w-meta">
+          <div class="sotd-w-date">${escapeHtml(formatSotdWidgetDate(activeEntry.entry_date, todayIso))}</div>
+          <div class="sotd-w-song" title="${escapeHtml(activeEntry.title)}">${escapeHtml(activeEntry.title)}</div>
+          <div class="sotd-w-artist" title="${escapeHtml(activeEntry.artist)}">${escapeHtml(activeEntry.artist)}</div>
+        </div>
+      </div>
+      <div class="sotd-w-strip">
+        ${stripCells.join("")}
+      </div>
+    `;
+
+    const playBtn = widgetEl.querySelector("#sotdWidgetPlayBtn");
+    if (playBtn && hasAudio) {
+      playBtn.addEventListener("click", () => {
+        if (typeof window.playAudioTrack === "function") {
+          window.playAudioTrack(
+            activeEntry.audio_url,
+            activeEntry.title,
+            activeEntry.artist,
+            activeEntry.album || formatSotdWidgetDate(activeEntry.entry_date, todayIso),
+            coverSrc
+          );
+        }
+      });
+    }
+
+    widgetEl.querySelectorAll(".sotd-w-day[data-sotd-date]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const picked = btn.getAttribute("data-sotd-date");
+        if (!picked) return;
+        sotdWidgetSelectedDate = picked;
+        renderSotdSidebarWidget();
+      });
+    });
+  }
+
+  async function loadSotdSidebarWidget() {
+    const widgetEl = document.getElementById("sotdSidebarWidget");
+    if (!widgetEl || typeof supabaseClient === "undefined" || !supabaseClient) return;
+    try {
+      const { data, error } = await supabaseClient
+        .from("song_of_the_day")
+        .select("*")
+        .order("entry_date", { ascending: false })
+        .limit(14);
+      if (error || !Array.isArray(data)) {
+        sotdWidgetEntriesByDate = new Map();
+        sotdWidgetLatestList = [];
+        renderSotdSidebarWidget();
+        return;
+      }
+      sotdWidgetLatestList = data.map(row => ({
+        ...row,
+        entry_date: String(row.entry_date || "").slice(0, 10)
+      }));
+      sotdWidgetEntriesByDate = new Map(sotdWidgetLatestList.map(r => [r.entry_date, r]));
+      renderSotdSidebarWidget();
+    } catch (_) {
+      widgetEl.style.display = "none";
+    }
   }
 
   let allEntriesById = null;

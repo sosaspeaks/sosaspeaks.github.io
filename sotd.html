@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<!--
+                                           _
+                                          | |
+  ___  ___  ___  __ _ ___ _ __   ___  __ _| | _____
+ / __|/ _ \/ __|/ _` / __| '_ \ / _ \/ _` | |/ / __|
+ \__ \ (_) \__ \ (_| \__ \ |_) |  __/ (_| |   <\__ \
+ |___/\___/|___/\__,_|___/ .__/ \___|\__,_|_|\_\___/
+                         | |
+                         |_|
+
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Song of the Day Calendar — SosaSpins</title>
+  <meta name="description" content="SosaSpins Song of the Day Calendar — one song per day, all year long.">
+  <meta property="og:title" content="Song of the Day Calendar — SosaSpins">
+  <meta property="og:description" content="Explore Sosa's daily song picks in an interactive Windows 7 Aero cover-art calendar.">
+  <meta property="og:image" content="https://sosaspeaks.org/assets/images/homepics/Sosa-Icon-V3.png">
+  <link rel="icon" type="image/png" href="assets/images/homepics/Sosa-Icon-V3.png">
+  <link rel="stylesheet" href="assets/css/challenge.css?v=20261123m">
+  <link rel="stylesheet" href="assets/css/sotd.css?v=20261123b">
+  <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+</head>
+<body>
+  <script>
+    if (localStorage.getItem("darkMode") === "enabled") {
+      document.body.classList.add("dark-mode");
+    }
+  </script>
+
+  <!-- Header -->
+  <header id="siteHeader">
+    <div class="nav container">
+      <a href="index.html" class="nav-logo-link">
+        <img src="assets/images/homepics/Sosa-Icon-V3.png" alt="SosaSpeaks Icon" class="logo-icon">
+      </a>
+      <div class="nav-right-group">
+        <button type="button" id="adminTriggerBtn" class="aero-btn" title="Admin Mode">
+          <img
+            id="adminLockIcon"
+            src="assets/icons/aero/lock_closed.png"
+            alt="Admin Status"
+            class="aero-lock-icon nav-custom-icon"
+          />
+        </button>
+        <a href="sosaspins.html" class="nav-custom-link" title="SosaSpins">
+          <img src="assets/images/homepics/Folder203.ico" class="nav-custom-icon music-icon" alt="SosaSpins">
+        </a>
+        <a href="about.html" class="nav-custom-link" title="About">
+          <img src="assets/images/homepics/msgsres_1.ico" class="nav-custom-icon msngr-icon" alt="About">
+        </a>
+        <button type="button" class="aero-theme-switch theme-toggle" aria-label="Toggle Light/Dark Theme" title="Theme">
+          <span class="aero-theme-glider" aria-hidden="true"></span>
+          <span class="aero-theme-opt is-sun" aria-hidden="true"><i class='bx bxs-sun'></i></span>
+          <span class="aero-theme-opt is-moon" aria-hidden="true"><i class='bx bxs-moon'></i></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Banner -->
+  <section class="main-home" id="main-home">
+    <div class="home-text container">
+      <h1 class="home-title">SosaSpins: Daily</h1>
+      <span class="home-subtitle" id="sotdBannerSubtitle">Song of the Day Calendar</span>
+    </div>
+  </section>
+
+  <!-- Standalone Vista / 7 Explorer Window -->
+  <main class="challenge-container sotd-main-container container">
+    <div class="window glass grid-window-frame" id="sotdWindowFrame">
+      <!-- Title Bar -->
+      <div class="title-bar">
+        <div class="title-bar-text">
+          <i class='bx bx-calendar-star' style="margin-right: 4px; vertical-align: middle;"></i>
+          SosaSpins — Song of the Day Calendar
+        </div>
+      </div>
+
+      <!-- Command Bar -->
+      <div class="window-command-bar sotd-command-bar">
+        <div class="command-group-left">
+          <div class="sotd-period-nav" aria-label="Calendar period navigation">
+            <button type="button" id="sotdPrevPeriodBtn" class="sotd-nav-arrow" title="Previous">
+              <i class='bx bx-chevron-left'></i>
+            </button>
+            <span id="sotdPeriodTitle" class="sotd-period-title">November 2026</span>
+            <button type="button" id="sotdNextPeriodBtn" class="sotd-nav-arrow" title="Next">
+              <i class='bx bx-chevron-right'></i>
+            </button>
+          </div>
+
+          <button type="button" id="sotdJumpTodayBtn" class="aero-command-btn sotd-today-jump-btn" style="display: none;" title="Jump back to current month">
+            <i class='bx bx-target-lock'></i> <span class="cmd-text-full">Today</span><span class="cmd-text-short">Today</span>
+          </button>
+
+          <div class="aero-filter-capsule is-compact challenge-view-capsule" id="sotdViewModeCapsule" role="group" aria-label="Calendar view mode">
+            <button type="button" id="sotdMonthViewBtn" class="filter-item active" aria-pressed="true" title="Monthly Cover Wall">
+              <i class='bx bx-calendar'></i> <span class="cmd-text-full">Month</span><span class="cmd-text-short">Month</span>
+            </button>
+            <button type="button" id="sotdYearViewBtn" class="filter-item" aria-pressed="false" title="Full Year (365) Overview">
+              <i class='bx bx-grid'></i> <span class="cmd-text-full">Year (365)</span><span class="cmd-text-short">Year</span>
+            </button>
+          </div>
+
+          <button type="button" id="sotdPlayMonthBtn" class="aero-command-btn sotd-play-month-btn" title="Play logged songs in this view sequentially">
+            <img src="assets/icons/aero/play.ico" alt="" class="sotd-btn-play-icon">
+            <span class="cmd-text-full" id="sotdPlayMonthLabel">Play Month</span>
+            <span class="cmd-text-short">Play</span>
+          </button>
+        </div>
+
+        <div class="command-group-right">
+          <button type="button" id="openSotdLogModalBtn" class="aero-command-btn add-emerald-btn admin-only" style="display: none;">
+            <i class='bx bx-plus'></i> <span class="cmd-text-full">Log Today's Song</span><span class="cmd-text-short">Log</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Window Body -->
+      <div class="window-body sotd-window-body">
+        <!-- Setup Notice (shown only if Supabase table hasn't been created yet) -->
+        <div id="sotdSetupNotice" class="sotd-setup-notice" style="display: none;"></div>
+
+        <!-- Featured / Selected Day Hero Strip -->
+        <section id="sotdHeroStrip" class="sotd-hero-strip" aria-label="Selected Song of the Day" style="display: none;"></section>
+
+        <!-- Month View: 7-Column Cover Wall -->
+        <section id="sotdMonthView" class="sotd-month-view" aria-label="Monthly Song Calendar">
+          <div class="sotd-weekday-row" aria-hidden="true">
+            <div class="sotd-weekday-cell">Sun</div>
+            <div class="sotd-weekday-cell">Mon</div>
+            <div class="sotd-weekday-cell">Tue</div>
+            <div class="sotd-weekday-cell">Wed</div>
+            <div class="sotd-weekday-cell">Thu</div>
+            <div class="sotd-weekday-cell">Fri</div>
+            <div class="sotd-weekday-cell">Sat</div>
+          </div>
+          <div id="sotdWallGrid" class="sotd-wall-grid">
+            <div class="w7-loading-wrapper" style="grid-column: 1 / -1;">
+              <span class="w7-loading-text">Connecting to SosaSpins database...</span>
+              <div class="progress-bar-track marquee" role="progressbar"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Year (365) Overview -->
+        <section id="sotdYearView" class="sotd-year-view" aria-label="Yearly Song Overview" style="display: none;"></section>
+      </div>
+
+      <!-- Status Bar -->
+      <div class="status-bar">
+        <div class="status-bar-field" id="sotdStatusLeft">Loading calendar...</div>
+        <div class="status-bar-field sotd-status-right" id="sotdStatusRight">Ready</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ADMIN LOG / EDIT SONG OF THE DAY MODAL -->
+  <div id="sotdLogModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="window glass w7-modal-window sotd-log-modal-window" role="dialog" aria-labelledby="sotdLogModalTitleText">
+      <div class="title-bar">
+        <div class="title-bar-text" id="sotdLogModalTitleText">
+          <i class='bx bxs-music' style="color: #10b981; vertical-align: middle; margin-right: 4px;"></i>
+          <span>Log Song of the Day</span>
+        </div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeSotdLogModalBtn" aria-label="Close" class="is-close"></button>
+        </div>
+      </div>
+
+      <form id="sotdLogForm" class="window-body sotd-log-form">
+        <input type="hidden" id="sotdOriginalDate" value="">
+        <input type="hidden" id="sotdSpinId" value="">
+
+        <!-- Quick-Pick from Logged Spins -->
+        <div class="sotd-quickpick-box">
+          <label for="sotdQuickPickInput" class="sotd-field-label">
+            <i class='bx bx-disc'></i> Quick-Pick from Logged Spins <span class="sotd-label-hint">(optional — auto-fills track, cover &amp; audio)</span>
+          </label>
+          <div class="sotd-quickpick-wrap">
+            <i class='bx bx-search sotd-quickpick-icon' aria-hidden="true"></i>
+            <input
+              type="text"
+              id="sotdQuickPickInput"
+              class="sosa-search-input sotd-quickpick-input"
+              placeholder="Search any song, artist, or album in SosaSpins..."
+              autocomplete="off"
+            >
+            <div id="sotdQuickPickDropdown" class="aero-autocomplete-menu sotd-quickpick-dropdown" style="display: none;"></div>
+          </div>
+        </div>
+
+        <!-- Cover Preview + Core Metadata -->
+        <div class="add-album-top-row">
+          <div class="modal-cover-preview">
+            <div class="w7-preview-box">
+              <img
+                id="sotdPreviewImg"
+                src="assets/images/spins/placeholder.png"
+                alt="Cover Preview"
+                onerror="this.onerror=null; this.src='assets/images/spins/placeholder.png';">
+            </div>
+            <div class="modal-cover-btns">
+              <button type="button" id="sotdFetchCoverBtn" class="aero-btn-action modal-cover-icon-btn" aria-label="Fetch Cover Art">
+                <i class='bx bx-image-alt'></i>
+                <span class="aero-icon-tooltip">Fetch Cover</span>
+              </button>
+              <button type="button" id="sotdFetchAudioBtn" class="aero-btn-action rym-import-btn modal-cover-icon-btn" aria-label="Fetch Playable Audio URL">
+                <i class='bx bx-link-alt'></i>
+                <span class="aero-icon-tooltip">Fetch Audio</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="add-album-inputs-group">
+            <div class="modal-split-row">
+              <input type="date" id="sotdDateInput" class="sosa-search-input" required title="Calendar Date">
+              <input type="number" id="sotdYearInput" class="sosa-search-input" placeholder="Release Year" min="1900" max="2099">
+            </div>
+            <input type="text" id="sotdTitleInput" class="sosa-search-input" placeholder="Song Title" required>
+            <input type="text" id="sotdArtistInput" class="sosa-search-input" placeholder="Artist" required>
+            <input type="text" id="sotdAlbumInput" class="sosa-search-input" placeholder="Album / Release (optional)">
+          </div>
+        </div>
+
+        <div class="sotd-url-fields">
+          <div>
+            <label for="sotdCoverUrlInput" class="sotd-field-label">Cover URL <span class="sotd-label-hint">(external URLs auto-mirror to R2 on save)</span></label>
+            <input type="text" id="sotdCoverUrlInput" class="sosa-search-input" placeholder="https://assets.sosaspeaks.org/covers/...">
+          </div>
+          <div>
+            <label for="sotdAudioUrlInput" class="sotd-field-label">Audio / Video URL <span class="sotd-label-hint">(SoundCloud, YouTube, Bandcamp, MP3, or iTunes)</span></label>
+            <input type="text" id="sotdAudioUrlInput" class="sosa-search-input" placeholder="https://soundcloud.com/... or https://youtube.com/...">
+          </div>
+        </div>
+
+        <div>
+          <label for="sotdNoteInput" class="sotd-field-label">Daily Note / Blurb <span class="sotd-label-hint">(optional)</span></label>
+          <textarea id="sotdNoteInput" class="sosa-search-input sotd-note-textarea" rows="2" placeholder="Why this song today? A lyric, a vibe, a moment..."></textarea>
+        </div>
+
+        <div class="sotd-modal-footer">
+          <button type="button" id="sotdDeleteEntryBtn" class="aero-btn-action sotd-delete-btn" style="display: none;">
+            <i class='bx bx-trash'></i> Remove Day
+          </button>
+          <button type="submit" id="sotdSaveBtn" class="aero-btn-action primary-save-btn">
+            Save Song of the Day
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ADMIN SECURITY / AUTH MODAL -->
+  <div id="adminAuthModal" class="sosa-modal-backdrop" style="display: none;">
+    <div class="modal-dialog w7-window window glass w7-modal-window w7-auth-window">
+      <div class="title-bar">
+        <div class="title-bar-text">
+          <img src="assets/icons/aero/lock_closed.png" alt="" class="w7-title-icon" id="authModalTitleIcon">
+          <span id="authModalTitleText">Windows Security — SosaSpins Admin</span>
+        </div>
+        <div class="title-bar-controls">
+          <button type="button" id="closeAdminAuthModalBtn" aria-label="Close" class="is-close"></button>
+        </div>
+      </div>
+      <div class="window-body w7-auth-body">
+        <form id="adminAuthForm" class="w7-auth-form" autocomplete="on">
+          <div class="w7-auth-header-row">
+            <img src="assets/icons/aero/lock_closed.png" alt="Security Lock" class="w7-auth-hero-icon" id="authHeroIcon">
+            <div class="w7-auth-copy">
+              <div class="w7-auth-heading" id="authHeadingText">Windows Security</div>
+              <div class="w7-auth-subtext" id="authSubText">Enter your administrator credentials to sign in.</div>
+            </div>
+          </div>
+
+          <div class="w7-auth-fields-wrap" style="display: flex; flex-direction: column; gap: 12px; margin: 1rem 1.2rem 1.1rem 1.2rem;">
+            <div class="w7-auth-field-group">
+              <label for="authEmailInput" class="w7-auth-subtext" style="display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.8rem;">Email</label>
+              <input
+                type="email"
+                id="authEmailInput"
+                class="sosa-search-input w7-pass-input"
+                placeholder="admin@sosaspeaks.org"
+                autocomplete="username"
+                required
+              >
+            </div>
+            <div class="w7-auth-field-group" style="position: relative;">
+              <label for="authPasswordInput" class="w7-auth-subtext" style="display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.8rem;">Password</label>
+              <div style="position: relative; display: flex; align-items: center;">
+                <input
+                  type="password"
+                  id="authPasswordInput"
+                  class="sosa-search-input w7-pass-input"
+                  placeholder="••••••••"
+                  autocomplete="current-password"
+                  required
+                >
+                <button type="button" id="togglePassVisibilityBtn" class="w7-pass-eye-btn" title="Show / Hide Password" tabindex="-1">
+                  <i class="bx bx-hide" id="togglePassEyeIcon"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div id="authErrorMessage" class="w7-auth-error" style="display: none;">
+            <i class="bx bx-error-circle"></i>
+            <span class="auth-error-text"></span>
+          </div>
+
+          <div class="w7-auth-footer">
+            <button type="button" id="cancelAuthBtn" class="aero-btn-action w7-auth-btn-secondary">Cancel</button>
+            <button type="submit" id="submitAuthBtn" class="aero-btn-action primary-save-btn w7-auth-btn-primary">
+              Log On
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer container">
+    <p class="footer-copyright">
+      &#169; SosaSpeaks. All non-quoted material is the original writing of SosaSpeaks and its authors.
+    </p>
+    <p class="footer-links">
+      <a href="https://github.com/sosaspeaks/sosaspeaks.github.io" target="_blank" rel="noopener">
+        <i class='bx bxl-github'></i> Source code via GitHub
+      </a>
+      <span class="footer-divider">&middot;</span>
+      <a href="mailto:sosa@sosaspeaks.org">
+        <i class='bx bx-envelope'></i> sosa@sosaspeaks.org
+      </a>
+    </p>
+  </footer>
+
+  <!-- Aero Glass Mini-Player Dock -->
+  <div id="miniPlayerDock" class="aero-player-dock" style="display: none;">
+    <div id="miniPlayerBg" class="aero-player-bg"></div>
+    <div class="aero-player-titlebar">
+      <div class="aero-now-playing-indicator">
+        <span class="aero-equalizer-bars" id="wmpEqualizer">
+          <span></span><span></span><span></span><span></span>
+        </span>
+        <span class="aero-status-text" id="wmpStatusText">NOW PLAYING</span>
+      </div>
+      <button type="button" class="aero-player-close" onclick="closeMiniPlayer()" title="Close Player" aria-label="Close Player">
+        <img src="assets/icons/aero/close.ico" alt="Close" class="mini-close-icon">
+      </button>
+    </div>
+
+    <div class="aero-player-meta">
+      <div id="miniPlayerTrack" class="aero-meta-track">Track Title</div>
+      <div class="aero-meta-sub">
+        <span id="miniPlayerArtist" class="aero-meta-artist">Artist</span>
+        <span class="aero-meta-sep"> • </span>
+        <span id="miniPlayerAlbum" class="aero-meta-album">Album</span>
+      </div>
+    </div>
+
+    <!-- Month Playlist Queue Strip (visible during Play Month) -->
+    <div id="sotdQueueStrip" class="sotd-queue-strip" style="display: none;">
+      <button type="button" id="sotdQueuePrevBtn" class="sotd-q-btn" title="Previous Song in Month"><i class='bx bx-skip-previous'></i></button>
+      <span id="sotdQueueReadout" class="sotd-q-readout">1 / 1</span>
+      <button type="button" id="sotdQueueNextBtn" class="sotd-q-btn" title="Next Song in Month"><i class='bx bx-skip-next'></i></button>
+    </div>
+
+    <div id="miniPlayerFrameWrap" class="aero-player-frame-wrap"></div>
+
+    <!-- Windows Media Player Aero Glass Control Bar -->
+    <div id="wmpControlsBar" class="wmp-controls-bar" style="display: none;">
+      <div class="wmp-scrubber-section">
+        <span class="wmp-time-text" id="wmpCurrentTime">0:00</span>
+        <div class="wmp-scrubber-track" id="wmpScrubberTrack" role="slider" aria-label="Timeline Scrubber" tabindex="0">
+          <div class="wmp-progress-fill" id="wmpProgressFill">
+            <span class="wmp-scrubber-knob"></span>
+          </div>
+        </div>
+        <span class="wmp-time-text" id="wmpDuration">0:00</span>
+      </div>
+
+      <div class="wmp-buttons-row">
+        <button type="button" class="wmp-ctrl-btn" id="wmpRwBtn" onclick="wmpSkip(-10)" title="Rewind 10s">
+          <i class='bx bx-rewind'></i>
+        </button>
+        <button type="button" class="wmp-ctrl-btn" id="wmpStopBtn" onclick="wmpStop()" title="Stop">
+          <i class='bx bx-stop'></i>
+        </button>
+
+        <div class="wmp-orb-stage">
+          <button type="button" class="wmp-orb-btn" id="wmpPlayPauseBtn" onclick="wmpTogglePlayPause()" title="Play / Pause">
+            <div class="wmp-orb-glass-reflection"></div>
+            <img src="assets/icons/aero/play.ico" alt="Play" class="wmp-orb-icon" id="wmpOrbPlayIcon">
+            <img src="assets/icons/aero/pause.ico" alt="Pause" class="wmp-orb-icon wmp-orb-pause-icon" id="wmpOrbPauseIcon" style="display: none;">
+          </button>
+        </div>
+
+        <button type="button" class="wmp-ctrl-btn" id="wmpFfBtn" onclick="wmpSkip(10)" title="Fast Forward 10s">
+          <i class='bx bx-fast-forward'></i>
+        </button>
+        <button type="button" class="wmp-ctrl-btn" id="wmpLoopBtn" onclick="wmpToggleLoop()" title="Loop Track">
+          <i class='bx bx-repeat'></i>
+        </button>
+      </div>
+
+      <div class="wmp-sub-bar">
+        <div class="wmp-volume-wrap">
+          <button type="button" class="wmp-vol-btn" onclick="wmpToggleMute()" title="Mute / Unmute">
+            <i class='bx bx-volume-full' id="wmpVolIcon"></i>
+          </button>
+          <input type="range" id="wmpVolumeSlider" class="wmp-aero-slider" min="0" max="1" step="0.05" value="1" oninput="wmpSetVolume(this.value)" title="Volume">
+        </div>
+        <button type="button" class="wmp-sub-btn" id="wmpFullscreenBtn" onclick="wmpToggleFullscreen()" title="Fullscreen Video" style="display: none;">
+          <i class='bx bx-fullscreen'></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Windows 7 Aero Taskbar ("Superbar") -->
+  <nav class="aero-taskbar-container" id="aeroTaskbar" aria-label="SosaSpins Taskbar">
+    <div class="taskbar-inner">
+      <a href="sosaspins.html" class="taskbar-start-orb" id="taskbarStartOrb" aria-label="Timeline Feed">
+        <span class="taskbar-tooltip">Timeline Feed</span>
+        <div class="start-orb-glass">
+          <div class="start-orb-reflection"></div>
+          <img src="assets/images/homepics/Folder203.ico" alt="Timeline Feed" class="start-orb-icon">
+        </div>
+      </a>
+
+      <div class="taskbar-apps" role="toolbar" aria-label="Running Portals">
+        <a href="challenge.html" class="taskbar-app-btn" data-portal="challenge" aria-label="Challenge Grid">
+          <span class="taskbar-tooltip">Challenge Grid</span>
+          <div class="app-btn-plate">
+            <img src="assets/icons/aero/challenge.ico" alt="Challenge Grid" class="win7-app-icon challenge-icon">
+          </div>
+        </a>
+        <a href="top100.html" class="taskbar-app-btn" data-portal="top100" aria-label="Top 100 Showcase">
+          <span class="taskbar-tooltip">Top 100 Showcase</span>
+          <div class="app-btn-plate">
+            <img src="assets/icons/aero/top100.png" alt="Top 100 Showcase" class="win7-app-icon top100-icon">
+          </div>
+        </a>
+        <a href="stats.html" class="taskbar-app-btn" data-portal="stats" aria-label="Listening Stats">
+          <span class="taskbar-tooltip">Listening Stats</span>
+          <div class="app-btn-plate">
+            <img src="assets/icons/aero/stats.png" alt="Listening Stats" class="win7-app-icon stats-icon">
+          </div>
+        </a>
+        <a href="sotd.html" class="taskbar-app-btn" data-portal="sotd" aria-label="Song of the Day">
+          <span class="taskbar-tooltip">Song of the Day</span>
+          <div class="app-btn-plate">
+            <img src="assets/icons/aero/wmp.ico" alt="Song of the Day" class="win7-app-icon sotd-icon">
+          </div>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/js/sosa-auth.js?v=20261121a"></script>
+  <script src="assets/js/sotd.js?v=20261123a"></script>
+  <script src="assets/js/miniplayer-drag.js?v=20261123a" defer></script>
+  <script src="assets/js/dock.js?v=20261123a"></script>
+  <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>
+</body>
+</html>

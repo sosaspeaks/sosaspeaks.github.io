@@ -18,7 +18,9 @@
     const currentPath = window.location.pathname.toLowerCase();
     let activePortal = "feed";
 
-    if (currentPath.includes("stats")) {
+    if (currentPath.includes("sotd")) {
+      activePortal = "sotd";
+    } else if (currentPath.includes("stats")) {
       activePortal = "stats";
     } else if (currentPath.includes("top100")) {
       activePortal = "top100";
