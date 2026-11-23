@@ -459,6 +459,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       genres: s.genres,
       secondary_genres: s.secondary_genres,
       descriptors: s.descriptors,
+      scenes: s.scenes,
+      movements: s.movements,
+      track_ratings: Array.isArray(s.track_ratings) ? s.track_ratings : [],
       month: "recalibrate",
       relisten_reason: s.relisten_reason || "Perspective Shift",
       prev_rating: (s.rating_shift && s.rating_shift.from) ? s.rating_shift.from : null,
@@ -1863,6 +1866,95 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  function dedupeChallengeRymTags(rawGenres, rawSec, rawScenes, rawMovements) {
+    const scenes = [], movements = [], genres = [], secondary = [];
+    const sSet = new Set(), mSet = new Set(), gSet = new Set(), sgSet = new Set();
+    const knownS = new Set([
+      "southern hip hop", "west coast hip hop", "east coast hip hop", "midwest hip hop",
+      "dmv hip hop", "uk hip hop", "south florida soundcloud rap",
+      "new brunswick basement scene", "bristol sound", "louisville sound",
+      "san diego sound", "detroit sound", "houston sound", "minneapolis sound",
+      "nashville sound", "palm desert scene", "shibuya-kei", "shimokita-kei", "mandopop"
+    ]);
+    const knownM = new Set([
+      "afrofuturism", "beijing new sound", "new rave", "hauntology",
+      "indie sleaze revival", "furry music", "seapunk", "scene", "rabm", "new romantic"
+    ]);
+    const pushU = (arr, set, v) => {
+      const c = String(v || "").trim();
+      if (!c) return;
+      const k = c.toLowerCase();
+      if (set.has(k)) return;
+      set.add(k);
+      arr.push(c);
+    };
+    (Array.isArray(rawScenes) ? rawScenes : []).forEach(v => pushU(scenes, sSet, v));
+    (Array.isArray(rawMovements) ? rawMovements : []).forEach(v => pushU(movements, mSet, v));
+    const route = (v, arr, set) => {
+      const c = String(v || "").trim();
+      if (!c) return;
+      const k = c.toLowerCase();
+      if (sSet.has(k) || knownS.has(k)) { pushU(scenes, sSet, c); return; }
+      if (mSet.has(k) || knownM.has(k)) { pushU(movements, mSet, c); return; }
+      pushU(arr, set, c);
+    };
+    (Array.isArray(rawGenres) ? rawGenres : []).forEach(v => route(v, genres, gSet));
+    (Array.isArray(rawSec) ? rawSec : []).forEach(v => {
+      const k = String(v || "").trim().toLowerCase();
+      if (k && gSet.has(k)) return;
+      route(v, secondary, sgSet);
+    });
+    return { genres, secondary, scenes, movements };
+  }
+
+  function cleanChallengeDescriptors(rawInput) {
+    const rawList = Array.isArray(rawInput)
+      ? rawInput
+      : String(rawInput || "").replace(/^\s*descriptors\s*:?\s*/i, "").split(/[,\n]+/);
+    const cleanDescriptors = [];
+    const seen = new Set();
+    rawList.forEach(d => {
+      if (!d) return;
+      const s = String(d).replace(/^\s*descriptors\s*:?\s*/i, "").trim();
+      if (!s || s.toLowerCase() === "descriptors") return;
+      if (s.split(/\s+/).length > 5 || s.length > 45) return;
+      const key = s.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      cleanDescriptors.push(s);
+    });
+    return cleanDescriptors;
+  }
+
+  async function readChallengeClipboardWithPrompt(promptMsg, { requireJsonObject = true } = {}) {
+    let text = "";
+    try {
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        text = await navigator.clipboard.readText();
+      }
+    } catch (clipErr) {
+      console.warn("Clipboard access issue:", clipErr);
+    }
+    const trimmed = String(text || "").trim();
+    if (!trimmed || (requireJsonObject && !trimmed.startsWith("{"))) {
+      text = prompt(promptMsg, trimmed);
+    }
+    return String(text || "").trim();
+  }
+
+  function flashChallengeRymButton(btn, successHtml = `<i class='bx bx-check'></i> Imported!`, durationMs = 1800) {
+    if (!btn) return;
+    const origHtml = btn.dataset.origHtml || btn.innerHTML;
+    btn.dataset.origHtml = origHtml;
+    btn.innerHTML = successHtml;
+    btn.classList.add("btn-import-success");
+    if (btn._flashTimer) clearTimeout(btn._flashTimer);
+    btn._flashTimer = setTimeout(() => {
+      btn.innerHTML = origHtml;
+      btn.classList.remove("btn-import-success");
+    }, durationMs);
+  }
+
   window.importBacklogToSpin = function(albumId) {
     const album = backlogEntries.find(a => String(a.id) === String(albumId)) ||
                   (typeof getRelistenEntries === "function" ? getRelistenEntries().find(a => String(a.id) === String(albumId)) : null);
@@ -1871,16 +1963,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     let targetCover = album.cover_url || "";
     if (targetCover.startsWith("assets/")) targetCover = "../" + targetCover;
 
+    const deduped = dedupeChallengeRymTags(
+      safeToArray(album.genres),
+      safeToArray(album.secondary_genres),
+      safeToArray(album.scenes),
+      safeToArray(album.movements)
+    );
+
+    const localTracks = getLocalChallengeTracks()[album.id];
+    const tracksArr = Array.isArray(album.track_ratings) && album.track_ratings.length
+      ? album.track_ratings
+      : (Array.isArray(localTracks) ? localTracks : []);
+
     sessionStorage.setItem("sosaspins_prefill_spin", JSON.stringify({
       artist: album.artist || "",
       title: album.title || "",
       year: album.release_year || album.year || "",
       cover_url: targetCover,
-      genres: safeToArray(album.genres).join(", "),
-      secondary_genres: safeToArray(album.secondary_genres).join(", "),
+      genres: deduped.genres.join(", "),
+      secondary_genres: deduped.secondary.join(", "),
       descriptors: safeToArray(album.descriptors).join(", "),
-      scenes: safeToArray(album.scenes).join(", "),
-      movements: safeToArray(album.movements).join(", "),
+      scenes: deduped.scenes.join(", "),
+      movements: deduped.movements.join(", "),
+      track_ratings: tracksArr,
       runtime: album.runtime || "",
       rym_rating: (album.rym_rating !== undefined && album.rym_rating !== null) ? album.rym_rating : ""
     }));
@@ -1905,17 +2010,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     const descList = safeToArray((album.descriptors && album.descriptors.length) ? album.descriptors : (priorSpin ? priorSpin.descriptors : []));
     const scenesList = safeToArray((album.scenes && album.scenes.length) ? album.scenes : (priorSpin ? priorSpin.scenes : []));
     const movementsList = safeToArray((album.movements && album.movements.length) ? album.movements : (priorSpin ? priorSpin.movements : []));
+    const deduped = dedupeChallengeRymTags(genresList, secGenresList, scenesList, movementsList);
+
+    const localTracks = getLocalChallengeTracks()[album.id];
+    const backlogTracks = Array.isArray(album.track_ratings) && album.track_ratings.length
+      ? album.track_ratings
+      : (Array.isArray(localTracks) ? localTracks : []);
+    const tracksArr = backlogTracks.length
+      ? backlogTracks
+      : (priorSpin && Array.isArray(priorSpin.track_ratings) ? priorSpin.track_ratings : []);
 
     sessionStorage.setItem("sosaspins_prefill_spin", JSON.stringify({
       artist: album.artist || "",
       title: album.title || "",
       release_year: album.release_year || album.year || (priorSpin ? priorSpin.year : ""),
       cover_url: targetCover,
-      genres: genresList.join(", "),
-      secondary_genres: secGenresList.join(", "),
+      genres: deduped.genres.join(", "),
+      secondary_genres: deduped.secondary.join(", "),
       descriptors: descList.join(", "),
-      scenes: scenesList.join(", "),
-      movements: movementsList.join(", "),
+      scenes: deduped.scenes.join(", "),
+      movements: deduped.movements.join(", "),
+      track_ratings: tracksArr,
       runtime: album.runtime || (priorSpin ? priorSpin.runtime : ""),
       relisten: true,
       prevRating: priorRating
@@ -2378,28 +2493,410 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  // ============================================================
+  // TRACKLIST & TRACK RATINGS MANAGER (Challenge Add / Edit Modal)
+  // ============================================================
+  const trackRatingsList = document.getElementById("trackRatingsList");
+  const addTrackRatingRowBtn = document.getElementById("addTrackRatingRowBtn");
+  const pasteTrackRatingsBtn = document.getElementById("pasteTrackRatingsBtn");
+
+  function normalizeTrackStarRating(raw) {
+    if (raw === null || raw === undefined || raw === "") return "";
+    const num = parseFloat(raw);
+    if (!Number.isFinite(num) || num <= 0) return "";
+    const snapped = Math.min(5.0, Math.max(0.5, Math.round(num * 2) / 2));
+    return snapped.toFixed(1);
+  }
+
+  function parseTrackDurationToSeconds(raw) {
+    const str = String(raw || "").trim();
+    if (!str) return 0;
+    const hms = str.match(/^(\d+):(\d{1,2}):(\d{2})$/);
+    if (hms) return parseInt(hms[1], 10) * 3600 + parseInt(hms[2], 10) * 60 + parseInt(hms[3], 10);
+    const ms = str.match(/^(\d+):(\d{2})$/);
+    if (ms) return parseInt(ms[1], 10) * 60 + parseInt(ms[2], 10);
+    const secOnly = str.match(/^(\d+)\s*s$/i);
+    if (secOnly) return parseInt(secOnly[1], 10);
+    return 0;
+  }
+
+  function formatDurationFromSeconds(totalSec) {
+    const cleanSec = Math.round(Number(totalSec) || 0);
+    if (cleanSec <= 0) return "";
+    const hrs = Math.floor(cleanSec / 3600);
+    const mins = Math.floor((cleanSec % 3600) / 60);
+    const secs = cleanSec % 60;
+    if (hrs > 0) {
+      return `${hrs}h ${String(mins).padStart(2, "0")}m ${String(secs).padStart(2, "0")}s`;
+    }
+    return `${mins}m ${String(secs).padStart(2, "0")}s`;
+  }
+
+  function normalizeImportedTracklist(rawTracklist) {
+    if (!Array.isArray(rawTracklist)) return [];
+    return rawTracklist
+      .map(item => {
+        if (!item || typeof item !== "object") return null;
+        const title = String(item.title || "").trim();
+        if (!title) return null;
+        const num = item.num !== null && item.num !== undefined ? String(item.num).trim() : "";
+        const duration = item.duration !== null && item.duration !== undefined ? String(item.duration).trim() : "";
+        const sec = Number(item.duration_sec);
+        const duration_sec = Number.isFinite(sec) && sec >= 0 ? Math.round(sec) : null;
+        const normRating = normalizeTrackStarRating(item.rating);
+        const url = item.url ? String(item.url).trim() : "";
+        return {
+          num,
+          title,
+          duration,
+          duration_sec,
+          rating: normRating ? parseFloat(normRating) : null,
+          url
+        };
+      })
+      .filter(Boolean);
+  }
+
+  function mergeImportedTrackRatings(trackRatingsArr, tracklistArr) {
+    const ratingByTitle = new Map();
+    (Array.isArray(trackRatingsArr) ? trackRatingsArr : []).forEach(tr => {
+      if (!tr || typeof tr !== "object") return;
+      const title = String(tr.title || "").trim();
+      if (!title) return;
+      const key = title.toLowerCase();
+      const existing = ratingByTitle.get(key) || {};
+      const normRating = normalizeTrackStarRating(tr.rating);
+      const url = tr.url ? String(tr.url).trim() : (existing.url || "");
+      const duration = tr.duration ? String(tr.duration).trim() : (existing.duration || "");
+      const rawSec = Number(tr.duration_sec);
+      const duration_sec = Number.isFinite(rawSec) && rawSec > 0
+        ? Math.round(rawSec)
+        : (existing.duration_sec || parseTrackDurationToSeconds(duration) || null);
+      ratingByTitle.set(key, {
+        title: existing.title || title,
+        rating: normRating || existing.rating || "",
+        url,
+        duration,
+        duration_sec
+      });
+    });
+
+    const merged = [];
+    const seen = new Set();
+
+    if (Array.isArray(tracklistArr) && tracklistArr.length > 0) {
+      tracklistArr.forEach(t => {
+        if (!t || typeof t !== "object") return;
+        const title = String(t.title || "").trim();
+        if (!title) return;
+        const key = title.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+
+        const matched = ratingByTitle.get(key);
+        const normRating = (matched && matched.rating) || normalizeTrackStarRating(t.rating) || "";
+        const url = (matched && matched.url) || (t.url ? String(t.url).trim() : "") || "";
+        const duration = (t.duration ? String(t.duration).trim() : "") || (matched && matched.duration) || "";
+        const rawSec = Number(t.duration_sec);
+        const duration_sec = Number.isFinite(rawSec) && rawSec > 0
+          ? Math.round(rawSec)
+          : ((matched && matched.duration_sec) || parseTrackDurationToSeconds(duration) || null);
+
+        merged.push({ title, rating: normRating, url, duration, duration_sec });
+      });
+    }
+
+    ratingByTitle.forEach((entry, key) => {
+      if (seen.has(key)) return;
+      seen.add(key);
+      merged.push({
+        title: entry.title,
+        rating: entry.rating || "",
+        url: entry.url || "",
+        duration: entry.duration || "",
+        duration_sec: entry.duration_sec || null
+      });
+    });
+
+    return merged;
+  }
+
+  function syncTrackRatingIndices() {
+    if (!trackRatingsList) return;
+    const rows = Array.from(trackRatingsList.querySelectorAll(".track-rating-input-row"));
+    rows.forEach((row, idx) => {
+      const numEl = row.querySelector(".tr-row-num");
+      if (numEl) numEl.textContent = `${idx + 1}.`;
+    });
+    const headerEl = document.getElementById("trListHeader");
+    if (headerEl) headerEl.style.display = rows.length > 0 ? "grid" : "none";
+    const badgeEl = document.getElementById("trackRatingsCountBadge");
+    if (badgeEl) {
+      badgeEl.textContent = String(rows.length);
+      badgeEl.style.display = rows.length > 0 ? "inline-flex" : "none";
+    }
+  }
+
+  function bindTrackRowKeyboardFlow(row) {
+    const titleEl = row.querySelector(".tr-title-input");
+    const durEl = row.querySelector(".tr-duration-input");
+    const urlEl = row.querySelector(".tr-url-input");
+    const rateEl = row.querySelector(".tr-rating-select");
+    const removeBtn = row.querySelector(".tr-remove-btn");
+
+    const focusStep = (el) => {
+      if (!el) return;
+      el.focus();
+      if (typeof el.select === "function" && el.tagName === "INPUT") {
+        el.select();
+      }
+    };
+
+    const stepOnEnter = (el, nextFn) => {
+      if (!el) return;
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.stopPropagation();
+          nextFn();
+        }
+      });
+    };
+
+    stepOnEnter(titleEl, () => focusStep(durEl));
+    stepOnEnter(durEl, () => focusStep(urlEl));
+    stepOnEnter(urlEl, () => focusStep(rateEl));
+    stepOnEnter(rateEl, () => {
+      const nextRow = row.nextElementSibling;
+      if (nextRow && nextRow.classList.contains("track-rating-input-row")) {
+        focusStep(nextRow.querySelector(".tr-title-input"));
+        return;
+      }
+      if (trackRatingsList) {
+        const freshRow = createTrackRatingRow("", "");
+        trackRatingsList.appendChild(freshRow);
+        syncTrackRatingIndices();
+        focusStep(freshRow.querySelector(".tr-title-input"));
+      }
+    });
+
+    if (removeBtn) {
+      removeBtn.addEventListener("click", () => {
+        row.remove();
+        syncTrackRatingIndices();
+      });
+    }
+  }
+
+  function createTrackRatingRow(title = "", rating = "", url = "", duration = "", durationSec = null) {
+    const row = document.createElement("div");
+    row.className = "track-rating-input-row";
+    if (Number.isFinite(Number(durationSec)) && Number(durationSec) > 0) {
+      row.dataset.durationSec = String(Math.round(Number(durationSec)));
+    }
+    const normRating = normalizeTrackStarRating(rating);
+    row.innerHTML = `
+      <span class="tr-row-num">1.</span>
+      <input type="text" class="tr-title-input" placeholder="Track title" value="${escapeHtml(title)}" required>
+      <input type="text" class="tr-duration-input" placeholder="0:00" value="${escapeHtml(duration)}" title="Track duration (e.g. 3:45)">
+      <input type="text" class="tr-url-input" placeholder="URL (opt)" value="${escapeHtml(url)}">
+      <select class="tr-rating-select">
+        <option value="" ${!normRating ? "selected" : ""}>— Unrated</option>
+        <option value="5.0" ${normRating === "5.0" ? "selected" : ""}>★★★★★ 5.0</option>
+        <option value="4.5" ${normRating === "4.5" ? "selected" : ""}>★★★★½ 4.5</option>
+        <option value="4.0" ${normRating === "4.0" ? "selected" : ""}>★★★★☆ 4.0</option>
+        <option value="3.5" ${normRating === "3.5" ? "selected" : ""}>★★★½☆ 3.5</option>
+        <option value="3.0" ${normRating === "3.0" ? "selected" : ""}>★★★☆☆ 3.0</option>
+        <option value="2.5" ${normRating === "2.5" ? "selected" : ""}>★★½☆☆ 2.5</option>
+        <option value="2.0" ${normRating === "2.0" ? "selected" : ""}>★★☆☆☆ 2.0</option>
+        <option value="1.5" ${normRating === "1.5" ? "selected" : ""}>★½☆☆☆ 1.5</option>
+        <option value="1.0" ${normRating === "1.0" ? "selected" : ""}>★☆☆☆☆ 1.0</option>
+        <option value="0.5" ${normRating === "0.5" ? "selected" : ""}>½☆☆☆☆ 0.5</option>
+      </select>
+      <button type="button" class="tr-remove-btn" title="Remove track">&times;</button>
+    `;
+    bindTrackRowKeyboardFlow(row);
+    return row;
+  }
+
+  function collectTrackRatingRows() {
+    const rows = [];
+    if (!trackRatingsList) return rows;
+    trackRatingsList.querySelectorAll(".track-rating-input-row").forEach(row => {
+      const tInput = row.querySelector(".tr-title-input");
+      const dInput = row.querySelector(".tr-duration-input");
+      const uInput = row.querySelector(".tr-url-input");
+      const rSelect = row.querySelector(".tr-rating-select");
+      const title = tInput ? tInput.value.trim() : "";
+      if (!title) return;
+
+      const duration = dInput ? dInput.value.trim() : "";
+      const parsedSec = parseTrackDurationToSeconds(duration);
+      const storedSec = row.dataset.durationSec ? parseInt(row.dataset.durationSec, 10) : 0;
+      const durationSec = parsedSec > 0 ? parsedSec : (duration && storedSec > 0 ? storedSec : 0);
+      const url = uInput ? uInput.value.trim() : "";
+      const rawRating = rSelect ? rSelect.value : "";
+      const rating = rawRating !== "" && !isNaN(parseFloat(rawRating)) ? parseFloat(rawRating) : null;
+
+      const entry = {
+        title,
+        rating,
+        url: url || null
+      };
+      if (duration) entry.duration = duration;
+      if (durationSec > 0) entry.duration_sec = durationSec;
+      rows.push(entry);
+    });
+    return rows;
+  }
+
+  function setChallengeModalTrackRows(rawTracks) {
+    if (!trackRatingsList) return;
+    trackRatingsList.innerHTML = "";
+    const list = Array.isArray(rawTracks) ? rawTracks : [];
+    list.forEach(tr => {
+      if (!tr || typeof tr !== "object" || !String(tr.title || "").trim()) return;
+      trackRatingsList.appendChild(
+        createTrackRatingRow(
+          tr.title,
+          tr.rating,
+          tr.url || "",
+          tr.duration || "",
+          tr.duration_sec
+        )
+      );
+    });
+    syncTrackRatingIndices();
+  }
+
+  function applyImportedTracksToChallengeModal(data, { preserveExistingRuntime = true } = {}) {
+    const hasTracklist = Array.isArray(data && data.tracklist) && data.tracklist.length > 0;
+    const hasTrackRatings = Array.isArray(data && data.track_ratings) && data.track_ratings.length > 0;
+    if (!hasTracklist && !hasTrackRatings) return false;
+
+    const existingRows = collectTrackRatingRows();
+    const existingUrlByTitle = new Map();
+    const existingRatingByTitle = new Map();
+    existingRows.forEach(row => {
+      const k = String(row.title || "").trim().toLowerCase();
+      if (!k) return;
+      if (row.url) existingUrlByTitle.set(k, row.url);
+      if (row.rating !== null && row.rating !== undefined && row.rating !== "") {
+        existingRatingByTitle.set(k, row.rating);
+      }
+    });
+
+    const mergeExistingMeta = (items) =>
+      (Array.isArray(items) ? items : []).map(item => {
+        if (!item || typeof item !== "object") return item;
+        const k = String(item.title || "").trim().toLowerCase();
+        const url = item.url || existingUrlByTitle.get(k) || "";
+        const rating = (item.rating !== null && item.rating !== undefined && item.rating !== "")
+          ? item.rating
+          : (hasTrackRatings ? null : (existingRatingByTitle.get(k) ?? null));
+        return { ...item, url, rating };
+      });
+
+    const importedTracklist = normalizeImportedTracklist(mergeExistingMeta(data.tracklist));
+    const importedRatings = mergeImportedTrackRatings(mergeExistingMeta(data.track_ratings), importedTracklist);
+
+    setChallengeModalTrackRows(importedRatings);
+
+    if (addRuntime) {
+      const hasExistingRuntime = preserveExistingRuntime && addRuntime.value && addRuntime.value.trim();
+      if (!hasExistingRuntime) {
+        const durSource = importedTracklist.length > 0 ? importedTracklist : importedRatings;
+        const totalSec = durSource.reduce((sum, t) => sum + (Number.isFinite(t.duration_sec) ? t.duration_sec : 0), 0);
+        const nextRuntime = String((data && data.runtime) || "").trim() || formatDurationFromSeconds(totalSec);
+        if (nextRuntime) addRuntime.value = nextRuntime;
+      }
+    }
+
+    return importedRatings.length > 0;
+  }
+
+  if (addTrackRatingRowBtn && trackRatingsList) {
+    addTrackRatingRowBtn.addEventListener("click", () => {
+      const newRow = createTrackRatingRow("", "");
+      trackRatingsList.appendChild(newRow);
+      syncTrackRatingIndices();
+      const tInput = newRow.querySelector(".tr-title-input");
+      if (tInput) tInput.focus();
+    });
+  }
+
+  if (pasteTrackRatingsBtn) {
+    pasteTrackRatingsBtn.addEventListener("click", async () => {
+      const jsonText = await readChallengeClipboardWithPrompt("Paste the Rate Your Music Tracks JSON below:");
+      if (!jsonText) return;
+
+      let data;
+      try {
+        data = JSON.parse(jsonText);
+      } catch (err) {
+        alert("Could not parse clipboard data as JSON. Copy tracks using the RYM Exporter 'Tracks' button.");
+        return;
+      }
+
+      if (!applyImportedTracksToChallengeModal(data, { preserveExistingRuntime: true })) {
+        alert("Clipboard JSON does not contain a tracklist or track ratings.");
+        return;
+      }
+
+      flashChallengeRymButton(pasteTrackRatingsBtn, `<i class='bx bx-check'></i> Pasted!`);
+    });
+  }
+
+  // Descriptors-Only Clipboard Paste
+  const pasteDescriptorsBtn = document.getElementById("pasteDescriptorsBtn");
+  if (pasteDescriptorsBtn) {
+    pasteDescriptorsBtn.addEventListener("click", async () => {
+      const rawText = await readChallengeClipboardWithPrompt(
+        "Paste RYM Descriptors JSON or comma-separated descriptors:",
+        { requireJsonObject: false }
+      );
+      if (!rawText) return;
+
+      let descriptorSource = rawText;
+      if (rawText.startsWith("{") || rawText.startsWith("[")) {
+        try {
+          const parsed = JSON.parse(rawText);
+          if (Array.isArray(parsed)) {
+            descriptorSource = parsed;
+          } else if (parsed && Array.isArray(parsed.descriptors)) {
+            descriptorSource = parsed.descriptors;
+          } else {
+            alert("Clipboard JSON does not contain descriptors.");
+            return;
+          }
+        } catch (err) {
+          // Fall back to comma-separated text parsing
+        }
+      }
+
+      const cleanDescriptors = cleanChallengeDescriptors(descriptorSource);
+      if (!cleanDescriptors.length) {
+        alert("No valid descriptors found to paste.");
+        return;
+      }
+
+      if (window.addDescriptorsManager) {
+        window.addDescriptorsManager.setTags(cleanDescriptors);
+      }
+      flashChallengeRymButton(pasteDescriptorsBtn, `<i class='bx bx-check'></i> Pasted!`);
+    });
+  }
+
   // RYM Clipboard Importer
   const rymImportBtn = document.getElementById("rymImportBtn");
   if (rymImportBtn) {
     rymImportBtn.addEventListener("click", async () => {
-      let jsonText = "";
-      try {
-        if (navigator.clipboard && navigator.clipboard.readText) {
-          jsonText = await navigator.clipboard.readText();
-        }
-      } catch (clipErr) {
-        console.warn("Clipboard access issue:", clipErr);
-      }
-
-      if (!jsonText || !jsonText.trim().startsWith("{")) {
-        jsonText = prompt("Paste the Rate Your Music JSON below:", jsonText || "");
-      }
-
-      if (!jsonText || !jsonText.trim()) return;
+      const jsonText = await readChallengeClipboardWithPrompt("Paste the Rate Your Music JSON below:");
+      if (!jsonText) return;
 
       let data;
       try {
-        data = JSON.parse(jsonText.trim());
+        data = JSON.parse(jsonText);
       } catch (err) {
         alert("Could not parse clipboard data as JSON. Please ensure you copied data from the RYM userscript.");
         return;
@@ -2410,70 +2907,25 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
 
-      const dedupeChallengeRymTags = (rawGenres, rawSec, rawScenes, rawMovements) => {
-        const scenes = [], movements = [], genres = [], secondary = [];
-        const sSet = new Set(), mSet = new Set(), gSet = new Set(), sgSet = new Set();
-        const knownS = new Set([
-          "southern hip hop", "west coast hip hop", "east coast hip hop", "midwest hip hop",
-          "dmv hip hop", "uk hip hop", "south florida soundcloud rap",
-          "new brunswick basement scene", "bristol sound", "louisville sound",
-          "san diego sound", "detroit sound", "houston sound", "minneapolis sound",
-          "nashville sound", "palm desert scene", "shibuya-kei", "shimokita-kei", "mandopop"
-        ]);
-        const knownM = new Set([
-          "afrofuturism", "beijing new sound", "new rave", "hauntology",
-          "indie sleaze revival", "furry music", "seapunk", "scene", "rabm", "new romantic"
-        ]);
-        const pushU = (arr, set, v) => {
-          const c = String(v || "").trim();
-          if (!c) return;
-          const k = c.toLowerCase();
-          if (set.has(k)) return;
-          set.add(k);
-          arr.push(c);
-        };
-        (Array.isArray(rawScenes) ? rawScenes : []).forEach(v => pushU(scenes, sSet, v));
-        (Array.isArray(rawMovements) ? rawMovements : []).forEach(v => pushU(movements, mSet, v));
-        const route = (v, arr, set) => {
-          const c = String(v || "").trim();
-          if (!c) return;
-          const k = c.toLowerCase();
-          if (sSet.has(k) || knownS.has(k)) { pushU(scenes, sSet, c); return; }
-          if (mSet.has(k) || knownM.has(k)) { pushU(movements, mSet, c); return; }
-          pushU(arr, set, c);
-        };
-        (Array.isArray(rawGenres) ? rawGenres : []).forEach(v => route(v, genres, gSet));
-        (Array.isArray(rawSec) ? rawSec : []).forEach(v => {
-          const k = String(v || "").trim().toLowerCase();
-          if (k && gSet.has(k)) return;
-          route(v, secondary, sgSet);
-        });
-        return { genres, secondary, scenes, movements };
-      };
-
       if (data.export_type === "descriptors") {
-        if (window.addDescriptorsManager && Array.isArray(data.descriptors)) {
-          const cleanDescriptors = [];
-          data.descriptors.forEach(d => {
-            if (!d) return;
-            const s = String(d).replace(/^\s*descriptors\s*:?\s*/i, "").trim();
-            if (!s || s.toLowerCase() === "descriptors" || s.split(/\s+/).length > 5 || s.length > 45) return;
-            if (!cleanDescriptors.includes(s)) cleanDescriptors.push(s);
-          });
+        const cleanDescriptors = cleanChallengeDescriptors(data.descriptors || []);
+        if (!cleanDescriptors.length) {
+          alert("Clipboard JSON does not contain any valid descriptors.");
+          return;
+        }
+        if (window.addDescriptorsManager) {
           window.addDescriptorsManager.setTags(cleanDescriptors);
         }
-        const origHtml = rymImportBtn.innerHTML;
-        rymImportBtn.innerHTML = `<i class='bx bx-check'></i> Descriptors Pasted!`;
-        rymImportBtn.classList.add("btn-import-success");
-        setTimeout(() => {
-          rymImportBtn.innerHTML = origHtml;
-          rymImportBtn.classList.remove("btn-import-success");
-        }, 1800);
+        flashChallengeRymButton(rymImportBtn, `<i class='bx bx-check'></i> Descriptors Pasted!`);
         return;
       }
 
       if (data.export_type === "tracks") {
-        alert("Challenge backlog entries do not store per-track ratings. Copy the full Release (Alt+S) to import album metadata here.");
+        if (!applyImportedTracksToChallengeModal(data, { preserveExistingRuntime: true })) {
+          alert("Clipboard JSON does not contain a tracklist or track ratings.");
+          return;
+        }
+        flashChallengeRymButton(rymImportBtn, `<i class='bx bx-check'></i> Tracks Pasted!`);
         return;
       }
 
@@ -2530,17 +2982,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         window.addSecondaryGenresManager.setTags(dedupedTax.secondary);
       }
       if (window.addDescriptorsManager) {
-        let cleanDescriptors = [];
-        if (Array.isArray(data.descriptors)) {
-          data.descriptors.forEach(d => {
-            if (!d) return;
-            const s = String(d).replace(/^\s*descriptors\s*:?\s*/i, "").trim();
-            if (!s || s.toLowerCase() === "descriptors") return;
-            if (s.split(/\s+/).length > 5 || s.length > 45) return;
-            if (!cleanDescriptors.includes(s)) cleanDescriptors.push(s);
-          });
-        }
-        window.addDescriptorsManager.setTags(cleanDescriptors);
+        window.addDescriptorsManager.setTags(cleanChallengeDescriptors(data.descriptors || []));
       }
       if (window.addScenesManager && Array.isArray(dedupedTax.scenes)) {
         window.addScenesManager.setTags(dedupedTax.scenes);
@@ -2549,14 +2991,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         window.addMovementsManager.setTags(dedupedTax.movements);
       }
 
-      // Visual success confirmation
-      const origHtml = rymImportBtn.innerHTML;
-      rymImportBtn.innerHTML = `<i class='bx bx-check'></i> Imported!`;
-      rymImportBtn.classList.add("btn-import-success");
-      setTimeout(() => {
-        rymImportBtn.innerHTML = origHtml;
-        rymImportBtn.classList.remove("btn-import-success");
-      }, 1800);
+      applyImportedTracksToChallengeModal(data, { preserveExistingRuntime: false });
+
+      flashChallengeRymButton(rymImportBtn, `<i class='bx bx-check'></i> Imported!`);
     });
   }
 
@@ -2636,6 +3073,59 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     return formatted;
+  }
+
+  window.toggleChallengeTrackRatings = function(panelId, btn) {
+    const listEl = document.getElementById(panelId);
+    if (!listEl) return;
+    const isHidden = listEl.style.display === "none" || !listEl.style.display;
+    listEl.style.display = isHidden ? "flex" : "none";
+    if (btn) btn.classList.toggle("is-open", isHidden);
+  };
+
+  function renderChallengeTrackRatingsHtml(rawTracks, panelId = "challenge-detail-track-ratings") {
+    const tracks = Array.isArray(rawTracks)
+      ? rawTracks.filter(t => t && typeof t === "object" && String(t.title || "").trim())
+      : [];
+    if (!tracks.length) return "";
+
+    const rowsHtml = tracks.map((tr, tIdx) => {
+      const hasUrl = tr.url && String(tr.url).trim().length > 0;
+      const safeUrl = hasUrl ? escapeHtml(String(tr.url).trim()) : "";
+      const hasTrRating = tr.rating !== null && tr.rating !== undefined && tr.rating !== "" && !isNaN(parseFloat(tr.rating));
+      const durHtml = tr.duration ? `<span class="track-duration">${escapeHtml(tr.duration)}</span>` : "";
+      const nameHtml = hasUrl
+        ? `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="track-name">${escapeHtml(tr.title || "")} <i class='bx bx-link-external' style="font-size:0.75em;opacity:0.75;"></i></a>`
+        : `<span class="track-name">${escapeHtml(tr.title || "")}</span>`;
+
+      return `
+        <div class="track-rating-row">
+          <span class="track-num">${tIdx + 1}.</span>
+          ${nameHtml}
+          ${durHtml}
+          ${hasTrRating ? `
+            <span class="track-stars">${getStarString(tr.rating)}</span>
+            <small class="track-score">${Number(tr.rating).toFixed(1)}</small>
+          ` : `
+            <small class="track-score is-unrated">—</small>
+          `}
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <div class="modal-detail-section">
+        <div class="track-ratings-wrapper">
+          <button type="button" class="track-ratings-toggle-btn" onclick="toggleChallengeTrackRatings('${panelId}', this)">
+            <span class="track-ratings-label"><i class='bx bx-list-ol'></i> Tracklist &amp; Ratings (${tracks.length})</span>
+            <span class="ratings-arrow">▾</span>
+          </button>
+          <div class="track-ratings-list" id="${panelId}" style="display: none;">
+            ${rowsHtml}
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   function renderSpinHistoryHtml(spins, sectionTitle = "SPINS") {
@@ -2911,6 +3401,14 @@ document.addEventListener("DOMContentLoaded", async () => {
           }
         }
 
+        const matchedTrackRatings = (Array.isArray(match.track_ratings) && match.track_ratings.length)
+          ? match.track_ratings
+          : (Array.isArray(album.track_ratings) ? album.track_ratings : []);
+        const matchedTrackRatingsHtml = renderChallengeTrackRatingsHtml(
+          matchedTrackRatings,
+          `challenge-detail-tracks-${String(album.id || "item").replace(/[^a-zA-Z0-9_-]/g, "")}`
+        );
+
         const spinHistoryHtml = renderSpinHistoryHtml(
           allSpins.length ? allSpins : [match],
           "SPINS"
@@ -2959,6 +3457,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             <div class="modal-detail-body">
               ${descriptorsSectionHtml}
               ${favTracksSectionHtml}
+              ${matchedTrackRatingsHtml}
               ${spinHistoryHtml}
             </div>
 
@@ -3067,6 +3566,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             <div class="modal-detail-body">
               ${unloggedDescHtml}
+              ${renderChallengeTrackRatingsHtml(
+                (Array.isArray(album.track_ratings) && album.track_ratings.length)
+                  ? album.track_ratings
+                  : (priorSpin && Array.isArray(priorSpin.track_ratings) ? priorSpin.track_ratings : []),
+                `challenge-detail-tracks-unlogged-${String(album.id || "item").replace(/[^a-zA-Z0-9_-]/g, "")}`
+              )}
               ${allSpins.length ? renderSpinHistoryHtml(allSpins, "SPINS") : ""}
               <div class="modal-unlistened-note">
                 ${isRecalibrate
@@ -3486,6 +3991,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch (e) {}
   }
 
+  // Local Cache for Challenge Tracklists / Ratings (fallback if sql/015 column track_ratings is not yet created)
+  const LOCAL_TRACKS_KEY = "sosa_challenge_track_ratings";
+  function getLocalChallengeTracks() {
+    try {
+      return JSON.parse(localStorage.getItem(LOCAL_TRACKS_KEY) || "{}");
+    } catch (e) {
+      return {};
+    }
+  }
+  function saveLocalChallengeTracks(id, tracks) {
+    if (!id) return;
+    try {
+      const map = getLocalChallengeTracks();
+      if (Array.isArray(tracks) && tracks.length > 0) {
+        map[id] = tracks;
+      } else {
+        delete map[id];
+      }
+      localStorage.setItem(LOCAL_TRACKS_KEY, JSON.stringify(map));
+    } catch (e) {}
+  }
+
   // Load Data
   async function loadData(preferredMonth = null) {
     const wasDataLoaded = isDataLoaded;
@@ -3499,6 +4026,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (spinsRes.error) throw spinsRes.error;
 
       const localRyms = getLocalRymRatings();
+      const localTracksMap = getLocalChallengeTracks();
       backlogEntries = (backlogRes.data || []).map(entry => {
         entry._raw_relisten_reason = entry.relisten_reason;
         if (entry.relisten_reason) {
@@ -3507,6 +4035,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (entry.rym_rating === undefined || entry.rym_rating === null) {
           if (localRyms[entry.id] !== undefined) {
             entry.rym_rating = localRyms[entry.id];
+          }
+        }
+        if (!Array.isArray(entry.track_ratings) || entry.track_ratings.length === 0) {
+          if (Array.isArray(localTracksMap[entry.id]) && localTracksMap[entry.id].length > 0) {
+            entry.track_ratings = localTracksMap[entry.id];
+          } else if (!Array.isArray(entry.track_ratings)) {
+            entry.track_ratings = [];
           }
         }
         return entry;
@@ -4719,6 +5254,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.addDescriptorsManager.setTags(album.descriptors);
     if (window.addScenesManager) window.addScenesManager.setTags(album.scenes || []);
     if (window.addMovementsManager) window.addMovementsManager.setTags(album.movements || []);
+    const editTrackRows = Array.isArray(album.track_ratings) && album.track_ratings.length
+      ? album.track_ratings
+      : (getLocalChallengeTracks()[album.id] || []);
+    setChallengeModalTrackRows(editTrackRows);
 
     let displayCover = album.cover_url || FALLBACK_PLACEHOLDER;
     if (displayCover.startsWith("../assets/")) displayCover = displayCover.replace(/^\.\.\//, "");
@@ -4775,6 +5314,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       window.addDescriptorsManager.setTags([]);
       if (window.addScenesManager) window.addScenesManager.setTags([]);
       if (window.addMovementsManager) window.addMovementsManager.setTags([]);
+      setChallengeModalTrackRows([]);
 
       if (artCandidatesContainer) {
         artCandidatesContainer.style.display = "none";
@@ -4842,6 +5382,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const descriptors = window.addDescriptorsManager.getTags();
         const scenes = window.addScenesManager ? window.addScenesManager.getTags() : [];
         const movements = window.addMovementsManager ? window.addMovementsManager.getTags() : [];
+        const trackRatings = collectTrackRatingRows();
 
         if (!cover || cover.includes("placeholder.png")) {
           cover = "";
@@ -4867,6 +5408,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             descriptors,
             scenes,
             movements,
+            track_ratings: trackRatings,
             month: targetMonth
           };
 
@@ -4900,10 +5442,12 @@ document.addEventListener("DOMContentLoaded", async () => {
               const errMsg = String(error.message || "").toLowerCase();
               const hasEmptyScenes = !scenes || !scenes.length;
               const hasEmptyMovements = !movements || !movements.length;
-              if (errMsg.includes("rym_rating") || errMsg.includes("relisten_reason") || errMsg.includes("prev_rating") || (errMsg.includes("scenes") && hasEmptyScenes) || (errMsg.includes("movements") && hasEmptyMovements)) {
+              const hasTrackErr = errMsg.includes("track_ratings");
+              if (errMsg.includes("rym_rating") || errMsg.includes("relisten_reason") || errMsg.includes("prev_rating") || hasTrackErr || (errMsg.includes("scenes") && hasEmptyScenes) || (errMsg.includes("movements") && hasEmptyMovements)) {
                 if (errMsg.includes("rym_rating")) delete updatePayload.rym_rating;
                 if (errMsg.includes("relisten_reason")) delete updatePayload.relisten_reason;
                 if (errMsg.includes("prev_rating")) delete updatePayload.prev_rating;
+                if (hasTrackErr) delete updatePayload.track_ratings;
                 if (errMsg.includes("scenes") && hasEmptyScenes) delete updatePayload.scenes;
                 if (errMsg.includes("movements") && hasEmptyMovements) delete updatePayload.movements;
                 const { error: retryErr } = await sb
@@ -4920,6 +5464,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           }
 
           saveLocalRymRating(editEntryId.value, rymRatingVal);
+          saveLocalChallengeTracks(editEntryId.value, trackRatings);
           if (targetMonth === "recalibrate") {
             saveLocalRelistenMeta(editEntryId.value, { relisten_reason: relistenReasonVal, prev_rating: prevRatingVal });
           }
@@ -4957,7 +5502,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             secondary_genres,
             descriptors,
             scenes,
-            movements
+            movements,
+            track_ratings: trackRatings
           };
 
           if (targetMonth === "recalibrate") {
@@ -4971,16 +5517,19 @@ document.addEventListener("DOMContentLoaded", async () => {
               const errMsg = String(error.message || "").toLowerCase();
               const hasEmptyScenes = !scenes || !scenes.length;
               const hasEmptyMovements = !movements || !movements.length;
-              if (errMsg.includes("rym_rating") || errMsg.includes("relisten_reason") || errMsg.includes("prev_rating") || (errMsg.includes("scenes") && hasEmptyScenes) || (errMsg.includes("movements") && hasEmptyMovements)) {
+              const hasTrackErr = errMsg.includes("track_ratings");
+              if (errMsg.includes("rym_rating") || errMsg.includes("relisten_reason") || errMsg.includes("prev_rating") || hasTrackErr || (errMsg.includes("scenes") && hasEmptyScenes) || (errMsg.includes("movements") && hasEmptyMovements)) {
                 if (errMsg.includes("rym_rating")) delete newRecord.rym_rating;
                 if (errMsg.includes("relisten_reason")) delete newRecord.relisten_reason;
                 if (errMsg.includes("prev_rating")) delete newRecord.prev_rating;
+                if (hasTrackErr) delete newRecord.track_ratings;
                 if (errMsg.includes("scenes") && hasEmptyScenes) delete newRecord.scenes;
                 if (errMsg.includes("movements") && hasEmptyMovements) delete newRecord.movements;
                 const { data: retryInserted, error: retryErr } = await sb.from("challenge_backlog").insert([newRecord]).select();
                 if (retryErr) throw retryErr;
                 if (retryInserted && retryInserted[0]) {
                   saveLocalRymRating(retryInserted[0].id, rymRatingVal);
+                  saveLocalChallengeTracks(retryInserted[0].id, trackRatings);
                   if (targetMonth === "recalibrate") {
                     saveLocalRelistenMeta(retryInserted[0].id, { relisten_reason: relistenReasonVal, prev_rating: prevRatingVal });
                   }
@@ -4990,6 +5539,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               }
             } else if (inserted && inserted[0]) {
               saveLocalRymRating(inserted[0].id, rymRatingVal);
+              saveLocalChallengeTracks(inserted[0].id, trackRatings);
               if (targetMonth === "recalibrate") {
                 saveLocalRelistenMeta(inserted[0].id, { relisten_reason: relistenReasonVal, prev_rating: prevRatingVal });
               }
@@ -5007,14 +5557,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         addAlbumForm.reset();
         editEntryId.value = "";
         if (addRymRating) addRymRating.value = "";
-          if (addPrevRating) addPrevRating.value = "";
+        if (addPrevRating) addPrevRating.value = "";
         if (relistenFieldsContainer) relistenFieldsContainer.style.display = "none";
         window.addGenresManager.setTags([]);
         window.addSecondaryGenresManager.setTags([]);
         window.addDescriptorsManager.setTags([]);
         if (window.addScenesManager) window.addScenesManager.setTags([]);
         if (window.addMovementsManager) window.addMovementsManager.setTags([]);
-          if (addPreviewImg) addPreviewImg.src = FALLBACK_PLACEHOLDER;
+        setChallengeModalTrackRows([]);
+        if (addPreviewImg) addPreviewImg.src = FALLBACK_PLACEHOLDER;
 
         await loadData(targetMonth);
 

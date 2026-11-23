@@ -3096,12 +3096,23 @@ function getDominantColorFromImg(imgUrl) {
           document.getElementById("logMovements").value = item.movements || "";
         }
 
-        // 4. Pre-fill runtime or listening notes memo if available
+        // 4. Pre-fill runtime, RYM rating, or tracklist/ratings if available
         if (logRuntime && item.runtime) {
           logRuntime.value = item.runtime;
         }
         if (logRymRating && item.rym_rating) {
           logRymRating.value = item.rym_rating;
+        }
+        if (Array.isArray(item.track_ratings) && item.track_ratings.length > 0 && typeof applyImportedTracksToModal === "function") {
+          const isSingleHandoff = (document.getElementById("logType")?.value || "").trim().toLowerCase() === "single";
+          applyImportedTracksToModal(
+            {
+              tracklist: item.track_ratings,
+              track_ratings: item.track_ratings,
+              runtime: item.runtime || ""
+            },
+            { isSingle: isSingleHandoff, overwriteExistingTrackRatings: true }
+          );
         }
 
         // 5. Clean up sessionStorage so it doesn't reopen on every refresh

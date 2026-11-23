@@ -21,7 +21,7 @@
   <meta property="og:description" content="Explore Sosa's 6x6 monthly album listening challenge backlog and completed spins.">
   <meta property="og:image" content="https://sosaspeaks.org/assets/images/homepics/Sosa-Icon-V3.png">
   <link rel="icon" type="image/png" href="assets/images/homepics/Sosa-Icon-V3.png">
-  <link rel="stylesheet" href="assets/css/challenge.css?v=20261120b">
+  <link rel="stylesheet" href="assets/css/challenge.css?v=20261122b">
   <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
   <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
 </head>
@@ -474,8 +474,11 @@
 
         <!-- Descriptors Tag Box -->
         <div class="tag-field-row">
-          <div class="tag-input-box" id="descriptorsTagBox">
-            <input type="text" id="addDescriptorsInput" class="tag-inline-input" placeholder="Add Descriptor..." autocomplete="off">
+          <div class="tag-box-with-action">
+            <div class="tag-input-box" id="descriptorsTagBox">
+              <input type="text" id="addDescriptorsInput" class="tag-inline-input" placeholder="Add Descriptor..." autocomplete="off">
+            </div>
+            <button type="button" id="pasteDescriptorsBtn" class="field-paste-btn" title="Paste RYM Descriptors (or full RYM JSON / comma-separated list)"><i class='bx bx-clipboard'></i> Paste</button>
           </div>
           <div class="aero-autocomplete-menu" id="descriptorsDropdown" style="display: none;"></div>
         </div>
@@ -498,6 +501,26 @@
           <div class="aero-autocomplete-menu" id="movementsDropdown" style="display: none;"></div>
         </div>
         <input type="hidden" id="addMovements" value="">
+
+        <!-- Tracklist & Ratings Manager -->
+        <div class="modal-form-group spin-track-ratings-card">
+          <label>
+            <span class="tr-header-title">Tracklist &amp; Ratings <span id="trackRatingsCountBadge" class="tr-count-badge" style="display: none;">0</span></span>
+            <span class="tr-header-actions">
+              <button type="button" id="pasteTrackRatingsBtn" class="add-track-btn tr-paste-btn" title="Paste RYM Tracklist &amp; Track Ratings from clipboard"><i class='bx bx-clipboard'></i> Paste Tracks</button>
+              <button type="button" id="addTrackRatingRowBtn" class="add-track-btn">+ Add Track</button>
+            </span>
+          </label>
+          <div id="trListHeader" class="tr-list-header" style="display: none;" aria-hidden="true">
+            <span class="tr-col-num">#</span>
+            <span class="tr-col-title">Track</span>
+            <span class="tr-col-dur">Time</span>
+            <span class="tr-col-url">URL</span>
+            <span class="tr-col-rate">Rating</span>
+            <span class="tr-col-act"></span>
+          </div>
+          <div id="trackRatingsList" class="track-ratings-editor-list"></div>
+        </div>
 
         <button type="submit" id="submitAddAlbumBtn" class="aero-btn-action primary-save-btn">
           Save to Backlog
@@ -725,7 +748,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="assets/js/sosa-auth.js?v=20261121a"></script>
   <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
-  <script src="assets/js/challenge.js?v=20261122c"></script>
+  <script src="assets/js/challenge.js?v=20261122e"></script>
   <script src="assets/js/dock.js?v=20261115c"></script>
   <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>
 </body>
