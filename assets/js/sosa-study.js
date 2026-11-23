@@ -805,25 +805,212 @@ let wmpIsSeeking = false;
 
     wrap.innerHTML = "";
 
-    // 1. Intercept Direct Video (.mp4 / .webm)
+    // 1. Intercept Direct Video (.mp4 / .webm) — Option C: Inline Titlebar + Flush Bottom Glass Scrim
     if (url.match(/\.(mp4|webm)(\?.*)?$/i)) {
       dock.classList.add("is-video");
-      if (fsBtn) fsBtn.style.display = "inline-flex";
-      if (controlsBar) controlsBar.style.display = "flex";
-      if (statusEl) statusEl.textContent = "sosaspins video player";
+      if (fsBtn) fsBtn.style.display = "none";
+      if (controlsBar) controlsBar.style.display = "none";
+      if (statusEl) {
+        const esc = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        const artistPart = artist ? `<span class="wmp-tb-sep">•</span><span class="wmp-tb-artist">${esc(artist)}</span>` : "";
+        statusEl.innerHTML = `<span class="wmp-tb-track" title="${esc(cleanTrack)}">${esc(cleanTrack)}</span>${artistPart}`;
+        statusEl.title = "SosaSpins Video Player";
+      }
 
       wrap.innerHTML = `
-        <div class="wmp-video-stage">
-          <video id="wmpActiveMedia" src="${url}" preload="metadata" playsinline class="wmp-video-element"></video>
-          <div class="wmp-video-overlay" onclick="wmpTogglePlayPause()">
-            <div class="wmp-video-hud" id="wmpVideoHud"><i class='bx bx-play'></i></div>
+        <div class="wmp-video-stage is-paused" id="wmpVideoStage">
+          <video id="wmpActiveMedia" src="${url}" preload="metadata" playsinline disablepictureinpicture disableremoteplayback controlslist="nodownload noplaybackrate noremoteplayback" class="wmp-video-element"></video>
+          <div class="wmp-video-whisper" aria-hidden="true"><span id="wmpVideoWhisperFill"></span></div>
+          <div class="wmp-video-scrim" id="wmpVideoScrim">
+            <div class="wmp-scrubber-section">
+              <span class="wmp-time-text" id="wmpVidCur">0:00</span>
+              <div class="wmp-scrubber-track" id="wmpVidTrack" role="slider" aria-label="Video Scrubber" tabindex="0">
+                <div class="wmp-progress-fill" id="wmpVidFill"><span class="wmp-scrubber-knob"></span></div>
+              </div>
+              <span class="wmp-time-text" id="wmpVidDur">0:00</span>
+            </div>
+            <div class="wmp-video-hud-row">
+              <div class="wmp-video-hud-left">
+                <div class="wmp-volume-wrap">
+                  <button type="button" class="wmp-vol-btn" id="wmpVidMuteBtn" title="Mute / Unmute" aria-label="Mute or Unmute">
+                    <i class='bx bx-volume-full' id="wmpVidVolIcon"></i>
+                  </button>
+                  <input type="range" id="wmpVidVolSlider" class="wmp-aero-slider" min="0" max="1" step="0.05" value="1" title="Volume" aria-label="Volume">
+                </div>
+              </div>
+              <div class="wmp-video-hud-center">
+                <button type="button" class="wmp-ctrl-btn wmp-vid-ctrl-sm" id="wmpVidRwBtn" title="Rewind 10s" aria-label="Rewind 10 seconds">
+                  <i class='bx bx-rewind'></i>
+                </button>
+                <button type="button" class="wmp-vid-orb-btn" id="wmpVidPlayBtn" title="Play / Pause" aria-label="Play or Pause">
+                  <img src="/assets/icons/aero/play.ico" alt="Play" id="wmpVidPlayIcon">
+                  <img src="/assets/icons/aero/pause.ico" alt="Pause" id="wmpVidPauseIcon" style="display: none;">
+                </button>
+                <button type="button" class="wmp-ctrl-btn wmp-vid-ctrl-sm" id="wmpVidFfBtn" title="Forward 10s" aria-label="Forward 10 seconds">
+                  <i class='bx bx-fast-forward'></i>
+                </button>
+              </div>
+              <div class="wmp-video-hud-right">
+                <button type="button" class="wmp-ctrl-btn wmp-vid-ctrl-sm" id="wmpVidLoopBtn" title="Loop Video" aria-label="Loop Video">
+                  <i class='bx bx-repeat'></i>
+                </button>
+                <button type="button" class="wmp-sub-btn" id="wmpVidFsBtn" title="Fullscreen" aria-label="Fullscreen">
+                  <i class='bx bx-fullscreen' id="wmpVidFsIcon"></i>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       `;
 
+      const stage = document.getElementById("wmpVideoStage");
       const video = document.getElementById("wmpActiveMedia");
-      if (video) {
-        initWmpScrubber(video);
+      const scrim = document.getElementById("wmpVideoScrim");
+      if (stage && video) {
+        video.controls = false;
+        video.disablePictureInPicture = true;
+
+        const curEl = document.getElementById("wmpVidCur");
+        const durEl = document.getElementById("wmpVidDur");
+        const trackEl = document.getElementById("wmpVidTrack");
+        const fillEl = document.getElementById("wmpVidFill");
+        const whisperEl = document.getElementById("wmpVideoWhisperFill");
+        const playBtn = document.getElementById("wmpVidPlayBtn");
+        const playIcon = document.getElementById("wmpVidPlayIcon");
+        const pauseIcon = document.getElementById("wmpVidPauseIcon");
+        const rwBtn = document.getElementById("wmpVidRwBtn");
+        const ffBtn = document.getElementById("wmpVidFfBtn");
+        const loopBtn = document.getElementById("wmpVidLoopBtn");
+        const muteBtn = document.getElementById("wmpVidMuteBtn");
+        const volIcon = document.getElementById("wmpVidVolIcon");
+        const volSlider = document.getElementById("wmpVidVolSlider");
+        const fsToggleBtn = document.getElementById("wmpVidFsBtn");
+        const fsIcon = document.getElementById("wmpVidFsIcon");
+
+        let hudTimer = null;
+        let isVidSeeking = false;
+
+        const bumpHud = () => {
+          stage.classList.add("is-hud-active");
+          clearTimeout(hudTimer);
+          if (!video.paused) {
+            hudTimer = setTimeout(() => stage.classList.remove("is-hud-active"), 2200);
+          }
+        };
+
+        const syncPlayUI = () => {
+          const playing = !video.paused && !video.ended;
+          stage.classList.toggle("is-playing", playing);
+          stage.classList.toggle("is-paused", !playing);
+          if (playIcon) playIcon.style.display = playing ? "none" : "block";
+          if (pauseIcon) pauseIcon.style.display = playing ? "block" : "none";
+          wmpUpdatePlayPauseUI(playing);
+          if (playing) bumpHud();
+          else {
+            clearTimeout(hudTimer);
+            stage.classList.add("is-hud-active");
+          }
+        };
+
+        const togglePlay = () => {
+          if (video.paused) video.play().catch(e => console.warn("Video playback was prevented:", e));
+          else video.pause();
+        };
+
+        const toggleFs = () => {
+          if (document.fullscreenElement === stage) document.exitFullscreen().catch(() => {});
+          else if (stage.requestFullscreen) stage.requestFullscreen().catch(() => {});
+          else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
+        };
+
+        const syncVolIcon = () => {
+          if (!volIcon) return;
+          if (video.muted || video.volume === 0) volIcon.className = "bx bx-volume-mute";
+          else if (video.volume < 0.5) volIcon.className = "bx bx-volume-low";
+          else volIcon.className = "bx bx-volume-full";
+        };
+
+        if (scrim) scrim.addEventListener("click", (e) => e.stopPropagation());
+        video.addEventListener("click", togglePlay);
+        video.addEventListener("dblclick", toggleFs);
+        if (playBtn) playBtn.addEventListener("click", togglePlay);
+        if (rwBtn) rwBtn.addEventListener("click", () => { video.currentTime = Math.max(0, (video.currentTime || 0) - 10); bumpHud(); });
+        if (ffBtn) ffBtn.addEventListener("click", () => { video.currentTime = Math.min(video.duration || 0, (video.currentTime || 0) + 10); bumpHud(); });
+        if (loopBtn) loopBtn.addEventListener("click", () => { video.loop = !video.loop; loopBtn.classList.toggle("is-active", video.loop); bumpHud(); });
+        if (muteBtn) muteBtn.addEventListener("click", () => {
+          video.muted = !video.muted;
+          if (volSlider) volSlider.value = video.muted ? 0 : video.volume;
+          syncVolIcon();
+          bumpHud();
+        });
+        if (volSlider) volSlider.addEventListener("input", () => {
+          video.volume = parseFloat(volSlider.value);
+          video.muted = video.volume === 0;
+          syncVolIcon();
+          bumpHud();
+        });
+        if (fsToggleBtn) fsToggleBtn.addEventListener("click", toggleFs);
+
+        const onFsChange = () => {
+          if (!stage.isConnected) {
+            document.removeEventListener("fullscreenchange", onFsChange);
+            return;
+          }
+          if (fsIcon) fsIcon.className = document.fullscreenElement === stage ? "bx bx-exit-fullscreen" : "bx bx-fullscreen";
+        };
+        document.addEventListener("fullscreenchange", onFsChange);
+
+        const seekAtClientX = (clientX) => {
+          if (!trackEl || !video.duration) return;
+          const rect = trackEl.getBoundingClientRect();
+          if (!rect.width) return;
+          const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+          video.currentTime = pct * video.duration;
+          if (fillEl) fillEl.style.width = `${pct * 100}%`;
+          if (whisperEl) whisperEl.style.width = `${pct * 100}%`;
+          if (curEl) curEl.textContent = formatWmpTime(video.currentTime);
+        };
+
+        if (trackEl) {
+          trackEl.addEventListener("mousedown", (e) => {
+            isVidSeeking = true;
+            seekAtClientX(e.clientX);
+            const onMove = (ev) => { if (isVidSeeking) seekAtClientX(ev.clientX); };
+            const onUp = () => {
+              isVidSeeking = false;
+              window.removeEventListener("mousemove", onMove);
+              window.removeEventListener("mouseup", onUp);
+            };
+            window.addEventListener("mousemove", onMove);
+            window.addEventListener("mouseup", onUp);
+          });
+          trackEl.addEventListener("touchstart", (e) => { if (e.touches.length) { isVidSeeking = true; seekAtClientX(e.touches[0].clientX); } }, { passive: true });
+          trackEl.addEventListener("touchmove", (e) => { if (isVidSeeking && e.touches.length) seekAtClientX(e.touches[0].clientX); }, { passive: true });
+          trackEl.addEventListener("touchend", () => { isVidSeeking = false; });
+          trackEl.addEventListener("keydown", (e) => {
+            if (!video.duration) return;
+            if (e.key === "ArrowLeft") video.currentTime = Math.max(0, video.currentTime - 5);
+            else if (e.key === "ArrowRight") video.currentTime = Math.min(video.duration, video.currentTime + 5);
+          });
+        }
+
+        stage.addEventListener("mousemove", bumpHud, { passive: true });
+        stage.addEventListener("touchstart", bumpHud, { passive: true });
+
+        video.addEventListener("loadedmetadata", () => { if (durEl) durEl.textContent = formatWmpTime(video.duration); });
+        video.addEventListener("durationchange", () => { if (durEl) durEl.textContent = formatWmpTime(video.duration); });
+        video.addEventListener("timeupdate", () => {
+          if (!isVidSeeking && video.duration) {
+            const pct = Math.min(100, (video.currentTime / video.duration) * 100);
+            if (fillEl) fillEl.style.width = `${pct}%`;
+            if (whisperEl) whisperEl.style.width = `${pct}%`;
+            if (curEl) curEl.textContent = formatWmpTime(video.currentTime);
+          }
+        });
+        video.addEventListener("play", syncPlayUI);
+        video.addEventListener("pause", syncPlayUI);
+        video.addEventListener("ended", syncPlayUI);
+
         video.play().catch(e => console.warn("Video playback was prevented:", e));
       }
     }

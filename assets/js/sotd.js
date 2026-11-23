@@ -327,9 +327,99 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ============================================================
-  // WMP MINI-PLAYER ENGINE (Compatible with sosaspins.js)
+  // WMP MINI-PLAYER ENGINE (Full parity with sosaspins.js)
   // ============================================================
   let wmpMediaEl = null;
+  let wmpIsSeeking = false;
+
+  function getDominantColorFromImg(imgUrl) {
+    return new Promise((resolve) => {
+      if (!imgUrl || imgUrl.includes("placeholder.png")) {
+        return resolve("10b981");
+      }
+      let settled = false;
+      const done = (hex) => {
+        if (settled) return;
+        settled = true;
+        resolve(hex);
+      };
+      const timer = setTimeout(() => done("10b981"), 900);
+      const img = new Image();
+      img.crossOrigin = "Anonymous";
+      img.onload = () => {
+        clearTimeout(timer);
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = 1;
+          canvas.height = 1;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, 1, 1);
+          const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+          const hex = ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+          done(hex);
+        } catch (_) {
+          done("10b981");
+        }
+      };
+      img.onerror = () => {
+        clearTimeout(timer);
+        done("10b981");
+      };
+      img.src = imgUrl;
+    });
+  }
+
+  function parseYouTubeStartSeconds(rawUrl) {
+    try {
+      const parsed = new URL(rawUrl, window.location.href);
+      const t = parsed.searchParams.get("t") || parsed.searchParams.get("start") || "";
+      if (!t) return 0;
+      if (/^\d+$/.test(t)) return parseInt(t, 10);
+      let secs = 0;
+      const h = t.match(/(\d+)h/i);
+      const m = t.match(/(\d+)m/i);
+      const s = t.match(/(\d+)s/i);
+      if (h) secs += parseInt(h[1], 10) * 3600;
+      if (m) secs += parseInt(m[1], 10) * 60;
+      if (s) secs += parseInt(s[1], 10);
+      return secs;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  function syncTitlebarYoutubeLink(ytUrl) {
+    const titlebar = document.querySelector("#miniPlayerDock .aero-player-titlebar");
+    if (!titlebar) return;
+    let actions = titlebar.querySelector(".aero-titlebar-actions");
+    const closeBtn = titlebar.querySelector(".aero-player-close");
+    if (!actions && closeBtn) {
+      actions = document.createElement("div");
+      actions.className = "aero-titlebar-actions";
+      titlebar.insertBefore(actions, closeBtn);
+      actions.appendChild(closeBtn);
+    }
+    if (!actions) return;
+    let extBtn = document.getElementById("wmpYtExternalBtn");
+    if (ytUrl) {
+      if (!extBtn) {
+        extBtn = document.createElement("a");
+        extBtn.id = "wmpYtExternalBtn";
+        extBtn.className = "aero-yt-ext-btn";
+        extBtn.target = "_blank";
+        extBtn.rel = "noopener noreferrer";
+        extBtn.title = "Open on YouTube";
+        extBtn.setAttribute("aria-label", "Open on YouTube");
+        extBtn.innerHTML = "<i class='bx bxl-youtube'></i>";
+        actions.insertBefore(extBtn, actions.firstChild);
+      }
+      extBtn.href = ytUrl;
+      extBtn.style.display = "inline-flex";
+    } else if (extBtn) {
+      extBtn.style.display = "none";
+      extBtn.removeAttribute("href");
+    }
+  }
 
   function formatWmpTime(sec) {
     if (!Number.isFinite(sec) || sec < 0) return "0:00";
@@ -341,10 +431,21 @@ document.addEventListener("DOMContentLoaded", async () => {
   function wmpUpdatePlayPauseUI(isPlaying) {
     const playIcon = document.getElementById("wmpOrbPlayIcon");
     const pauseIcon = document.getElementById("wmpOrbPauseIcon");
+    const orbBtn = document.getElementById("wmpPlayPauseBtn");
     const eq = document.getElementById("wmpEqualizer");
+    const vidHud = document.getElementById("wmpVideoHud");
     if (playIcon) playIcon.style.display = isPlaying ? "none" : "block";
     if (pauseIcon) pauseIcon.style.display = isPlaying ? "block" : "none";
-    if (eq) eq.classList.toggle("is-paused", !isPlaying);
+    if (vidHud) {
+      vidHud.innerHTML = isPlaying ? "<i class='bx bx-pause'></i>" : "<i class='bx bx-play'></i>";
+    }
+    if (orbBtn) orbBtn.classList.toggle("is-playing", isPlaying);
+    if (eq) {
+      eq.classList.toggle("is-paused", !isPlaying);
+      eq.querySelectorAll("span").forEach(s => {
+        s.style.animationPlayState = isPlaying ? "running" : "paused";
+      });
+    }
   }
 
   function initWmpScrubber(media) {
@@ -354,10 +455,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     const fillEl = document.getElementById("wmpProgressFill");
     const trackEl = document.getElementById("wmpScrubberTrack");
 
+    if (fillEl) fillEl.style.width = "0%";
+    if (curEl) curEl.textContent = "0:00";
+    if (durEl) durEl.textContent = "0:00";
+
+    const seekAtEvent = (e) => {
+      if (!trackEl || !wmpMediaEl || !wmpMediaEl.duration) return;
+      const rect = trackEl.getBoundingClientRect();
+      const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      wmpMediaEl.currentTime = pct * wmpMediaEl.duration;
+      if (fillEl) fillEl.style.width = `${pct * 100}%`;
+      if (curEl) curEl.textContent = formatWmpTime(wmpMediaEl.currentTime);
+    };
+
     media.addEventListener("loadedmetadata", () => {
       if (durEl) durEl.textContent = formatWmpTime(media.duration);
     });
+    media.addEventListener("durationchange", () => {
+      if (durEl) durEl.textContent = formatWmpTime(media.duration);
+    });
     media.addEventListener("timeupdate", () => {
+      if (wmpIsSeeking) return;
       if (curEl) curEl.textContent = formatWmpTime(media.currentTime);
       if (fillEl && media.duration > 0) {
         fillEl.style.width = `${Math.min(100, (media.currentTime / media.duration) * 100)}%`;
@@ -374,11 +492,22 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (trackEl && !trackEl.dataset.bound) {
       trackEl.dataset.bound = "1";
-      trackEl.addEventListener("click", (e) => {
+      trackEl.addEventListener("mousedown", (e) => {
+        wmpIsSeeking = true;
+        seekAtEvent(e);
+        const onMove = (ev) => { if (wmpIsSeeking) seekAtEvent(ev); };
+        const onUp = () => {
+          wmpIsSeeking = false;
+          window.removeEventListener("mousemove", onMove);
+          window.removeEventListener("mouseup", onUp);
+        };
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp);
+      });
+      trackEl.addEventListener("keydown", (e) => {
         if (!wmpMediaEl || !wmpMediaEl.duration) return;
-        const rect = trackEl.getBoundingClientRect();
-        const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-        wmpMediaEl.currentTime = pct * wmpMediaEl.duration;
+        if (e.key === "ArrowLeft") wmpMediaEl.currentTime = Math.max(0, wmpMediaEl.currentTime - 5);
+        else if (e.key === "ArrowRight") wmpMediaEl.currentTime = Math.min(wmpMediaEl.duration, wmpMediaEl.currentTime + 5);
       });
     }
   }
@@ -393,6 +522,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!wmpMediaEl) return;
     wmpMediaEl.pause();
     wmpMediaEl.currentTime = 0;
+    const fillEl = document.getElementById("wmpProgressFill");
+    const curEl = document.getElementById("wmpCurrentTime");
+    if (fillEl) fillEl.style.width = "0%";
+    if (curEl) curEl.textContent = "0:00";
     wmpUpdatePlayPauseUI(false);
   };
 
@@ -405,24 +538,33 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!wmpMediaEl) return;
     wmpMediaEl.loop = !wmpMediaEl.loop;
     const btn = document.getElementById("wmpLoopBtn");
-    if (btn) btn.classList.toggle("active", wmpMediaEl.loop);
+    if (btn) btn.classList.toggle("is-active", wmpMediaEl.loop);
   };
 
   window.wmpToggleMute = function() {
     if (!wmpMediaEl) return;
     wmpMediaEl.muted = !wmpMediaEl.muted;
     const icon = document.getElementById("wmpVolIcon");
-    if (icon) icon.className = wmpMediaEl.muted ? "bx bx-volume-mute" : "bx bx-volume-full";
+    if (icon) icon.className = (wmpMediaEl.muted || wmpMediaEl.volume === 0) ? "bx bx-volume-mute" : "bx bx-volume-full";
   };
 
   window.wmpSetVolume = function(val) {
     if (!wmpMediaEl) return;
     wmpMediaEl.volume = parseFloat(val);
     wmpMediaEl.muted = wmpMediaEl.volume === 0;
+    const icon = document.getElementById("wmpVolIcon");
+    if (icon) {
+      if (wmpMediaEl.volume === 0) icon.className = "bx bx-volume-mute";
+      else if (wmpMediaEl.volume < 0.5) icon.className = "bx bx-volume-low";
+      else icon.className = "bx bx-volume-full";
+    }
   };
 
   window.wmpToggleFullscreen = function() {
-    if (wmpMediaEl && wmpMediaEl.requestFullscreen) wmpMediaEl.requestFullscreen();
+    if (!wmpMediaEl) return;
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else if (wmpMediaEl.requestFullscreen) wmpMediaEl.requestFullscreen().catch(() => {});
+    else if (wmpMediaEl.webkitEnterFullscreen) wmpMediaEl.webkitEnterFullscreen();
   };
 
   function updateQueueStripUI() {
@@ -469,7 +611,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (sotdQueuePrevBtn) sotdQueuePrevBtn.addEventListener("click", () => playQueueIndex(activeQueueIndex - 1));
   if (sotdQueueNextBtn) sotdQueueNextBtn.addEventListener("click", () => playQueueIndex(activeQueueIndex + 1));
 
-  window.playAudioTrack = function(url, track = "Track", artist = "", album = "", coverUrl = "") {
+  window.playAudioTrack = async function(url, track = "Track", artist = "", album = "", coverUrl = "") {
     const dock = document.getElementById("miniPlayerDock");
     const trackEl = document.getElementById("miniPlayerTrack");
     const artistEl = document.getElementById("miniPlayerArtist");
@@ -482,9 +624,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     const statusEl = document.getElementById("wmpStatusText");
     if (!dock || !wrap || !url) return;
 
+    syncTitlebarYoutubeLink("");
     dock.classList.remove("is-video", "is-youtube", "is-embed-video");
-    if (trackEl) trackEl.textContent = String(track || "Track").replace(/^["“]|["”]$/g, "");
-    if (artistEl) artistEl.textContent = artist || "Unknown Artist";
+
+    const cleanTrack = String(track || "Track").replace(/^["“]|["”]$/g, "");
+    const cleanArtist = String(artist || "Unknown Artist").trim();
+    if (trackEl) trackEl.textContent = cleanTrack;
+    if (artistEl) {
+      artistEl.innerHTML = `<a href="sosaspins.html?artist=${encodeURIComponent(cleanArtist)}" title="Filter SosaSpins by ${escapeHtml(cleanArtist)}">${escapeHtml(cleanArtist)}</a>`;
+    }
     if (albumEl) albumEl.textContent = album || "";
     if (sepEl) sepEl.style.display = album ? "inline" : "none";
 
@@ -498,20 +646,216 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (url.match(/\.(mp4|webm)(\?.*)?$/i)) {
       dock.classList.add("is-video");
-      if (fsBtn) fsBtn.style.display = "inline-flex";
-      if (controlsBar) controlsBar.style.display = "flex";
-      if (statusEl) statusEl.textContent = "SOSASPINS VIDEO PLAYER";
+      if (fsBtn) fsBtn.style.display = "none";
+      if (controlsBar) controlsBar.style.display = "none";
+      if (statusEl) {
+        const artistPart = cleanArtist
+          ? `<span class="wmp-tb-sep">•</span><span class="wmp-tb-artist"><a href="sosaspins.html?artist=${encodeURIComponent(cleanArtist)}" title="Filter SosaSpins by ${escapeHtml(cleanArtist)}">${escapeHtml(cleanArtist)}</a></span>`
+          : "";
+        statusEl.innerHTML = `<span class="wmp-tb-track" title="${escapeHtml(cleanTrack)}">${escapeHtml(cleanTrack)}</span>${artistPart}`;
+        statusEl.title = "SosaSpins Video Player";
+      }
+
       wrap.innerHTML = `
-        <div class="wmp-video-stage">
-          <video id="wmpActiveMedia" src="${escapeHtml(url)}" preload="metadata" playsinline class="wmp-video-element"></video>
-          <div class="wmp-video-overlay" onclick="wmpTogglePlayPause()">
-            <div class="wmp-video-hud" id="wmpVideoHud"><i class='bx bx-play'></i></div>
+        <div class="wmp-video-stage is-paused" id="wmpVideoStage">
+          <video id="wmpActiveMedia" src="${escapeHtml(url)}" preload="metadata" playsinline disablepictureinpicture disableremoteplayback controlslist="nodownload noplaybackrate noremoteplayback" class="wmp-video-element"></video>
+          <div class="wmp-video-whisper" aria-hidden="true"><span id="wmpVideoWhisperFill"></span></div>
+          <div class="wmp-video-scrim" id="wmpVideoScrim">
+            <div class="wmp-scrubber-section">
+              <span class="wmp-time-text" id="wmpVidCur">0:00</span>
+              <div class="wmp-scrubber-track" id="wmpVidTrack" role="slider" aria-label="Video Scrubber" tabindex="0">
+                <div class="wmp-progress-fill" id="wmpVidFill"><span class="wmp-scrubber-knob"></span></div>
+              </div>
+              <span class="wmp-time-text" id="wmpVidDur">0:00</span>
+            </div>
+            <div class="wmp-video-hud-row">
+              <div class="wmp-video-hud-left">
+                <div class="wmp-volume-wrap">
+                  <button type="button" class="wmp-vol-btn" id="wmpVidMuteBtn" title="Mute / Unmute" aria-label="Mute or Unmute">
+                    <i class='bx bx-volume-full' id="wmpVidVolIcon"></i>
+                  </button>
+                  <input type="range" id="wmpVidVolSlider" class="wmp-aero-slider" min="0" max="1" step="0.05" value="1" title="Volume" aria-label="Volume">
+                </div>
+              </div>
+              <div class="wmp-video-hud-center">
+                <button type="button" class="wmp-ctrl-btn wmp-vid-ctrl-sm" id="wmpVidRwBtn" title="Rewind 10s" aria-label="Rewind 10 seconds">
+                  <i class='bx bx-rewind'></i>
+                </button>
+                <button type="button" class="wmp-vid-orb-btn" id="wmpVidPlayBtn" title="Play / Pause" aria-label="Play or Pause">
+                  <img src="assets/icons/aero/play.ico" alt="Play" id="wmpVidPlayIcon">
+                  <img src="assets/icons/aero/pause.ico" alt="Pause" id="wmpVidPauseIcon" style="display: none;">
+                </button>
+                <button type="button" class="wmp-ctrl-btn wmp-vid-ctrl-sm" id="wmpVidFfBtn" title="Forward 10s" aria-label="Forward 10 seconds">
+                  <i class='bx bx-fast-forward'></i>
+                </button>
+              </div>
+              <div class="wmp-video-hud-right">
+                <button type="button" class="wmp-ctrl-btn wmp-vid-ctrl-sm" id="wmpVidLoopBtn" title="Loop Video" aria-label="Loop Video">
+                  <i class='bx bx-repeat'></i>
+                </button>
+                <button type="button" class="wmp-sub-btn" id="wmpVidFsBtn" title="Fullscreen" aria-label="Fullscreen">
+                  <i class='bx bx-fullscreen' id="wmpVidFsIcon"></i>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       `;
+
+      const stage = document.getElementById("wmpVideoStage");
       const video = document.getElementById("wmpActiveMedia");
-      if (video) {
-        initWmpScrubber(video);
+      const scrim = document.getElementById("wmpVideoScrim");
+      if (stage && video) {
+        wmpMediaEl = video;
+        video.controls = false;
+        video.disablePictureInPicture = true;
+
+        const curEl = document.getElementById("wmpVidCur");
+        const durEl = document.getElementById("wmpVidDur");
+        const trackEl = document.getElementById("wmpVidTrack");
+        const fillEl = document.getElementById("wmpVidFill");
+        const whisperEl = document.getElementById("wmpVideoWhisperFill");
+        const playBtn = document.getElementById("wmpVidPlayBtn");
+        const playIcon = document.getElementById("wmpVidPlayIcon");
+        const pauseIcon = document.getElementById("wmpVidPauseIcon");
+        const rwBtn = document.getElementById("wmpVidRwBtn");
+        const ffBtn = document.getElementById("wmpVidFfBtn");
+        const loopBtn = document.getElementById("wmpVidLoopBtn");
+        const muteBtn = document.getElementById("wmpVidMuteBtn");
+        const volIcon = document.getElementById("wmpVidVolIcon");
+        const volSlider = document.getElementById("wmpVidVolSlider");
+        const fsToggleBtn = document.getElementById("wmpVidFsBtn");
+        const fsIcon = document.getElementById("wmpVidFsIcon");
+
+        let hudTimer = null;
+        let isVidSeeking = false;
+
+        const bumpHud = () => {
+          stage.classList.add("is-hud-active");
+          clearTimeout(hudTimer);
+          if (!video.paused) {
+            hudTimer = setTimeout(() => stage.classList.remove("is-hud-active"), 2200);
+          }
+        };
+
+        const syncPlayUI = () => {
+          const playing = !video.paused && !video.ended;
+          stage.classList.toggle("is-playing", playing);
+          stage.classList.toggle("is-paused", !playing);
+          if (playIcon) playIcon.style.display = playing ? "none" : "block";
+          if (pauseIcon) pauseIcon.style.display = playing ? "block" : "none";
+          wmpUpdatePlayPauseUI(playing);
+          if (playing) bumpHud();
+          else {
+            clearTimeout(hudTimer);
+            stage.classList.add("is-hud-active");
+          }
+        };
+
+        const togglePlay = () => {
+          if (video.paused) video.play().catch(() => {});
+          else video.pause();
+        };
+
+        const toggleFs = () => {
+          if (document.fullscreenElement === stage) document.exitFullscreen().catch(() => {});
+          else if (stage.requestFullscreen) stage.requestFullscreen().catch(() => {});
+          else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
+        };
+
+        const syncVolIcon = () => {
+          if (!volIcon) return;
+          if (video.muted || video.volume === 0) volIcon.className = "bx bx-volume-mute";
+          else if (video.volume < 0.5) volIcon.className = "bx bx-volume-low";
+          else volIcon.className = "bx bx-volume-full";
+        };
+
+        if (scrim) scrim.addEventListener("click", (e) => e.stopPropagation());
+        video.addEventListener("click", togglePlay);
+        video.addEventListener("dblclick", toggleFs);
+        if (playBtn) playBtn.addEventListener("click", togglePlay);
+        if (rwBtn) rwBtn.addEventListener("click", () => { video.currentTime = Math.max(0, (video.currentTime || 0) - 10); bumpHud(); });
+        if (ffBtn) ffBtn.addEventListener("click", () => { video.currentTime = Math.min(video.duration || 0, (video.currentTime || 0) + 10); bumpHud(); });
+        if (loopBtn) loopBtn.addEventListener("click", () => { video.loop = !video.loop; loopBtn.classList.toggle("is-active", video.loop); bumpHud(); });
+        if (muteBtn) muteBtn.addEventListener("click", () => {
+          video.muted = !video.muted;
+          if (volSlider) volSlider.value = video.muted ? 0 : video.volume;
+          syncVolIcon();
+          bumpHud();
+        });
+        if (volSlider) volSlider.addEventListener("input", () => {
+          video.volume = parseFloat(volSlider.value);
+          video.muted = video.volume === 0;
+          syncVolIcon();
+          bumpHud();
+        });
+        if (fsToggleBtn) fsToggleBtn.addEventListener("click", toggleFs);
+
+        const onFsChange = () => {
+          if (!stage.isConnected) {
+            document.removeEventListener("fullscreenchange", onFsChange);
+            return;
+          }
+          if (fsIcon) fsIcon.className = document.fullscreenElement === stage ? "bx bx-exit-fullscreen" : "bx bx-fullscreen";
+        };
+        document.addEventListener("fullscreenchange", onFsChange);
+
+        const seekAtClientX = (clientX) => {
+          if (!trackEl || !video.duration) return;
+          const rect = trackEl.getBoundingClientRect();
+          if (!rect.width) return;
+          const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+          video.currentTime = pct * video.duration;
+          if (fillEl) fillEl.style.width = `${pct * 100}%`;
+          if (whisperEl) whisperEl.style.width = `${pct * 100}%`;
+          if (curEl) curEl.textContent = formatWmpTime(video.currentTime);
+        };
+
+        if (trackEl) {
+          trackEl.addEventListener("mousedown", (e) => {
+            isVidSeeking = true;
+            seekAtClientX(e.clientX);
+            const onMove = (ev) => { if (isVidSeeking) seekAtClientX(ev.clientX); };
+            const onUp = () => {
+              isVidSeeking = false;
+              window.removeEventListener("mousemove", onMove);
+              window.removeEventListener("mouseup", onUp);
+            };
+            window.addEventListener("mousemove", onMove);
+            window.addEventListener("mouseup", onUp);
+          });
+          trackEl.addEventListener("touchstart", (e) => { if (e.touches.length) { isVidSeeking = true; seekAtClientX(e.touches[0].clientX); } }, { passive: true });
+          trackEl.addEventListener("touchmove", (e) => { if (isVidSeeking && e.touches.length) seekAtClientX(e.touches[0].clientX); }, { passive: true });
+          trackEl.addEventListener("touchend", () => { isVidSeeking = false; });
+          trackEl.addEventListener("keydown", (e) => {
+            if (!video.duration) return;
+            if (e.key === "ArrowLeft") video.currentTime = Math.max(0, video.currentTime - 5);
+            else if (e.key === "ArrowRight") video.currentTime = Math.min(video.duration, video.currentTime + 5);
+          });
+        }
+
+        stage.addEventListener("mousemove", bumpHud, { passive: true });
+        stage.addEventListener("touchstart", bumpHud, { passive: true });
+
+        video.addEventListener("loadedmetadata", () => { if (durEl) durEl.textContent = formatWmpTime(video.duration); });
+        video.addEventListener("durationchange", () => { if (durEl) durEl.textContent = formatWmpTime(video.duration); });
+        video.addEventListener("timeupdate", () => {
+          if (!isVidSeeking && video.duration) {
+            const pct = Math.min(100, (video.currentTime / video.duration) * 100);
+            if (fillEl) fillEl.style.width = `${pct}%`;
+            if (whisperEl) whisperEl.style.width = `${pct}%`;
+            if (curEl) curEl.textContent = formatWmpTime(video.currentTime);
+          }
+        });
+        video.addEventListener("play", syncPlayUI);
+        video.addEventListener("pause", syncPlayUI);
+        video.addEventListener("ended", () => {
+          syncPlayUI();
+          if (!video.loop && activeQueue.length > 0 && activeQueueIndex + 1 < activeQueue.length) {
+            playQueueIndex(activeQueueIndex + 1);
+          }
+        });
+
         video.play().catch(() => {});
       }
     } else if (url.match(/\.(mp3|wav|ogg|m4a|aac)(\?.*)?$/i)) {
@@ -539,10 +883,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (controlsBar) controlsBar.style.display = "none";
       if (statusEl) statusEl.textContent = "YOUTUBE PLAYER";
       const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/);
+      const videoId = ytMatch[1];
+      const startSeconds = parseYouTubeStartSeconds(url);
+      const startParam = startSeconds > 0 ? `&start=${startSeconds}` : "";
+      const watchUrl = `https://www.youtube.com/watch?v=${videoId}${startSeconds ? `&t=${startSeconds}s` : ""}`;
+      syncTitlebarYoutubeLink(watchUrl);
       wrap.innerHTML = `
         <div class="wmp-video-stage is-youtube-stage">
           <iframe
-            src="https://www.youtube-nocookie.com/embed/${ytMatch[1]}?autoplay=1&rel=0&iv_load_policy=3&color=white&playsinline=1"
+            src="https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&iv_load_policy=3&color=white&playsinline=1${startParam}"
             allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
             referrerpolicy="strict-origin-when-cross-origin"
             allowfullscreen>
@@ -554,15 +903,48 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (fsBtn) fsBtn.style.display = "none";
       if (controlsBar) controlsBar.style.display = "none";
       if (statusEl) statusEl.textContent = "SOUNDCLOUD PLAYER";
+      dock.style.display = "block";
+      const dynamicHex = await getDominantColorFromImg(coverUrl);
       const encoded = encodeURIComponent(url);
-      wrap.innerHTML = `<iframe style="border: 0; width: 100%; height: 120px; display: block;" src="https://w.soundcloud.com/player/?url=${encoded}&color=%2310b981&auto_play=true&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false"></iframe>`;
+      wrap.innerHTML = `<iframe style="border: 0; width: 100%; height: 120px; display: block;" src="https://w.soundcloud.com/player/?url=${encoded}&color=%23${dynamicHex}&auto_play=true&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false"></iframe>`;
       wmpUpdatePlayPauseUI(true);
-    } else if (url.includes("bandcamp.com/EmbeddedPlayer")) {
+      return;
+    } else if (url.includes("bandcamp.com/EmbeddedPlayer") || url.includes("bandcamp.com")) {
       if (fsBtn) fsBtn.style.display = "none";
       if (controlsBar) controlsBar.style.display = "none";
       if (statusEl) statusEl.textContent = "BANDCAMP PLAYER";
-      wrap.innerHTML = `<iframe style="border: 0; width: 100%; height: 120px;" src="${escapeHtml(url)}" seamless></iframe>`;
-      wmpUpdatePlayPauseUI(true);
+      if (url.includes("EmbeddedPlayer")) {
+        dock.style.display = "block";
+        const dynamicHex = await getDominantColorFromImg(coverUrl);
+        let playerSrc = url.replace(/\/+$/, "");
+        if (!playerSrc.includes("transparent=")) playerSrc += "/transparent=true";
+        if (playerSrc.includes("linkcol=")) {
+          playerSrc = playerSrc.replace(/linkcol=[^/&]+/, `linkcol=${dynamicHex}`);
+        } else {
+          playerSrc += `/linkcol=${dynamicHex}`;
+        }
+        playerSrc += "/";
+        wrap.innerHTML = `<iframe style="border: 0; width: 100%; height: 120px;" src="${escapeHtml(playerSrc)}" seamless></iframe>`;
+        wmpUpdatePlayPauseUI(true);
+        return;
+      }
+      window.open(url, "_blank", "noopener,noreferrer");
+      return;
+    } else if (url.includes("vimeo.com")) {
+      dock.classList.add("is-youtube", "is-embed-video");
+      if (fsBtn) fsBtn.style.display = "none";
+      if (controlsBar) controlsBar.style.display = "none";
+      if (statusEl) statusEl.textContent = "VIMEO PLAYER";
+      const vimeoMatch = url.match(/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+)/);
+      if (vimeoMatch && vimeoMatch[3]) {
+        dock.style.display = "block";
+        const dynamicHex = await getDominantColorFromImg(coverUrl);
+        wrap.innerHTML = `<iframe src="https://player.vimeo.com/video/${vimeoMatch[3]}?autoplay=1&color=${dynamicHex}&dnt=1" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
+        wmpUpdatePlayPauseUI(true);
+        return;
+      }
+      window.open(url, "_blank", "noopener,noreferrer");
+      return;
     } else {
       window.open(url, "_blank", "noopener,noreferrer");
       return;
@@ -572,6 +954,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   window.closeMiniPlayer = function() {
+    syncTitlebarYoutubeLink("");
     const dock = document.getElementById("miniPlayerDock");
     const wrap = document.getElementById("miniPlayerFrameWrap");
     if (wmpMediaEl) {

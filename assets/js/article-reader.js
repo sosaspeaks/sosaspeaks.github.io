@@ -1079,7 +1079,12 @@
       fig.classList.add("aero-media-window", "aero-video-window");
       video.removeAttribute("style");
       video.removeAttribute("controls");
+      video.controls = false;
+      video.disablePictureInPicture = true;
       video.setAttribute("playsinline", "");
+      video.setAttribute("disablepictureinpicture", "");
+      video.setAttribute("disableremoteplayback", "");
+      video.setAttribute("controlslist", "nodownload noplaybackrate noremoteplayback");
       video.classList.add("aero-video-element");
 
       const captionEl = fig.querySelector("figcaption");
