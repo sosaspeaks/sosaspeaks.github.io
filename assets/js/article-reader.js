@@ -655,7 +655,7 @@
     const isPoetry = article.post_type === "poetry";
 
     if (isStudy) {
-      await swapStylesheet("assets/css/review.css?v=20261123a");
+      await swapStylesheet("assets/css/review.css?v=20261123b");
       renderSosaStudyHeader(article);
     } else {
       renderStandardHeader(article);
