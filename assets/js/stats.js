@@ -86,6 +86,19 @@
   let selectedCalendarDay = null;
   let calendarRangeMode = "rolling";    // "rolling" or 4-digit year string
   let challengeBreakdownScope = "all";  // "all" | "remaining" | "done"
+  let chalStudioSort = "cluster";       // "cluster" | "calendar"
+  let chalStudioSelectedMonthKey = null;
+  let chalStudioSliceFilter = null;     // null | { type: "genre"|"artist"|"scene"|"all", value: string }
+  let chalStudioPreferredDest = null;   // rawMonth preferred when clicking a Rebalance Radar chip
+  let statsIsAdmin = false;
+  const chalSwapState = {
+    sourceId: null,
+    destRawMonth: null,
+    search: "",
+    busy: false
+  };
+  const CHAL_MAX_MONTHLY_ALBUMS = 36;
+  const CHAL_SEG_COLORS = ["#10b981", "#0ea5e9", "#6366f1", "#f59e0b", "#cbd5e1"];
   let ratedArtistsView = "top";
   let minSpinsThreshold = 2;
   let genreTypeView = "primary";     // "primary" or "secondary"
@@ -830,9 +843,13 @@
       }
 
       if (!monthBuckets[monthKey]) {
+        const cleanBase = rawMonth.replace(/[-_ ]*(?:'|20)?\d{2,4}$/, "");
+        const prettyBase = cleanBase ? cleanBase.charAt(0).toUpperCase() + cleanBase.slice(1) : monthLabel;
         monthBuckets[monthKey] = {
           monthKey,
           monthLabel,
+          rawMonth: rawMonth || "recalibrate",
+          prettyMonth: isUnscheduledRecal ? "Recalibrate" : prettyBase,
           sortOrder,
           isRecal: isUnscheduledRecal,
           done: 0,
@@ -887,7 +904,9 @@
         matchedSpinId: matchedSpin ? matchedSpin.id : null,
         isDone,
         isRecal,
+        isUnscheduledRecal,
         relistenReason: entry.relisten_reason || null,
+        rawMonth: rawMonth || "recalibrate",
         monthKey,
         monthLabel,
         position: entry.position !== null && entry.position !== undefined ? Number(entry.position) : (Number(entry.id) || 0)
@@ -899,6 +918,9 @@
       .map(m => ({
         monthKey: m.monthKey,
         monthLabel: m.monthLabel,
+        rawMonth: m.rawMonth,
+        prettyMonth: m.prettyMonth,
+        sortOrder: m.sortOrder,
         isRecal: m.isRecal,
         done: m.done,
         remaining: m.remaining,
@@ -1751,6 +1773,7 @@
     setText("chalRecalCount", `${cs.recalDone} / ${cs.recalTotal}`);
     setText("chalRecalSub", `${cs.recalPending} pending recalibration${cs.recalPending === 1 ? "" : "s"}`);
 
+    renderChallengeDiversityStudio();
     renderChallengeBreakdown();
   }
 
@@ -1838,6 +1861,1041 @@
             <span class="panel-badge" title="Avg RYM: ${y.avgRym}★">${y.year} (${y.count})</span>
           `).join("")
         : "";
+    }
+  }
+
+  // ============================================================
+  // Hybrid A: Monthly Backlog Diversity Studio & Admin Swap Engine
+  // ============================================================
+  function computeChallengeMonthVariety(monthItems) {
+    const list = Array.isArray(monthItems) ? monthItems : [];
+    const artistMap = {};
+    const genreMap = {};
+    const sceneMap = {};
+    const decadeCounts = {};
+
+    list.forEach(item => {
+      const credits = resolveCanonicalCredits(item.artist);
+      const primaryArtist = credits[0] || String(item.artist || "").trim();
+      if (primaryArtist) {
+        if (!artistMap[primaryArtist]) artistMap[primaryArtist] = [];
+        artistMap[primaryArtist].push(item);
+      }
+      safeToArray(item.genres).forEach(g => {
+        if (!genreMap[g]) genreMap[g] = [];
+        genreMap[g].push(item);
+      });
+      safeToArray(item.scenes).concat(safeToArray(item.movements)).forEach(sc => {
+        if (!sceneMap[sc]) sceneMap[sc] = [];
+        sceneMap[sc].push(item);
+      });
+      const yNum = parseInt(item.release_year, 10);
+      if (yNum && !isNaN(yNum)) {
+        const dec = yNum < 1970 ? "Pre-70s" : `${Math.floor(yNum / 10) * 10}s`;
+        decadeCounts[dec] = (decadeCounts[dec] || 0) + 1;
+      }
+    });
+
+    const topArtists = Object.entries(artistMap)
+      .map(([artist, items]) => ({ artist, items, count: items.length }))
+      .sort((a, b) => b.count - a.count || a.artist.localeCompare(b.artist));
+    const repeatArtists = topArtists.filter(a => a.count >= 2);
+
+    const genreGroups = Object.entries(genreMap)
+      .map(([genre, items]) => ({ genre, items, count: items.length }))
+      .sort((a, b) => b.count - a.count || a.genre.localeCompare(b.genre));
+    const topGenres = genreGroups.map(g => [g.genre, g.count]);
+    const repeatGenres = genreGroups.filter(g => g.count >= 2);
+
+    const sceneGroups = Object.entries(sceneMap)
+      .map(([scene, items]) => ({ scene, items, count: items.length }))
+      .sort((a, b) => b.count - a.count || a.scene.localeCompare(b.scene));
+    const topScenes = sceneGroups.map(s => [s.scene, s.count]);
+    const topDecades = Object.entries(decadeCounts).sort((a, b) => b[1] - a[1]);
+
+    const count = list.length;
+    const uniqueArtists = topArtists.length;
+    const uniqueGenres = topGenres.length;
+    const maxGenreShare = count && topGenres.length ? topGenres[0][1] / count : 0;
+    const top2GenreSet = new Set(topGenres.slice(0, 2).map(([g]) => g));
+    const top2UniqueAlbums = top2GenreSet.size
+      ? list.filter(it => safeToArray(it.genres).some(g => top2GenreSet.has(g))).length
+      : 0;
+    const top2Share = count ? top2UniqueAlbums / count : 0;
+    const repeatedGenreSlots = genreGroups.filter(g => g.count >= 3).reduce((sum, g) => sum + (g.count - 2), 0);
+    const repeatDensity = count ? repeatedGenreSlots / count : 0;
+
+    // Pure genre-concentration Mix Score (discog dives / repeat artists are never penalized)
+    const varietyScore = count
+      ? Math.max(12, Math.min(99, Math.round(100 - (maxGenreShare * 108) - Math.max(0, top2Share - 0.25) * 48 - (repeatDensity * 22))))
+      : 100;
+
+    let level = "balanced";
+    let label = "Well Mixed";
+    if (count > 0 && (maxGenreShare >= 0.30 || varietyScore < 55)) {
+      level = "heavy";
+      label = "Genre-Heavy";
+    } else if (count > 0 && (maxGenreShare >= 0.20 || varietyScore < 74)) {
+      level = "moderate";
+      label = "Genre Cluster";
+    }
+
+    return {
+      count,
+      uniqueArtists,
+      uniqueGenres,
+      topArtists,
+      repeatArtists,
+      genreGroups,
+      repeatGenres,
+      topGenres,
+      sceneGroups,
+      topScenes,
+      topDecades,
+      maxGenreShare,
+      varietyScore,
+      level,
+      label,
+      items: list
+    };
+  }
+
+  function getChallengeMonthlySummaries(scope = challengeBreakdownScope) {
+    if (!challengeMetrics || !Array.isArray(challengeMetrics.items)) return [];
+    const monthlyMeta = (challengeMetrics.monthsBreakdown || []).filter(m => !m.isRecal);
+    return monthlyMeta.map(meta => {
+      const allInMonth = challengeMetrics.items.filter(it => !it.isUnscheduledRecal && it.monthKey === meta.monthKey);
+      const scopedItems = allInMonth.filter(it => {
+        if (scope === "remaining") return !it.isDone;
+        if (scope === "done") return !!it.isDone;
+        return true;
+      });
+      const variety = computeChallengeMonthVariety(scopedItems);
+      return {
+        monthKey: meta.monthKey,
+        monthLabel: meta.monthLabel,
+        rawMonth: meta.rawMonth,
+        prettyMonth: meta.prettyMonth,
+        shortMonth: meta.prettyMonth ? meta.prettyMonth.slice(0, 3) : meta.monthLabel,
+        sortOrder: meta.sortOrder,
+        totalAllCount: allInMonth.length,
+        doneCount: meta.done,
+        remainingCount: meta.remaining,
+        ...variety
+      };
+    }).filter(m => m.totalAllCount > 0);
+  }
+
+  function buildSegmentedGenreBarHtml(topGenres) {
+    if (!topGenres || !topGenres.length) {
+      return `<span style="width:100%;background:rgba(148,163,184,0.25);"></span>`;
+    }
+    const top4 = topGenres.slice(0, 4);
+    const totalTags = topGenres.reduce((s, [, c]) => s + c, 0) || 1;
+    const topSum = top4.reduce((s, [, c]) => s + c, 0);
+    const other = Math.max(0, totalTags - topSum);
+    const segs = top4.map(([g, c], idx) => ({
+      g,
+      c,
+      pct: (c / totalTags) * 100,
+      col: CHAL_SEG_COLORS[idx]
+    }));
+    if (other > 0) {
+      segs.push({ g: "Other genres", c: other, pct: (other / totalTags) * 100, col: CHAL_SEG_COLORS[4] });
+    }
+    return segs.map(s => `<span style="width:${s.pct.toFixed(1)}%;background:${s.col};" title="${escapeHtml(s.g)}: ${s.c}"></span>`).join("");
+  }
+
+  function showChalStudioToast(message, options = {}) {
+    const host = document.getElementById("chalStudioToastHost");
+    if (!host) return;
+    const toast = document.createElement("div");
+    toast.className = `chal-studio-toast${options.isError ? " is-error" : ""}`;
+    const msgSpan = document.createElement("span");
+    msgSpan.textContent = message;
+    toast.appendChild(msgSpan);
+
+    if (typeof options.onUndo === "function") {
+      const undoBtn = document.createElement("button");
+      undoBtn.type = "button";
+      undoBtn.className = "chal-toast-undo-btn";
+      undoBtn.textContent = "Undo";
+      undoBtn.addEventListener("click", async () => {
+        undoBtn.disabled = true;
+        undoBtn.textContent = "Undoing...";
+        try {
+          await options.onUndo();
+        } finally {
+          toast.classList.remove("is-shown");
+          setTimeout(() => toast.remove(), 220);
+        }
+      });
+      toast.appendChild(undoBtn);
+    }
+
+    host.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add("is-shown"));
+
+    const ttl = options.durationMs || (options.onUndo ? 7500 : 3800);
+    setTimeout(() => {
+      if (!toast.isConnected) return;
+      toast.classList.remove("is-shown");
+      setTimeout(() => toast.remove(), 240);
+    }, ttl);
+  }
+
+  function renderChallengeDiversityStudio(opts = {}) {
+    const railEl = document.getElementById("chalStudioRail");
+    const inspEl = document.getElementById("chalStudioInspector");
+    if (!railEl || !inspEl) return;
+
+    const summaries = getChallengeMonthlySummaries(challengeBreakdownScope);
+    if (!summaries.length) {
+      railEl.innerHTML = `<div style="padding:1rem;color:#64748b;font-size:0.78rem;">No monthly challenge entries loaded.</div>`;
+      inspEl.innerHTML = `<div style="padding:1.5rem;color:#64748b;font-size:0.8rem;text-align:center;">Add monthly challenge albums to inspect per-month diversity.</div>`;
+      return;
+    }
+
+    const ordered = [...summaries].sort((a, b) => {
+      if (chalStudioSort === "calendar") return a.sortOrder - b.sortOrder;
+      return a.varietyScore - b.varietyScore || b.count - a.count || a.sortOrder - b.sortOrder;
+    });
+
+    let activeMonthObj = ordered.find(m => m.monthKey === chalStudioSelectedMonthKey) || ordered[0];
+    chalStudioSelectedMonthKey = activeMonthObj.monthKey;
+
+    // 1. Render Left Diversity Rail
+    railEl.innerHTML = ordered.map(m => {
+      const isSelected = m.monthKey === activeMonthObj.monthKey;
+      const dom = m.topGenres[0];
+      const domPct = dom && m.count ? Math.round((dom[1] / m.count) * 100) : 0;
+      const repGenreCnt = m.repeatGenres.length;
+      return `
+        <button
+          type="button"
+          class="chal-rail-card is-${m.level}${isSelected ? " is-selected" : ""}"
+          role="option"
+          aria-selected="${isSelected ? "true" : "false"}"
+          data-studio-month="${escapeHtml(m.monthKey)}"
+        >
+          <div class="chal-rc-top">
+            <div class="chal-rc-left">
+              <span class="chal-status-dot is-${m.level}" aria-hidden="true"></span>
+              <span class="chal-rc-month">${escapeHtml(m.prettyMonth)}</span>
+              <span class="chal-rc-cnt">${m.count}</span>
+            </div>
+            <span class="chal-mix-pill is-${m.level}" title="Genre variety score out of 100">${m.varietyScore}</span>
+          </div>
+          <div class="chal-seg-bar">${buildSegmentedGenreBarHtml(m.topGenres)}</div>
+          <div class="chal-rc-meta">
+            <span>${dom ? `<strong>${escapeHtml(dom[0])}</strong> ${domPct}%` : "No genres tagged"}</span>
+            <span>${repGenreCnt ? `${repGenreCnt} repeat genre${repGenreCnt === 1 ? "" : "s"}` : `${m.uniqueGenres} genres`}</span>
+          </div>
+        </button>
+      `;
+    }).join("");
+
+    // Bind rail click + instant 0ms keyboard stepping (↑ / ↓ / ← / →)
+    const railButtons = Array.from(railEl.querySelectorAll("[data-studio-month]"));
+    railButtons.forEach((btn, idx) => {
+      btn.addEventListener("click", () => {
+        const nextKey = btn.getAttribute("data-studio-month");
+        if (!nextKey || nextKey === chalStudioSelectedMonthKey) return;
+        chalStudioSelectedMonthKey = nextKey;
+        chalStudioSliceFilter = null;
+        chalStudioPreferredDest = null;
+        renderChallengeDiversityStudio({ animateSwap: true });
+      });
+      btn.addEventListener("keydown", (e) => {
+        let delta = 0;
+        if (e.key === "ArrowDown" || e.key === "ArrowRight") delta = 1;
+        else if (e.key === "ArrowUp" || e.key === "ArrowLeft") delta = -1;
+        if (!delta) return;
+        e.preventDefault();
+        const nextIdx = (idx + delta + railButtons.length) % railButtons.length;
+        const nextKey = railButtons[nextIdx].getAttribute("data-studio-month");
+        if (nextKey) {
+          chalStudioSelectedMonthKey = nextKey;
+          chalStudioSliceFilter = null;
+          chalStudioPreferredDest = null;
+          renderChallengeDiversityStudio({ animateSwap: false, focusSelectedRail: true });
+        }
+      });
+    });
+
+    if (opts.focusSelectedRail) {
+      const selBtn = railEl.querySelector(`[data-studio-month="${CSS.escape(chalStudioSelectedMonthKey)}"]`);
+      if (selBtn) selBtn.focus();
+    }
+
+    // 2. Render Right Pinned Live Inspector
+    const isPastChallengeMonth = (ms) => {
+      if (!ms || !ms.sortOrder || ms.sortOrder >= 900000) return false;
+      const now = new Date();
+      const curYm = now.getFullYear() * 100 + (now.getMonth() + 1);
+      return ms.sortOrder < curYm;
+    };
+
+    const renderInspectorInner = () => {
+      const m = activeMonthObj;
+      const isCurrentMonthPast = isPastChallengeMonth(m);
+      const domGenre = m.topGenres[0];
+      const domGenreName = domGenre ? domGenre[0] : "";
+      const domGenreCount = domGenre ? domGenre[1] : 0;
+      const domGenrePct = domGenreCount && m.count ? Math.round((domGenreCount / m.count) * 100) : 0;
+
+      // Current & upcoming months that have 0 albums in this month's dominant genre (never recommend past months)
+      const zeroOverlapMonths = (!isCurrentMonthPast && domGenreName)
+        ? summaries
+            .filter(other =>
+              other.monthKey !== m.monthKey &&
+              !isPastChallengeMonth(other) &&
+              !other.topGenres.some(([g]) => g === domGenreName)
+            )
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+        : [];
+
+      const radarMessage = !m.count
+        ? `No albums match the current scope in ${escapeHtml(m.prettyMonth)}.`
+        : isCurrentMonthPast
+        ? `<strong>Past Month Archive:</strong> ${escapeHtml(m.prettyMonth)} is complete (${m.doneCount}/${m.totalAllCount} spun)${domGenreName ? ` — led by <strong>${escapeHtml(domGenreName)}</strong> (${domGenrePct}%)` : ""}.`
+        : domGenreName && zeroOverlapMonths.length
+        ? `<strong>Rebalance Radar:</strong> ${escapeHtml(domGenreName)} makes up <strong>${domGenrePct}%</strong> of ${escapeHtml(m.prettyMonth)} (${domGenreCount} album${domGenreCount === 1 ? "" : "s"}). Upcoming months with <strong>0 ${escapeHtml(domGenreName)}</strong>:`
+        : domGenreName
+        ? `<strong>Genre Mix:</strong> ${escapeHtml(domGenreName)} leads ${escapeHtml(m.prettyMonth)} at <strong>${domGenrePct}%</strong> (${domGenreCount} of ${m.count} albums).`
+        : `<strong>${escapeHtml(m.prettyMonth)}</strong> looks nicely varied across ${m.uniqueArtists} unique artists.`;
+
+      const radarTargetsHtml = zeroOverlapMonths.map(om => `
+        <button
+          type="button"
+          class="chal-rb-chip"
+          data-radar-month-key="${escapeHtml(om.monthKey)}"
+          data-radar-raw-month="${escapeHtml(om.rawMonth)}"
+          title="${statsIsAdmin ? `Target ${escapeHtml(om.prettyMonth)} (${om.totalAllCount}/${CHAL_MAX_MONTHLY_ALBUMS}) for swapping` : `Jump to ${escapeHtml(om.prettyMonth)}`}"
+        >${escapeHtml(om.shortMonth)}</button>
+      `).join("");
+
+      // Repeated genre clusters with clickable album cover stacks (primary focus)
+      const repeatGenresHtml = m.repeatGenres.length
+        ? `<div class="chal-cluster-list">` + m.repeatGenres.slice(0, 7).map(group => {
+            const share = m.count ? group.count / m.count : 0;
+            const isHot = group.count >= 6 || share >= 0.22;
+            const isActive = chalStudioSliceFilter && chalStudioSliceFilter.type === "genre" && chalStudioSliceFilter.value === group.genre;
+            const coversHtml = group.items.slice(0, 4).map(item => {
+              const fbChar = escapeHtml((item.title || "?").charAt(0).toUpperCase());
+              return `
+                <button
+                  type="button"
+                  class="chal-mini-cov-btn"
+                  data-cover-album-id="${escapeHtml(item.id)}"
+                  data-cover-genre="${escapeHtml(group.genre)}"
+                  title="${escapeHtml(item.artist)} — ${escapeHtml(item.title)}${statsIsAdmin ? " (Click to Swap ⇄)" : ""}"
+                >
+                  <img
+                    class="chal-mini-cov"
+                    src="${escapeHtml(item.cover_url)}"
+                    alt="${escapeHtml(item.title)}"
+                    loading="lazy"
+                    onerror="this.outerHTML='<span class=&quot;chal-cov-fb&quot;>${fbChar}</span>'"
+                  >
+                </button>
+              `;
+            }).join("");
+            const extraCnt = group.items.length > 4 ? `<span class="chal-cov-fb" title="+${group.items.length - 4} more">+${group.items.length - 4}</span>` : "";
+            return `
+              <div class="chal-cluster-row${isActive ? " is-active-slice" : ""}" data-slice-genre="${escapeHtml(group.genre)}">
+                <div class="chal-acr-info">
+                  <span class="chal-acr-name" title="${escapeHtml(group.genre)}">${escapeHtml(group.genre)}</span>
+                  <span class="chal-acr-badge${isHot ? " is-hot" : ""}">×${group.count}</span>
+                </div>
+                <div class="chal-acr-covers">${coversHtml}${extraCnt}</div>
+              </div>
+            `;
+          }).join("") + `</div>`
+        : `<div class="chal-zero-repeats"><i class='bx bx-check-circle'></i> Zero repeated genres in ${escapeHtml(m.prettyMonth)} — super wide spread!</div>`;
+
+      // Genre concentration bars (clickable to filter slice tray)
+      const maxG = m.topGenres.length ? m.topGenres[0][1] : 1;
+      const genreHtml = m.topGenres.length
+        ? `<div class="chal-genre-list">` + m.topGenres.slice(0, 6).map(([g, c], idx) => {
+            const pct = m.count ? Math.round((c / m.count) * 100) : 0;
+            const w = Math.max(8, Math.round((c / maxG) * 100));
+            const col = idx < 4 ? CHAL_SEG_COLORS[idx] : "#64748b";
+            const isActive = chalStudioSliceFilter && chalStudioSliceFilter.type === "genre" && chalStudioSliceFilter.value === g;
+            return `
+              <button type="button" class="chal-g-row${isActive ? " is-active-slice" : ""}" data-slice-genre="${escapeHtml(g)}" title="Click to view ${c} ${escapeHtml(g)} album${c === 1 ? "" : "s"} in ${escapeHtml(m.prettyMonth)}">
+                <span class="chal-g-dot" style="background:${col};"></span>
+                <span class="chal-g-name">${escapeHtml(g)}</span>
+                <div class="chal-g-track"><div class="chal-g-fill" style="width:${w}%;background:${col};"></div></div>
+                <span class="chal-g-val">${c} <small>${pct}%</small></span>
+              </button>
+            `;
+          }).join("") + `</div>`
+        : `<div style="font-size:0.75rem;color:#64748b;padding:8px 0;">No genres tagged in this month.</div>`;
+
+      // Clickable Scenes/Movements chips (or Eras fallback)
+      const scenesChipsHtml = m.topScenes.length
+        ? m.topScenes.slice(0, 5).map(([sc, c]) => {
+            const isAct = chalStudioSliceFilter && chalStudioSliceFilter.type === "scene" && chalStudioSliceFilter.value === sc;
+            return `<button type="button" class="chal-scene-chip is-interactive${isAct ? " is-active-slice" : ""}" data-slice-scene="${escapeHtml(sc)}">${escapeHtml(sc)} <b>${c}</b></button>`;
+          }).join("")
+        : m.topDecades.slice(0, 4).map(([dec, c]) => `<span class="chal-scene-chip">${escapeHtml(dec)} <b>${c}</b></span>`).join("");
+
+      // Calm, non-penalized Discog Dives strip (for informational visibility)
+      const discogDivesHtml = m.repeatArtists.length
+        ? `<div class="chal-discog-strip">
+            <span class="chal-discog-lbl"><i class='bx bx-disc'></i> Discog dives:</span>
+            ${m.repeatArtists.slice(0, 5).map(g => {
+              const isAct = chalStudioSliceFilter && chalStudioSliceFilter.type === "artist" && chalStudioSliceFilter.value === g.artist;
+              return `<button type="button" class="chal-discog-chip${isAct ? " is-active-slice" : ""}" data-slice-artist="${escapeHtml(g.artist)}">${escapeHtml(g.artist)} <b>×${g.count}</b></button>`;
+            }).join("")}
+          </div>`
+        : "";
+
+      // Optional interactive album slice tray (shown when user clicks a genre, scene, discog dive, or "Swap Albums")
+      let sliceTrayHtml = "";
+      if (chalStudioSliceFilter) {
+        let sliceItems = m.items;
+        let sliceHeading = `All ${m.count} Albums in ${m.prettyMonth}`;
+        if (chalStudioSliceFilter.type === "genre") {
+          sliceItems = m.items.filter(it => safeToArray(it.genres).includes(chalStudioSliceFilter.value));
+          sliceHeading = `${chalStudioSliceFilter.value} in ${m.prettyMonth} (${sliceItems.length})`;
+        } else if (chalStudioSliceFilter.type === "scene") {
+          sliceItems = m.items.filter(it => safeToArray(it.scenes).concat(safeToArray(it.movements)).includes(chalStudioSliceFilter.value));
+          sliceHeading = `${chalStudioSliceFilter.value} in ${m.prettyMonth} (${sliceItems.length})`;
+        } else if (chalStudioSliceFilter.type === "artist") {
+          sliceItems = m.items.filter(it => {
+            const credits = resolveCanonicalCredits(it.artist);
+            return (credits[0] || String(it.artist || "").trim()) === chalStudioSliceFilter.value;
+          });
+          sliceHeading = `${chalStudioSliceFilter.value} discog dive in ${m.prettyMonth} (${sliceItems.length})`;
+        }
+        const targetHintText = chalStudioPreferredDest && statsIsAdmin
+          ? ` • Target: ${chalStudioPreferredDest.charAt(0).toUpperCase() + chalStudioPreferredDest.slice(1)}`
+          : "";
+
+        sliceTrayHtml = `
+          <div class="chal-slice-tray">
+            <div class="chal-slice-head">
+              <span class="chal-slice-title">
+                <i class='bx bx-disc'></i> ${escapeHtml(sliceHeading)}${escapeHtml(targetHintText)}
+              </span>
+              <button type="button" class="chal-slice-clear-btn" id="btnChalClearSlice">Hide list</button>
+            </div>
+            <div class="chal-slice-grid">
+              ${sliceItems.map(it => `
+                <div class="chal-album-pill">
+                  <img class="chal-mini-cov" src="${escapeHtml(it.cover_url)}" alt="${escapeHtml(it.title)}" loading="lazy" onerror="this.onerror=null;this.src='assets/images/spins/placeholder.png';">
+                  <div class="chal-ap-meta">
+                    <div class="chal-ap-title" title="${escapeHtml(it.title)}">${escapeHtml(it.title)}</div>
+                    <div class="chal-ap-sub">${escapeHtml(it.artist)}${it.release_year ? ` · ${escapeHtml(it.release_year)}` : ""}${it.isDone ? " · ✓" : ""}</div>
+                  </div>
+                  <button type="button" class="chal-ap-swap-btn" data-open-swap-id="${escapeHtml(it.id)}" title="Swap or move this album to another month">
+                    <i class='bx bx-transfer-alt'></i> Swap
+                  </button>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        `;
+      }
+
+      const gridHref = `challenge.html?month=${encodeURIComponent(m.rawMonth || "")}`;
+      inspEl.innerHTML = `
+        <div class="chal-insp-head">
+          <div>
+            <div class="chal-insp-title-row">
+              <h3 class="chal-insp-title">${escapeHtml(m.prettyMonth)} Breakdown</h3>
+              <span class="chal-mix-pill is-${m.level}">${escapeHtml(m.label)} · ${m.varietyScore} / 100</span>
+            </div>
+            <div class="chal-insp-sub">${m.count} queued album${m.count === 1 ? "" : "s"} · ${m.uniqueGenres} primary genre${m.uniqueGenres === 1 ? "" : "s"} · ${m.repeatGenres.length} repeated genre${m.repeatGenres.length === 1 ? "" : "s"}</div>
+          </div>
+          <div class="chal-insp-actions">
+            <button type="button" class="chal-aero-action-btn is-swap-primary chal-admin-only" id="btnChalStudioBrowseSwap">
+              <i class='bx bx-transfer-alt'></i> ${chalStudioSliceFilter && chalStudioSliceFilter.type === "all" ? "Hide Albums" : "Swap Albums"}
+            </button>
+            <a class="chal-aero-action-btn" href="${gridHref}">
+              Open ${escapeHtml(m.prettyMonth)} in Grid <i class='bx bx-link-external'></i>
+            </a>
+          </div>
+        </div>
+
+        <div class="chal-rebalance-banner is-${m.level}">
+          <div class="chal-rb-left">
+            <i class='bx bx-shuffle'></i>
+            <div>${radarMessage}</div>
+          </div>
+          ${radarTargetsHtml ? `<div class="chal-rb-targets">${radarTargetsHtml}</div>` : ""}
+        </div>
+
+        <div class="chal-insp-cols">
+          <div>
+            <div class="chal-sub-h">
+              <span class="chal-sub-h-left"><i class='bx bx-layer'></i> Repeated Genre Clusters</span>
+              ${m.repeatGenres.length ? `<span style="font-size:0.62rem;font-weight:700;opacity:0.75;">${statsIsAdmin ? "Click cover to swap" : "Click row to list"}</span>` : ""}
+            </div>
+            ${repeatGenresHtml}
+          </div>
+          <div>
+            <div class="chal-sub-h">
+              <span class="chal-sub-h-left"><i class='bx bx-equalizer'></i> Genre Concentration</span>
+              <span style="font-size:0.62rem;font-weight:700;opacity:0.75;">Click bar to inspect</span>
+            </div>
+            ${genreHtml}
+            ${scenesChipsHtml ? `<div class="chal-scene-strip">${scenesChipsHtml}</div>` : ""}
+          </div>
+        </div>
+        ${discogDivesHtml}
+        ${sliceTrayHtml}
+      `;
+
+      // Bind interactive inspector controls
+      const browseBtn = inspEl.querySelector("#btnChalStudioBrowseSwap");
+      if (browseBtn) {
+        browseBtn.addEventListener("click", () => {
+          if (chalStudioSliceFilter && chalStudioSliceFilter.type === "all") {
+            chalStudioSliceFilter = null;
+          } else {
+            chalStudioSliceFilter = { type: "all", value: "All Albums" };
+          }
+          renderChallengeDiversityStudio({ animateSwap: false });
+        });
+      }
+
+      const clearSliceBtn = inspEl.querySelector("#btnChalClearSlice");
+      if (clearSliceBtn) {
+        clearSliceBtn.addEventListener("click", () => {
+          chalStudioSliceFilter = null;
+          chalStudioPreferredDest = null;
+          renderChallengeDiversityStudio({ animateSwap: false });
+        });
+      }
+
+      // Genre row / bar click → toggle album slice
+      inspEl.querySelectorAll("[data-slice-genre]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const g = btn.getAttribute("data-slice-genre");
+          if (chalStudioSliceFilter && chalStudioSliceFilter.type === "genre" && chalStudioSliceFilter.value === g) {
+            chalStudioSliceFilter = null;
+          } else {
+            chalStudioSliceFilter = { type: "genre", value: g };
+          }
+          renderChallengeDiversityStudio({ animateSwap: false });
+        });
+      });
+
+      // Scene chip click → toggle scene slice
+      inspEl.querySelectorAll("[data-slice-scene]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const sc = btn.getAttribute("data-slice-scene");
+          if (chalStudioSliceFilter && chalStudioSliceFilter.type === "scene" && chalStudioSliceFilter.value === sc) {
+            chalStudioSliceFilter = null;
+          } else {
+            chalStudioSliceFilter = { type: "scene", value: sc };
+          }
+          renderChallengeDiversityStudio({ animateSwap: false });
+        });
+      });
+
+      // Discog dive chip click → toggle artist slice
+      inspEl.querySelectorAll("[data-slice-artist]").forEach(row => {
+        row.addEventListener("click", () => {
+          const a = row.getAttribute("data-slice-artist");
+          if (chalStudioSliceFilter && chalStudioSliceFilter.type === "artist" && chalStudioSliceFilter.value === a) {
+            chalStudioSliceFilter = null;
+          } else {
+            chalStudioSliceFilter = { type: "artist", value: a };
+          }
+          renderChallengeDiversityStudio({ animateSwap: false });
+        });
+      });
+
+      // Cover thumbnail click → Admin opens Swap modal immediately; Public toggles genre slice
+      inspEl.querySelectorAll("[data-cover-album-id]").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const albumId = btn.getAttribute("data-cover-album-id");
+          const genreName = btn.getAttribute("data-cover-genre");
+          if (statsIsAdmin && albumId) {
+            openChalSwapModal(albumId, chalStudioPreferredDest);
+          } else if (genreName) {
+            chalStudioSliceFilter = { type: "genre", value: genreName };
+            renderChallengeDiversityStudio({ animateSwap: false });
+          }
+        });
+      });
+
+      // Rebalance Radar target chips
+      inspEl.querySelectorAll("[data-radar-month-key]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const targetKey = btn.getAttribute("data-radar-month-key");
+          const targetRaw = btn.getAttribute("data-radar-raw-month");
+          if (statsIsAdmin && domGenreName) {
+            chalStudioPreferredDest = targetRaw;
+            chalStudioSliceFilter = { type: "genre", value: domGenreName };
+            renderChallengeDiversityStudio({ animateSwap: false });
+          } else if (targetKey) {
+            chalStudioSelectedMonthKey = targetKey;
+            chalStudioSliceFilter = null;
+            renderChallengeDiversityStudio({ animateSwap: true });
+          }
+        });
+      });
+
+      // Admin Swap buttons inside album slice tray
+      inspEl.querySelectorAll("[data-open-swap-id]").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (!statsIsAdmin) return;
+          const id = btn.getAttribute("data-open-swap-id");
+          if (id) openChalSwapModal(id, chalStudioPreferredDest);
+        });
+      });
+    };
+
+    if (opts.animateSwap) {
+      inspEl.classList.add("is-swapping");
+      setTimeout(() => {
+        renderInspectorInner();
+        requestAnimationFrame(() => inspEl.classList.remove("is-swapping"));
+      }, 95);
+    } else {
+      inspEl.classList.remove("is-swapping");
+      renderInspectorInner();
+    }
+  }
+
+  function getOrderedBacklogForMonth(rawMonth) {
+    const mLower = String(rawMonth || "").trim().toLowerCase();
+    return backlogEntries
+      .filter(e => String(e.month || "").trim().toLowerCase() === mLower)
+      .sort((a, b) => {
+        const posA = a.position !== null && a.position !== undefined ? Number(a.position) : (Number(a.id) || 0);
+        const posB = b.position !== null && b.position !== undefined ? Number(b.position) : (Number(b.id) || 0);
+        return posA - posB;
+      });
+  }
+
+  function isPastChallengeMonthSummary(ms) {
+    if (!ms || !ms.sortOrder || ms.sortOrder >= 900000) return false;
+    const now = new Date();
+    const curYm = now.getFullYear() * 100 + (now.getMonth() + 1);
+    return ms.sortOrder < curYm;
+  }
+
+  function openChalSwapModal(sourceId, preferredDestRawMonth = null) {
+    if (!statsIsAdmin) return;
+    const modal = document.getElementById("chalSwapModal");
+    if (!modal || !challengeMetrics) return;
+    const sourceItem = challengeMetrics.items.find(it => String(it.id) === String(sourceId));
+    if (!sourceItem) return;
+
+    chalSwapState.sourceId = sourceItem.id;
+    chalSwapState.search = "";
+    chalSwapState.busy = false;
+
+    const summaries = getChallengeMonthlySummaries("all").filter(
+      m => m.rawMonth !== sourceItem.rawMonth && !isPastChallengeMonthSummary(m)
+    );
+    const srcGenres = new Set(safeToArray(sourceItem.genres));
+    const srcScenes = new Set(safeToArray(sourceItem.scenes).concat(safeToArray(sourceItem.movements)));
+
+    // Pick best default destination month (preferred if valid, else lowest genre/scene overlap)
+    let defaultDest = preferredDestRawMonth && summaries.some(m => m.rawMonth === preferredDestRawMonth)
+      ? preferredDestRawMonth
+      : null;
+
+    if (!defaultDest && summaries.length) {
+      const scored = [...summaries].sort((a, b) => {
+        const overlapA = a.items.filter(it =>
+          safeToArray(it.genres).some(g => srcGenres.has(g)) ||
+          safeToArray(it.scenes).concat(safeToArray(it.movements)).some(s => srcScenes.has(s))
+        ).length;
+        const overlapB = b.items.filter(it =>
+          safeToArray(it.genres).some(g => srcGenres.has(g)) ||
+          safeToArray(it.scenes).concat(safeToArray(it.movements)).some(s => srcScenes.has(s))
+        ).length;
+        return overlapA - overlapB || a.totalAllCount - b.totalAllCount || b.varietyScore - a.varietyScore;
+      });
+      defaultDest = scored[0].rawMonth;
+    }
+
+    chalSwapState.destRawMonth = defaultDest;
+    const searchInput = document.getElementById("chalSwapSearchInput");
+    if (searchInput) searchInput.value = "";
+
+    renderChalSwapModalContent();
+    modal.hidden = false;
+    requestAnimationFrame(() => modal.classList.add("is-open"));
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeChalSwapModal() {
+    const modal = document.getElementById("chalSwapModal");
+    if (!modal || modal.hidden) return;
+    modal.classList.remove("is-open");
+    document.body.style.overflow = "";
+    setTimeout(() => {
+      if (!modal.classList.contains("is-open")) modal.hidden = true;
+    }, 180);
+  }
+
+  function renderChalSwapModalContent() {
+    if (!challengeMetrics || !chalSwapState.sourceId) return;
+    const sourceItem = challengeMetrics.items.find(it => String(it.id) === String(chalSwapState.sourceId));
+    if (!sourceItem) return;
+
+    const allSummaries = getChallengeMonthlySummaries("all");
+    const srcSummary = allSummaries.find(m => m.rawMonth === sourceItem.rawMonth);
+    const destCandidates = allSummaries.filter(
+      m => m.rawMonth !== sourceItem.rawMonth && !isPastChallengeMonthSummary(m)
+    );
+
+    const srcGenres = safeToArray(sourceItem.genres);
+    const srcGenreSet = new Set(srcGenres);
+    const srcSceneSet = new Set(safeToArray(sourceItem.scenes).concat(safeToArray(sourceItem.movements)));
+
+    // 1. Source Card
+    const srcCardEl = document.getElementById("chalSwapSourceCard");
+    if (srcCardEl) {
+      srcCardEl.innerHTML = `
+        <img class="chal-swap-source-cov" src="${escapeHtml(sourceItem.cover_url)}" alt="${escapeHtml(sourceItem.title)}" onerror="this.onerror=null;this.src='assets/images/spins/placeholder.png';">
+        <div class="chal-swap-source-info">
+          <div class="chal-swap-source-kicker">Moving out of ${escapeHtml(srcSummary ? srcSummary.prettyMonth : sourceItem.rawMonth)} (Genre Mix ${srcSummary ? srcSummary.varietyScore : "—"})</div>
+          <div class="chal-swap-source-title">${escapeHtml(sourceItem.artist)} — ${escapeHtml(sourceItem.title)}</div>
+          <div class="chal-swap-source-meta">${srcGenres.length ? escapeHtml(srcGenres.slice(0, 3).join(", ")) : "No primary genres"}${sourceItem.release_year ? ` · ${escapeHtml(sourceItem.release_year)}` : ""}</div>
+        </div>
+      `;
+    }
+
+    // 2. Destination Month Picker (sorted by lowest genre/scene overlap — discog dives are never penalized)
+    const destWithOverlap = destCandidates.map(m => {
+      const genreOverlap = m.items.filter(it => safeToArray(it.genres).some(g => srcGenreSet.has(g))).length;
+      const sceneOverlap = m.items.filter(it => safeToArray(it.scenes).concat(safeToArray(it.movements)).some(s => srcSceneSet.has(s))).length;
+      return { ...m, overlapScore: genreOverlap * 2 + sceneOverlap, genreOverlap, sceneOverlap };
+    }).sort((a, b) => a.overlapScore - b.overlapScore || a.totalAllCount - b.totalAllCount || b.varietyScore - a.varietyScore);
+
+    const destMonthsEl = document.getElementById("chalSwapDestMonths");
+    if (destMonthsEl) {
+      destMonthsEl.innerHTML = destWithOverlap.map(m => {
+        const isAct = m.rawMonth === chalSwapState.destRawMonth;
+        const fitBadge = m.overlapScore === 0
+          ? `<span class="chal-fit-tag">0 overlap</span>`
+          : m.totalAllCount < CHAL_MAX_MONTHLY_ALBUMS
+          ? `<span class="chal-fit-tag">${CHAL_MAX_MONTHLY_ALBUMS - m.totalAllCount} open</span>`
+          : `<span>Mix ${m.varietyScore}</span>`;
+        return `
+          <button type="button" class="chal-swap-m-btn${isAct ? " is-active" : ""}" data-swap-dest-month="${escapeHtml(m.rawMonth)}" role="option" aria-selected="${isAct ? "true" : "false"}">
+            <div class="chal-sm-top">
+              <span>${escapeHtml(m.prettyMonth)}</span>
+              <span style="font-family:'Noto Sans Mono',monospace;font-size:0.66rem;opacity:0.75;">${m.totalAllCount}/${CHAL_MAX_MONTHLY_ALBUMS}</span>
+            </div>
+            <div class="chal-sm-meta">
+              ${fitBadge}
+              <span>Mix ${m.varietyScore}</span>
+            </div>
+          </button>
+        `;
+      }).join("");
+
+      destMonthsEl.querySelectorAll("[data-swap-dest-month]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          chalSwapState.destRawMonth = btn.getAttribute("data-swap-dest-month");
+          renderChalSwapModalContent();
+        });
+      });
+    }
+
+    const activeDest = destWithOverlap.find(m => m.rawMonth === chalSwapState.destRawMonth) || destWithOverlap[0];
+    if (!activeDest) return;
+    chalSwapState.destRawMonth = activeDest.rawMonth;
+
+    // 3. Direct Move Banner (when destination month has < 36 albums!)
+    const directMoveEl = document.getElementById("chalSwapDirectMove");
+    if (directMoveEl) {
+      if (activeDest.totalAllCount < CHAL_MAX_MONTHLY_ALBUMS && srcSummary) {
+        const afterSrc = computeChallengeMonthVariety(srcSummary.items.filter(it => String(it.id) !== String(sourceItem.id)));
+        const afterDest = computeChallengeMonthVariety([...activeDest.items, sourceItem]);
+        const srcDiff = afterSrc.varietyScore - srcSummary.varietyScore;
+        const destDiff = afterDest.varietyScore - activeDest.varietyScore;
+        directMoveEl.hidden = false;
+        directMoveEl.innerHTML = `
+          <div>
+            <strong>${escapeHtml(activeDest.prettyMonth)} has open slots (${activeDest.totalAllCount}/${CHAL_MAX_MONTHLY_ALBUMS})</strong>
+            <div style="font-size:0.7rem;opacity:0.88;margin-top:2px;">
+              Predicted Mix: ${escapeHtml(srcSummary.shortMonth)} ${srcSummary.varietyScore} → <strong>${afterSrc.varietyScore}</strong> (${srcDiff >= 0 ? "+" : ""}${srcDiff})
+              · ${escapeHtml(activeDest.shortMonth)} ${activeDest.varietyScore} → <strong>${afterDest.varietyScore}</strong> (${destDiff >= 0 ? "+" : ""}${destDiff})
+            </div>
+          </div>
+          <button type="button" class="chal-aero-action-btn is-swap-primary" id="btnChalDirectMoveExec">
+            <i class='bx bx-right-arrow-alt'></i> Move to ${escapeHtml(activeDest.prettyMonth)}
+          </button>
+        `;
+        const moveBtn = directMoveEl.querySelector("#btnChalDirectMoveExec");
+        if (moveBtn) {
+          moveBtn.addEventListener("click", () => executeStatsBacklogMove(sourceItem.id, activeDest.rawMonth));
+        }
+      } else {
+        directMoveEl.hidden = true;
+        directMoveEl.innerHTML = "";
+      }
+    }
+
+    // 4. Target Album List with live predicted Mix Score Delta
+    const headingEl = document.getElementById("chalSwapTargetHeading");
+    if (headingEl) {
+      headingEl.innerHTML = `<i class='bx bx-shuffle'></i> 2. Swap with an Album in ${escapeHtml(activeDest.prettyMonth)} (${activeDest.items.length})`;
+    }
+
+    const q = (chalSwapState.search || "").trim().toLowerCase();
+    const targetRows = activeDest.items
+      .filter(it => {
+        if (!q) return true;
+        return (
+          String(it.artist || "").toLowerCase().includes(q) ||
+          String(it.title || "").toLowerCase().includes(q) ||
+          safeToArray(it.genres).some(g => g.toLowerCase().includes(q))
+        );
+      })
+      .map(targetItem => {
+        const simSrc = srcSummary
+          ? computeChallengeMonthVariety(srcSummary.items.map(it => (String(it.id) === String(sourceItem.id) ? targetItem : it)))
+          : null;
+        const simDest = computeChallengeMonthVariety(activeDest.items.map(it => (String(it.id) === String(targetItem.id) ? sourceItem : it)));
+        const srcDelta = simSrc && srcSummary ? simSrc.varietyScore - srcSummary.varietyScore : 0;
+        const destDelta = simDest.varietyScore - activeDest.varietyScore;
+        const combinedGain = srcDelta * 1.4 + destDelta;
+        return {
+          item: targetItem,
+          simSrcScore: simSrc ? simSrc.varietyScore : 0,
+          simDestScore: simDest.varietyScore,
+          srcDelta,
+          destDelta,
+          combinedGain
+        };
+      })
+      .sort((a, b) => b.combinedGain - a.combinedGain || a.item.artist.localeCompare(b.item.artist));
+
+    const targetListEl = document.getElementById("chalSwapTargetList");
+    if (targetListEl) {
+      targetListEl.innerHTML = targetRows.length
+        ? targetRows.map(row => {
+            const it = row.item;
+            const dCls = row.srcDelta > 0 ? "is-up" : row.srcDelta < 0 ? "is-down" : "is-flat";
+            const gTxt = safeToArray(it.genres).slice(0, 3).join(", ") || "Untagged";
+            return `
+              <button type="button" class="chal-swap-target-row" data-exec-swap-target="${escapeHtml(it.id)}">
+                <img src="${escapeHtml(it.cover_url)}" alt="${escapeHtml(it.title)}" loading="lazy" onerror="this.onerror=null;this.src='assets/images/spins/placeholder.png';">
+                <div class="chal-st-info">
+                  <div class="chal-st-title">${escapeHtml(it.artist)} — ${escapeHtml(it.title)}</div>
+                  <div class="chal-st-sub">${escapeHtml(gTxt)}${it.release_year ? ` · ${escapeHtml(it.release_year)}` : ""}${it.isDone ? " · Completed" : ""}</div>
+                </div>
+                <div class="chal-st-delta">
+                  <span class="chal-delta-pill ${dCls}">${escapeHtml(srcSummary ? srcSummary.shortMonth : "Src")} ${row.simSrcScore} (${row.srcDelta >= 0 ? "+" : ""}${row.srcDelta})</span>
+                  <span style="font-size:0.62rem;font-family:'Noto Sans Mono',monospace;color:#64748b;">${escapeHtml(activeDest.shortMonth)} ${row.simDestScore} (${row.destDelta >= 0 ? "+" : ""}${row.destDelta})</span>
+                </div>
+              </button>
+            `;
+          }).join("")
+        : `<div style="padding:1.25rem;text-align:center;color:#64748b;font-size:0.78rem;">No matching albums in ${escapeHtml(activeDest.prettyMonth)}.</div>`;
+
+      targetListEl.querySelectorAll("[data-exec-swap-target]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const targetId = btn.getAttribute("data-exec-swap-target");
+          if (targetId) executeStatsBacklogSwap(sourceItem.id, targetId);
+        });
+      });
+    }
+  }
+
+  async function verifyAdminSessionBeforeWrite() {
+    if (!statsIsAdmin || !supabaseClient || !supabaseClient.auth) return false;
+    try {
+      const { data } = await supabaseClient.auth.getSession();
+      return !!(data && data.session);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  async function persistBacklogPositions(itemsToSave) {
+    const results = await Promise.all(
+      itemsToSave.map(item =>
+        supabaseClient
+          .from("challenge_backlog")
+          .update({
+            month: item.month,
+            year: item.year,
+            position: item.position
+          })
+          .eq("id", item.id)
+      )
+    );
+    const failed = results.find(r => r && r.error);
+    if (failed) throw failed.error;
+  }
+
+  function refreshChallengeAfterMutation() {
+    backlogEntries.sort((a, b) => {
+      const posA = a.position !== null && a.position !== undefined ? Number(a.position) : (Number(a.id) || 0);
+      const posB = b.position !== null && b.position !== undefined ? Number(b.position) : (Number(b.id) || 0);
+      return posA - posB;
+    });
+    challengeMetrics = computeChallengeStats(backlogEntries, allSpins);
+    renderChallengeView();
+    if (currentMetrics) renderCharts(currentMetrics);
+  }
+
+  async function executeStatsBacklogUndo(snapshot) {
+    if (!(await verifyAdminSessionBeforeWrite())) {
+      showChalStudioToast("Admin session required to undo.", { isError: true });
+      return;
+    }
+    try {
+      const restored = [];
+      snapshot.forEach(snap => {
+        const entry = backlogEntries.find(e => String(e.id) === String(snap.id));
+        if (entry) {
+          entry.month = snap.month;
+          entry.year = snap.year;
+          entry.position = snap.position;
+          restored.push(entry);
+        }
+      });
+      await persistBacklogPositions(restored);
+      refreshChallengeAfterMutation();
+      showChalStudioToast("Reverted backlog swap.");
+    } catch (err) {
+      console.error("Failed to undo backlog swap:", err);
+      showChalStudioToast(`Undo failed: ${err.message || "Unknown error"}`, { isError: true });
+    }
+  }
+
+  async function executeStatsBacklogSwap(sourceId, targetId) {
+    if (chalSwapState.busy) return;
+    if (!(await verifyAdminSessionBeforeWrite())) {
+      showChalStudioToast("Admin login required to swap backlog albums.", { isError: true });
+      return;
+    }
+    const sourceEntry = backlogEntries.find(e => String(e.id) === String(sourceId));
+    const targetEntry = backlogEntries.find(e => String(e.id) === String(targetId));
+    if (!sourceEntry || !targetEntry || String(sourceEntry.id) === String(targetEntry.id)) return;
+
+    chalSwapState.busy = true;
+    const srcMonth = String(sourceEntry.month || "").trim().toLowerCase();
+    const dstMonth = String(targetEntry.month || "").trim().toLowerCase();
+    const srcList = getOrderedBacklogForMonth(srcMonth);
+    const dstList = srcMonth === dstMonth ? srcList : getOrderedBacklogForMonth(dstMonth);
+    const affected = srcMonth === dstMonth ? srcList : [...srcList, ...dstList];
+
+    const snapshot = affected.map(item => ({
+      id: item.id,
+      month: item.month,
+      year: item.year,
+      position: item.position
+    }));
+
+    srcList.forEach((item, idx) => { item.position = idx; });
+    if (srcMonth !== dstMonth) {
+      dstList.forEach((item, idx) => { item.position = idx; });
+    }
+
+    const srcPos = sourceEntry.position;
+    const dstPos = targetEntry.position;
+
+    sourceEntry.month = dstMonth;
+    sourceEntry.year = resolveChallengeMonthYear(dstMonth, sourceEntry.year);
+    sourceEntry.position = dstPos;
+
+    targetEntry.month = srcMonth;
+    targetEntry.year = resolveChallengeMonthYear(srcMonth, targetEntry.year);
+    targetEntry.position = srcPos;
+
+    closeChalSwapModal();
+    refreshChallengeAfterMutation();
+
+    try {
+      await persistBacklogPositions(affected);
+      const srcPretty = srcMonth.charAt(0).toUpperCase() + srcMonth.slice(1);
+      const dstPretty = dstMonth.charAt(0).toUpperCase() + dstMonth.slice(1);
+      showChalStudioToast(`Swapped "${sourceEntry.title}" (${srcPretty} → ${dstPretty}) with "${targetEntry.title}".`, {
+        onUndo: () => executeStatsBacklogUndo(snapshot)
+      });
+    } catch (err) {
+      console.error("Failed to save backlog swap:", err);
+      // Roll back local state verbatim
+      snapshot.forEach(snap => {
+        const entry = backlogEntries.find(e => String(e.id) === String(snap.id));
+        if (entry) {
+          entry.month = snap.month;
+          entry.year = snap.year;
+          entry.position = snap.position;
+        }
+      });
+      refreshChallengeAfterMutation();
+      showChalStudioToast(`Failed to save swap: ${err.message || "Database error"}`, { isError: true });
+    } finally {
+      chalSwapState.busy = false;
+    }
+  }
+
+  async function executeStatsBacklogMove(sourceId, destRawMonth) {
+    if (chalSwapState.busy) return;
+    if (!(await verifyAdminSessionBeforeWrite())) {
+      showChalStudioToast("Admin login required to move backlog albums.", { isError: true });
+      return;
+    }
+    const sourceEntry = backlogEntries.find(e => String(e.id) === String(sourceId));
+    const dstMonth = String(destRawMonth || "").trim().toLowerCase();
+    if (!sourceEntry || !dstMonth) return;
+
+    const srcMonth = String(sourceEntry.month || "").trim().toLowerCase();
+    if (srcMonth === dstMonth) return;
+
+    chalSwapState.busy = true;
+    const srcListAll = getOrderedBacklogForMonth(srcMonth);
+    const dstList = getOrderedBacklogForMonth(dstMonth);
+    const affectedBefore = [...srcListAll, ...dstList];
+    const snapshot = affectedBefore.map(item => ({
+      id: item.id,
+      month: item.month,
+      year: item.year,
+      position: item.position
+    }));
+
+    const srcRemaining = srcListAll.filter(it => String(it.id) !== String(sourceEntry.id));
+    srcRemaining.forEach((item, idx) => { item.position = idx; });
+    dstList.forEach((item, idx) => { item.position = idx; });
+
+    sourceEntry.month = dstMonth;
+    sourceEntry.year = resolveChallengeMonthYear(dstMonth, sourceEntry.year);
+    sourceEntry.position = dstList.length;
+
+    const affectedAfter = [...srcRemaining, ...dstList, sourceEntry];
+    closeChalSwapModal();
+    refreshChallengeAfterMutation();
+
+    try {
+      await persistBacklogPositions(affectedAfter);
+      const srcPretty = srcMonth.charAt(0).toUpperCase() + srcMonth.slice(1);
+      const dstPretty = dstMonth.charAt(0).toUpperCase() + dstMonth.slice(1);
+      showChalStudioToast(`Moved "${sourceEntry.title}" from ${srcPretty} → ${dstPretty}.`, {
+        onUndo: () => executeStatsBacklogUndo(snapshot)
+      });
+    } catch (err) {
+      console.error("Failed to move backlog album:", err);
+      snapshot.forEach(snap => {
+        const entry = backlogEntries.find(e => String(e.id) === String(snap.id));
+        if (entry) {
+          entry.month = snap.month;
+          entry.year = snap.year;
+          entry.position = snap.position;
+        }
+      });
+      refreshChallengeAfterMutation();
+      showChalStudioToast(`Failed to move album: ${err.message || "Database error"}`, { isError: true });
+    } finally {
+      chalSwapState.busy = false;
     }
   }
 
@@ -3686,26 +4744,74 @@
       });
     });
 
-    // 1f. Challenge Backlog Breakdown Scope Controls
+    // 1f. Challenge Backlog Breakdown Scope Controls (synced with Diversity Studio)
     const chalBdBtns = {
       all: document.getElementById("btnChalBreakdownAll"),
       remaining: document.getElementById("btnChalBreakdownRemaining"),
       done: document.getElementById("btnChalBreakdownDone")
     };
-    Object.entries(chalBdBtns).forEach(([scopeKey, btn]) => {
-      if (!btn) return;
-      btn.addEventListener("click", () => {
-        if (challengeBreakdownScope === scopeKey) return;
-        challengeBreakdownScope = scopeKey;
-        Object.entries(chalBdBtns).forEach(([k, b]) => {
+    const chalStudioScopeBtns = {
+      all: document.getElementById("btnChalStudioScopeAll"),
+      remaining: document.getElementById("btnChalStudioScopeRemaining"),
+      done: document.getElementById("btnChalStudioScopeDone")
+    };
+    function applyChallengeScope(scopeKey) {
+      if (challengeBreakdownScope === scopeKey) return;
+      challengeBreakdownScope = scopeKey;
+      [chalBdBtns, chalStudioScopeBtns].forEach(group => {
+        Object.entries(group).forEach(([k, b]) => {
           if (!b) return;
           const active = k === scopeKey;
           b.classList.toggle("active", active);
           b.setAttribute("aria-selected", active ? "true" : "false");
         });
-        renderChallengeBreakdown();
-        renderCharts(currentMetrics);
       });
+      chalStudioSliceFilter = null;
+      renderChallengeDiversityStudio({ animateSwap: false });
+      renderChallengeBreakdown();
+      renderCharts(currentMetrics);
+    }
+    [chalBdBtns, chalStudioScopeBtns].forEach(group => {
+      Object.entries(group).forEach(([scopeKey, btn]) => {
+        if (!btn) return;
+        btn.addEventListener("click", () => applyChallengeScope(scopeKey));
+      });
+    });
+
+    // 1f-ii. Challenge Diversity Studio Sort & Swap Modal Controls
+    const btnStudioCluster = document.getElementById("btnChalStudioSortCluster");
+    const btnStudioCal = document.getElementById("btnChalStudioSortCal");
+    if (btnStudioCluster && btnStudioCal) {
+      const setStudioSort = (mode) => {
+        if (chalStudioSort === mode) return;
+        chalStudioSort = mode;
+        btnStudioCluster.classList.toggle("active", mode === "cluster");
+        btnStudioCluster.setAttribute("aria-selected", mode === "cluster" ? "true" : "false");
+        btnStudioCal.classList.toggle("active", mode === "calendar");
+        btnStudioCal.setAttribute("aria-selected", mode === "calendar" ? "true" : "false");
+        renderChallengeDiversityStudio({ animateSwap: false });
+      };
+      btnStudioCluster.addEventListener("click", () => setStudioSort("cluster"));
+      btnStudioCal.addEventListener("click", () => setStudioSort("calendar"));
+    }
+
+    const swapModal = document.getElementById("chalSwapModal");
+    const swapCloseBtn = document.getElementById("chalSwapCloseBtn");
+    const swapSearchInput = document.getElementById("chalSwapSearchInput");
+    if (swapCloseBtn) swapCloseBtn.addEventListener("click", closeChalSwapModal);
+    if (swapModal) {
+      swapModal.addEventListener("click", (e) => {
+        if (e.target === swapModal) closeChalSwapModal();
+      });
+    }
+    if (swapSearchInput) {
+      swapSearchInput.addEventListener("input", () => {
+        chalSwapState.search = swapSearchInput.value || "";
+        renderChalSwapModalContent();
+      });
+    }
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeChalSwapModal();
     });
 
     // 1g. Listening Calendar Range Selector
@@ -3932,7 +5038,6 @@
     // Sync Admin Lock Icon & Trigger with Supabase Auth Session
     const adminTriggerBtn = document.getElementById("adminTriggerBtn");
     const adminLockIcon = document.getElementById("adminLockIcon");
-    let statsIsAdmin = false;
 
     function updateStatsAdminUi(session) {
       statsIsAdmin = !!session;
@@ -3948,6 +5053,9 @@
           ? "Admin Active (Click to Logout)"
           : "Admin Locked (Click to Sign In)";
         adminTriggerBtn.style.color = statsIsAdmin ? "#10b981" : "";
+      }
+      if (challengeMetrics) {
+        renderChallengeDiversityStudio({ animateSwap: false });
       }
     }
 

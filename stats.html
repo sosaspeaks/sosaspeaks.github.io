@@ -27,7 +27,7 @@
 
     <!-- Style sheets -->
     <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261116w">
-    <link rel="stylesheet" href="assets/css/stats.css?v=20261118e">
+    <link rel="stylesheet" href="assets/css/stats.css?v=20261124b">
     <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
 
     <!-- Box icons -->
@@ -827,6 +827,41 @@
                                 </div>
                             </div>
 
+                            <!-- Hybrid A: Monthly Backlog Diversity Studio (Master-Detail + Admin Rebalancer) -->
+                            <div class="aero-panel explorer-card chal-studio-panel" id="chalDiversityStudio">
+                                <div class="panel-header chal-studio-header">
+                                    <div class="panel-title">
+                                        <i class='bx bx-layout'></i> Monthly Backlog Diversity Studio
+                                    </div>
+                                    <div class="chal-studio-toolbar">
+                                        <span class="chal-studio-kbd" title="Use Up/Down arrow keys while focused on a month to step instantaneously">↑ ↓ step</span>
+                                        <div class="aero-segmented-control" role="tablist" aria-label="Sort Months">
+                                            <button type="button" class="segmented-btn active" id="btnChalStudioSortCluster" role="tab" aria-selected="true">
+                                                Most Clustered
+                                            </button>
+                                            <button type="button" class="segmented-btn" id="btnChalStudioSortCal" role="tab" aria-selected="false">
+                                                Calendar Order
+                                            </button>
+                                        </div>
+                                        <div class="aero-segmented-control" role="tablist" aria-label="Studio Album Scope">
+                                            <button type="button" class="segmented-btn active" id="btnChalStudioScopeAll" role="tab" aria-selected="true">
+                                                All
+                                            </button>
+                                            <button type="button" class="segmented-btn" id="btnChalStudioScopeRemaining" role="tab" aria-selected="false">
+                                                Remaining
+                                            </button>
+                                            <button type="button" class="segmented-btn" id="btnChalStudioScopeDone" role="tab" aria-selected="false">
+                                                Done
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="chal-studio-split">
+                                    <div class="chal-studio-rail" id="chalStudioRail" role="listbox" aria-label="Challenge Months"></div>
+                                    <div class="chal-studio-inspector" id="chalStudioInspector" aria-live="polite"></div>
+                                </div>
+                            </div>
+
                             <!-- Backlog Taxonomy & Era Breakdown (Artists, Genres, Scenes, Years/Decades) -->
                             <div class="aero-panel explorer-card">
                                 <div class="panel-header cloud-studio-header" style="margin-bottom: 0; padding-bottom: 0; border-bottom: none;">
@@ -1074,11 +1109,53 @@
         </p>
     </footer>
 
+    <!-- Admin-Only Challenge Backlog Swap & Rebalance Modal -->
+    <div class="chal-swap-backdrop" id="chalSwapModal" role="dialog" aria-modal="true" aria-labelledby="chalSwapModalTitle" hidden>
+        <div class="chal-swap-window">
+            <div class="chal-swap-titlebar">
+                <div class="chal-swap-titlebar-text" id="chalSwapModalTitle">
+                    <i class='bx bx-transfer-alt'></i>
+                    <span>Rebalance &amp; Swap Challenge Album</span>
+                </div>
+                <button type="button" class="chal-swap-close-btn" id="chalSwapCloseBtn" aria-label="Close swap dialog">
+                    <i class='bx bx-x'></i>
+                </button>
+            </div>
+            <div class="chal-swap-body">
+                <div class="chal-swap-source-card" id="chalSwapSourceCard"></div>
+
+                <div class="chal-swap-section">
+                    <div class="chal-swap-sec-head">
+                        <span class="chal-swap-sec-lbl"><i class='bx bx-calendar-alt'></i> 1. Pick Destination Month</span>
+                        <span class="chal-swap-sec-hint">Sorted by lowest genre/scene overlap first</span>
+                    </div>
+                    <div class="chal-swap-months-grid" id="chalSwapDestMonths" role="listbox" aria-label="Destination Months"></div>
+                </div>
+
+                <div class="chal-swap-direct-move" id="chalSwapDirectMove" hidden></div>
+
+                <div class="chal-swap-section chal-swap-targets-section">
+                    <div class="chal-swap-sec-head">
+                        <span class="chal-swap-sec-lbl" id="chalSwapTargetHeading"><i class='bx bx-shuffle'></i> 2. Pick Album to Swap With</span>
+                        <div class="chal-swap-search-wrap">
+                            <i class='bx bx-search'></i>
+                            <input type="search" id="chalSwapSearchInput" class="chal-swap-search-input" placeholder="Filter by artist, album, or genre..." autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="chal-swap-target-list" id="chalSwapTargetList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Aero Toast Notification Host (Swap Confirmations & Undo) -->
+    <div class="chal-studio-toast-host" id="chalStudioToastHost" aria-live="polite" aria-atomic="true"></div>
+
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="assets/js/sosa-auth.js?v=20261121a"></script>
-    <script src="assets/js/stats.js?v=20261123b"></script>
+    <script src="assets/js/stats.js?v=20261124c"></script>
     <script src="assets/js/dock.js?v=20261123a"></script>
     <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>
 </body>
