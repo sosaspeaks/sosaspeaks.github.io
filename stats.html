@@ -27,7 +27,7 @@
 
     <!-- Style sheets -->
     <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261116w">
-    <link rel="stylesheet" href="assets/css/stats.css?v=20261124b">
+    <link rel="stylesheet" href="assets/css/stats.css?v=20261124c">
     <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
 
     <!-- Box icons -->
@@ -177,57 +177,59 @@
                             </nav>
                         </div>
 
-                        <!-- Windows 7 Dark Phosphor Resource Telemetry Monitor -->
+                        <!-- RM-3: Windows 7 PerfMon Aqua LCD Resource Monitor -->
                         <div class="resource-telemetry-box" id="resourceTelemetryBox" aria-label="Library Telemetry">
                             <div class="tele-head">
-                                <span>RESOURCE MONITOR</span>
+                                <span class="tele-head-title"><i class='bx bx-tachometer'></i> Resource Monitor</span>
                                 <span class="tele-live-dot" title="Live Supabase Ledger">LIVE</span>
                             </div>
 
-                            <div class="tele-metric">
-                                <div class="tele-row">
-                                    <span>SPINS LOGGED</span>
-                                    <strong id="teleSpins">—</strong>
+                            <div class="tele-lcd-screen">
+                                <div class="tele-metric">
+                                    <div class="tele-row">
+                                        <span>SPINS LOGGED</span>
+                                        <strong id="teleSpins">—</strong>
+                                    </div>
+                                    <div class="tele-led-track" id="teleBarSpins" data-led-tone="emerald" aria-hidden="true"></div>
+                                    <div class="tele-sub" id="teleSpinsSub">Loading...</div>
                                 </div>
-                                <div class="phosphor-bar-track"><div class="phosphor-bar-fill" id="teleBarSpins" style="width: 0%;"></div></div>
-                                <div class="tele-sub" id="teleSpinsSub">Loading...</div>
-                            </div>
 
-                            <div class="tele-metric">
-                                <div class="tele-row">
-                                    <span>TOTAL RUNTIME</span>
-                                    <strong id="teleRuntime">—</strong>
+                                <div class="tele-metric">
+                                    <div class="tele-row">
+                                        <span>TOTAL RUNTIME</span>
+                                        <strong id="teleRuntime">—</strong>
+                                    </div>
+                                    <div class="tele-led-track" id="teleBarRuntime" data-led-tone="sky" aria-hidden="true"></div>
+                                    <div class="tele-sub" id="teleRuntimeSub">Avg runtime: —</div>
                                 </div>
-                                <div class="phosphor-bar-track"><div class="phosphor-bar-fill is-sky" id="teleBarRuntime" style="width: 0%;"></div></div>
-                                <div class="tele-sub" id="teleRuntimeSub">Avg runtime: —</div>
-                            </div>
 
-                            <div class="tele-metric">
-                                <div class="tele-row">
-                                    <span>MEAN RATING</span>
-                                    <strong id="teleRating" class="is-amber">—</strong>
+                                <div class="tele-metric">
+                                    <div class="tele-row">
+                                        <span>MEAN RATING</span>
+                                        <strong id="teleRating" class="is-amber">—</strong>
+                                    </div>
+                                    <div class="tele-led-track" id="teleBarRating" data-led-tone="amber" aria-hidden="true"></div>
+                                    <div class="tele-sub" id="teleRatingSub">Std Dev: ±0.00</div>
                                 </div>
-                                <div class="phosphor-bar-track"><div class="phosphor-bar-fill is-amber" id="teleBarRating" style="width: 0%;"></div></div>
-                                <div class="tele-sub" id="teleRatingSub">Std Dev: ±0.00</div>
-                            </div>
 
-                            <div class="tele-metric">
-                                <div class="tele-row">
-                                    <span>ACTIVE STREAK</span>
-                                    <strong id="teleStreak">—</strong>
+                                <div class="tele-metric">
+                                    <div class="tele-row">
+                                        <span>ACTIVE STREAK</span>
+                                        <strong id="teleStreak" class="is-emerald">—</strong>
+                                    </div>
+                                    <div class="tele-led-track" id="teleBarStreak" data-led-tone="teal" aria-hidden="true"></div>
+                                    <div class="tele-sub" id="teleStreakSub">Best: 0 days</div>
                                 </div>
-                                <div class="phosphor-bar-track"><div class="phosphor-bar-fill" id="teleBarStreak" style="width: 0%;"></div></div>
-                                <div class="tele-sub" id="teleStreakSub">Best: 0 days</div>
-                            </div>
 
-                            <div class="tele-footer-grid">
-                                <div class="tele-mini-cell">
-                                    <span>ARTISTS / GENRES</span>
-                                    <strong id="teleLibraryMix">— / —</strong>
-                                </div>
-                                <div class="tele-mini-cell">
-                                    <span>RE-SPIN RATE</span>
-                                    <strong id="teleRelisten">—</strong>
+                                <div class="tele-footer-grid">
+                                    <div class="tele-mini-cell">
+                                        <span>ARTISTS / GENRES</span>
+                                        <strong id="teleLibraryMix">— / —</strong>
+                                    </div>
+                                    <div class="tele-mini-cell">
+                                        <span>RE-SPIN RATE</span>
+                                        <strong id="teleRelisten">—</strong>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -235,10 +237,10 @@
 
                     <!-- Right Explorer Workspace -->
                     <div class="explorer-workspace">
-                        <!-- VIEW 1: OVERVIEW -->
+                        <!-- VIEW 1: OVERVIEW (CONCEPT A AERO GLASS + 5★ HALL OF FAME) -->
                         <section class="explorer-view-panel active" data-view="overview" aria-label="Overview">
                             <div class="overview-monitor-strip">
-                                <!-- Rating Distribution -->
+                                <!-- Rating Distribution (Glossy Aero Vertical Glass Bars) -->
                                 <div class="aero-panel explorer-card">
                                     <div class="panel-header">
                                         <div class="panel-title">
@@ -246,9 +248,7 @@
                                         </div>
                                         <span class="panel-badge" id="ratingSpreadBadge">0.5 – 5.0★</span>
                                     </div>
-                                    <div class="chart-wrapper chart-wrapper-compact">
-                                        <canvas id="ratingDistChart"></canvas>
-                                    </div>
+                                    <div class="aero-rating-bars" id="overviewRatingBars" aria-label="Rating distribution chart"></div>
                                     <div class="strictness-breakdown">
                                         <div class="multi-progress-bar" id="strictnessProgressBar" title="Strictness Breakdown">
                                             <div class="progress-seg seg-5" id="seg5" style="width: 0%;"></div>
@@ -277,105 +277,71 @@
                                     </div>
                                 </div>
 
-                                <!-- Rotation, Streak & Activity Snapshot -->
-                                <div class="aero-panel explorer-card snapshot-panel">
+                                <!-- Library Identity & Pulse (Non-Redundant Compact Stack) -->
+                                <div class="aero-panel explorer-card identity-pulse-panel">
                                     <div class="panel-header">
                                         <div class="panel-title">
-                                            <i class='bx bx-pulse'></i> Rotation &amp; Streak Snapshot
+                                            <i class='bx bx-disc'></i> Library Identity &amp; Pulse
                                         </div>
-                                        <span class="panel-badge" id="snapshotEraBadge">Live Ledger</span>
+                                        <span class="panel-badge" id="snapshotEraBadge">Live Snapshot</span>
                                     </div>
 
-                                    <div class="snapshot-metrics-grid">
-                                        <div class="snapshot-cell">
-                                            <span class="snapshot-label">Current Streak</span>
-                                            <strong class="snapshot-val is-retro" id="snapCurrentStreak">0 days</strong>
-                                            <span class="snapshot-sub" id="snapLongestStreak">Best: 0 days</span>
+                                    <div class="identity-pulse-body">
+                                        <div class="identity-chip-pair">
+                                            <div class="identity-chip">
+                                                <img src="assets/images/spins/placeholder.png" alt="" id="snapTopArtistCover" class="identity-chip-thumb">
+                                                <div class="identity-chip-text">
+                                                    <span class="snapshot-label">Most Spun Artist</span>
+                                                    <strong class="identity-chip-val" id="snapTopArtist">—</strong>
+                                                    <span class="identity-chip-sub" id="snapTopArtistSub">—</span>
+                                                </div>
+                                            </div>
+                                            <div class="identity-chip">
+                                                <span class="identity-chip-icon" aria-hidden="true"><i class='bx bx-equalizer'></i></span>
+                                                <div class="identity-chip-text">
+                                                    <span class="snapshot-label">Dominant Genre</span>
+                                                    <strong class="identity-chip-val" id="snapTopGenre">—</strong>
+                                                    <span class="identity-chip-sub" id="snapTopGenreSub">—</span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div class="snapshot-cell">
-                                            <span class="snapshot-label">Active Log Days</span>
-                                            <strong class="snapshot-val is-retro" id="snapActiveDays">0</strong>
-                                            <span class="snapshot-sub" id="snapPeakDay">Peak: —</span>
-                                        </div>
-                                        <div class="snapshot-cell">
-                                            <span class="snapshot-label">Most Spun Artist</span>
-                                            <strong class="snapshot-val" id="snapTopArtist">—</strong>
-                                            <span class="snapshot-sub" id="snapTopArtistSub">—</span>
-                                        </div>
-                                        <div class="snapshot-cell">
-                                            <span class="snapshot-label">Dominant Genre</span>
-                                            <strong class="snapshot-val" id="snapTopGenre">—</strong>
-                                            <span class="snapshot-sub" id="snapTopGenreSub">—</span>
-                                        </div>
-                                    </div>
 
-                                    <div class="snapshot-mini-calendar-wrap">
-                                        <div class="snapshot-mini-cal-head">
-                                            <span>Recent 12 Weeks Activity</span>
-                                            <div class="snapshot-quick-links">
-                                                <button type="button" class="explorer-link-btn" id="jumpToCloudsBtn">
-                                                    <i class='bx bx-cloud'></i> Clouds &amp; Tags ▸
-                                                </button>
-                                                <button type="button" class="explorer-link-btn" id="jumpToCalendarBtn">
-                                                    <i class='bx bx-calendar'></i> Full Calendar ▸
+                                        <div class="identity-sub-block">
+                                            <div class="identity-sub-head">
+                                                <span class="snapshot-label">Format Split</span>
+                                                <span class="identity-sub-meta" id="overviewFormatMeta">—</span>
+                                            </div>
+                                            <div class="overview-format-bar" id="overviewFormatBar" aria-label="Format distribution"></div>
+                                        </div>
+
+                                        <div class="identity-sub-block">
+                                            <div class="identity-sub-head">
+                                                <span class="snapshot-label">Challenge Backlog</span>
+                                                <span class="identity-sub-meta is-emerald" id="ovChallengeMeta">—</span>
+                                            </div>
+                                            <div class="identity-chal-inline">
+                                                <strong class="identity-chal-count" id="ovChallengeHeadline">—</strong>
+                                                <div class="multi-progress-bar challenge-progress-track">
+                                                    <div class="progress-seg seg-5" id="ovChallengeBar" style="width: 0%;"></div>
+                                                </div>
+                                                <button type="button" class="explorer-link-btn" id="jumpToChallengeBtn">
+                                                    Open ▸
                                                 </button>
                                             </div>
                                         </div>
-                                        <div class="mini-heatmap-strip" id="overviewMiniHeatmap" aria-label="Recent 12 weeks listening heatmap"></div>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Row 2 Overview: Format Mix & Challenge Backlog Pulse -->
-                            <div class="overview-secondary-strip">
-                                <div class="aero-panel explorer-card">
-                                    <div class="panel-header">
-                                        <div class="panel-title">
-                                            <i class='bx bx-pie-chart-alt-2'></i> Format &amp; Re-Spin Breakdown
-                                        </div>
-                                        <span class="panel-badge" id="formatMixBadge">Library Split</span>
+                            <!-- Row 2 Overview: Full-Width 5.0★ Hall of Fame (Recent Perfect Scores) -->
+                            <div class="aero-panel explorer-card hof-panel">
+                                <div class="panel-header">
+                                    <div class="panel-title">
+                                        <i class='bx bxs-star' style="color: #d97706;"></i> 5.0★ Hall of Fame — Recent Perfect Scores
                                     </div>
-                                    <div class="format-mix-layout">
-                                        <div class="format-chart-box">
-                                            <canvas id="formatMixChart"></canvas>
-                                        </div>
-                                        <div class="format-summary-list" id="formatStatsSummary"></div>
-                                    </div>
+                                    <span class="panel-badge" id="overviewHallOfFameBadge">0 Perfect Records</span>
                                 </div>
-
-                                <div class="aero-panel explorer-card challenge-pulse-card">
-                                    <div class="panel-header">
-                                        <div class="panel-title">
-                                            <i class='bx bx-grid-alt'></i> Challenge Backlog Pulse
-                                        </div>
-                                        <button type="button" class="explorer-link-btn" id="jumpToChallengeBtn">
-                                            Open Backlog ▸
-                                        </button>
-                                    </div>
-                                    <div class="challenge-pulse-top">
-                                        <div>
-                                            <span class="snapshot-label">Overall Completion</span>
-                                            <div class="challenge-pulse-big" id="ovChallengeHeadline">—</div>
-                                            <div class="challenge-pulse-sub" id="ovChallengeSub">Syncing challenge_backlog...</div>
-                                        </div>
-                                        <span class="panel-badge" id="ovChallengePct">0%</span>
-                                    </div>
-                                    <div class="multi-progress-bar challenge-progress-track">
-                                        <div class="progress-seg seg-5" id="ovChallengeBar" style="width: 0%;"></div>
-                                    </div>
-                                    <div class="challenge-pulse-grid">
-                                        <div class="snapshot-cell">
-                                            <span class="snapshot-label">Remaining Runtime</span>
-                                            <strong class="snapshot-val" id="ovChallengeRuntime">—</strong>
-                                            <span class="snapshot-sub" id="ovChallengeRuntimeSub">—</span>
-                                        </div>
-                                        <div class="snapshot-cell">
-                                            <span class="snapshot-label">RYM vs My ★</span>
-                                            <strong class="snapshot-val" id="ovChallengeDelta">—</strong>
-                                            <span class="snapshot-sub" id="ovChallengeRecal">Recalibrate: —</span>
-                                        </div>
-                                    </div>
-                                </div>
+                                <div class="overview-hof-grid" id="overviewHallOfFameGrid"></div>
                             </div>
                         </section>
 
@@ -955,62 +921,62 @@
                                 <div class="monthly-months-bar" id="monthlyMonthsBar" role="tablist" aria-label="Select Month"></div>
                             </div>
 
-                            <!-- Aero Zine Dark Spotlight Hero -->
+                            <!-- Frosted Album-Art Glass Spotlight Hero -->
                             <div class="monthly-zine-hero" id="monthlyZineHero">
-                                <a href="sosaspins.html" target="_blank" id="monthlySpotlightLink" class="monthly-hero-cover-link" title="Inspect Top Album">
-                                    <img src="assets/images/spins/placeholder.png" alt="Album of the Month" id="monthlySpotlightCover" class="monthly-hero-cover">
-                                    <span class="monthly-cover-ribbon">#1 PICK</span>
-                                </a>
+                                <div class="monthly-hero-glass">
+                                    <a href="sosaspins.html" target="_blank" id="monthlySpotlightLink" class="monthly-hero-cover-link" title="Inspect Top Album">
+                                        <img src="assets/images/spins/placeholder.png" alt="Album of the Month" id="monthlySpotlightCover" class="monthly-hero-cover">
+                                        <span class="monthly-cover-ribbon">#1 PICK</span>
+                                    </a>
 
-                                <div class="monthly-hero-body">
-                                    <div class="monthly-hero-kicker" id="monthlyHeroKicker">PREVIOUS MONTH SPOTLIGHT</div>
-                                    <h3 class="monthly-hero-title" id="monthlyHeroTitle">—</h3>
-                                    <div class="monthly-hero-pick" id="monthlyHeroTopPick">No spins logged in this month.</div>
-                                    <div class="monthly-hero-mood" id="monthlyHeroMood">Mood Signature: —</div>
-                                </div>
+                                    <div class="monthly-hero-body">
+                                        <div class="monthly-hero-kicker" id="monthlyHeroKicker">PREVIOUS MONTH SPOTLIGHT</div>
+                                        <h3 class="monthly-hero-title" id="monthlyHeroTitle">—</h3>
+                                        <div class="monthly-hero-pick" id="monthlyHeroTopPick">No spins logged in this month.</div>
+                                        <div class="monthly-hero-tags" id="monthlyHeroGenres"></div>
+                                    </div>
 
-                                <div class="monthly-hero-metrics">
-                                    <div class="monthly-hero-stat">
-                                        <strong id="monthlyHeroSpins">0</strong>
-                                        <span>SPINS <em id="monthlyHeroDelta"></em></span>
-                                    </div>
-                                    <div class="monthly-hero-stat">
-                                        <strong id="monthlyHeroRuntime" class="is-sky">0m</strong>
-                                        <span>RUNTIME</span>
-                                    </div>
-                                    <div class="monthly-hero-stat">
-                                        <strong id="monthlyHeroRating" class="is-amber">— ★</strong>
-                                        <span>MEAN RATING</span>
-                                    </div>
-                                    <div class="monthly-hero-stat">
-                                        <strong id="monthlyHeroDays">0</strong>
-                                        <span>ACTIVE DAYS</span>
+                                    <div class="monthly-hero-metrics">
+                                        <div class="monthly-hero-stat">
+                                            <strong id="monthlyHeroSpins">0</strong>
+                                            <span>SPINS <em id="monthlyHeroDelta"></em></span>
+                                        </div>
+                                        <div class="monthly-hero-stat">
+                                            <strong id="monthlyHeroRating" class="is-amber">— ★</strong>
+                                            <span id="monthlyHeroRatingDelta">MEAN RATING</span>
+                                        </div>
+                                        <div class="monthly-hero-stat">
+                                            <strong id="monthlyHeroRuntime" class="is-sky">0m</strong>
+                                            <span>RUNTIME</span>
+                                        </div>
+                                        <div class="monthly-hero-stat">
+                                            <strong id="monthlyHeroDays">0</strong>
+                                            <span>ACTIVE DAYS</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Daily Cadence Chart + Monthly Sound Profile -->
+                            <!-- Month Rating Breakdown (Replaces Daily Cadence) + Top Artists -->
                             <div class="monthly-charts-grid">
                                 <div class="aero-panel explorer-card">
                                     <div class="panel-header">
                                         <div class="panel-title">
-                                            <i class='bx bx-bar-chart'></i> <span>Daily Cadence (<span id="monthlyCadenceSpanLabel">Days 1–31</span>)</span>
+                                            <i class='bx bx-slider-alt'></i> Month Rating Breakdown
                                         </div>
-                                        <span class="panel-badge" id="monthlyPeakDayBadge">Peak: —</span>
+                                        <span class="panel-badge" id="monthlyRelistensBadge">0 Relistens</span>
                                     </div>
-                                    <div class="chart-wrapper chart-wrapper-compact">
-                                        <canvas id="monthlyDailyChart"></canvas>
-                                    </div>
+                                    <div class="monthly-rating-bars" id="monthlyRatingBars"></div>
+                                    <div class="monthly-hero-mood" id="monthlyHeroMood">Mood Signature: —</div>
                                 </div>
 
                                 <div class="aero-panel explorer-card">
                                     <div class="panel-header">
                                         <div class="panel-title">
-                                            <i class='bx bx-album'></i> Month Sound Signature &amp; Artists
+                                            <i class='bx bx-user-voice'></i> <span id="monthlyTopArtistsHeading">Top Artists</span>
                                         </div>
-                                        <span class="panel-badge" id="monthlyRelistensBadge">0 Relistens</span>
+                                        <span class="panel-badge" id="monthlyArtistsBadge">0 Featured</span>
                                     </div>
-                                    <div class="monthly-genres-wrap" id="monthlyGenresWrap"></div>
                                     <div class="leaderboard-list" id="monthlyTopArtistsList"></div>
                                 </div>
                             </div>
@@ -1155,7 +1121,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="assets/js/sosa-auth.js?v=20261121a"></script>
-    <script src="assets/js/stats.js?v=20261124c"></script>
+    <script src="assets/js/stats.js?v=20261124d"></script>
     <script src="assets/js/dock.js?v=20261123a"></script>
     <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>
 </body>

@@ -1337,24 +1337,35 @@
       const el = document.getElementById(id);
       if (el) el.textContent = txt;
     };
-    const setWidth = (id, pct) => {
+    const setLedTrack = (id, pct) => {
       const el = document.getElementById(id);
-      if (el) el.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+      if (!el) return;
+      const clamped = Math.max(0, Math.min(100, Number(pct) || 0));
+      const lit = clamped > 0 ? Math.max(1, Math.round((clamped / 100) * 12)) : 0;
+      if (el.children.length !== 12) {
+        el.innerHTML = Array.from({ length: 12 }, (_, i) =>
+          `<i class="tele-led-seg${i < lit ? " is-on" : ""}"></i>`
+        ).join("");
+      } else {
+        Array.from(el.children).forEach((seg, i) => {
+          seg.classList.toggle("is-on", i < lit);
+        });
+      }
     };
 
     if (!metrics) {
       setText("teleSpins", "0");
       setText("teleSpinsSub", "0 albums, 0 singles, 0 EPs");
-      setWidth("teleBarSpins", 0);
+      setLedTrack("teleBarSpins", 0);
       setText("teleRuntime", "0m");
       setText("teleRuntimeSub", "Avg runtime: 0m");
-      setWidth("teleBarRuntime", 0);
+      setLedTrack("teleBarRuntime", 0);
       setText("teleRating", "— ★");
       setText("teleRatingSub", "Std Dev: ±0.00");
-      setWidth("teleBarRating", 0);
+      setLedTrack("teleBarRating", 0);
       setText("teleStreak", "0d");
       setText("teleStreakSub", "Best: 0 days");
-      setWidth("teleBarStreak", 0);
+      setLedTrack("teleBarStreak", 0);
       setText("teleLibraryMix", "0 / 0");
       setText("teleRelisten", "0.0%");
       setText("navCloudsCount", "0");
@@ -1378,19 +1389,19 @@
       "teleSpinsSub",
       `${metrics.albumCount} alb • ${metrics.singleCount} sgl • ${metrics.epCount} EP${metrics.extraCount ? ` • ${metrics.extraCount} ext` : ""}`
     );
-    setWidth("teleBarSpins", (metrics.totalSpins / totalAll) * 100);
+    setLedTrack("teleBarSpins", (metrics.totalSpins / totalAll) * 100);
 
     setText("teleRuntime", metrics.formattedTotalTime);
     setText("teleRuntimeSub", `Avg album runtime: ${metrics.avgRuntimeFormatted}`);
-    setWidth("teleBarRuntime", metrics.totalSeconds > 0 ? Math.min(100, (metrics.totalSeconds / 1200000) * 100) : 0);
+    setLedTrack("teleBarRuntime", metrics.totalSeconds > 0 ? Math.min(100, (metrics.totalSeconds / 1200000) * 100) : 0);
 
     setText("teleRating", `${metrics.avgRating} ★`);
     setText("teleRatingSub", `Spread (Std Dev): ±${metrics.stdDev}`);
-    setWidth("teleBarRating", (avgNum / 5) * 100);
+    setLedTrack("teleBarRating", (avgNum / 5) * 100);
 
     setText("teleStreak", `${curStreak}d`);
     setText("teleStreakSub", `Best: ${cal.longestStreak || 0} days (${cal.totalActiveDays || 0} active)`);
-    setWidth("teleBarStreak", (curStreak / bestStreak) * 100);
+    setLedTrack("teleBarStreak", (curStreak / bestStreak) * 100);
 
     setText("teleLibraryMix", `${metrics.uniqueArtistsCount} / ${metrics.uniqueGenresCount}`);
     setText("teleRelisten", `${metrics.relistenRate}%`);
@@ -1442,6 +1453,64 @@
     setText("snapTopArtistSub", metrics.topArtistCount ? `${metrics.topArtistCount} spins` : "—");
     setText("snapTopGenre", metrics.topGenreName || "—");
     setText("snapTopGenreSub", metrics.topGenreCount ? `${metrics.topGenreCount} spins` : "—");
+    setText("ratingSpreadBadge", `Mean ${metrics.avgRating}★ · ±${metrics.stdDev}`);
+
+    const topArtistCoverEl = document.getElementById("snapTopArtistCover");
+    if (topArtistCoverEl) {
+      const topObj = (metrics.topArtists || [])[0];
+      topArtistCoverEl.src = (topObj && topObj.cover) ? topObj.cover : "assets/images/spins/placeholder.png";
+      topArtistCoverEl.alt = metrics.topArtistName || "Top Artist";
+      topArtistCoverEl.onerror = function() {
+        this.onerror = null;
+        this.src = "assets/images/spins/placeholder.png";
+      };
+    }
+
+    // Custom Glassy Aero Vertical Rating Bars (Overview)
+    const barsEl = document.getElementById("overviewRatingBars");
+    if (barsEl && metrics.ratingBins) {
+      const entries = Object.entries(metrics.ratingBins);
+      const maxVal = Math.max(...entries.map(([, v]) => v), 1);
+      const total = Math.max(metrics.totalSpins || 1, 1);
+      barsEl.innerHTML = entries.map(([bin, count]) => {
+        const h = count > 0 ? Math.max(6, Math.round((count / maxVal) * 100)) : 2;
+        const pct = ((count / total) * 100).toFixed(1);
+        const isPeak = count > 0 && count === maxVal;
+        const isFive = bin === "5.0";
+        return `
+          <div class="aero-rb-col${isPeak ? " is-peak" : ""}${isFive ? " is-five" : ""}" title="${bin}★: ${count} spin${count === 1 ? "" : "s"} (${pct}%)">
+            <span class="aero-rb-val">${count || ""}</span>
+            <div class="aero-rb-track"><div class="aero-rb-fill" style="height:${h}%;"></div></div>
+            <span class="aero-rb-lbl">${bin}</span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    // Full-Width 5.0★ Hall of Fame — Recent Perfect Scores (Overview Row 2)
+    const hofGrid = document.getElementById("overviewHallOfFameGrid");
+    const hofBadge = document.getElementById("overviewHallOfFameBadge");
+    if (hofGrid) {
+      const fiveSpins = (filteredSpins || []).filter(s => s && !s.relisten_pending && parseFloat(s.rating) >= 5.0);
+      const total5 = fiveSpins.length;
+      const pct5 = metrics.strictness ? metrics.strictness.pct5 : "0.0";
+      if (hofBadge) {
+        hofBadge.textContent = `${total5} Perfect Record${total5 === 1 ? "" : "s"} (${pct5}%)`;
+      }
+      const recentFive = fiveSpins.slice(0, 5);
+      hofGrid.innerHTML = recentFive.length
+        ? recentFive.map(s => `
+            <a class="overview-hof-tile" href="sosaspins.html#spin-row-${encodeURIComponent(s.id)}" title="${escapeHtml(s.title)} — ${escapeHtml(s.artist)} (5.0★)">
+              <img src="${escapeHtml(s.cover_url || "assets/images/spins/placeholder.png")}" alt="${escapeHtml(s.title)}" loading="lazy" onerror="this.onerror=null;this.src='assets/images/spins/placeholder.png';">
+              <span class="overview-hof-badge">5.0★</span>
+              <div class="overview-hof-cap">
+                <strong>${escapeHtml(s.title || "Untitled")}</strong>
+                <span>${escapeHtml(s.artist || "Unknown")}</span>
+              </div>
+            </a>
+          `).join("")
+        : `<div style="grid-column:1/-1;padding:1.4rem;text-align:center;color:#64748b;font-size:0.8rem;">No 5.0★ spins match the active filter.</div>`;
+    }
 
     if (!miniEl) return;
 
@@ -1554,24 +1623,43 @@
   }
 
   function renderOverviewFormatSummary(metrics) {
+    const barEl = document.getElementById("overviewFormatBar");
+    const metaEl = document.getElementById("overviewFormatMeta");
     const summaryEl = document.getElementById("formatStatsSummary");
-    if (!summaryEl) return;
 
     const list = metrics && metrics.formatBreakdown ? metrics.formatBreakdown : [];
-    if (!list.length) {
-      summaryEl.innerHTML = `<div style="padding: 1rem; text-align: center; color: #64748b; font-size: 0.78rem;">No format data.</div>`;
-      return;
+
+    if (barEl) {
+      const primaryFormats = list.filter(it => it.label !== "Relistens" && it.count > 0);
+      const totalPrimary = primaryFormats.reduce((sum, it) => sum + it.count, 0) || 1;
+      barEl.innerHTML = primaryFormats.length
+        ? primaryFormats.map(item => {
+            const w = (item.count / totalPrimary) * 100;
+            const showTxt = w >= 11 ? `${w >= 26 ? `${item.label} ` : ""}${Math.round(w)}%` : "";
+            return `<span class="overview-fmt-seg" style="width:${w.toFixed(1)}%;background:${item.color};" title="${escapeHtml(item.label)}: ${item.count} (${item.pct}%) • ${item.avg}★">${showTxt}</span>`;
+          }).join("")
+        : `<span class="overview-fmt-seg" style="width:100%;background:rgba(148,163,184,0.35);">—</span>`;
     }
 
-    summaryEl.innerHTML = list.map(item => `
-      <div class="format-summary-row">
-        <span class="format-summary-left">
-          <span class="format-dot" style="background: ${item.color};"></span>
-          <span>${escapeHtml(item.label)}</span>
-        </span>
-        <span class="format-summary-right">${item.count} (${item.pct}%) • ${item.avg}★</span>
-      </div>
-    `).join("");
+    if (metaEl && metrics) {
+      metaEl.textContent = `${metrics.albumCount} Alb · ${metrics.singleCount} Sgl · ${metrics.epCount} EP`;
+    }
+
+    if (summaryEl) {
+      if (!list.length) {
+        summaryEl.innerHTML = `<div style="padding: 1rem; text-align: center; color: #64748b; font-size: 0.78rem;">No format data.</div>`;
+        return;
+      }
+      summaryEl.innerHTML = list.map(item => `
+        <div class="format-summary-row">
+          <span class="format-summary-left">
+            <span class="format-dot" style="background: ${item.color};"></span>
+            <span>${escapeHtml(item.label)}</span>
+          </span>
+          <span class="format-summary-right">${item.count} (${item.pct}%) • ${item.avg}★</span>
+        </div>
+      `).join("");
+    }
   }
 
   function renderOverviewChallengePulse(chalStats) {
@@ -1583,6 +1671,7 @@
     const barEl = document.getElementById("ovChallengeBar");
     if (!chalStats) {
       setText("ovChallengeHeadline", "—");
+      setText("ovChallengeMeta", "Unavailable offline");
       setText("ovChallengeSub", "Unavailable offline");
       setText("ovChallengePct", "0%");
       setText("ovChallengeRuntime", "—");
@@ -1595,6 +1684,10 @@
     }
 
     setText("ovChallengeHeadline", `${chalStats.completedMonthly} / ${chalStats.totalMonthly}`);
+    setText(
+      "ovChallengeMeta",
+      `${chalStats.ratingDeltaFormatted && chalStats.ratingDeltaFormatted !== "—" ? `${chalStats.ratingDeltaFormatted} vs RYM · ` : ""}${chalStats.pct}%`
+    );
     setText("ovChallengeSub", `${chalStats.remainingMonthly} monthly challenge albums remaining`);
     setText("ovChallengePct", `${chalStats.pct}%`);
     setText("ovChallengeRuntime", chalStats.formattedRemainingRuntime);
@@ -2980,29 +3073,44 @@
       });
     }
 
-    // Aero Zine Hero Spotlight
+    // Frosted Album-Art Glass Hero Spotlight
     setText(
       "monthlyHeroKicker",
-      m.isPreviousCalendarMonth ? "PREVIOUS MONTH SPOTLIGHT • ALBUM OF THE MONTH" : "ARCHIVE RECAP SPOTLIGHT • TOP PROJECT"
+      `${m.monthLabel.toUpperCase()} • ${m.isPreviousCalendarMonth ? "ALBUM OF THE MONTH" : "ARCHIVE SPOTLIGHT"}`
     );
-    setText("monthlyHeroTitle", `${m.monthLabel.toUpperCase()} RECAP`);
 
+    const heroEl = document.getElementById("monthlyZineHero");
     const spotImg = document.getElementById("monthlySpotlightCover");
     const spotLink = document.getElementById("monthlySpotlightLink");
     if (m.topPick) {
       const ratingNum = parseFloat(m.topPick.rating);
       const rTxt = !isNaN(ratingNum) ? `${ratingNum.toFixed(1)} ★` : "Unrated";
+      setText("monthlyHeroTitle", m.topPick.title || m.monthLabel);
       const pickEl = document.getElementById("monthlyHeroTopPick");
       if (pickEl) {
-        pickEl.innerHTML = `No. 1 Pick: ${escapeHtml(m.topPick.title || "Untitled")} — ${escapeHtml(m.topPick.artist || "Unknown")} <span style="color: #fbbf24;">(${rTxt})</span>`;
+        pickEl.innerHTML = `${escapeHtml(m.topPick.artist || "Unknown")} <span style="color: #fde68a; margin-left: 4px;">(${rTxt})</span>`;
       }
+      const coverSrc = m.topPick.cover_url || "assets/images/spins/placeholder.png";
       if (spotImg) {
-        spotImg.src = m.topPick.cover_url || "assets/images/spins/placeholder.png";
+        spotImg.src = coverSrc;
         spotImg.alt = m.topPick.title || "Top Album";
+      }
+      if (heroEl) {
+        heroEl.style.setProperty("--monthly-hero-bg", `url("${coverSrc.replace(/"/g, '\\"')}")`);
       }
       if (spotLink) {
         spotLink.href = `sosaspins.html#spin-row-${m.topPick.id}`;
       }
+    } else {
+      setText("monthlyHeroTitle", `${m.monthLabel} Recap`);
+      if (heroEl) heroEl.style.removeProperty("--monthly-hero-bg");
+    }
+
+    const heroGenresEl = document.getElementById("monthlyHeroGenres");
+    if (heroGenresEl) {
+      heroGenresEl.innerHTML = (m.topGenres || []).slice(0, 5).map(g =>
+        `<span class="monthly-hero-tag">${escapeHtml(g.name)} <b>${g.count}</b></span>`
+      ).join("");
     }
 
     setText(
@@ -3016,16 +3124,52 @@
     setText("monthlyHeroDelta", m.spinDeltaText);
     setText("monthlyHeroRuntime", m.formattedRuntime);
     setText("monthlyHeroRating", `${m.avgRating} ★`);
+    const allTimeMean = currentMetrics ? parseFloat(currentMetrics.avgRating) : NaN;
+    const monthMean = parseFloat(m.avgRating);
+    if (!isNaN(allTimeMean) && !isNaN(monthMean)) {
+      const diff = monthMean - allTimeMean;
+      setText("monthlyHeroRatingDelta", `${diff >= 0 ? "+" : ""}${diff.toFixed(2)} VS AVG`);
+    } else {
+      setText("monthlyHeroRatingDelta", "MEAN RATING");
+    }
     setText("monthlyHeroDays", `${m.activeDays} / ${m.daysInMonth}`);
-
-    setText("monthlyCadenceSpanLabel", `Days 1–${m.daysInMonth}`);
-    setText(
-      "monthlyPeakDayBadge",
-      m.peakDay && m.peakDay.count > 0
-        ? `Peak: Day ${m.peakDay.day} (${m.peakDay.count})`
-        : "Peak: —"
-    );
     setText("monthlyRelistensBadge", `${m.relistensCount} Relisten${m.relistensCount === 1 ? "" : "s"}`);
+    setText("monthlyTopArtistsHeading", `Top Artists in ${m.monthLabel.split(" ")[0] || m.monthLabel}`);
+    setText("monthlyArtistsBadge", `${m.topArtists.length} Featured`);
+
+    // Month Rating Breakdown Bars (Replaces sparse Daily Cadence chart)
+    const monthlyBarsEl = document.getElementById("monthlyRatingBars");
+    if (monthlyBarsEl) {
+      const monthSpins = m.sortedByRating || m.sortedByDate || [];
+      const tiers = [
+        { label: "5.0★", count: 0, color: "linear-gradient(90deg, #10b981, #34d399)" },
+        { label: "4.0–4.5★", count: 0, color: "linear-gradient(90deg, #0284c7, #38bdf8)" },
+        { label: "3.0–3.5★", count: 0, color: "linear-gradient(90deg, #d97706, #fbbf24)" },
+        { label: "<3.0★", count: 0, color: "linear-gradient(90deg, #e11d48, #fb7185)" }
+      ];
+      let ratedTotal = 0;
+      monthSpins.forEach(s => {
+        const r = parseFloat(s.rating);
+        if (isNaN(r) || r <= 0) return;
+        ratedTotal++;
+        if (r >= 5.0) tiers[0].count++;
+        else if (r >= 4.0) tiers[1].count++;
+        else if (r >= 3.0) tiers[2].count++;
+        else tiers[3].count++;
+      });
+      const denom = Math.max(ratedTotal, 1);
+      monthlyBarsEl.innerHTML = tiers.map(t => {
+        const pct = ratedTotal ? Math.round((t.count / denom) * 100) : 0;
+        const barW = t.count > 0 ? Math.max(pct, 4) : 0;
+        return `
+          <div class="monthly-rb-row">
+            <span class="monthly-rb-lbl">${t.label}</span>
+            <div class="monthly-rb-track"><i class="monthly-rb-fill" style="width:${barW}%;background:${t.color};"></i></div>
+            <span class="monthly-rb-val">${t.count} <small>(${pct}%)</small></span>
+          </div>
+        `;
+      }).join("");
+    }
 
     if (genresWrap) {
       genresWrap.innerHTML = m.topGenres.map(g => `
