@@ -22,7 +22,7 @@
   <meta property="og:image" content="https://sosaspeaks.org/assets/images/homepics/Sosa-Icon-V3.png">
   <link rel="icon" type="image/png" href="assets/images/homepics/Sosa-Icon-V3.png">
   <link rel="stylesheet" href="assets/css/challenge.css?v=20261123m">
-  <link rel="stylesheet" href="assets/css/sotd.css?v=20261123g">
+  <link rel="stylesheet" href="assets/css/sotd.css?v=20261124b">
   <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
   <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
 </head>
@@ -100,6 +100,9 @@
           </button>
 
           <div class="aero-filter-capsule is-compact challenge-view-capsule" id="sotdViewModeCapsule" role="group" aria-label="Calendar view mode">
+            <button type="button" id="sotdWeekViewBtn" class="filter-item" aria-pressed="false" title="Weekly Daily Cards">
+              <i class='bx bx-calendar-week'></i> <span class="cmd-text-full">Week</span><span class="cmd-text-short">Week</span>
+            </button>
             <button type="button" id="sotdMonthViewBtn" class="filter-item active" aria-pressed="true" title="Monthly Cover Wall">
               <i class='bx bx-calendar'></i> <span class="cmd-text-full">Month</span><span class="cmd-text-short">Month</span>
             </button>
@@ -129,6 +132,9 @@
 
         <!-- Featured / Selected Day Hero Strip -->
         <section id="sotdHeroStrip" class="sotd-hero-strip" aria-label="Selected Song of the Day" style="display: none;"></section>
+
+        <!-- Week View: 7-Day Rich Aero Cards -->
+        <section id="sotdWeekView" class="sotd-week-view" aria-label="Weekly Song Calendar" style="display: none;"></section>
 
         <!-- Month View: 7-Column Cover Wall -->
         <section id="sotdMonthView" class="sotd-month-view" aria-label="Monthly Song Calendar">
@@ -465,7 +471,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="assets/js/sosa-auth.js?v=20261121a"></script>
-  <script src="assets/js/sotd.js?v=20261123e"></script>
+  <script src="assets/js/sotd.js?v=20261124b"></script>
   <script src="assets/js/miniplayer-drag.js?v=20261123a" defer></script>
   <script src="assets/js/dock.js?v=20261123a"></script>
   <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>

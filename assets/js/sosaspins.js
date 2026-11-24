@@ -4953,6 +4953,44 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
     return iso === todayIso ? `Today • ${lbl}` : `${lbl}, ${m[1]}`;
   }
 
+  function syncSotdWidgetPlacement() {
+    const widgetEl = document.getElementById("sotdSidebarWidget");
+    const mobileSlot = document.getElementById("sotdMobileSlot");
+    const sidebarCol = document.getElementById("spinsSidebarColumn");
+    if (!widgetEl || !mobileSlot || !sidebarCol) return;
+
+    const useMobileSlot = typeof window.matchMedia === "function"
+      ? window.matchMedia("(max-width: 980px)").matches
+      : window.innerWidth <= 980;
+    const isVisible = widgetEl.style.display !== "none";
+
+    if (useMobileSlot) {
+      if (widgetEl.parentElement !== mobileSlot) {
+        mobileSlot.appendChild(widgetEl);
+      }
+      mobileSlot.style.display = isVisible ? "block" : "none";
+    } else {
+      if (widgetEl.parentElement !== sidebarCol) {
+        const drawerHeader = sidebarCol.querySelector(".sidebar-drawer-header");
+        if (drawerHeader && drawerHeader.nextSibling) {
+          sidebarCol.insertBefore(widgetEl, drawerHeader.nextSibling);
+        } else {
+          sidebarCol.prepend(widgetEl);
+        }
+      }
+      mobileSlot.style.display = "none";
+    }
+  }
+
+  if (typeof window.matchMedia === "function") {
+    const mqSotd = window.matchMedia("(max-width: 980px)");
+    if (typeof mqSotd.addEventListener === "function") {
+      mqSotd.addEventListener("change", syncSotdWidgetPlacement);
+    } else if (typeof mqSotd.addListener === "function") {
+      mqSotd.addListener(syncSotdWidgetPlacement);
+    }
+  }
+
   function renderSotdSidebarWidget() {
     const widgetEl = document.getElementById("sotdSidebarWidget");
     if (!widgetEl) return;
@@ -4980,6 +5018,7 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
       } else {
         widgetEl.style.display = "none";
       }
+      syncSotdWidgetPlacement();
       return;
     }
 
@@ -5073,6 +5112,8 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
         renderSotdSidebarWidget();
       });
     });
+
+    syncSotdWidgetPlacement();
   }
 
   async function loadSotdSidebarWidget() {

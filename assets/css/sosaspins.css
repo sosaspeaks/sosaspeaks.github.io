@@ -2494,6 +2494,8 @@ body.dark-mode .rating-shift-box .new-rating i.bx-star {
   flex-direction: row !important;
   align-items: center;
   gap: 0.35rem;
+  width: 100%;
+  min-width: 0;
   max-width: 100%;
   padding: 5px 2px 6px 2px;
   margin-top: 0.1rem;
@@ -2501,6 +2503,7 @@ body.dark-mode .rating-shift-box .new-rating i.bx-star {
   flex-wrap: wrap !important;
   overflow: visible !important;
   white-space: normal !important;
+  box-sizing: border-box;
 }
 
 .genre-container::-webkit-scrollbar {
@@ -2526,7 +2529,9 @@ body.dark-mode .rating-shift-box .new-rating i.bx-star {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.35rem;
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
   padding: 2px 0;
 }
 
@@ -2720,7 +2725,7 @@ body.dark-mode .rating-shift-box .new-rating i.bx-star {
   }
 
   .desc-scene-row .descriptors-wrapper {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     width: 100%;
   }
 }
@@ -10067,11 +10072,28 @@ a.inline-quoted-track {
   }
 }
 
+.sotd-mobile-slot {
+  display: none;
+}
+
 @media (max-width: 980px) {
+  .sotd-mobile-slot {
+    width: 100%;
+    padding: 0 1.15rem;
+    margin: 0 auto 0.25rem;
+    box-sizing: border-box;
+  }
+
+  .sotd-mobile-slot .sotd-sidebar-widget {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
   .spins-layout-grid {
     grid-template-columns: 1fr !important;
-    gap: 1.75rem !important;
-    padding: 3rem 1.15rem 2rem !important;
+    gap: 1.5rem !important;
+    padding: 1.1rem 1.15rem 2rem !important;
   }
 
   .spins-sidebar-column {
@@ -10193,7 +10215,7 @@ a.inline-quoted-track {
   .widgets-edge-tab {
     position: fixed !important;
     right: 0 !important;
-    top: 42% !important;
+    top: 68% !important;
     transform: translateY(-50%) !important;
     z-index: 99994 !important;
     display: flex !important;
@@ -10478,25 +10500,89 @@ body.top100-view-active .widgets-edge-tab {
     font-size: 1rem !important;
   }
 
+  .sotd-mobile-slot {
+    padding: 0 10px !important;
+    margin: 0 auto 0.15rem !important;
+  }
+
+  .sotd-mobile-slot .sotd-sidebar-widget {
+    padding: 0.9rem 1rem !important;
+  }
+
+  .sotd-mobile-slot .sotd-w-strip {
+    gap: 6px;
+  }
+
+  .spins-layout-grid {
+    padding: 0.75rem 10px 2rem !important;
+  }
+
   .genre-container {
     grid-column: 1 / -1 !important;
     width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
     margin-top: 0.1rem !important;
     margin-bottom: 0.1rem !important;
+    padding: 3px 0 4px 0 !important;
     flex-wrap: wrap !important;
     white-space: normal !important;
     overflow-x: visible !important;
+    box-sizing: border-box !important;
   }
 
   .primary-genres-wrap,
   .secondary-genres-wrap {
+    flex: 0 1 auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
     flex-wrap: wrap !important;
+    gap: 0.3rem !important;
   }
 
+  .genre-pill {
+    max-width: 100% !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+  }
+
+  .genre-pill.genre-primary {
+    font-size: 0.72rem !important;
+    padding: 2.5px 8px !important;
+  }
+
+  .genre-pill.genre-secondary {
+    font-size: 0.68rem !important;
+    padding: 2px 6.5px !important;
+  }
+
+  .spin-top-section .desc-scene-row,
+  .spin-top-section .context-meta-group,
   .descriptors-wrapper {
     grid-column: 1 / -1 !important;
     width: 100% !important;
-    margin-top: 0.2rem !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .descriptors-wrapper {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 0.3rem !important;
+    margin-top: 0.15rem !important;
+  }
+
+  .descriptor-pill {
+    font-size: 0.7rem !important;
+    padding: 2px 6.5px !important;
+    max-width: 100% !important;
+  }
+
+  .footer {
+    padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   .spin-memo-entry {

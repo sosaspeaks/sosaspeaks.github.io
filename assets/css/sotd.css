@@ -609,6 +609,367 @@ body.is-admin .sotd-wall-cell.is-empty-loggable:hover .sotd-empty-add-hint {
   opacity: 1;
 }
 
+/* Week View: 7-Day Rich Aero Cards */
+.sotd-week-view {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.sotd-week-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-radius: 9px;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(240, 253, 244, 0.72) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92), 0 3px 10px rgba(15, 23, 42, 0.06);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+body.dark-mode .sotd-week-card {
+  background: linear-gradient(180deg, rgba(22, 32, 42, 0.8) 0%, rgba(12, 19, 27, 0.88) 100%);
+  border-color: rgba(52, 211, 153, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 4px 12px rgba(0, 0, 0, 0.32);
+}
+
+.sotd-week-card.has-song {
+  cursor: pointer;
+}
+
+.sotd-week-card.has-song:hover {
+  border-color: rgba(16, 185, 129, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 6px 16px rgba(16, 185, 129, 0.16);
+  transform: translateY(-2px);
+}
+
+body.dark-mode .sotd-week-card.has-song:hover {
+  border-color: rgba(52, 211, 153, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 6px 18px rgba(0, 0, 0, 0.48);
+}
+
+.sotd-week-card.is-selected {
+  outline: 2px solid #38bdf8;
+  outline-offset: -1px;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.36);
+}
+
+.sotd-week-card.is-today {
+  outline: 2px solid #10b981;
+  outline-offset: -1px;
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.38);
+}
+
+.sotd-week-card.is-empty {
+  background: rgba(248, 250, 252, 0.52);
+  border-style: dashed;
+  border-color: rgba(148, 163, 184, 0.38);
+  box-shadow: none;
+}
+
+body.dark-mode .sotd-week-card.is-empty {
+  background: rgba(15, 23, 42, 0.32);
+  border-color: rgba(148, 163, 184, 0.18);
+}
+
+body.is-admin .sotd-week-card.is-empty.is-empty-loggable {
+  cursor: pointer;
+}
+
+body.is-admin .sotd-week-card.is-empty.is-empty-loggable:hover {
+  border-color: #10b981;
+  background: rgba(236, 253, 245, 0.72);
+}
+
+body.dark-mode.is-admin .sotd-week-card.is-empty.is-empty-loggable:hover {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: #34d399;
+}
+
+.sotd-wk-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 6px 8px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.76) 0%, rgba(236, 253, 245, 0.56) 100%);
+  border-bottom: 1px solid rgba(16, 185, 129, 0.16);
+}
+
+body.dark-mode .sotd-wk-head {
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.sotd-week-card.is-today .sotd-wk-head {
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.18) 0%, rgba(16, 185, 129, 0.08) 100%);
+}
+
+.sotd-wk-dow {
+  font-size: 0.63rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #0f766e;
+  white-space: nowrap;
+}
+
+body.dark-mode .sotd-wk-dow {
+  color: #6ee7b7;
+}
+
+.sotd-wk-date-num {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #475569;
+  white-space: nowrap;
+}
+
+body.dark-mode .sotd-wk-date-num {
+  color: #94a3b8;
+}
+
+.sotd-wk-today-badge {
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 0.56rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: linear-gradient(180deg, #34d399, #059669);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow: 0 1px 4px rgba(16, 185, 129, 0.35);
+}
+
+.sotd-wk-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.sotd-wk-cover-wrap {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background: #0f172a;
+  flex-shrink: 0;
+}
+
+.sotd-wk-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.sotd-wk-copy {
+  padding: 8px 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.sotd-wk-song {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #064e3b;
+  line-height: 1.22;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+body.dark-mode .sotd-wk-song {
+  color: #ecfdf5;
+}
+
+.sotd-wk-artist {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #059669;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.dark-mode .sotd-wk-artist {
+  color: #6ee7b7;
+}
+
+.sotd-wk-artist a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.sotd-wk-artist a:hover {
+  text-decoration: underline;
+}
+
+.sotd-wk-album {
+  font-size: 0.65rem;
+  font-style: italic;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.dark-mode .sotd-wk-album {
+  color: #94a3b8;
+}
+
+.sotd-wk-note {
+  margin-top: 4px;
+  font-size: 0.67rem;
+  font-style: italic;
+  line-height: 1.38;
+  color: #475569;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+body.dark-mode .sotd-wk-note {
+  color: #cbd5e1;
+}
+
+.sotd-wk-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 5px 8px 7px;
+  margin-top: auto;
+  border-top: 1px solid rgba(16, 185, 129, 0.12);
+}
+
+body.dark-mode .sotd-wk-actions {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+.sotd-wk-play-btn {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transform: none !important;
+  outline: none;
+}
+
+.sotd-wk-play-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 4px rgba(15, 23, 42, 0.3));
+  transition: filter 0.15s ease;
+}
+
+.sotd-wk-play-btn:hover img {
+  filter: drop-shadow(0 0 7px rgba(56, 189, 248, 0.92)) brightness(1.12);
+}
+
+.sotd-wk-mini-links {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.sotd-wk-icon-link {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(255, 255, 255, 0.8);
+  color: #334155;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  text-decoration: none;
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.14s ease, color 0.14s ease, background 0.14s ease;
+}
+
+.sotd-wk-icon-link:hover {
+  border-color: #10b981;
+  color: #047857;
+  background: #ecfdf5;
+}
+
+body.dark-mode .sotd-wk-icon-link {
+  background: rgba(30, 41, 59, 0.72);
+  border-color: rgba(148, 163, 184, 0.25);
+  color: #cbd5e1;
+}
+
+body.dark-mode .sotd-wk-icon-link:hover {
+  border-color: #34d399;
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.16);
+}
+
+.sotd-wk-empty-body {
+  flex: 1;
+  min-height: 112px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 12px 8px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.sotd-wk-empty-body i {
+  font-size: 1.2rem;
+  opacity: 0.55;
+}
+
+.sotd-wk-empty-add {
+  display: none;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #059669;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.32);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+body.is-admin .sotd-wk-empty-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+body.dark-mode .sotd-wk-empty-add {
+  color: #6ee7b7;
+}
+
 /* Year (365) Overview Grid */
 .sotd-year-view {
   display: grid;
@@ -1917,7 +2278,79 @@ body.dark-mode .sotd-quickpick-box {
   color: #991b1b !important;
 }
 
+.sotd-today-jump-btn.is-hidden,
+.sotd-today-jump-btn[style*="display: none"],
+.sotd-today-jump-btn[style*="display:none"] {
+  display: none !important;
+}
+
 /* Responsive */
+@media (max-width: 1040px) {
+  /* Tablet: 2-column horizontal Aero daily cards */
+  .sotd-week-view {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .sotd-week-card.has-song .sotd-wk-body {
+    flex-direction: row;
+    align-items: center;
+    padding: 9px 10px;
+    gap: 10px;
+  }
+
+  .sotd-week-card.has-song .sotd-wk-cover-wrap {
+    width: 70px;
+    height: 70px;
+    border-radius: 4px;
+    border: 1px solid rgba(15, 23, 42, 0.14);
+  }
+
+  body.dark-mode .sotd-week-card.has-song .sotd-wk-cover-wrap {
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+
+  .sotd-week-card.has-song .sotd-wk-copy {
+    padding: 0;
+  }
+
+  .sotd-week-card.has-song .sotd-wk-song {
+    font-size: 0.86rem;
+    -webkit-line-clamp: 1;
+  }
+
+  .sotd-week-card.has-song .sotd-wk-note {
+    -webkit-line-clamp: 2;
+  }
+
+  .sotd-week-card.has-song .sotd-wk-actions {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0 0 4px;
+    margin-top: 0;
+    border-top: none;
+    gap: 6px;
+  }
+
+  .sotd-week-card.has-song .sotd-wk-play-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .sotd-week-card.has-song .sotd-wk-mini-links {
+    margin-left: 0;
+  }
+
+  .sotd-wk-empty-body {
+    min-height: 74px;
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 10px 12px;
+    text-align: left;
+  }
+}
+
 @media (max-width: 960px) {
   .sotd-year-view {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1925,14 +2358,65 @@ body.dark-mode .sotd-quickpick-box {
 }
 
 @media (max-width: 768px) {
+  .sotd-main-container {
+    margin-top: 1rem;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .sotd-command-bar {
+    padding: 8px 10px !important;
+    gap: 6px !important;
+  }
+
+  .sotd-command-bar .command-group-left {
+    flex-wrap: wrap !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 6px !important;
+    width: 100% !important;
+  }
+
+  .sotd-command-bar .command-group-right {
+    width: 100% !important;
+    justify-content: flex-end !important;
+  }
+
+  .sotd-command-bar .command-group-right:not(:has(.aero-command-btn:not([style*="display: none"]):not([style*="display:none"]))) {
+    display: none !important;
+  }
+
+  .sotd-command-bar .sotd-period-nav {
+    flex: 0 0 auto;
+  }
+
+  .sotd-command-bar .sotd-period-title {
+    min-width: 104px;
+    font-size: 0.8rem;
+  }
+
+  .sotd-command-bar .aero-command-btn {
+    flex: 0 1 auto !important;
+    padding: 5px 10px !important;
+  }
+
   .sotd-hero-strip {
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
+    gap: 10px;
+    padding: 11px 12px;
   }
 
   .sotd-hero-actions {
     justify-content: flex-start;
+    width: 100%;
+    gap: 6px;
+  }
+
+  .sotd-hero-actions .aero-command-btn {
+    flex: 1 1 auto !important;
+    padding: 6px 10px !important;
+    font-size: 0.76rem !important;
   }
 
   .sotd-wall-grid,
@@ -1959,6 +2443,43 @@ body.dark-mode .sotd-quickpick-box {
 
   .sotd-year-view {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .sotd-year-month-card {
+    padding: 8px 9px 9px;
+    gap: 6px;
+  }
+
+  .sotd-main-container .status-bar {
+    font-size: 0.7rem;
+    line-height: 1.35;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  #sotdStatusLeft {
+    flex: 1 1 auto;
+    min-width: 0;
+    border-right: none;
+    padding: 5px 10px;
+  }
+
+  #sotdStatusRight {
+    flex: 0 0 auto;
+    max-width: none;
+    white-space: nowrap;
+    padding: 5px 10px;
+    border-right: none;
+    border-left: 1px solid rgba(148, 163, 184, 0.35);
+  }
+
+  body.dark-mode #sotdStatusRight {
+    border-left-color: rgba(148, 163, 184, 0.2);
+  }
+
+  .footer {
+    padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   .aero-player-dock,
@@ -1979,12 +2500,271 @@ body.dark-mode .sotd-quickpick-box {
   }
 }
 
+@media (max-width: 640px) {
+  .sotd-cell-play-btn {
+    display: none !important;
+  }
+
+  /* Mobile: single-column daily feed; unlogged days collapse into compact strips */
+  .sotd-week-view {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .sotd-week-card.has-song .sotd-wk-cover-wrap {
+    width: 60px;
+    height: 60px;
+  }
+
+  .sotd-week-card.has-song .sotd-wk-body {
+    padding: 8px 10px;
+    gap: 10px;
+  }
+
+  .sotd-week-card.is-empty {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .sotd-week-card.is-empty .sotd-wk-head {
+    border-bottom: none;
+    background: transparent;
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  .sotd-week-card.is-empty .sotd-wk-empty-body {
+    min-height: 0;
+    flex: 0 0 auto;
+    padding: 6px 10px;
+    flex-direction: row;
+    gap: 6px;
+  }
+
+  .sotd-week-card.is-empty .sotd-wk-empty-body i {
+    display: none;
+  }
+
+  .sotd-log-modal-window {
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: 90dvh !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .sotd-log-form {
+    padding: 0.9rem !important;
+    gap: 0.65rem;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sotd-log-form .add-album-top-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.7rem;
+  }
+
+  .sotd-log-form .modal-cover-preview {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+  }
+
+  .sotd-log-form .w7-preview-box {
+    width: 72px !important;
+    height: 72px !important;
+    flex-shrink: 0;
+  }
+
+  .sotd-log-form .modal-cover-btns {
+    flex-direction: row;
+    gap: 6px;
+  }
+}
+
+@media (max-width: 560px) {
+  /* Clean 2-row Aero command bar on phones: Row 1 = Period Nav, Row 2 = View + Today + Play */
+  .sotd-command-bar {
+    padding: 7px 8px !important;
+    gap: 6px !important;
+  }
+
+  .sotd-command-bar .command-group-left {
+    gap: 6px !important;
+  }
+
+  .sotd-command-bar .sotd-period-nav {
+    flex: 1 1 100%;
+    justify-content: space-between;
+    padding: 3px 6px;
+  }
+
+  .sotd-command-bar .sotd-nav-arrow {
+    width: 30px;
+    height: 28px;
+    font-size: 1.2rem;
+  }
+
+  .sotd-command-bar .sotd-period-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.86rem;
+  }
+
+  .sotd-command-bar #sotdViewModeCapsule {
+    flex: 0 0 auto;
+  }
+
+  .sotd-command-bar #sotdViewModeCapsule button.filter-item {
+    font-size: 0.7rem !important;
+    padding: 3px 7px !important;
+    gap: 3px !important;
+  }
+
+  .sotd-command-bar #sotdViewModeCapsule button.filter-item i {
+    font-size: 0.82rem !important;
+  }
+
+  .sotd-command-bar .sotd-today-jump-btn,
+  .sotd-command-bar .sotd-play-month-btn {
+    flex: 1 1 auto !important;
+    min-height: 30px;
+    padding: 5px 8px !important;
+    font-size: 0.72rem !important;
+  }
+
+  .sotd-command-bar .command-group-right .aero-command-btn {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+    min-height: 32px;
+  }
+}
+
 @media (max-width: 480px) {
+  .sotd-main-container {
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+  }
+
   .sotd-window-body {
     padding: 10px 8px 12px !important;
+    gap: 10px;
+  }
+
+  .sotd-hero-strip {
+    padding: 10px 10px;
+    gap: 9px;
+  }
+
+  .sotd-hero-left {
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .sotd-hero-cover-btn,
+  .sotd-hero-cover {
+    width: 64px;
+    height: 64px;
+  }
+
+  .sotd-hero-kicker {
+    font-size: 0.58rem;
+    padding: 2px 7px;
+    letter-spacing: 0.04em;
+    border-radius: 6px;
+    line-height: 1.25;
+  }
+
+  .sotd-hero-song {
+    font-size: 0.98rem;
+  }
+
+  .sotd-hero-sub {
+    font-size: 0.76rem;
+  }
+
+  .sotd-hero-note {
+    font-size: 0.73rem;
+  }
+
+  .sotd-wall-grid,
+  .sotd-weekday-row {
+    gap: 3px;
+  }
+
+  .sotd-weekday-cell {
+    font-size: 0.6rem;
+    letter-spacing: 0.02em;
+  }
+
+  .sotd-day-num {
+    top: 2px;
+    left: 2px;
+    min-width: 15px;
+    height: 14px;
+    padding: 0 3px;
+    font-size: 0.53rem;
+    border-radius: 3px;
   }
 
   .sotd-year-view {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .sotd-year-month-card {
+    padding: 7px 7px 8px;
+    gap: 5px;
+  }
+
+  .sotd-year-month-name {
+    font-size: 0.72rem;
+  }
+
+  .sotd-year-month-count {
+    font-size: 0.6rem;
+  }
+
+  .sotd-year-mini-grid {
+    gap: 2px;
+  }
+
+  .sotd-main-container .status-bar {
+    flex-direction: column;
+    align-items: stretch;
+    font-size: 0.68rem;
+  }
+
+  #sotdStatusLeft {
+    padding: 5px 9px 3px;
+  }
+
+  #sotdStatusRight {
+    text-align: left;
+    border-left: none;
+    border-top: 1px solid rgba(148, 163, 184, 0.25);
+    padding: 3px 9px 5px;
+    opacity: 0.85;
+  }
+
+  body.dark-mode #sotdStatusRight {
+    border-top-color: rgba(148, 163, 184, 0.16);
+  }
+}
+
+@media (max-width: 340px) {
+  .sotd-year-view {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (hover: none) {
+  .sotd-wall-cell.has-song:hover,
+  .sotd-week-card.has-song:hover {
+    transform: none;
   }
 }

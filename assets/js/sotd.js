@@ -88,6 +88,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const sotdNextPeriodBtn = document.getElementById("sotdNextPeriodBtn");
   const sotdPeriodTitle = document.getElementById("sotdPeriodTitle");
   const sotdJumpTodayBtn = document.getElementById("sotdJumpTodayBtn");
+  const sotdWeekViewBtn = document.getElementById("sotdWeekViewBtn");
   const sotdMonthViewBtn = document.getElementById("sotdMonthViewBtn");
   const sotdYearViewBtn = document.getElementById("sotdYearViewBtn");
   const sotdPlayMonthBtn = document.getElementById("sotdPlayMonthBtn");
@@ -95,6 +96,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const openSotdLogModalBtn = document.getElementById("openSotdLogModalBtn");
   const sotdSetupNotice = document.getElementById("sotdSetupNotice");
   const sotdHeroStrip = document.getElementById("sotdHeroStrip");
+  const sotdWeekView = document.getElementById("sotdWeekView");
   const sotdMonthView = document.getElementById("sotdMonthView");
   const sotdWallGrid = document.getElementById("sotdWallGrid");
   const sotdYearView = document.getElementById("sotdYearView");
@@ -142,12 +144,21 @@ document.addEventListener("DOMContentLoaded", async () => {
   const sotdQueueNextBtn = document.getElementById("sotdQueueNextBtn");
   const sotdQueueReadout = document.getElementById("sotdQueueReadout");
 
+  function getSundayOfWeek(d) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay());
+  }
+
+  function addDays(d, delta) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate() + delta);
+  }
+
   // State
   const todayIso = getTodayIso();
   const todayObj = new Date();
   let viewYear = todayObj.getFullYear();
   let viewMonth = todayObj.getMonth(); // 0..11
-  let viewMode = "month"; // "month" | "year"
+  let viewWeekStart = getSundayOfWeek(todayObj);
+  let viewMode = "month"; // "week" | "month" | "year"
   let selectedDateIso = todayIso;
   let isAdmin = false;
   let isDataLoaded = false;
@@ -1093,15 +1104,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         entriesByDate = new Map(allEntries.map(r => [r.entry_date, r]));
       }
 
-      // Check URL params (?date=YYYY-MM-DD or ?log=today)
+      // Check URL params (?date=YYYY-MM-DD, ?view=week|month|year, or ?log=today)
       const params = new URLSearchParams(window.location.search);
       const qDate = params.get("date");
+      const qView = (params.get("view") || "").toLowerCase();
       const qLog = params.get("log");
+      if (qView === "week" || qView === "month" || qView === "year") {
+        viewMode = qView;
+      }
       if (qDate && /^\d{4}-\d{2}-\d{2}$/.test(qDate)) {
         const parsed = parseIsoDate(qDate);
         if (parsed) {
           viewYear = parsed.getFullYear();
           viewMonth = parsed.getMonth();
+          viewWeekStart = getSundayOfWeek(parsed);
           selectedDateIso = qDate;
         }
       } else if (!entriesByDate.has(selectedDateIso) && allEntries.length > 0) {
@@ -1140,6 +1156,48 @@ document.addEventListener("DOMContentLoaded", async () => {
     return streak;
   }
 
+  const SHORT_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  function getWeekDays(weekStart) {
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(weekStart, i);
+      days.push({
+        date: d,
+        iso: toIsoDate(d.getFullYear(), d.getMonth(), d.getDate()),
+        dowShort: SHORT_DAYS[d.getDay()],
+        dowFull: DAY_NAMES[d.getDay()],
+        monthShort: SHORT_MONTHS[d.getMonth()],
+        dayNum: d.getDate()
+      });
+    }
+    return days;
+  }
+
+  function getWeekEntries(weekStart) {
+    const isoSet = new Set(getWeekDays(weekStart).map(d => d.iso));
+    return allEntries
+      .filter(e => isoSet.has(e.entry_date))
+      .sort((a, b) => a.entry_date.localeCompare(b.entry_date));
+  }
+
+  function formatWeekRange(weekStart) {
+    const end = addDays(weekStart, 6);
+    const sm = SHORT_MONTHS[weekStart.getMonth()];
+    const em = SHORT_MONTHS[end.getMonth()];
+    if (weekStart.getFullYear() !== end.getFullYear()) {
+      return `${sm} ${weekStart.getDate()}, ${weekStart.getFullYear()} – ${em} ${end.getDate()}, ${end.getFullYear()}`;
+    }
+    if (weekStart.getMonth() !== end.getMonth()) {
+      return `${sm} ${weekStart.getDate()} – ${em} ${end.getDate()}, ${end.getFullYear()}`;
+    }
+    return `${sm} ${weekStart.getDate()} – ${end.getDate()}, ${end.getFullYear()}`;
+  }
+
+  function isCurrentWeek(weekStart) {
+    return getWeekDays(weekStart).some(d => d.iso === todayIso);
+  }
+
   function getMonthEntries(year, monthIdx) {
     const prefix = `${year}-${String(monthIdx + 1).padStart(2, "0")}-`;
     return allEntries
@@ -1155,14 +1213,21 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ============================================================
-  // RENDERERS (Hero Strip, Month Cover Wall, Year 365 Overview)
+  // RENDERERS (Hero Strip, Week View, Month Cover Wall, Year 365)
   // ============================================================
   function syncSelectedWallHighlight() {
-    if (!sotdWallGrid) return;
-    sotdWallGrid.querySelectorAll(".sotd-wall-cell").forEach(cell => {
-      const d = cell.getAttribute("data-date");
-      cell.classList.toggle("is-selected", d === selectedDateIso && d !== todayIso);
-    });
+    if (sotdWallGrid) {
+      sotdWallGrid.querySelectorAll(".sotd-wall-cell").forEach(cell => {
+        const d = cell.getAttribute("data-date");
+        cell.classList.toggle("is-selected", d === selectedDateIso && d !== todayIso);
+      });
+    }
+    if (sotdWeekView) {
+      sotdWeekView.querySelectorAll(".sotd-week-card").forEach(card => {
+        const d = card.getAttribute("data-date");
+        card.classList.toggle("is-selected", d === selectedDateIso && d !== todayIso);
+      });
+    }
   }
 
   function renderHeroStrip() {
@@ -1247,6 +1312,81 @@ document.addEventListener("DOMContentLoaded", async () => {
         ${adminBtnsHtml}
       </div>
     `;
+  }
+
+  function renderWeekView() {
+    if (!sotdWeekView) return;
+    const days = getWeekDays(viewWeekStart);
+    const cards = days.map(day => {
+      const entry = entriesByDate.get(day.iso);
+      const isToday = day.iso === todayIso;
+      const isFuture = day.iso > todayIso;
+      const isSelected = day.iso === selectedDateIso && !isToday;
+
+      if (entry) {
+        const coverSrc = normalizeCoverUrl(entry.cover_url) || FALLBACK_PLACEHOLDER;
+        const hasAudio = !!(entry.audio_url && entry.audio_url.trim());
+        const spinId = findMatchingSpinId(entry);
+        const albumText = entry.album
+          ? `${escapeHtml(entry.album)}${entry.release_year ? ` (${escapeHtml(entry.release_year)})` : ""}`
+          : (entry.release_year ? `${escapeHtml(entry.release_year)}` : "");
+        const noteHtml = entry.note
+          ? `<div class="sotd-wk-note">“${escapeHtml(entry.note)}”</div>`
+          : "";
+        const playHtml = hasAudio
+          ? `<button type="button" class="sotd-wk-play-btn" data-week-play="${day.iso}" title="Play ${escapeHtml(entry.title)}" aria-label="Play ${escapeHtml(entry.title)}"><img src="assets/icons/aero/play.ico" alt="Play"></button>`
+          : "";
+        const spinHtml = spinId
+          ? `<a href="sosaspins.html?highlight=${encodeURIComponent(spinId)}" class="sotd-wk-icon-link" title="View Album Spin" aria-label="View Album Spin"><i class='bx bx-disc'></i></a>`
+          : "";
+        const editHtml = isAdmin
+          ? `<button type="button" class="sotd-wk-icon-link" data-week-edit="${day.iso}" title="Edit Day" aria-label="Edit Day"><i class='bx bx-edit-alt'></i></button>`
+          : "";
+
+        return `
+          <article class="sotd-week-card has-song ${isToday ? "is-today" : ""} ${isSelected ? "is-selected" : ""}" data-date="${day.iso}">
+            <div class="sotd-wk-head">
+              <span class="sotd-wk-dow">${day.dowShort}</span>
+              ${isToday ? `<span class="sotd-wk-today-badge">Today</span>` : `<span class="sotd-wk-date-num">${day.monthShort} ${day.dayNum}</span>`}
+            </div>
+            <div class="sotd-wk-body">
+              <div class="sotd-wk-cover-wrap">
+                <img src="${escapeHtml(coverSrc)}" alt="${escapeHtml(entry.title)}" class="sotd-wk-cover" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_PLACEHOLDER}';">
+              </div>
+              <div class="sotd-wk-copy">
+                <div class="sotd-wk-song" title="${escapeHtml(entry.title)}">${escapeHtml(entry.title)}</div>
+                <div class="sotd-wk-artist"><a href="sosaspins.html?artist=${encodeURIComponent(entry.artist)}">${escapeHtml(entry.artist)}</a></div>
+                ${albumText ? `<div class="sotd-wk-album" title="${albumText}">${albumText}</div>` : ""}
+                ${noteHtml}
+              </div>
+              ${(playHtml || spinHtml || editHtml) ? `
+                <div class="sotd-wk-actions">
+                  ${playHtml}
+                  ${(spinHtml || editHtml) ? `<div class="sotd-wk-mini-links">${spinHtml}${editHtml}</div>` : ""}
+                </div>
+              ` : ""}
+            </div>
+          </article>
+        `;
+      }
+
+      const loggable = !tableUnavailable;
+      return `
+        <article class="sotd-week-card is-empty ${isToday ? "is-today" : ""} ${isFuture ? "is-future" : ""} ${loggable ? "is-empty-loggable" : ""}" data-date="${day.iso}">
+          <div class="sotd-wk-head">
+            <span class="sotd-wk-dow">${day.dowShort}</span>
+            ${isToday ? `<span class="sotd-wk-today-badge">Today</span>` : `<span class="sotd-wk-date-num">${day.monthShort} ${day.dayNum}</span>`}
+          </div>
+          <div class="sotd-wk-empty-body">
+            <i class='bx bx-music'></i>
+            <span>${isFuture ? "Upcoming" : "No song logged"}</span>
+            <span class="sotd-wk-empty-add"><i class='bx bx-plus'></i> Log</span>
+          </div>
+        </article>
+      `;
+    });
+
+    sotdWeekView.innerHTML = cards.join("");
   }
 
   function renderMonthWall() {
@@ -1352,18 +1492,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     if (sotdPeriodTitle) {
-      sotdPeriodTitle.textContent = viewMode === "month"
-        ? `${MONTH_NAMES[viewMonth]} ${viewYear}`
-        : `${viewYear}`;
+      if (viewMode === "week") {
+        sotdPeriodTitle.textContent = formatWeekRange(viewWeekStart);
+      } else if (viewMode === "month") {
+        sotdPeriodTitle.textContent = `${MONTH_NAMES[viewMonth]} ${viewYear}`;
+      } else {
+        sotdPeriodTitle.textContent = `${viewYear}`;
+      }
     }
 
-    const isCurrentPeriod = viewMode === "month"
-      ? (viewYear === todayObj.getFullYear() && viewMonth === todayObj.getMonth())
-      : (viewYear === todayObj.getFullYear());
+    const isCurrentPeriod = viewMode === "week"
+      ? isCurrentWeek(viewWeekStart)
+      : (viewMode === "month"
+        ? (viewYear === todayObj.getFullYear() && viewMonth === todayObj.getMonth())
+        : (viewYear === todayObj.getFullYear()));
     if (sotdJumpTodayBtn) {
+      sotdJumpTodayBtn.classList.toggle("is-hidden", isCurrentPeriod);
       sotdJumpTodayBtn.style.display = isCurrentPeriod ? "none" : "inline-flex";
     }
 
+    if (sotdWeekViewBtn) {
+      sotdWeekViewBtn.classList.toggle("active", viewMode === "week");
+      sotdWeekViewBtn.setAttribute("aria-pressed", String(viewMode === "week"));
+    }
     if (sotdMonthViewBtn && sotdYearViewBtn) {
       sotdMonthViewBtn.classList.toggle("active", viewMode === "month");
       sotdMonthViewBtn.setAttribute("aria-pressed", String(viewMode === "month"));
@@ -1371,35 +1522,49 @@ document.addEventListener("DOMContentLoaded", async () => {
       sotdYearViewBtn.setAttribute("aria-pressed", String(viewMode === "year"));
     }
 
+    if (sotdWeekView) sotdWeekView.style.display = viewMode === "week" ? "grid" : "none";
     if (sotdMonthView) sotdMonthView.style.display = viewMode === "month" ? "flex" : "none";
     if (sotdYearView) sotdYearView.style.display = viewMode === "year" ? "grid" : "none";
 
-    const periodEntries = viewMode === "month" ? getMonthEntries(viewYear, viewMonth) : getYearEntries(viewYear);
+    const periodEntries = viewMode === "week"
+      ? getWeekEntries(viewWeekStart)
+      : (viewMode === "month" ? getMonthEntries(viewYear, viewMonth) : getYearEntries(viewYear));
     const playableEntries = periodEntries.filter(e => e.audio_url && e.audio_url.trim());
     if (sotdPlayMonthBtn && sotdPlayMonthLabel) {
       sotdPlayMonthBtn.disabled = playableEntries.length === 0;
-      sotdPlayMonthLabel.textContent = viewMode === "month"
-        ? `Play Month (${playableEntries.length})`
-        : `Play ${viewYear} (${playableEntries.length})`;
+      if (viewMode === "week") {
+        sotdPlayMonthLabel.textContent = `Play Week (${playableEntries.length})`;
+      } else if (viewMode === "month") {
+        sotdPlayMonthLabel.textContent = `Play Month (${playableEntries.length})`;
+      } else {
+        sotdPlayMonthLabel.textContent = `Play ${viewYear} (${playableEntries.length})`;
+      }
     }
 
     renderHeroStrip();
-    if (viewMode === "month") renderMonthWall();
+    if (viewMode === "week") renderWeekView();
+    else if (viewMode === "month") renderMonthWall();
     else renderYearOverview();
 
     // Status bar telemetry
     const streak = computeCurrentStreak();
     const yearTotal = getYearEntries(viewYear).length;
     if (sotdStatusLeft) {
-      if (viewMode === "month") {
+      const streakSuffix = streak > 0 ? ` • ${streak}-day streak` : "";
+      if (viewMode === "week") {
+        const wkDays = getWeekDays(viewWeekStart);
+        const denom = isCurrentWeek(viewWeekStart)
+          ? wkDays.filter(d => d.iso <= todayIso).length
+          : 7;
+        const pct = denom > 0 ? Math.min(100, Math.round((periodEntries.length / denom) * 100)) : 0;
+        sotdStatusLeft.textContent = `${formatWeekRange(viewWeekStart)} • ${periodEntries.length} / ${denom} days logged (${pct}%)${streakSuffix}`;
+      } else if (viewMode === "month") {
         const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
         const isCurrentMonth = viewYear === todayObj.getFullYear() && viewMonth === todayObj.getMonth();
         const denom = isCurrentMonth ? todayObj.getDate() : daysInMonth;
         const pct = denom > 0 ? Math.min(100, Math.round((periodEntries.length / denom) * 100)) : 0;
-        const streakSuffix = streak > 0 ? ` • ${streak}-day streak` : "";
         sotdStatusLeft.textContent = `${MONTH_NAMES[viewMonth]} ${viewYear} • ${periodEntries.length} / ${denom} days logged (${pct}%)${streakSuffix}`;
       } else {
-        const streakSuffix = streak > 0 ? ` • ${streak}-day streak` : "";
         sotdStatusLeft.textContent = `${viewYear} Overview • ${yearTotal} songs logged${streakSuffix}`;
       }
     }
@@ -1413,7 +1578,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   // ============================================================
   if (sotdPrevPeriodBtn) {
     sotdPrevPeriodBtn.addEventListener("click", () => {
-      if (viewMode === "month") {
+      if (viewMode === "week") {
+        viewWeekStart = addDays(viewWeekStart, -7);
+        const mid = addDays(viewWeekStart, 3);
+        viewYear = mid.getFullYear();
+        viewMonth = mid.getMonth();
+      } else if (viewMode === "month") {
         viewMonth--;
         if (viewMonth < 0) { viewMonth = 11; viewYear--; }
       } else {
@@ -1425,7 +1595,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   if (sotdNextPeriodBtn) {
     sotdNextPeriodBtn.addEventListener("click", () => {
-      if (viewMode === "month") {
+      if (viewMode === "week") {
+        viewWeekStart = addDays(viewWeekStart, 7);
+        const mid = addDays(viewWeekStart, 3);
+        viewYear = mid.getFullYear();
+        viewMonth = mid.getMonth();
+      } else if (viewMode === "month") {
         viewMonth++;
         if (viewMonth > 11) { viewMonth = 0; viewYear++; }
       } else {
@@ -1439,7 +1614,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     sotdJumpTodayBtn.addEventListener("click", () => {
       viewYear = todayObj.getFullYear();
       viewMonth = todayObj.getMonth();
+      viewWeekStart = getSundayOfWeek(todayObj);
       if (entriesByDate.has(todayIso)) selectedDateIso = todayIso;
+      renderAll();
+    });
+  }
+
+  if (sotdWeekViewBtn) {
+    sotdWeekViewBtn.addEventListener("click", () => {
+      if (viewMode !== "week") {
+        const selObj = parseIsoDate(selectedDateIso);
+        if (selObj && selObj.getFullYear() === viewYear && selObj.getMonth() === viewMonth) {
+          viewWeekStart = getSundayOfWeek(selObj);
+        } else if (viewYear === todayObj.getFullYear() && viewMonth === todayObj.getMonth()) {
+          viewWeekStart = getSundayOfWeek(todayObj);
+        } else {
+          const monthList = getMonthEntries(viewYear, viewMonth);
+          const anchor = monthList.length ? parseIsoDate(monthList[monthList.length - 1].entry_date) : new Date(viewYear, viewMonth, 1);
+          viewWeekStart = getSundayOfWeek(anchor || new Date(viewYear, viewMonth, 1));
+        }
+      }
+      viewMode = "week";
       renderAll();
     });
   }
@@ -1460,11 +1655,45 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   if (sotdPlayMonthBtn) {
     sotdPlayMonthBtn.addEventListener("click", () => {
-      const periodEntries = viewMode === "month" ? getMonthEntries(viewYear, viewMonth) : getYearEntries(viewYear);
+      const periodEntries = viewMode === "week"
+        ? getWeekEntries(viewWeekStart)
+        : (viewMode === "month" ? getMonthEntries(viewYear, viewMonth) : getYearEntries(viewYear));
       const playable = periodEntries.filter(e => e.audio_url && e.audio_url.trim());
       if (!playable.length) return;
       activeQueue = playable;
       playQueueIndex(0);
+    });
+  }
+
+  if (sotdWeekView) {
+    sotdWeekView.addEventListener("click", (e) => {
+      const playBtn = e.target.closest("[data-week-play]");
+      if (playBtn) {
+        e.stopPropagation();
+        const iso = playBtn.getAttribute("data-week-play");
+        const entry = entriesByDate.get(iso);
+        if (entry) playEntry(entry);
+        return;
+      }
+      const editBtn = e.target.closest("[data-week-edit]");
+      if (editBtn && isAdmin) {
+        e.stopPropagation();
+        openSotdLogModal(editBtn.getAttribute("data-week-edit"));
+        return;
+      }
+      if (e.target.closest("a")) return;
+
+      const card = e.target.closest(".sotd-week-card[data-date]");
+      if (!card) return;
+      const iso = card.getAttribute("data-date");
+      const entry = entriesByDate.get(iso);
+      if (entry) {
+        selectedDateIso = iso;
+        renderHeroStrip();
+        syncSelectedWallHighlight();
+      } else if (isAdmin && !tableUnavailable) {
+        openSotdLogModal(iso);
+      }
     });
   }
 
@@ -1485,6 +1714,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         selectedDateIso = todayIso;
         viewYear = todayObj.getFullYear();
         viewMonth = todayObj.getMonth();
+        viewWeekStart = getSundayOfWeek(todayObj);
         renderAll();
       }
     });
@@ -1822,6 +2052,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (dObj) {
           viewYear = dObj.getFullYear();
           viewMonth = dObj.getMonth();
+          viewWeekStart = getSundayOfWeek(dObj);
         }
         selectedDateIso = entryDate;
 
