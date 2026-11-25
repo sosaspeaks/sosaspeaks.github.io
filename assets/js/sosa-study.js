@@ -363,7 +363,47 @@
       `;
     }
 
-    // --- E. FAVORITE TRACKS (With Mini-Player Hook) ---
+    // --- E. FAVORITE TRACKS (With Mini-Player Hook + Auto Track-Rating URL Fallback) ---
+    const trackRatings = parseTrackRatings(spin.track_ratings);
+    const normalizeStudyTrackKey = (raw) => String(raw || "")
+      .toLowerCase()
+      .replace(/[“”"'`’‘]/g, "")
+      .replace(/…|\.{2,}/g, "")
+      .replace(/[.,;:!?]+$/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    const extractStudyTrackAliases = (title) => {
+      const raw = String(title || "").trim();
+      if (!raw) return [];
+      const keys = new Set();
+      const full = normalizeStudyTrackKey(raw);
+      if (full) keys.add(full);
+      const m = raw.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+      if (m) {
+        const o = normalizeStudyTrackKey(m[1]);
+        const i = normalizeStudyTrackKey(m[2]);
+        if (o) keys.add(o);
+        if (i) keys.add(i);
+        if (o && i) keys.add(`${o} (${i})`);
+      }
+      return Array.from(keys);
+    };
+    const resolveStudyFavUrl = (trackName, explicitUrl) => {
+      const cleanExplicit = String(explicitUrl || "").trim();
+      if (/^https?:\/\//i.test(cleanExplicit)) return cleanExplicit;
+      const qAliases = extractStudyTrackAliases(trackName);
+      if (!qAliases.length) return "";
+      for (const tr of trackRatings) {
+        if (!tr || !tr.title || !tr.url) continue;
+        const trAliases = extractStudyTrackAliases(tr.title);
+        if (qAliases.some(qa => trAliases.includes(qa))) {
+          const candidate = String(tr.url).trim();
+          if (/^https?:\/\//i.test(candidate)) return candidate;
+        }
+      }
+      return "";
+    };
+
     const favSlot = document.getElementById("studyFavTracksSlot");
     const favList = toList(spin.fav_tracks);
     if (favSlot && favList.length) {
@@ -372,16 +412,18 @@
       const safeCov = (finalCover || "").replace(/'/g, "\\'");
 
       const chipsHtml = favList.map(t => {
-        if (t.includes("|")) {
-          const [tName, url] = t.split("|").map(s => s.trim());
-          const cleanName = tName.replace(/^["“]|["”]$/g, "");
+        const parts = t.includes("|") ? t.split("|").map(s => s.trim()) : [t.trim(), ""];
+        const cleanName = parts[0].replace(/^["“]|["”]$/g, "");
+        const resolvedUrl = resolveStudyFavUrl(cleanName, parts[1]);
+        if (resolvedUrl) {
           const safeName = cleanName.replace(/'/g, "\\'");
+          const safeUrl = resolvedUrl.replace(/'/g, "\\'");
           return `
-            <span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${url}', '${safeName}', '${safeArt}', '${safeAlb}', '${safeCov}')">
+            <span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${safeUrl}', '${safeName}', '${safeArt}', '${safeAlb}', '${safeCov}')">
               <span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeStudyHtml(cleanName)}
             </span>`;
         }
-        return `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon"> ${escapeStudyHtml(t)}</span>`;
+        return `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon"> ${escapeStudyHtml(cleanName)}</span>`;
       }).join("");
 
       favSlot.innerHTML = `
@@ -395,7 +437,6 @@
     }
 
     // --- F. TRACK RATINGS (Clean Collapsible Explorer Accordion) ---
-    const trackRatings = parseTrackRatings(spin.track_ratings);
     let trackSlot = document.getElementById("studyTrackRatingsSlot");
     if (!trackSlot && trackRatings.length) {
       const anchor = favSlot || contextSlot || descSlot;

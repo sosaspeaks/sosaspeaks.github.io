@@ -587,6 +587,11 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
   const addTrackRatingRowBtn = document.getElementById("addTrackRatingRowBtn");
   const logMemo = document.getElementById("logMemo");
   const memoRibbonToolbar = document.getElementById("memoRibbonToolbar");
+  const memoEmbedTrackBtn = document.getElementById("memoEmbedTrackBtn");
+  const memoEmbedTrackPopover = document.getElementById("memoEmbedTrackPopover");
+  const memoTrackSearchInput = document.getElementById("memoTrackSearchInput");
+  const memoTrackCloseBtn = document.getElementById("memoTrackCloseBtn");
+  const memoTrackResults = document.getElementById("memoTrackResults");
   const memoEmbedSpinBtn = document.getElementById("memoEmbedSpinBtn");
   const memoEmbedSpinPopover = document.getElementById("memoEmbedSpinPopover");
   const memoEmbedSearchInput = document.getElementById("memoEmbedSearchInput");
@@ -2420,6 +2425,9 @@ function getDominantColorFromImg(imgUrl) {
       case "blockquote":
         insertMemoTextAtCursor("\n<blockquote>\n  ", "\n</blockquote>\n", "Quote text goes here...");
         break;
+      case "inlinequote":
+        insertMemoTextAtCursor("[[quote:", "]]", "quoted lyric or phrase");
+        break;
       case "bilingual":
         insertMemoTextAtCursor(
           '\n<bilingual>\n  <div data-lang="Original">\n    ',
@@ -2499,6 +2507,7 @@ function getDominantColorFromImg(imgUrl) {
 
   function openMemoEmbedPopover() {
     if (!memoEmbedSpinPopover) return;
+    if (typeof closeMemoTrackPopover === "function") closeMemoTrackPopover();
     if (logMemo) {
       savedMemoSelection = {
         start: logMemo.selectionStart || 0,
@@ -2559,11 +2568,213 @@ function getDominantColorFromImg(imgUrl) {
     return { artist, title, label };
   }
 
+  function normalizeTrackMatchKey(raw) {
+    return String(raw || "")
+      .toLowerCase()
+      .replace(/[“”"'`’‘]/g, "")
+      .replace(/…|\.{2,}/g, "")
+      .replace(/[.,;:!?]+$/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function extractTrackTitleAliases(title) {
+    const raw = String(title || "").trim();
+    if (!raw) return [];
+    const keys = new Set();
+    const fullKey = normalizeTrackMatchKey(raw);
+    if (fullKey) keys.add(fullKey);
+
+    // Split bilingual / parenthetical variants like "라차타 (LA chA TA)" or "좋아해도 되나요 (…Is It Ok?)"
+    const parenMatch = raw.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+    if (parenMatch) {
+      const outer = normalizeTrackMatchKey(parenMatch[1]);
+      const inner = normalizeTrackMatchKey(parenMatch[2]);
+      if (outer) keys.add(outer);
+      if (inner) keys.add(inner);
+      if (outer && inner) keys.add(`${outer} (${inner})`);
+    }
+    return Array.from(keys);
+  }
+
+  function findMatchingTrackRating(queryTitle, trackRatings) {
+    if (!queryTitle || !Array.isArray(trackRatings) || !trackRatings.length) return null;
+    const queryAliases = extractTrackTitleAliases(queryTitle);
+    if (!queryAliases.length) return null;
+
+    for (const tr of trackRatings) {
+      if (!tr || !tr.title) continue;
+      const trAliases = extractTrackTitleAliases(tr.title);
+      if (queryAliases.some(qa => trAliases.includes(qa))) {
+        return tr;
+      }
+    }
+    return null;
+  }
+
+  function resolveFavTrackUrl(trackName, explicitUrl, trackRatings) {
+    const cleanExplicit = String(explicitUrl || "").trim();
+    if (/^https?:\/\//i.test(cleanExplicit)) return cleanExplicit;
+    const matched = findMatchingTrackRating(trackName, trackRatings);
+    const trUrl = matched && matched.url ? String(matched.url).trim() : "";
+    if (/^https?:\/\//i.test(trUrl)) return trUrl;
+    return null;
+  }
+
+  function collectCurrentModalTracksForMemo() {
+    const list = [];
+    const seen = new Set();
+    if (trackRatingsList) {
+      trackRatingsList.querySelectorAll(".track-rating-input-row").forEach((row, idx) => {
+        const titleInput = row.querySelector(".tr-title-input");
+        const urlInput = row.querySelector(".tr-url-input");
+        const ratingInput = row.querySelector(".tr-rating-input");
+        const durInput = row.querySelector(".tr-duration-input");
+        const title = titleInput ? titleInput.value.trim() : "";
+        if (!title) return;
+        const key = normalizeTrackMatchKey(title);
+        if (seen.has(key)) return;
+        seen.add(key);
+        list.push({
+          num: idx + 1,
+          title,
+          url: urlInput ? urlInput.value.trim() : "",
+          rating: ratingInput ? ratingInput.value.trim() : "",
+          duration: durInput ? durInput.value.trim() : ""
+        });
+      });
+    }
+    const rawFavs = parseFavTracks(logFavTracks ? logFavTracks.value : "");
+    rawFavs.forEach(entry => {
+      const parts = String(entry || "").split("|");
+      const title = (parts[0] || "").trim();
+      const url = parts.length > 1 ? parts[1].trim() : "";
+      if (!title) return;
+      const key = normalizeTrackMatchKey(title);
+      if (seen.has(key)) return;
+      seen.add(key);
+      list.push({ num: list.length + 1, title, url, rating: "", duration: "" });
+    });
+    return list;
+  }
+
+  function closeMemoTrackPopover() {
+    if (memoEmbedTrackPopover) memoEmbedTrackPopover.style.display = "none";
+    if (memoEmbedTrackBtn) memoEmbedTrackBtn.classList.remove("is-active");
+    savedMemoSelection = null;
+  }
+
+  function renderMemoTrackResults(query = "") {
+    if (!memoTrackResults) return;
+    const tracks = collectCurrentModalTracksForMemo();
+    const rawQ = String(query || "").trim();
+    const q = rawQ.toLowerCase();
+    const filtered = q
+      ? tracks.filter(tr => tr.title.toLowerCase().includes(q))
+      : tracks;
+
+    const itemsHtml = filtered.map(tr => {
+      const hasUrl = /^https?:\/\//i.test(tr.url);
+      const ratingBadge = tr.rating ? `<span class="memo-embed-stars">${Number(tr.rating).toFixed(1)} ★</span>` : "";
+      const streamBadge = hasUrl
+        ? `<span class="memo-track-stream-pill"><i class='bx bx-play-circle'></i>Stream</span>`
+        : "";
+      const subParts = [tr.duration || "", hasUrl ? "Auto-links stream URL" : "Track reference"].filter(Boolean).join(" • ");
+      return `
+        <button type="button" class="memo-embed-item memo-track-pick-item" data-track-title="${escapeHtml(tr.title)}">
+          <span class="memo-track-num-badge">${tr.num}</span>
+          <span class="memo-embed-meta">
+            <span class="memo-embed-title">${escapeHtml(tr.title)}</span>
+            <span class="memo-embed-sub">${escapeHtml(subParts)}</span>
+          </span>
+          ${streamBadge}
+          ${ratingBadge}
+        </button>
+      `;
+    }).join("");
+
+    const exactHit = rawQ && filtered.some(tr => tr.title.toLowerCase() === q);
+    const customHtml = rawQ && !exactHit
+      ? `
+        <button type="button" class="memo-embed-item memo-track-pick-item" data-track-title="${escapeHtml(rawQ)}">
+          <span class="memo-track-num-badge"><i class='bx bx-plus'></i></span>
+          <span class="memo-embed-meta">
+            <span class="memo-embed-title">Insert “${escapeHtml(rawQ)}”</span>
+            <span class="memo-embed-sub">Custom track reference (outside tracklist)</span>
+          </span>
+        </button>
+      `
+      : "";
+
+    if (!itemsHtml && !customHtml) {
+      memoTrackResults.innerHTML = `<div class="memo-embed-empty">No tracks in Tracklist &amp; Ratings yet. Type any song title above + Enter.</div>`;
+      return;
+    }
+
+    memoTrackResults.innerHTML = itemsHtml + customHtml;
+  }
+
+  function openMemoTrackPopover() {
+    if (!memoEmbedTrackPopover) return;
+    closeMemoEmbedPopover();
+    if (logMemo) {
+      savedMemoSelection = {
+        start: logMemo.selectionStart || 0,
+        end: logMemo.selectionEnd || 0
+      };
+    }
+    const prefill = (logMemo && savedMemoSelection && savedMemoSelection.end > savedMemoSelection.start)
+      ? String(logMemo.value || "").slice(savedMemoSelection.start, savedMemoSelection.end).trim()
+      : "";
+    if (memoTrackSearchInput) memoTrackSearchInput.value = prefill;
+    renderMemoTrackResults(prefill);
+    const fieldWrap = memoEmbedTrackPopover.closest(".spin-memo-field-wrap");
+    const editorBox = fieldWrap ? fieldWrap.querySelector(".spin-memo-editor-box") : null;
+    if (memoRibbonToolbar && fieldWrap) {
+      const topOffset = (editorBox ? editorBox.offsetTop : 22) + memoRibbonToolbar.offsetHeight + 4;
+      memoEmbedTrackPopover.style.top = `${topOffset}px`;
+    }
+    memoEmbedTrackPopover.style.display = "block";
+    if (memoEmbedTrackBtn) memoEmbedTrackBtn.classList.add("is-active");
+    if (memoTrackSearchInput) {
+      setTimeout(() => memoTrackSearchInput.focus(), 20);
+    }
+  }
+
+  function insertTrackReferenceToken(trackTitle) {
+    const cleanTitle = String(trackTitle || "").trim();
+    if (!cleanTitle) return;
+    const range = savedMemoSelection || (logMemo
+      ? { start: logMemo.selectionStart || 0, end: logMemo.selectionEnd || 0 }
+      : { start: 0, end: 0 });
+    const selectedLabel = logMemo ? String(logMemo.value || "").slice(range.start, range.end).trim() : "";
+    const sameLabel = !selectedLabel || normalizeTrackMatchKey(selectedLabel) === normalizeTrackMatchKey(cleanTitle);
+    const token = sameLabel
+      ? `[[track:${cleanTitle}]]`
+      : `[[track:${cleanTitle}|${selectedLabel}]]`;
+
+    closeMemoTrackPopover();
+    insertMemoTextAtCursor(token, "", "", range);
+  }
+
+  function isLikelyInlineQuote(rawText) {
+    const text = String(rawText || "").trim();
+    if (!text) return true;
+    const words = text.split(/\s+/).filter(Boolean);
+    if (/^[a-z]/.test(text)) return true;                 // starts lowercase (e.g. "hello, hello... hell-lo,")
+    if (/…|\.{2,}/.test(text)) return true;               // ellipsis inside spoken/sung phrasing
+    if (text.endsWith("?")) return true;                  // spoken question (unless matched in tracklist first!)
+    if (text.includes(",") && words.length >= 4) return true; // multi-clause lyric phrase
+    if (words.length >= 7 || text.length >= 48) return true;  // long phrase
+    return false;
+  }
+
   /**
    * Formats raw spin memo markup into safe, enriched HTML with clickable embedded spin pills,
-   * highlighted track quotes, playable audio links, and normalized blockquote/bilingual blocks.
+   * Concept #3 WMP Aqua track pills (auto-pulling stream links from track_ratings!),
+   * dotted lavender inline spoken/lyric quotes, and protected blockquote/bilingual blocks.
    */
-  function formatSpinMemoHtml(rawMemo, { safeArtist = "", safeAlbum = "", safeCover = "" } = {}) {
+  function formatSpinMemoHtml(rawMemo, { safeArtist = "", safeAlbum = "", safeCover = "", trackRatings = [], favTracks = [] } = {}) {
     if (!rawMemo) return "";
     let cleanText = String(rawMemo)
       .replace(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}(?:\s*relistened)?(?:\s*<br\s*\/?>)*/i, "")
@@ -2571,53 +2782,153 @@ function getDominantColorFromImg(imgUrl) {
 
     if (!cleanText) return "";
 
-    // Replace [[spin:...]] embed tokens with placeholders before quote-wrapping
-    // so album/artist quotes inside record titles aren't split into track badges.
-    const spinPlaceholders = [];
-    cleanText = cleanText.replace(/\[\[spin:([^\]\r\n]+?)\]\]/gi, (_, payload) => {
-      const parsed = parseEmbeddedSpinToken(payload);
-      if (!parsed.label) return "";
-      const marker = `__SOSA_SPIN_EMBED_${spinPlaceholders.length}__`;
-      const tooltipTarget = parsed.artist && parsed.title
-        ? `${parsed.artist} — ${parsed.title}`
-        : parsed.label;
-      spinPlaceholders.push(
-        `<button type="button" class="inline-spin-embed-link" data-spin-artist="${escapeHtml(parsed.artist)}" data-spin-title="${escapeHtml(parsed.title)}" onclick="event.stopPropagation(); window.openEmbeddedRecordModal(this.dataset.spinArtist, this.dataset.spinTitle);" title="View all spins for ${escapeHtml(tooltipTarget)}"><i class='bx bx-disc'></i>${escapeHtml(parsed.label)}<span class="spin-embed-arr" aria-hidden="true">↗</span></button>`
-      );
-      return marker;
+    const trackList = Array.isArray(trackRatings) ? trackRatings : [];
+    const favList = Array.isArray(favTracks) ? favTracks : parseFavTracks(favTracks);
+    const favTrackMap = new Map();
+    favList.forEach(entry => {
+      const parts = String(entry || "").split("|");
+      const name = (parts[0] || "").trim();
+      const url = parts.length > 1 ? parts[1].trim() : "";
+      if (!name) return;
+      extractTrackTitleAliases(name).forEach(alias => {
+        if (!favTrackMap.has(alias)) favTrackMap.set(alias, { title: name, url });
+      });
     });
 
-    cleanText = cleanText.replace(
-      /(?<=^|[\s>(])["“]([^"”\n\r<]+)["”](?=[\s.,!?;:)<]|$)/g,
-      `<span class="inline-quoted-track">“$1”</span>`
-    );
+    const renderTrackPill = (displayLabel, lookupTitle = displayLabel, explicitUrl = "") => {
+      const matchedTr = findMatchingTrackRating(lookupTitle, trackList);
+      let favHit = null;
+      if (!matchedTr) {
+        const aliases = extractTrackTitleAliases(lookupTitle);
+        for (const al of aliases) {
+          if (favTrackMap.has(al)) {
+            favHit = favTrackMap.get(al);
+            break;
+          }
+        }
+      }
+      const resolvedUrl = /^https?:\/\//i.test(String(explicitUrl || "").trim())
+        ? String(explicitUrl).trim()
+        : (matchedTr && /^https?:\/\//i.test(String(matchedTr.url || "").trim())
+            ? String(matchedTr.url).trim()
+            : (favHit && /^https?:\/\//i.test(String(favHit.url || "").trim()) ? String(favHit.url).trim() : ""));
 
-    cleanText = cleanText.replace(
-      /\[(?:<span class="inline-quoted-track">)?["“]?([^"”]+?)["”]?(?:<\/span>)?\]\((https?:\/\/[^\s)]+)\)/g,
-      `<a class="inline-quoted-track song-embed-link" onclick="playAudioTrack('$2', '$1', '${safeArtist}', '${safeAlbum}', '${safeCover}')">“$1”</a>`
-    );
+      const ratingNum = matchedTr && matchedTr.rating !== null && matchedTr.rating !== undefined && matchedTr.rating !== ""
+        ? parseFloat(matchedTr.rating)
+        : NaN;
+      const ratingNote = !Number.isNaN(ratingNum) ? ` · ★ ${ratingNum.toFixed(1)}` : "";
+      const durNote = matchedTr && matchedTr.duration ? ` (${matchedTr.duration})` : "";
+      const escapedLabel = escapeHtml(displayLabel);
 
+      const longCls = displayLabel.length > 36 ? " is-long-track" : "";
+      if (resolvedUrl) {
+        const jsSafeUrl = resolvedUrl.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        const jsSafeTrack = String(matchedTr ? matchedTr.title : displayLabel).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        return `<a class="inline-quoted-track song-embed-link${longCls}" onclick="playAudioTrack('${jsSafeUrl}', '${jsSafeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')" title="Play ${escapeHtml(displayLabel)}${escapeHtml(ratingNote + durNote)}"><span class="inline-track-play-orb" aria-hidden="true"></span>${escapedLabel}</a>`;
+      }
+      const titleAttr = ratingNote || durNote ? ` title="Track${escapeHtml(ratingNote + durNote)}"` : "";
+      return `<span class="inline-quoted-track${longCls}"${titleAttr}><i class='bx bx-music inline-track-ico' aria-hidden="true"></i>${escapedLabel}</span>`;
+    };
+
+    const renderInlineLyric = (text) =>
+      `<span class="inline-quoted-lyric"><span class="inline-lyric-qm">“</span>${escapeHtml(text)}<span class="inline-lyric-qm">”</span></span>`;
+
+    const tokens = [];
+    const stash = (html) => {
+      const marker = `__SOSA_MEMO_TOK_${tokens.length}__`;
+      tokens.push(html);
+      return marker;
+    };
+
+    // 1. Normalize & protect <blockquote> / <bilingual> blocks completely so quotes inside them are never altered
     cleanText = cleanText.replace(/<(bilingual|blockquote)([^>]*)>([\s\S]*?)<\/\1>/gi, (match, tag, attrs, inner) => {
+      let blockHtml = match;
       if (!/data-(song|track|from)/i.test(attrs)) {
         const childMatch = inner.match(/data-(song|track|from)=["']([^"']+)["']/i);
         if (childMatch) {
-          return `<${tag}${attrs} data-song="${childMatch[2]}">${inner}</${tag}>`;
+          blockHtml = `<${tag}${attrs} data-song="${childMatch[2]}">${inner}</${tag}>`;
         }
       }
-      return match;
+      return stash(blockHtml);
     });
 
-    let formatted = cleanText.replace(/\r?\n/g, "<br>")
+    // 2. Protect [[spin:...]] embed tokens
+    cleanText = cleanText.replace(/\[\[spin:([^\]\r\n]+?)\]\]/gi, (_, payload) => {
+      const parsed = parseEmbeddedSpinToken(payload);
+      if (!parsed.label) return "";
+      const tooltipTarget = parsed.artist && parsed.title
+        ? `${parsed.artist} — ${parsed.title}`
+        : parsed.label;
+      return stash(
+        `<button type="button" class="inline-spin-embed-link" data-spin-artist="${escapeHtml(parsed.artist)}" data-spin-title="${escapeHtml(parsed.title)}" onclick="event.stopPropagation(); window.openEmbeddedRecordModal(this.dataset.spinArtist, this.dataset.spinTitle);" title="View all spins for ${escapeHtml(tooltipTarget)}"><i class='bx bx-disc'></i>${escapeHtml(parsed.label)}<span class="spin-embed-arr" aria-hidden="true">↗</span></button>`
+      );
+    });
+
+    // 3. Explicit [[track:Name]] / [[track:Name|Label]] and [[quote:Text]] tokens
+    cleanText = cleanText.replace(/\[\[track:([^\]\r\n]+?)\]\]/gi, (_, payload) => {
+      const pipeIdx = payload.indexOf("|");
+      const lookup = (pipeIdx >= 0 ? payload.slice(0, pipeIdx) : payload).trim();
+      const label = (pipeIdx >= 0 ? payload.slice(pipeIdx + 1) : lookup).trim();
+      if (!label) return "";
+      return stash(renderTrackPill(label, lookup));
+    });
+
+    cleanText = cleanText.replace(/\[\[quote:([^\]\r\n]+?)\]\]/gi, (_, payload) => {
+      const txt = String(payload || "").trim();
+      return txt ? stash(renderInlineLyric(txt)) : "";
+    });
+
+    // 4. Legacy markdown audio links [Track](https://...) -> Playable Concept #3 pill
+    cleanText = cleanText.replace(
+      /\[["“]?([^"”\]]+?)["”]?(?=\])\s*\]\((https?:\/\/[^\s)]+)\)/g,
+      (_, label, url) => stash(renderTrackPill(String(label || "").trim(), String(label || "").trim(), url))
+    );
+
+    // 5. Protect existing HTML tags (<a>, <b>, <i>, etc.) so straight quotes in attributes never collide
+    cleanText = cleanText.replace(/<[^>]+>/g, (tagHtml) => stash(tagHtml));
+
+    // 6. Format both curly (“...”) and straight ("...") quotes across all boundaries (including —, –, /, 's)
+    cleanText = cleanText.replace(
+      /(?<=^|[\s(>\[\/—–-])(?:“([^”\n\r]+)”|"([^"\n\r]+)")(?=[\s.,!?;:)\]'’\/—–-]|$)/g,
+      (_, curlyInner, straightInner) => {
+        const rawInner = (curlyInner !== undefined ? curlyInner : straightInner) || "";
+        const trimmed = rawInner.trim();
+        if (!trimmed) return rawInner;
+
+        // Peel trailing comma/period if it's American-style punctuation around a track title (e.g. "Gangsta Boy,")
+        const punctMatch = trimmed.match(/^(.+?)([.,])$/);
+        const candidateTitle = punctMatch ? punctMatch[1].trim() : trimmed;
+        const trailingPunct = punctMatch ? punctMatch[2] : "";
+
+        const matchedTrack = findMatchingTrackRating(candidateTitle, trackList);
+        const matchedFav = !matchedTrack && extractTrackTitleAliases(candidateTitle).some(al => favTrackMap.has(al));
+
+        if (matchedTrack || matchedFav) {
+          return stash(renderTrackPill(candidateTitle, candidateTitle)) + trailingPunct;
+        }
+
+        if (isLikelyInlineQuote(trimmed)) {
+          return stash(renderInlineLyric(trimmed));
+        }
+
+        return stash(renderTrackPill(candidateTitle, candidateTitle)) + trailingPunct;
+      }
+    );
+
+    let formatted = cleanText.replace(/\r?\n/g, "<br>");
+
+    // Restore placeholders in reverse order so nested/adjacent tags restore cleanly
+    for (let i = tokens.length - 1; i >= 0; i--) {
+      formatted = formatted.replace(`__SOSA_MEMO_TOK_${i}__`, () => tokens[i]);
+    }
+
+    formatted = formatted
       .replace(/<(blockquote|bilingual)([^>]*)>(?:\s*<br\s*\/?>\s*)+/gi, "<$1$2>")
       .replace(/(?:\s*<br\s*\/?>\s*)+<\/(blockquote|bilingual)>/gi, "</$1>")
       .replace(/<\/(blockquote|bilingual)>\s*(?:<br\s*\/?>\s*)+<(blockquote|bilingual)\b/gi, "</$1><$2")
       .replace(/<(div|p)([^>]*)>(?:\s*<br\s*\/?>\s*)+/gi, "<$1$2>")
       .replace(/(?:\s*<br\s*\/?>\s*)+<\/(div|p)>/gi, "</$1>")
       .replace(/<\/(div|p)>\s*(?:<br\s*\/?>\s*)+<(div|p)/gi, "</$1><$2");
-
-    spinPlaceholders.forEach((html, idx) => {
-      formatted = formatted.replace(`__SOSA_SPIN_EMBED_${idx}__`, html);
-    });
 
     return formatted;
   }
@@ -2794,14 +3105,18 @@ function getDominantColorFromImg(imgUrl) {
 
     let favTracksSectionHtml = "";
     const favTracksList = parseFavTracks(latest.fav_tracks);
+    const latestTrackRatings = Array.isArray(latest.track_ratings) ? latest.track_ratings : [];
     if (favTracksList.length) {
       const chipsHtml = favTracksList.map(t => {
-        if (t.includes("|")) {
-          const [name, url] = t.split("|").map(s => s.trim());
+        const parts = t.includes("|") ? t.split("|").map(s => s.trim()) : [t.trim(), ""];
+        const name = parts[0];
+        const url = resolveFavTrackUrl(name, parts[1], latestTrackRatings);
+        if (url) {
           const safeTrack = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-          return `<span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(name)}</span>`;
+          const safeUrl = url.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+          return `<span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${safeUrl}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(name)}</span>`;
         }
-        return `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon"> ${escapeHtml(t)}</span>`;
+        return `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon"> ${escapeHtml(name)}</span>`;
       }).join("");
       favTracksSectionHtml = `
         <div class="modal-detail-section">
@@ -2850,7 +3165,9 @@ function getDominantColorFromImg(imgUrl) {
       const memoHtml = formatSpinMemoHtml(spin.memo, {
         safeArtist: spinSafeArtist,
         safeAlbum: spinSafeAlbum,
-        safeCover: spinSafeCover
+        safeCover: spinSafeCover,
+        trackRatings: Array.isArray(spin.track_ratings) && spin.track_ratings.length ? spin.track_ratings : latestTrackRatings,
+        favTracks: spin.fav_tracks || latest.fav_tracks
       });
 
       return `
@@ -2942,6 +3259,57 @@ function getDominantColorFromImg(imgUrl) {
     });
   }
 
+  if (memoEmbedTrackBtn) {
+    memoEmbedTrackBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (memoEmbedTrackPopover && memoEmbedTrackPopover.style.display !== "none") {
+        closeMemoTrackPopover();
+      } else {
+        openMemoTrackPopover();
+      }
+    });
+  }
+
+  if (memoTrackCloseBtn) {
+    memoTrackCloseBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      closeMemoTrackPopover();
+      if (logMemo) logMemo.focus();
+    });
+  }
+
+  if (memoTrackSearchInput) {
+    memoTrackSearchInput.addEventListener("input", (e) => {
+      renderMemoTrackResults(e.target.value);
+    });
+    memoTrackSearchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        closeMemoTrackPopover();
+        if (logMemo) logMemo.focus();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        const firstBtn = memoTrackResults ? memoTrackResults.querySelector(".memo-track-pick-item") : null;
+        if (firstBtn) {
+          insertTrackReferenceToken(firstBtn.dataset.trackTitle || "");
+        } else if (memoTrackSearchInput.value.trim()) {
+          insertTrackReferenceToken(memoTrackSearchInput.value.trim());
+        }
+      }
+    });
+  }
+
+  if (memoTrackResults) {
+    memoTrackResults.addEventListener("click", (e) => {
+      const itemBtn = e.target.closest(".memo-track-pick-item");
+      if (!itemBtn) return;
+      e.preventDefault();
+      insertTrackReferenceToken(itemBtn.dataset.trackTitle || "");
+    });
+  }
+
   if (memoEmbedSpinBtn) {
     memoEmbedSpinBtn.addEventListener("click", (e) => {
       e.preventDefault();
@@ -3009,6 +3377,14 @@ function getDominantColorFromImg(imgUrl) {
     ) {
       closeMemoEmbedPopover();
     }
+    if (
+      memoEmbedTrackPopover &&
+      memoEmbedTrackPopover.style.display !== "none" &&
+      !e.target.closest("#memoEmbedTrackPopover") &&
+      !e.target.closest("#memoEmbedTrackBtn")
+    ) {
+      closeMemoTrackPopover();
+    }
   });
 
   document.addEventListener("keydown", (e) => {
@@ -3019,6 +3395,9 @@ function getDominantColorFromImg(imgUrl) {
       }
       if (memoEmbedSpinPopover && memoEmbedSpinPopover.style.display !== "none") {
         closeMemoEmbedPopover();
+      }
+      if (memoEmbedTrackPopover && memoEmbedTrackPopover.style.display !== "none") {
+        closeMemoTrackPopover();
       }
     }
   });
@@ -4756,15 +5135,18 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
     if (spinsCfFavTracks) {
       const favList = parseFavTracks(item.fav_tracks);
       const isSingle = (item.type || "").trim().toLowerCase() === "single";
-      if (favList.length) {
+      const itemTrackRatings = Array.isArray(item.track_ratings) ? item.track_ratings : [];
+      if (favList.length || (isSingle && itemTrackRatings.length)) {
         if (isSingle) {
-          const first = favList[0];
-          const url = first.includes("|") ? first.split("|")[1].trim() : (first.startsWith("http") ? first.trim() : null);
+          const first = favList[0] || "";
+          const explicitUrl = first.includes("|") ? first.split("|")[1].trim() : (first.startsWith("http") ? first.trim() : "");
+          const url = resolveFavTrackUrl(item.title, explicitUrl, itemTrackRatings) || (itemTrackRatings[0] && /^https?:\/\//i.test(String(itemTrackRatings[0].url || "")) ? itemTrackRatings[0].url.trim() : null);
           if (url) {
             const safeTrack = (item.title || "Track").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+            const safeUrl = url.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
             spinsCfFavTracks.style.display = "flex";
             spinsCfFavTracks.innerHTML = `
-              <span class="fav-track-chip song-embed-link single-play-chip" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')">
+              <span class="fav-track-chip song-embed-link single-play-chip" onclick="playAudioTrack('${safeUrl}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')">
                 <span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(item.title)}
               </span>
             `;
@@ -4775,12 +5157,15 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
         } else {
           spinsCfFavTracks.style.display = "flex";
           spinsCfFavTracks.innerHTML = favList.map(t => {
-            if (t.includes("|")) {
-              const [name, url] = t.split("|").map(s => s.trim());
+            const parts = t.includes("|") ? t.split("|").map(s => s.trim()) : [t.trim(), ""];
+            const name = parts[0];
+            const url = resolveFavTrackUrl(name, parts[1], itemTrackRatings);
+            if (url) {
               const safeTrack = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-              return `<span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(name)}</span>`;
+              const safeUrl = url.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+              return `<span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${safeUrl}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(name)}</span>`;
             }
-            return `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon">${escapeHtml(t)}</span>`;
+            return `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon">${escapeHtml(name)}</span>`;
           }).join("");
         }
       } else {
@@ -4793,7 +5178,13 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
       spinsCfMemo.classList.remove("is-expanded");
       spinsCfMemo.scrollTop = 0;
       if (item.memo && item.memo.trim()) {
-        const cfMemoHtml = formatSpinMemoHtml(item.memo, { safeArtist, safeAlbum, safeCover });
+        const cfMemoHtml = formatSpinMemoHtml(item.memo, {
+          safeArtist,
+          safeAlbum,
+          safeCover,
+          trackRatings: item.track_ratings,
+          favTracks: item.fav_tracks
+        });
         spinsCfMemo.style.display = "block";
         spinsCfMemo.innerHTML = cfMemoHtml;
         window.requestAnimationFrame(syncCfMemoExpandBtn);
@@ -7026,17 +7417,22 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
     }
 
     let favTracksHtml = "";
+    const top100TrackRatings = Array.isArray(latestSpin && latestSpin.track_ratings)
+      ? latestSpin.track_ratings
+      : (Array.isArray(album.track_ratings) ? album.track_ratings : []);
     if (favTracks.length) {
       const chipsHtml = favTracks.map(t => {
         const parts = t.split("|");
         const name = parts[0].trim();
-        const url = parts.length > 1 ? parts[1].trim() : (name.startsWith("http") ? name : null);
+        const explicitUrl = parts.length > 1 ? parts[1].trim() : (name.startsWith("http") ? name : "");
+        const url = resolveFavTrackUrl(name, explicitUrl, top100TrackRatings);
         const safeTrack = escapeHtml(name).replace(/'/g, "\\'");
         const safeArtist = escapeHtml(album.artist || "").replace(/'/g, "\\'");
         const safeAlbum = escapeHtml(album.title || "").replace(/'/g, "\\'");
         const safeCover = (album.cover_url || "").replace(/'/g, "\\'");
         if (url && (url.startsWith("http://") || url.startsWith("https://"))) {
-          return `<span class="fav-track-chip song-embed-link single-play-chip" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')" title="Play ${escapeHtml(name)}"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(name)}</span>`;
+          const safeUrl = url.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+          return `<span class="fav-track-chip song-embed-link single-play-chip" onclick="playAudioTrack('${safeUrl}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')" title="Play ${escapeHtml(name)}"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(name)}</span>`;
         }
         return `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon"> ${escapeHtml(name)}</span>`;
       }).join("");
@@ -7089,7 +7485,9 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
       const formattedMemo = formatSpinMemoHtml(rawMemoToRender, {
         safeArtist: spinSafeArtist,
         safeAlbum: spinSafeAlbum,
-        safeCover: spinSafeCover
+        safeCover: spinSafeCover,
+        trackRatings: top100TrackRatings,
+        favTracks: favTracks
       });
 
       latestSpinSectionHtml = `
@@ -7951,7 +8349,13 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
     const safeCover = (item.cover_url || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 
     // Memo formatting with track/artist/album/spin-embed pass-through
-    const formattedMemo = formatSpinMemoHtml(item.memo, { safeArtist, safeAlbum, safeCover });
+    const formattedMemo = formatSpinMemoHtml(item.memo, {
+      safeArtist,
+      safeAlbum,
+      safeCover,
+      trackRatings: item.track_ratings,
+      favTracks: item.fav_tracks
+    });
 
     const reflectCoverUrl = safeCover || 'assets/images/spins/placeholder.png';
 
@@ -8043,19 +8447,22 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
           <!-- 1. Footer Divider Row: Audio / Fav Tracks + Action Icons -->
           ${(() => {
             const favList = parseFavTracks(item.fav_tracks);
+            const itemTrackRatings = Array.isArray(item.track_ratings) ? item.track_ratings : [];
             let favHtml = "";
-            if (favList.length) {
+            if (favList.length || ((item.type || "").trim().toLowerCase() === "single" && itemTrackRatings.length)) {
               const isSingle = (item.type || "").trim().toLowerCase() === "single";
               if (isSingle) {
-                const first = favList[0];
-                const url = first && first.includes("|") ? first.split("|")[1].trim() : (first && first.startsWith("http") ? first.trim() : null);
+                const first = favList[0] || "";
+                const explicitUrl = first && first.includes("|") ? first.split("|")[1].trim() : (first && first.startsWith("http") ? first.trim() : "");
+                const url = resolveFavTrackUrl(item.title, explicitUrl, itemTrackRatings) || (itemTrackRatings[0] && /^https?:\/\//i.test(String(itemTrackRatings[0].url || "")) ? itemTrackRatings[0].url.trim() : null);
                 if (url) {
                   const safeTrack = (item.title || "Track").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+                  const safeUrl = url.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
                   favHtml = `
                     <div class="fav-tracks-row single-audio-row">
                       <span class="fav-label"><img src="assets/icons/aero/audio.png" alt="Audio" class="aero-audio-icon"> Audio:</span>
                       <div class="fav-tracks-chips">
-                        <span class="fav-track-chip song-embed-link single-play-chip" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')">
+                        <span class="fav-track-chip song-embed-link single-play-chip" onclick="playAudioTrack('${safeUrl}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')">
                           <span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(item.title)}
                         </span>
                       </div>
@@ -8068,12 +8475,15 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
                     <span class="fav-label">Fav Tracks:</span>
                     <div class="fav-tracks-chips">
                       ${favList.map(t => {
-                        if (t.includes("|")) {
-                          const [name, url] = t.split("|").map(s => s.trim());
+                        const parts = t.includes("|") ? t.split("|").map(s => s.trim()) : [t.trim(), ""];
+                        const name = parts[0];
+                        const url = resolveFavTrackUrl(name, parts[1], itemTrackRatings);
+                        if (url) {
                           const safeTrack = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-                          return `<span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${url}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${name}</span>`;
+                          const safeUrl = url.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+                          return `<span class="fav-track-chip song-embed-link" onclick="playAudioTrack('${safeUrl}', '${safeTrack}', '${safeArtist}', '${safeAlbum}', '${safeCover}')"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(name)}</span>`;
                         }
-                        return `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon">${t}</span>`;
+                        return `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon">${escapeHtml(name)}</span>`;
                       }).join("")}
                     </div>
                   </div>

@@ -25,7 +25,7 @@
     <meta name="apple-mobile-web-app-title" content="SosaSpeaks" />
     <link rel="manifest" href="assets/images/homepics/site.webmanifest?v=20260527" />
     <!-- Link to CSS -->
-    <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261124b">
+    <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261124d">
     <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
     <link rel="stylesheet" href="assets/css/track-url-fetcher.css?v=20261122b">
     <!-- Box icons -->
@@ -539,11 +539,23 @@
                   </div>
                   <div class="memo-ribbon-group">
                     <button type="button" class="memo-ribbon-btn" data-memo-snippet="blockquote" title="Insert Blockquote"><i class="bx bxs-quote-left"></i><span>Quote</span></button>
+                    <button type="button" class="memo-ribbon-btn" data-memo-snippet="inlinequote" title="Wrap as Inline Spoken/Lyric Quote ([[quote:...]])"><i class="bx bx-message-rounded-dots"></i><span>Lyric</span></button>
                     <button type="button" class="memo-ribbon-btn" data-memo-snippet="bilingual" title="Insert Side-by-Side Bilingual Block"><i class="bx bx-globe"></i><span>Bilingual</span></button>
+                  </div>
+                  <div class="memo-ribbon-group">
+                    <button type="button" class="memo-ribbon-btn is-embed-track" id="memoEmbedTrackBtn" title="Insert Track Reference (Auto-pulls stream link from Track Ratings)"><i class="bx bx-music"></i><span>Track</span></button>
                     <button type="button" class="memo-ribbon-btn is-embed-spin" id="memoEmbedSpinBtn" title="Hyperlink &amp; Embed an Album Spin"><i class="bx bx-disc"></i><span>Embed Spin</span></button>
                   </div>
                 </div>
                 <textarea id="logMemo" placeholder="Notes &amp; Thoughts..." rows="6" class="sosa-search-input spin-memo-textarea"></textarea>
+              </div>
+              <div class="memo-embed-popover" id="memoEmbedTrackPopover" style="display: none;">
+                <div class="memo-embed-search-row">
+                  <i class="bx bx-music"></i>
+                  <input type="text" id="memoTrackSearchInput" class="sosa-search-input memo-embed-search-input" placeholder="Pick from tracklist or type a track title + Enter..." autocomplete="off">
+                  <button type="button" id="memoTrackCloseBtn" class="fav-track-link-clear" title="Close">&times;</button>
+                </div>
+                <div class="memo-embed-results" id="memoTrackResults"></div>
               </div>
               <div class="memo-embed-popover" id="memoEmbedSpinPopover" style="display: none;">
                 <div class="memo-embed-search-row">
@@ -1069,7 +1081,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
   <script src="assets/js/track-url-fetcher.js?v=20261123a"></script>
-  <script src="assets/js/sosaspins.js?v=20261124b"></script>
+  <script src="assets/js/sosaspins.js?v=20261124d"></script>
   <script src="assets/js/miniplayer-drag.js?v=20261123a" defer></script>
   <script src="assets/js/dock.js?v=20261123a"></script>
   <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>

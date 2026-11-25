@@ -3044,7 +3044,71 @@ document.addEventListener("DOMContentLoaded", async () => {
     return { artist, title, label };
   }
 
-  function formatSpinMemoHtml(rawMemo) {
+  function normalizeTrackMatchKey(raw) {
+    return String(raw || "")
+      .toLowerCase()
+      .replace(/[“”"'`’‘]/g, "")
+      .replace(/…|\.{2,}/g, "")
+      .replace(/[.,;:!?]+$/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function extractTrackTitleAliases(title) {
+    const raw = String(title || "").trim();
+    if (!raw) return [];
+    const keys = new Set();
+    const fullKey = normalizeTrackMatchKey(raw);
+    if (fullKey) keys.add(fullKey);
+
+    const parenMatch = raw.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+    if (parenMatch) {
+      const outer = normalizeTrackMatchKey(parenMatch[1]);
+      const inner = normalizeTrackMatchKey(parenMatch[2]);
+      if (outer) keys.add(outer);
+      if (inner) keys.add(inner);
+      if (outer && inner) keys.add(`${outer} (${inner})`);
+    }
+    return Array.from(keys);
+  }
+
+  function findMatchingTrackRating(queryTitle, trackRatings) {
+    if (!queryTitle || !Array.isArray(trackRatings) || !trackRatings.length) return null;
+    const queryAliases = extractTrackTitleAliases(queryTitle);
+    if (!queryAliases.length) return null;
+
+    for (const tr of trackRatings) {
+      if (!tr || !tr.title) continue;
+      const trAliases = extractTrackTitleAliases(tr.title);
+      if (queryAliases.some(qa => trAliases.includes(qa))) {
+        return tr;
+      }
+    }
+    return null;
+  }
+
+  function resolveFavTrackUrl(trackName, explicitUrl, trackRatings) {
+    const cleanExplicit = String(explicitUrl || "").trim();
+    if (/^https?:\/\//i.test(cleanExplicit)) return cleanExplicit;
+    const matched = findMatchingTrackRating(trackName, trackRatings);
+    const trUrl = matched && matched.url ? String(matched.url).trim() : "";
+    if (/^https?:\/\//i.test(trUrl)) return trUrl;
+    return null;
+  }
+
+  function isLikelyInlineQuote(rawText) {
+    const text = String(rawText || "").trim();
+    if (!text) return true;
+    const words = text.split(/\s+/).filter(Boolean);
+    if (/^[a-z]/.test(text)) return true;
+    if (/…|\.{2,}/.test(text)) return true;
+    if (text.endsWith("?")) return true;
+    if (text.includes(",") && words.length >= 4) return true;
+    if (words.length >= 7 || text.length >= 48) return true;
+    return false;
+  }
+
+  function formatSpinMemoHtml(rawMemo, { trackRatings = [], favTracks = [] } = {}) {
     if (!rawMemo) return "";
     let cleanText = String(rawMemo)
       .replace(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}(?:\s*relistened)?(?:\s*<br\s*\/?>)*/i, "")
@@ -3052,53 +3116,150 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (!cleanText) return "";
 
-    const spinPlaceholders = [];
+    const trackList = Array.isArray(trackRatings) ? trackRatings : [];
+    const favList = Array.isArray(favTracks) ? favTracks : parseFavTracks(favTracks);
+    const favTrackMap = new Map();
+    favList.forEach(entry => {
+      const parts = String(entry || "").split("|");
+      const name = (parts[0] || "").trim().replace(/^["“]|["”]$/g, "");
+      const url = parts.length > 1 ? parts[1].trim() : "";
+      if (!name) return;
+      extractTrackTitleAliases(name).forEach(alias => {
+        if (!favTrackMap.has(alias)) favTrackMap.set(alias, { title: name, url });
+      });
+    });
+
+    const renderTrackPill = (displayLabel, lookupTitle = displayLabel, explicitUrl = "") => {
+      const matchedTr = findMatchingTrackRating(lookupTitle, trackList);
+      let favHit = null;
+      if (!matchedTr) {
+        const aliases = extractTrackTitleAliases(lookupTitle);
+        for (const al of aliases) {
+          if (favTrackMap.has(al)) {
+            favHit = favTrackMap.get(al);
+            break;
+          }
+        }
+      }
+      const resolvedUrl = /^https?:\/\//i.test(String(explicitUrl || "").trim())
+        ? String(explicitUrl).trim()
+        : (matchedTr && /^https?:\/\//i.test(String(matchedTr.url || "").trim())
+            ? String(matchedTr.url).trim()
+            : (favHit && /^https?:\/\//i.test(String(favHit.url || "").trim()) ? String(favHit.url).trim() : ""));
+
+      const ratingNum = matchedTr && matchedTr.rating !== null && matchedTr.rating !== undefined && matchedTr.rating !== ""
+        ? parseFloat(matchedTr.rating)
+        : NaN;
+      const ratingNote = !Number.isNaN(ratingNum) ? ` · ★ ${ratingNum.toFixed(1)}` : "";
+      const durNote = matchedTr && matchedTr.duration ? ` (${matchedTr.duration})` : "";
+      const escapedLabel = escapeHtml(displayLabel);
+
+      const longCls = displayLabel.length > 36 ? " is-long-track" : "";
+      if (resolvedUrl) {
+        return `<a href="${escapeHtml(resolvedUrl)}" target="_blank" rel="noopener noreferrer" class="inline-quoted-track song-embed-link${longCls}" title="Open ${escapeHtml(displayLabel)}${escapeHtml(ratingNote + durNote)}"><span class="inline-track-play-orb" aria-hidden="true"></span>${escapedLabel}</a>`;
+      }
+      const titleAttr = ratingNote || durNote ? ` title="Track${escapeHtml(ratingNote + durNote)}"` : "";
+      return `<span class="inline-quoted-track${longCls}"${titleAttr}><i class='bx bx-music inline-track-ico' aria-hidden="true"></i>${escapedLabel}</span>`;
+    };
+
+    const renderInlineLyric = (text) =>
+      `<span class="inline-quoted-lyric"><span class="inline-lyric-qm">“</span>${escapeHtml(text)}<span class="inline-lyric-qm">”</span></span>`;
+
+    const tokens = [];
+    const stash = (html) => {
+      const marker = `__CHALLENGE_MEMO_TOK_${tokens.length}__`;
+      tokens.push(html);
+      return marker;
+    };
+
+    // 1. Protect <blockquote> / <bilingual> blocks completely so quotes inside them are never altered
+    cleanText = cleanText.replace(/<(bilingual|blockquote)([^>]*)>([\s\S]*?)<\/\1>/gi, (match, tag, attrs, inner) => {
+      let blockHtml = match;
+      if (!/data-(song|track|from)/i.test(attrs)) {
+        const childMatch = inner.match(/data-(song|track|from)=["']([^"']+)["']/i);
+        if (childMatch) {
+          blockHtml = `<${tag}${attrs} data-song="${childMatch[2]}">${inner}</${tag}>`;
+        }
+      }
+      return stash(blockHtml);
+    });
+
+    // 2. Protect [[spin:...]] embed tokens
     cleanText = cleanText.replace(/\[\[spin:([^\]\r\n]+?)\]\]/gi, (_, payload) => {
       const parsed = parseEmbeddedSpinToken(payload);
       if (!parsed.label) return "";
-      const marker = `__CHALLENGE_SPIN_EMBED_${spinPlaceholders.length}__`;
       const spinHref = `sosaspins.html?recordArtist=${encodeURIComponent(parsed.artist)}&recordTitle=${encodeURIComponent(parsed.title)}`;
       const tooltipTarget = parsed.artist && parsed.title
         ? `${parsed.artist} — ${parsed.title}`
         : parsed.label;
-      spinPlaceholders.push(
+      return stash(
         `<a href="${spinHref}" class="inline-spin-embed-link" title="View spins for ${escapeHtml(tooltipTarget)}"><i class='bx bx-disc'></i>${escapeHtml(parsed.label)}<span class="spin-embed-arr" aria-hidden="true">↗</span></a>`
       );
-      return marker;
     });
 
+    // 3. Explicit [[track:Name]] / [[track:Name|Label]] and [[quote:Text]] tokens
+    cleanText = cleanText.replace(/\[\[track:([^\]\r\n]+?)\]\]/gi, (_, payload) => {
+      const pipeIdx = payload.indexOf("|");
+      const lookup = (pipeIdx >= 0 ? payload.slice(0, pipeIdx) : payload).trim();
+      const label = (pipeIdx >= 0 ? payload.slice(pipeIdx + 1) : lookup).trim();
+      if (!label) return "";
+      return stash(renderTrackPill(label, lookup));
+    });
+
+    cleanText = cleanText.replace(/\[\[quote:([^\]\r\n]+?)\]\]/gi, (_, payload) => {
+      const txt = String(payload || "").trim();
+      return txt ? stash(renderInlineLyric(txt)) : "";
+    });
+
+    // 4. Legacy markdown audio links [Track](https://...) -> Playable Concept #3 pill
     cleanText = cleanText.replace(
-      /(?<=^|[\s>(])["“]([^"”\n\r<]+)["”](?=[\s.,!?;:)<]|$)/g,
-      `<span class="inline-quoted-track">“$1”</span>`
+      /\[["“]?([^"”\]]+?)["”]?(?=\])\s*\]\((https?:\/\/[^\s)]+)\)/g,
+      (_, label, url) => stash(renderTrackPill(String(label || "").trim(), String(label || "").trim(), url))
     );
 
-    cleanText = cleanText.replace(
-      /\[(?:<span class="inline-quoted-track">)?["“]?([^"”]+?)["”]?(?:<\/span>)?\]\((https?:\/\/[^\s)]+)\)/g,
-      `<a href="$2" target="_blank" rel="noopener noreferrer" class="inline-quoted-track song-embed-link">“$1” ↗</a>`
-    );
+    // 5. Protect existing HTML tags so straight quotes in attributes never collide
+    cleanText = cleanText.replace(/<[^>]+>/g, (tagHtml) => stash(tagHtml));
 
-    // Lift data-song / data-track / data-from from child div to parent bilingual or blockquote
-    cleanText = cleanText.replace(/<(bilingual|blockquote)([^>]*)>([\s\S]*?)<\/\1>/gi, (match, tag, attrs, inner) => {
-      if (!/data-(song|track|from)/i.test(attrs)) {
-        const childMatch = inner.match(/data-(song|track|from)=["']([^"']+)["']/i);
-        if (childMatch) {
-          return `<${tag}${attrs} data-song="${childMatch[2]}">${inner}</${tag}>`;
+    // 6. Format both curly (“...”) and straight ("...") quotes across all boundaries (including —, –, /, 's)
+    cleanText = cleanText.replace(
+      /(?<=^|[\s(>\[\/—–-])(?:“([^”\n\r]+)”|"([^"\n\r]+)")(?=[\s.,!?;:)\]'’\/—–-]|$)/g,
+      (_, curlyInner, straightInner) => {
+        const rawInner = (curlyInner !== undefined ? curlyInner : straightInner) || "";
+        const trimmed = rawInner.trim();
+        if (!trimmed) return rawInner;
+
+        const punctMatch = trimmed.match(/^(.+?)([.,])$/);
+        const candidateTitle = punctMatch ? punctMatch[1].trim() : trimmed;
+        const trailingPunct = punctMatch ? punctMatch[2] : "";
+
+        const matchedTrack = findMatchingTrackRating(candidateTitle, trackList);
+        const matchedFav = !matchedTrack && extractTrackTitleAliases(candidateTitle).some(al => favTrackMap.has(al));
+
+        if (matchedTrack || matchedFav) {
+          return stash(renderTrackPill(candidateTitle, candidateTitle)) + trailingPunct;
         }
-      }
-      return match;
-    });
 
-    let formatted = cleanText.replace(/\r?\n/g, "<br>")
+        if (isLikelyInlineQuote(trimmed)) {
+          return stash(renderInlineLyric(trimmed));
+        }
+
+        return stash(renderTrackPill(candidateTitle, candidateTitle)) + trailingPunct;
+      }
+    );
+
+    let formatted = cleanText.replace(/\r?\n/g, "<br>");
+
+    for (let i = tokens.length - 1; i >= 0; i--) {
+      formatted = formatted.replace(`__CHALLENGE_MEMO_TOK_${i}__`, () => tokens[i]);
+    }
+
+    formatted = formatted
       .replace(/<(blockquote|bilingual)([^>]*)>(?:\s*<br\s*\/?>\s*)+/gi, "<$1$2>")
       .replace(/(?:\s*<br\s*\/?>\s*)+<\/(blockquote|bilingual)>/gi, "</$1>")
       .replace(/<\/(blockquote|bilingual)>\s*(?:<br\s*\/?>\s*)+<(blockquote|bilingual)\b/gi, "</$1><$2")
       .replace(/<(div|p)([^>]*)>(?:\s*<br\s*\/?>\s*)+/gi, "<$1$2>")
       .replace(/(?:\s*<br\s*\/?>\s*)+<\/(div|p)>/gi, "</$1>")
       .replace(/<\/(div|p)>\s*(?:<br\s*\/?>\s*)+<(div|p)/gi, "</$1><$2");
-
-    spinPlaceholders.forEach((html, idx) => {
-      formatted = formatted.replace(`__CHALLENGE_SPIN_EMBED_${idx}__`, html);
-    });
 
     return formatted;
   }
@@ -3199,7 +3360,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     `;
   }
 
-  function renderSpinHistoryHtml(spins, sectionTitle = "SPINS") {
+  function renderSpinHistoryHtml(spins, sectionTitle = "SPINS", { fallbackTrackRatings = [], fallbackFavTracks = "" } = {}) {
     if (!Array.isArray(spins) || !spins.length) return "";
 
     const total = spins.length;
@@ -3235,7 +3396,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         ? `<a href="sosaspins.html?highlight=${spin.id}" class="modal-spin-jump-btn" style="text-decoration: none;" title="Jump to this spin in timeline"><i class='bx bx-right-top-arrow-circle'></i> Jump</a>`
         : "";
 
-      const memoHtml = formatSpinMemoHtml(spin.memo);
+      const spinTrackRatings = (Array.isArray(spin.track_ratings) && spin.track_ratings.length)
+        ? spin.track_ratings
+        : fallbackTrackRatings;
+      const memoHtml = formatSpinMemoHtml(spin.memo, {
+        trackRatings: spinTrackRatings,
+        favTracks: spin.fav_tracks || fallbackFavTracks
+      });
 
       return `
         <div class="modal-spin-entry ${isLatest ? "is-latest" : ""}">
@@ -3432,6 +3599,10 @@ document.addEventListener("DOMContentLoaded", async () => {
           ratingInlineHtml = `<div class="modal-runtime-favfont">${escapeHtml(rymHoverText)}</div>`;
         }
 
+        const matchedTrackRatings = (Array.isArray(match.track_ratings) && match.track_ratings.length)
+          ? match.track_ratings
+          : (Array.isArray(album.track_ratings) ? album.track_ratings : []);
+
         let favTracksSectionHtml = "";
         const favTracksList = parseFavTracks(match.fav_tracks);
         const isMatchSingle = (match.type || album.type || "").trim().toLowerCase() === "single";
@@ -3440,14 +3611,15 @@ document.addEventListener("DOMContentLoaded", async () => {
             const first = favTracksList[0];
             const parts = first.split("|");
             const title = parts[0].trim().replace(/^["“]|["”]$/g, "");
-            const link = parts[1] ? parts[1].trim() : (first.startsWith("http") ? first.trim() : null);
+            const explicitLink = parts[1] ? parts[1].trim() : (first.startsWith("http") ? first.trim() : "");
+            const link = resolveFavTrackUrl(title, explicitLink, matchedTrackRatings);
             if (link) {
               favTracksSectionHtml = `
                 <div class="modal-detail-section">
                   <div class="fav-tracks-row">
                     <span class="fav-label">Audio:</span>
                     <div class="fav-tracks-chips">
-                      <a href="${link}" target="_blank" rel="noopener noreferrer" class="fav-track-chip single-play-chip song-embed-link"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(title)}</a>
+                      <a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer" class="fav-track-chip single-play-chip song-embed-link"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(title)}</a>
                     </div>
                   </div>
                 </div>`;
@@ -3456,9 +3628,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             const cleanedTracks = favTracksList.map(t => {
               const parts = t.split("|");
               const title = parts[0].trim().replace(/^["“]|["”]$/g, "");
-              const link = parts[1] ? parts[1].trim() : null;
+              const link = resolveFavTrackUrl(title, parts[1] ? parts[1].trim() : "", matchedTrackRatings);
               return link
-                ? `<a href="${link}" target="_blank" rel="noopener noreferrer" class="fav-track-chip song-embed-link"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(title)}</a>`
+                ? `<a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer" class="fav-track-chip song-embed-link"><span class="aero-play-wrap"><img src="assets/icons/aero/play.ico" alt="Play" class="aero-play-icon"><span class="play-sheen-shine"></span></span> ${escapeHtml(title)}</a>`
                 : `<span class="fav-track-chip"><img src="assets/icons/aero/favtrack.ico" alt="Track" class="aero-favtrack-icon"> ${escapeHtml(title)}</span>`;
             }).join("");
 
@@ -3472,9 +3644,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           }
         }
 
-        const matchedTrackRatings = (Array.isArray(match.track_ratings) && match.track_ratings.length)
-          ? match.track_ratings
-          : (Array.isArray(album.track_ratings) ? album.track_ratings : []);
         const matchedTrackRatingsHtml = renderChallengeTrackRatingsHtml(
           matchedTrackRatings,
           `challenge-detail-tracks-${String(album.id || "item").replace(/[^a-zA-Z0-9_-]/g, "")}`,
@@ -3483,7 +3652,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const spinHistoryHtml = renderSpinHistoryHtml(
           allSpins.length ? allSpins : [match],
-          "SPINS"
+          "SPINS",
+          { fallbackTrackRatings: matchedTrackRatings, fallbackFavTracks: match.fav_tracks || "" }
         );
         const topDateHtml = match.log_date
           ? `<span class="modal-top-date" title="Most recent spin"><i class='bx bx-calendar'></i> ${escapeHtml(match.log_date)}</span>`
