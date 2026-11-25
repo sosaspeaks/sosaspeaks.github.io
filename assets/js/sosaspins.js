@@ -3186,7 +3186,8 @@ function getDominantColorFromImg(imgUrl) {
           </div>
           ${memoHtml
             ? `<div class="spin-memo-entry" style="margin-top: 0.45rem;">${memoHtml}</div>`
-            : `<div class="modal-spin-no-memo">No memo written for this listen.</div>`}
+            : (spin.review_url ? "" : `<div class="modal-spin-no-memo">No memo written for this listen.</div>`)}
+          ${spin.review_url ? `<div style="margin-top: 0.45rem;">${renderFullReviewPreviewHtml(spin)}</div>` : ""}
         </div>
       `;
     }).join("");
@@ -3662,6 +3663,241 @@ function getDominantColorFromImg(imgUrl) {
     }
   }
 
+  const reviewPreviewCache = new Map();
+  const reviewPreviewPending = new Set();
+
+  function extractReviewSlug(reviewUrl) {
+    const raw = String(reviewUrl || "").trim();
+    if (!raw) return "";
+    try {
+      const parsed = new URL(raw, window.location.origin);
+      const pathLower = parsed.pathname.toLowerCase();
+      if (pathLower.endsWith("article.html") || pathLower.endsWith("/article")) {
+        return (parsed.searchParams.get("slug") || "").trim();
+      }
+    } catch {}
+    const m = raw.match(/article\.html\?[^#]*\bslug=([^&#]+)/i);
+    return m ? decodeURIComponent(m[1]).trim() : "";
+  }
+
+  function stripHtmlToPlainText(htmlStr) {
+    if (!htmlStr) return "";
+    const doc = new DOMParser().parseFromString(`<div>${htmlStr}</div>`, "text/html");
+    return String(doc.body.textContent || "").replace(/\s+/g, " ").trim();
+  }
+
+  function extractReviewExcerptFromHtml(htmlStr, isFullDocument = false) {
+    if (!htmlStr) return "";
+    try {
+      const doc = new DOMParser().parseFromString(
+        isFullDocument ? String(htmlStr) : `<div id="revRoot">${htmlStr}</div>`,
+        "text/html"
+      );
+      const root = isFullDocument
+        ? (doc.querySelector(".post-content, article, main") || doc.body)
+        : (doc.getElementById("revRoot") || doc.body);
+      if (!root) return "";
+
+      root.querySelectorAll(".toc-box, .interview-qa, script, style, figcaption, .image-caption, .article-metadata-row").forEach(n => n.remove());
+
+      let pNodes = Array.from(root.querySelectorAll("p.post-text"));
+      if (!pNodes.length) {
+        pNodes = Array.from(root.querySelectorAll("p"));
+      }
+
+      const paragraphs = [];
+      for (const p of pNodes) {
+        const txt = String(p.textContent || "").replace(/\s+/g, " ").trim();
+        if (txt.length < 28) continue;
+        paragraphs.push(txt);
+        if (paragraphs.join(" ").length >= 420 || paragraphs.length >= 2) break;
+      }
+
+      let combined = paragraphs.join(" ");
+      if (combined.length > 480) {
+        combined = combined.slice(0, 480).replace(/\s+\S*$/, "").trim() + "…";
+      }
+      return combined;
+    } catch {
+      return "";
+    }
+  }
+
+  function buildReviewPreviewCardInnerHtml(item, previewData) {
+    const cleanUrl = String(item?.review_url || "").trim();
+    const coverSrc = item?.cover_url || "assets/images/spins/placeholder.png";
+    const isExternal = /^https?:\/\//i.test(cleanUrl) && !cleanUrl.includes(window.location.hostname);
+    const linkAttrs = isExternal ? ` target="_blank" rel="noopener noreferrer"` : "";
+
+    const isStudy = previewData?.eyebrow
+      ? /study/i.test(previewData.eyebrow)
+      : /sosa-study/i.test(cleanUrl);
+    const eyebrowText = previewData?.eyebrow || (isStudy ? "Sosa Study" : "Full Review");
+    const readTimeText = previewData?.readTime || "";
+    const hasQuote = !!(previewData && previewData.quote);
+    const fallbackTitle = `${item?.artist || ""}${item?.artist && item?.title ? " — " : ""}${item?.title || "Full Review"}${item?.year ? ` (${item.year})` : ""}`;
+    const leadHtml = hasQuote
+      ? `“${escapeHtml(previewData.quote)}”`
+      : escapeHtml(fallbackTitle);
+    const excerptText = previewData?.excerpt || "";
+
+    return `
+      <div class="review-preview-hero">
+        <div class="review-preview-hero-bg" style="background-image: url('${escapeHtml(coverSrc)}');" aria-hidden="true"></div>
+        <div class="review-preview-hero-inner">
+          <div class="review-preview-eyebrow">
+            <span class="review-preview-badge"><i class='bx ${isStudy ? "bxs-bookmark-star" : "bx-book-open"}' aria-hidden="true"></i> ${escapeHtml(eyebrowText)}</span>
+            ${readTimeText ? `<span class="review-preview-time">${escapeHtml(readTimeText)}</span>` : ""}
+          </div>
+          <div class="review-preview-quote ${hasQuote ? "is-quote" : ""}">${leadHtml}</div>
+        </div>
+      </div>
+      ${excerptText ? `
+        <div class="review-preview-prose-wrap">
+          <p class="review-preview-prose">${escapeHtml(excerptText)}</p>
+          <div class="review-preview-fade">
+            <a href="${escapeHtml(cleanUrl)}"${linkAttrs} class="review-preview-cta">
+              <i class='bx bx-book-open' aria-hidden="true"></i>
+              <span>Read Full Review</span>
+              <i class='bx bx-right-arrow-alt review-preview-arr' aria-hidden="true"></i>
+            </a>
+          </div>
+        </div>
+      ` : `
+        <div class="review-preview-compact-footer">
+          <a href="${escapeHtml(cleanUrl)}"${linkAttrs} class="review-preview-cta">
+            <i class='bx bx-book-open' aria-hidden="true"></i>
+            <span>Read Full Review</span>
+            <i class='bx bx-right-arrow-alt review-preview-arr' aria-hidden="true"></i>
+          </a>
+        </div>
+      `}
+    `;
+  }
+
+  function hydrateReviewPreviewCards(reviewUrl) {
+    const cleanUrl = String(reviewUrl || "").trim();
+    if (!cleanUrl || !reviewPreviewCache.has(cleanUrl)) return;
+    const previewData = reviewPreviewCache.get(cleanUrl);
+    document.querySelectorAll(".review-preview-card[data-review-url]").forEach((cardEl) => {
+      if (cardEl.getAttribute("data-review-url") !== cleanUrl) return;
+      const spinId = Number(cardEl.getAttribute("data-spin-id"));
+      const item = (Array.isArray(allEntries) ? allEntries.find(e => Number(e.id) === spinId) : null) || {
+        review_url: cleanUrl,
+        cover_url: cardEl.getAttribute("data-cover-url") || "",
+        artist: cardEl.getAttribute("data-artist") || "",
+        title: cardEl.getAttribute("data-title") || "",
+        year: cardEl.getAttribute("data-year") || ""
+      };
+      cardEl.innerHTML = buildReviewPreviewCardInnerHtml(item, previewData);
+    });
+  }
+
+  async function fetchStaticHtmlReviewPreview(reviewUrl) {
+    const cleanUrl = String(reviewUrl || "").trim();
+    if (!cleanUrl || reviewPreviewCache.has(cleanUrl) || reviewPreviewPending.has(cleanUrl)) return;
+    if (/^https?:\/\//i.test(cleanUrl) && !cleanUrl.startsWith(window.location.origin)) return;
+    reviewPreviewPending.add(cleanUrl);
+    try {
+      const res = await fetch(cleanUrl);
+      if (!res.ok) return;
+      const htmlText = await res.text();
+      const doc = new DOMParser().parseFromString(htmlText, "text/html");
+      const rawCat = doc.querySelector(".category")?.textContent?.trim() || "";
+      const isStudy = /sosa-study/i.test(cleanUrl) || /study/i.test(rawCat);
+      const readTime = doc.querySelector(".read-time")?.textContent?.replace(/\s+/g, " ").trim() || "";
+      const subtitleEl = doc.querySelector(".header-subtitle, .article-subtitle, .post-subtitle");
+      const titleEl = doc.querySelector(".header-title, h1");
+      const quote = (subtitleEl?.textContent || titleEl?.textContent || "").replace(/\s+/g, " ").trim();
+      const excerpt = extractReviewExcerptFromHtml(htmlText, true);
+      reviewPreviewCache.set(cleanUrl, {
+        eyebrow: isStudy ? "Sosa Study" : (rawCat || "Full Review"),
+        readTime,
+        quote,
+        excerpt
+      });
+      hydrateReviewPreviewCards(cleanUrl);
+    } catch {
+      // Fallback compact Proposal 3 card remains gracefully visible
+    } finally {
+      reviewPreviewPending.delete(cleanUrl);
+    }
+  }
+
+  async function prefetchReviewPreviews(entries) {
+    if (!Array.isArray(entries) || !entries.length) return;
+    const slugToUrls = new Map();
+    const staticUrls = new Set();
+
+    entries.forEach((spin) => {
+      const u = String(spin?.review_url || "").trim();
+      if (!u || reviewPreviewCache.has(u)) return;
+      const slug = extractReviewSlug(u);
+      if (slug) {
+        if (!slugToUrls.has(slug)) slugToUrls.set(slug, []);
+        slugToUrls.get(slug).push(u);
+      } else if (!/^https?:\/\//i.test(u) || u.startsWith(window.location.origin)) {
+        staticUrls.add(u);
+      }
+    });
+
+    if (slugToUrls.size > 0) {
+      try {
+        const slugs = Array.from(slugToUrls.keys());
+        const { data: artRows, error: artErr } = await supabaseClient
+          .from("articles")
+          .select("slug, title, subtitle, read_time, post_type, categories, body_html")
+          .in("slug", slugs);
+        if (!artErr && Array.isArray(artRows)) {
+          artRows.forEach((row) => {
+            const urls = slugToUrls.get(row.slug) || [];
+            const isStudy =
+              row.post_type === "sosa-study" ||
+              /sosa\s*study/i.test(row.title || "") ||
+              (Array.isArray(row.categories) && row.categories.some(c => /sosa\s*study/i.test(String(c))));
+            const previewObj = {
+              eyebrow: isStudy ? "Sosa Study" : "Full Review",
+              readTime: String(row.read_time || "").trim(),
+              quote: stripHtmlToPlainText(row.subtitle || "") || stripHtmlToPlainText(row.title || ""),
+              excerpt: extractReviewExcerptFromHtml(row.body_html || "", false)
+            };
+            urls.forEach((u) => {
+              reviewPreviewCache.set(u, previewObj);
+              hydrateReviewPreviewCards(u);
+            });
+          });
+        }
+      } catch (err) {
+        console.warn("Could not prefetch review previews from articles:", err);
+      }
+    }
+
+    staticUrls.forEach((u) => {
+      fetchStaticHtmlReviewPreview(u);
+    });
+  }
+
+  function renderFullReviewPreviewHtml(item) {
+    const cleanUrl = String(item?.review_url || "").trim();
+    if (!cleanUrl) return "";
+    const cached = reviewPreviewCache.get(cleanUrl) || null;
+    if (!cached && !extractReviewSlug(cleanUrl)) {
+      fetchStaticHtmlReviewPreview(cleanUrl);
+    }
+    const innerHtml = buildReviewPreviewCardInnerHtml(item, cached);
+    return `
+      <div class="review-preview-card"
+           data-review-url="${escapeHtml(cleanUrl)}"
+           data-spin-id="${escapeHtml(String(item.id || ""))}"
+           data-cover-url="${escapeHtml(item.cover_url || "")}"
+           data-artist="${escapeHtml(item.artist || "")}"
+           data-title="${escapeHtml(item.title || "")}"
+           data-year="${escapeHtml(String(item.year || ""))}">
+        ${innerHtml}
+      </div>
+    `;
+  }
+
   async function loadSpins() {
     try {
       await loadArtistAliases();
@@ -3711,7 +3947,10 @@ function getDominantColorFromImg(imgUrl) {
       }
 
       allEntriesById = null;
-      await fetchTopAlbumsData();
+      await Promise.all([
+        fetchTopAlbumsData(),
+        prefetchReviewPreviews(allEntries)
+      ]);
       buildActiveRecalibrateMap();
       buildSidebarWidgets(allEntries);
       loadSotdSidebarWidget();
@@ -8437,12 +8676,13 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
         </div>
 
         <div class="spin-body">
-          <!-- Journal Entry Prose Memo -->
+          <!-- Journal Entry Prose Memo & Full Review Preview -->
           ${formattedMemo ? `
             <div class="spin-memo-entry">
               ${formattedMemo}
             </div>
           ` : ""}
+          ${item.review_url ? renderFullReviewPreviewHtml(item) : ""}
 
           <!-- 1. Footer Divider Row: Audio / Fav Tracks + Action Icons -->
           ${(() => {
@@ -8599,15 +8839,6 @@ async function uploadCoverToSupabase(imageUrl, artist, title, bucket = COVERS_ST
                 </div>
               `;
               })() : ""}
-
-              <!-- Full Review Link Button -->
-              ${item.review_url ? `
-                <div class="review-link-wrap">
-                  <a href="${item.review_url}" class="review-action-btn">
-                    Read Full Review <i class='bx bx-right-arrow-alt'></i>
-                  </a>
-                </div>
-              ` : ""}
 
               <!-- Per-Spin Expandable Discussion Drawer -->
               <div class="spin-discuss-drawer" id="spin-discuss-${spinId}" style="display: ${isOpen ? 'flex' : 'none'};">

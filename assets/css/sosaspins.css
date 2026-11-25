@@ -4399,6 +4399,248 @@ body.dark-mode .single-play-chip i,
 }
 
 /* ============================================================
+   Proposal 3: Atmospheric Cover-Wash Full Review Preview Card
+   ============================================================ */
+.review-preview-card {
+  margin-top: 0.1rem;
+  margin-bottom: 0.35rem;
+  border-radius: 11px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: rgba(255, 255, 255, 0.9);
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05), inset 0 1px 0 #ffffff;
+}
+
+.dark-mode .review-preview-card,
+body.dark-mode .review-preview-card {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(20, 27, 33, 0.92);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.review-preview-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 12px 16px 13px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.dark-mode .review-preview-hero,
+body.dark-mode .review-preview-hero {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.review-preview-hero-bg {
+  position: absolute;
+  inset: -18px;
+  background-size: cover;
+  background-position: center;
+  filter: blur(22px) saturate(1.15);
+  opacity: 0.22;
+  pointer-events: none;
+}
+
+.dark-mode .review-preview-hero-bg,
+body.dark-mode .review-preview-hero-bg {
+  opacity: 0.28;
+}
+
+.review-preview-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.74) 0%, rgba(236, 253, 245, 0.6) 100%);
+  pointer-events: none;
+}
+
+.dark-mode .review-preview-hero::after,
+body.dark-mode .review-preview-hero::after {
+  background: linear-gradient(120deg, rgba(12, 18, 24, 0.78) 0%, rgba(6, 46, 38, 0.58) 100%);
+}
+
+.review-preview-hero-inner {
+  position: relative;
+  z-index: 2;
+}
+
+.review-preview-eyebrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.review-preview-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: "Noto Sans Mono", monospace;
+  font-size: 0.67rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #065f46;
+}
+
+.dark-mode .review-preview-badge,
+body.dark-mode .review-preview-badge {
+  color: #6ee7b7;
+}
+
+.review-preview-time {
+  font-family: "Noto Sans Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.dark-mode .review-preview-time,
+body.dark-mode .review-preview-time {
+  color: #cbd5e1;
+}
+
+.review-preview-quote {
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.93rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.45;
+}
+
+.review-preview-quote.is-quote {
+  font-style: italic;
+}
+
+.dark-mode .review-preview-quote,
+body.dark-mode .review-preview-quote {
+  color: #f8fafc;
+}
+
+.review-preview-prose-wrap {
+  position: relative;
+  padding: 11px 16px 14px;
+  max-height: 122px;
+  overflow: hidden;
+}
+
+.review-preview-prose {
+  margin: 0;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.91rem;
+  line-height: 1.66;
+  color: #1f2937;
+}
+
+.dark-mode .review-preview-prose,
+body.dark-mode .review-preview-prose {
+  color: #cbd5e1;
+}
+
+.review-preview-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 74px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 11px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.88) 48%, rgba(255, 255, 255, 0.99) 85%);
+}
+
+.dark-mode .review-preview-fade,
+body.dark-mode .review-preview-fade {
+  background: linear-gradient(180deg, rgba(20, 27, 33, 0) 0%, rgba(20, 27, 33, 0.9) 48%, rgba(20, 27, 33, 0.99) 85%);
+}
+
+.review-preview-compact-footer {
+  padding: 10px 16px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.review-preview-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 15px;
+  border-radius: 999px;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-decoration: none !important;
+  color: #065f46 !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(220, 252, 231, 0.84) 52%, rgba(209, 250, 229, 0.94) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  box-shadow: inset 0 1px 0 #ffffff, 0 2px 10px rgba(16, 185, 129, 0.16);
+  transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease, color 160ms ease;
+}
+
+.review-preview-arr {
+  font-size: 1.05rem;
+  transition: transform 160ms ease;
+}
+
+.dark-mode .review-preview-cta,
+body.dark-mode .review-preview-cta {
+  color: #d1fae5 !important;
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.34) 0%, rgba(6, 78, 59, 0.72) 100%);
+  border-color: rgba(52, 211, 153, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 3px 12px rgba(0, 0, 0, 0.35);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .review-preview-cta:hover {
+    color: #064e3b !important;
+    border-color: #10b981;
+    background: linear-gradient(180deg, #ffffff 0%, #bbf7d0 52%, #a7f3d0 100%);
+    box-shadow: inset 0 1px 0 #ffffff, 0 4px 14px rgba(16, 185, 129, 0.28);
+    transform: translateY(-1px);
+  }
+  .review-preview-cta:hover .review-preview-arr {
+    transform: translateX(3px);
+  }
+  .dark-mode .review-preview-cta:hover,
+  body.dark-mode .review-preview-cta:hover {
+    color: #ffffff !important;
+    border-color: #34d399;
+    background: linear-gradient(180deg, rgba(16, 185, 129, 0.5) 0%, rgba(5, 150, 105, 0.82) 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 4px 16px rgba(16, 185, 129, 0.32);
+  }
+}
+
+.review-preview-cta:active {
+  transform: scale(0.98);
+}
+
+@media (max-width: 560px) {
+  .review-preview-hero {
+    padding: 10px 13px 11px;
+  }
+  .review-preview-quote {
+    font-size: 0.87rem;
+  }
+  .review-preview-prose-wrap {
+    padding: 10px 13px 12px;
+    max-height: 114px;
+  }
+  .review-preview-prose {
+    font-size: 0.86rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .review-preview-cta,
+  .review-preview-arr {
+    transition: none;
+  }
+}
+
+/* ============================================================
    Action Buttons & Full Review Link
    ============================================================ */
 .review-link-wrap {
