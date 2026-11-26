@@ -2307,6 +2307,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         updateCoverFlowPositions();
       }
       updateMonthPillCounts();
+      if (typeof renderCuratorDrawer === "function") {
+        renderCuratorDrawer();
+      }
     }
   }
 
@@ -5179,6 +5182,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
 
+    renderCuratorDrawer({ isMonthlyView, activeYearNum, targetCount: list.length });
+
     renderCoverFlow(list);
     triggerExplorerViewTransition(isCoverFlowView ? coverFlowWrapper : topsterGrid);
 
@@ -5481,13 +5486,94 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
   }
 
+  function getOrderedMonthRecalAlbums(monthKey) {
+    const clean = (monthKey || "").toLowerCase().trim();
+    return backlogEntries
+      .filter(a => (a.month || "").toLowerCase().trim() === clean && isRecalEntry(a))
+      .sort((a, b) => {
+        const posA = a.position !== null && a.position !== undefined ? a.position : (Number(a.id) || 0);
+        const posB = b.position !== null && b.position !== undefined ? b.position : (Number(b.id) || 0);
+        return posA - posB;
+      });
+  }
+
+  function computeMonthGenreMixScore(list) {
+    const arr = Array.isArray(list) ? list : [];
+    const count = arr.length;
+    if (!count) return { score: 100, topGenre: "", topGenreCount: 0 };
+
+    const gMap = Object.create(null);
+    arr.forEach(item => {
+      safeToArray(item?.genres).forEach(g => {
+        const clean = String(g || "").trim();
+        if (clean) gMap[clean] = (gMap[clean] || 0) + 1;
+      });
+    });
+
+    const topGenres = Object.entries(gMap).sort((a, b) => b[1] - a[1]);
+    const maxGenreShare = topGenres.length ? topGenres[0][1] / count : 0;
+    const top2Set = new Set(topGenres.slice(0, 2).map(([g]) => g));
+    const top2UniqueAlbums = top2Set.size
+      ? arr.filter(it => safeToArray(it?.genres).some(g => top2Set.has(String(g || "").trim()))).length
+      : 0;
+    const top2Share = top2UniqueAlbums / count;
+    const repeatedGenreSlots = topGenres
+      .filter(([, c]) => c >= 3)
+      .reduce((sum, [, c]) => sum + (c - 2), 0);
+    const repeatDensity = repeatedGenreSlots / count;
+
+    const score = Math.max(
+      12,
+      Math.min(
+        99,
+        Math.round(
+          100
+            - (maxGenreShare * 108)
+            - Math.max(0, top2Share - 0.25) * 48
+            - (repeatDensity * 22)
+        )
+      )
+    );
+
+    return {
+      score,
+      topGenre: topGenres.length ? topGenres[0][0] : "",
+      topGenreCount: topGenres.length ? topGenres[0][1] : 0
+    };
+  }
+
+  let swapSortMode = "slot"; // "mix" | "slot"
+  let swapFromCuratorContext = false;
+  let swapOverflowMonth = "";
+
+  function findDefaultOverflowFutureMonth(excludeMonthKey, monthOptions) {
+    const cleanExclude = String(excludeMonthKey || "").toLowerCase().trim();
+    const excludeSortKey = getCuratorMonthSortKey(cleanExclude, resolveBacklogMonthTabYear(cleanExclude));
+    const laterOpen = monthOptions.find(o => {
+      if (o.key === cleanExclude) return false;
+      const sk = getCuratorMonthSortKey(o.key, o.year);
+      return sk > excludeSortKey && o.count < MAX_MONTHLY_ALBUMS;
+    });
+    if (laterOpen) return laterOpen.key;
+    const anyLater = monthOptions.find(o => {
+      if (o.key === cleanExclude) return false;
+      return getCuratorMonthSortKey(o.key, o.year) > excludeSortKey;
+    });
+    if (anyLater) return anyLater.key;
+    const anyOther = monthOptions.find(o => o.key !== cleanExclude);
+    return anyOther ? anyOther.key : cleanExclude;
+  }
+
   function renderSwapModalContent() {
     if (!swapModalBody || !swapSourceAlbumId) return;
     const sourceAlbum = backlogEntries.find(a => String(a.id) === String(swapSourceAlbumId));
     if (!sourceAlbum) return;
 
     const sourceMonth = (sourceAlbum.month || activeMonth).toLowerCase().trim();
-    const sourceMonthList = getOrderedMonthAlbums(sourceMonth);
+    const isSourceRecal = sourceMonth === "recalibrate" || sourceMonth === "relisten" || isRecalEntry(sourceAlbum);
+    const sourceMonthList = isSourceRecal
+      ? getOrderedMonthRecalAlbums(sourceMonth)
+      : getOrderedMonthAlbums(sourceMonth);
     const sourceSlotIdx = sourceMonthList.findIndex(a => String(a.id) === String(sourceAlbum.id));
     const sourceSlotNum = sourceSlotIdx !== -1 ? sourceSlotIdx + 1 : 1;
 
@@ -5510,65 +5596,264 @@ document.addEventListener("DOMContentLoaded", async () => {
       return { key: m, year: yr, label, count };
     });
 
-    if (!swapTargetMonth || !monthOptions.some(o => o.key === swapTargetMonth)) {
+    const sourceRecalCount = sourceMonth !== "recalibrate" ? getOrderedMonthRecalAlbums(sourceMonth).length : MAX_MONTHLY_RECALIBRATE;
+    const unscheduledRecalQueue = backlogEntries.filter(a =>
+      a && !String(a.id || "").startsWith("spin_") &&
+      (String(a.month || "").toLowerCase() === "recalibrate" || String(a.month || "").toLowerCase() === "relisten") &&
+      !getMatchingSpin(a, true)
+    );
+    const canSwapNormalWithRecalQueue = !isSourceRecal && sourceMonth !== "recalibrate" && sourceRecalCount < MAX_MONTHLY_RECALIBRATE && unscheduledRecalQueue.length > 0;
+
+    const validTargetKeys = new Set(monthOptions.map(o => o.key));
+    if (canSwapNormalWithRecalQueue) validTargetKeys.add("recalibrate");
+    if (!swapTargetMonth || !validTargetKeys.has(swapTargetMonth)) {
       const firstOther = monthOptions.find(o => o.key !== sourceMonth);
       swapTargetMonth = firstOther ? firstOther.key : sourceMonth;
     }
 
+    const isTargetRecalQueue = swapTargetMonth === "recalibrate";
     const sourceMonthObj = monthOptions.find(o => o.key === sourceMonth);
-    const sourceMonthLabel = sourceMonthObj ? sourceMonthObj.label : formatMonthDisplay(sourceMonth);
+    const sourceMonthLabel = sourceMonth === "recalibrate"
+      ? "Recalibrate Queue"
+      : (sourceMonthObj ? sourceMonthObj.label : formatMonthDisplay(sourceMonth));
     const targetMonthObj = monthOptions.find(o => o.key === swapTargetMonth);
-    const targetMonthLabel = targetMonthObj ? targetMonthObj.label : formatMonthDisplay(swapTargetMonth);
+    const targetMonthLabel = isTargetRecalQueue
+      ? "Recalibrate Queue"
+      : (targetMonthObj ? targetMonthObj.label : formatMonthDisplay(swapTargetMonth));
 
     let sourceCover = sourceAlbum.cover_url || FALLBACK_PLACEHOLDER;
     if (sourceCover.startsWith("../assets/")) sourceCover = sourceCover.replace(/^\.\.\//, "");
 
-    const monthPillsHtml = monthOptions.map(opt => {
-      const isAct = opt.key === swapTargetMonth;
-      const isSame = opt.key === sourceMonth;
-      return `
-        <button type="button" class="swap-m-pill${isAct ? " active" : ""}${isSame ? " is-source-month" : ""}" data-swap-month="${escapeHtml(opt.key)}">
-          <span>${escapeHtml(opt.label)}</span>
-          <span class="swap-m-count">(${opt.count})</span>
+    const monthPillsHtml = [
+      ...monthOptions.map(opt => {
+        const isAct = opt.key === swapTargetMonth;
+        const isSame = opt.key === sourceMonth;
+        return `
+          <button type="button" class="swap-m-pill${isAct ? " active" : ""}${isSame ? " is-source-month" : ""}" data-swap-month="${escapeHtml(opt.key)}">
+            <span>${escapeHtml(opt.label)}</span>
+            <span class="swap-m-count">(${opt.count})</span>
+          </button>
+        `;
+      }),
+      ...(canSwapNormalWithRecalQueue ? [`
+        <button type="button" class="swap-m-pill is-recal-pill${isTargetRecalQueue ? " active" : ""}" data-swap-month="recalibrate" title="Swap this normal challenge album with a Recalibrate Queue pick (+Mix Diversity Boost)">
+          <span>↻ Recalibrate Queue</span>
+          <span class="swap-m-count">(${unscheduledRecalQueue.length})</span>
         </button>
-      `;
-    }).join("");
+      `] : [])
+    ].join("");
 
-    const targetList = getOrderedMonthAlbums(swapTargetMonth);
+    const targetDiscoveryList = isTargetRecalQueue ? [] : getOrderedMonthAlbums(swapTargetMonth);
+    const targetRecalList = isTargetRecalQueue ? unscheduledRecalQueue : getOrderedMonthRecalAlbums(swapTargetMonth);
+    const targetFullList = isTargetRecalQueue ? unscheduledRecalQueue : [...targetDiscoveryList, ...targetRecalList];
+
+    const isCrossMonth = swapTargetMonth !== sourceMonth;
+
+    // Direction A: Recalibrate Queue -> Month (or cross-month recal swap) can swap with existing Recal slots AND (when Recal slots < 4) normal challenge entries!
+    const canRecalReplaceNormal = isSourceRecal && !isTargetRecalQueue && isCrossMonth && targetRecalList.length < MAX_MONTHLY_RECALIBRATE;
+    const isCrossTypeSwapAvailable = canRecalReplaceNormal || isTargetRecalQueue;
+
+    // Pick default overflow destination month for any displaced normal challenge album
+    const hostMonthForReplace = isTargetRecalQueue ? sourceMonth : swapTargetMonth;
+    const overflowMonthOptions = monthOptions.filter(o => o.key !== hostMonthForReplace);
+    if (!swapOverflowMonth || swapOverflowMonth === hostMonthForReplace || !overflowMonthOptions.some(o => o.key === swapOverflowMonth)) {
+      swapOverflowMonth = findDefaultOverflowFutureMonth(hostMonthForReplace, monthOptions);
+    }
+    const overflowMonthObj = monthOptions.find(o => o.key === swapOverflowMonth);
+    const overflowMonthLabel = overflowMonthObj ? overflowMonthObj.label : formatMonthDisplay(swapOverflowMonth);
+
+    const sourceFullList = sourceMonth === "recalibrate"
+      ? sourceMonthList
+      : [...getOrderedMonthAlbums(sourceMonth), ...getOrderedMonthRecalAlbums(sourceMonth)];
+    const sourceMixBefore = computeMonthGenreMixScore(sourceFullList).score;
+    const targetMixBefore = computeMonthGenreMixScore(targetFullList).score;
+    const activeMixMonthLabel = isTargetRecalQueue ? sourceMonthLabel : targetMonthLabel;
+    const activeMixBefore = isTargetRecalQueue ? sourceMixBefore : targetMixBefore;
+
+    // Build candidate pool with slot labels and live Mix Score + Recalibrate Diversity Boost
+    let rawCandidates = [];
+    if (isTargetRecalQueue) {
+      rawCandidates = unscheduledRecalQueue.map((item, idx) => ({
+        item,
+        slotNum: idx + 1,
+        slotPrefix: "↻",
+        swapKind: "normal-to-recal" // sourceAlbum (normal in sourceMonth) replaced by item (recal from queue)
+      }));
+    } else if (isSourceRecal) {
+      rawCandidates = [
+        ...targetRecalList.map((item, idx) => ({
+          item,
+          slotNum: idx + 1,
+          slotPrefix: `Recal #${idx + 1}`,
+          swapKind: "recal-to-recal"
+        })),
+        ...(canRecalReplaceNormal
+          ? targetDiscoveryList.map((item, idx) => ({
+              item,
+              slotNum: idx + 1,
+              slotPrefix: `#${idx + 1}`,
+              swapKind: "recal-to-normal" // sourceAlbum (recal from queue) replaces item (normal in targetMonth)
+            }))
+          : [])
+      ];
+    } else {
+      rawCandidates = targetDiscoveryList.map((item, idx) => ({
+        item,
+        slotNum: idx + 1,
+        slotPrefix: `#${idx + 1}`,
+        swapKind: "normal-to-normal"
+      }));
+    }
+
     const qNorm = normalizeSearchText(swapSearchQuery);
-    const filteredList = targetList
-      .map((item, idx) => ({ item, slotNum: idx + 1 }))
+    let enrichedList = rawCandidates
+      .map(({ item, slotNum, slotPrefix, swapKind }) => {
+        const isDone = !!getMatchingSpin(item, isRecalEntry(item));
+        let genreDelta = 0;
+        let mixAfter = activeMixBefore;
+        let sourceDelta = 0;
+        let sourceAfter = sourceMixBefore;
+        let recalDiversityBoost = 0;
+
+        if (swapKind === "normal-to-recal") {
+          const simHost = sourceFullList.map(x => (String(x.id) === String(sourceAlbum.id) ? item : x));
+          mixAfter = computeMonthGenreMixScore(simHost).score;
+          genreDelta = mixAfter - sourceMixBefore;
+          recalDiversityBoost = genreDelta >= 0 ? 3 : 1;
+        } else if (swapKind === "recal-to-normal") {
+          const simTarget = targetFullList.map(x => (String(x.id) === String(item.id) ? sourceAlbum : x));
+          mixAfter = computeMonthGenreMixScore(simTarget).score;
+          genreDelta = mixAfter - targetMixBefore;
+          recalDiversityBoost = genreDelta >= 0 ? 3 : 1;
+        } else if (isCrossMonth) {
+          const simTarget = targetFullList.map(x => (String(x.id) === String(item.id) ? sourceAlbum : x));
+          mixAfter = computeMonthGenreMixScore(simTarget).score;
+          genreDelta = mixAfter - targetMixBefore;
+          if (sourceMonth !== "recalibrate") {
+            const simSource = sourceFullList.map(x => (String(x.id) === String(sourceAlbum.id) ? item : x));
+            sourceAfter = computeMonthGenreMixScore(simSource).score;
+            sourceDelta = sourceAfter - sourceMixBefore;
+          }
+        }
+
+        const totalDelta = genreDelta + recalDiversityBoost;
+        return {
+          item,
+          slotNum,
+          slotPrefix,
+          swapKind,
+          isDone,
+          genreDelta,
+          recalDiversityBoost,
+          targetDelta: totalDelta,
+          targetAfter: Math.min(99, mixAfter + recalDiversityBoost),
+          rawMixAfter: mixAfter,
+          sourceDelta,
+          sourceAfter
+        };
+      })
       .filter(({ item }) => {
         if (String(item.id) === String(sourceAlbum.id)) return false;
         if (!qNorm) return true;
-        const hay = normalizeSearchText(`${item.artist || ""} ${item.title || ""} ${item.release_year || ""}`);
+        const genreHay = safeToArray(item.genres).join(" ");
+        const reasonHay = isRecalEntry(item) ? getAlbumRelistenReason(item) : "";
+        const hay = normalizeSearchText(`${item.artist || ""} ${item.title || ""} ${item.release_year || ""} ${genreHay} ${reasonHay}`);
         return hay.includes(qNorm);
       });
 
-    const targetTotalMonthCount = backlogEntries.filter(a => (a.month || "").toLowerCase().trim() === swapTargetMonth).length;
-    const canMoveToOpenSlot = swapTargetMonth !== sourceMonth && targetTotalMonthCount < MAX_MONTHLY_ALBUMS;
+    if ((isCrossMonth || isTargetRecalQueue) && swapSortMode === "mix") {
+      enrichedList.sort((a, b) => {
+        if (a.isDone !== b.isDone) return a.isDone ? 1 : -1;
+        if (b.targetDelta !== a.targetDelta) return b.targetDelta - a.targetDelta;
+        if (b.sourceDelta !== a.sourceDelta) return b.sourceDelta - a.sourceDelta;
+        return a.slotNum - b.slotNum;
+      });
+    }
+
+    const targetTotalMonthCount = isTargetRecalQueue ? 0 : targetFullList.length;
+    const canMoveToOpenSlot = isTargetRecalQueue
+      ? false
+      : (isSourceRecal
+          ? (isCrossMonth && targetRecalList.length < MAX_MONTHLY_RECALIBRATE && targetTotalMonthCount < MAX_MONTHLY_ALBUMS)
+          : (isCrossMonth && targetTotalMonthCount < MAX_MONTHLY_ALBUMS));
+    let moveMixBadge = "";
+    if (canMoveToOpenSlot) {
+      const moveAfter = computeMonthGenreMixScore([...targetFullList, sourceAlbum]).score;
+      const moveDelta = moveAfter - targetMixBefore;
+      const sign = moveDelta > 0 ? `+${moveDelta}` : `${moveDelta}`;
+      moveMixBadge = ` <span class="swap-move-delta ${moveDelta > 0 ? "is-pos" : (moveDelta < 0 ? "is-neg" : "")}">(${moveDelta === 0 ? "±0" : sign} Mix)</span>`;
+    }
     const moveDirectBtnHtml = canMoveToOpenSlot ? `
-      <button type="button" class="swap-move-open-btn" id="swapMoveToOpenSlotBtn" title="Move directly into Slot #${targetList.length + 1} of ${escapeHtml(targetMonthLabel)}">
-        <i class='bx bx-right-arrow-alt'></i> Move to Slot #${targetList.length + 1} in ${escapeHtml(targetMonthLabel)}
+      <button type="button" class="swap-move-open-btn" id="swapMoveToOpenSlotBtn" title="${isSourceRecal ? `Schedule into ${escapeHtml(targetMonthLabel)} Recalibrate Row (${targetRecalList.length + 1}/${MAX_MONTHLY_RECALIBRATE})` : `Move directly into Slot #${targetDiscoveryList.length + 1} of ${escapeHtml(targetMonthLabel)} (no swap)`}">
+        <i class='bx ${isSourceRecal ? "bx-revision" : "bx-right-arrow-alt"}'></i> ${isSourceRecal ? `Add to Recal Row (#${targetRecalList.length + 1}/${MAX_MONTHLY_RECALIBRATE})` : `Move to Slot #${targetDiscoveryList.length + 1}`}${moveMixBadge}
       </button>
     ` : "";
 
-    const candidatesHtml = filteredList.length
-      ? filteredList.map(({ item, slotNum }) => {
+    const fmtDeltaPill = (row) => {
+      if (!isCrossMonth && !isTargetRecalQueue) return "";
+      const { targetDelta, genreDelta, recalDiversityBoost, rawMixAfter, sourceAfter } = row;
+      const cls = targetDelta > 0 ? "is-pos" : (targetDelta < 0 ? "is-neg" : "is-flat");
+      const baseTxt = targetDelta > 0 ? `+${targetDelta} Mix` : (targetDelta < 0 ? `${targetDelta} Mix` : "±0 Mix");
+      const txt = recalDiversityBoost > 0 ? `${baseTxt} ↻` : baseTxt;
+      const tipParts = [`${activeMixMonthLabel} Genre Mix: ${activeMixBefore} → ${rawMixAfter} (${genreDelta >= 0 ? `+${genreDelta}` : genreDelta})`];
+      if (recalDiversityBoost > 0) {
+        tipParts.push(`+${recalDiversityBoost} Normal ⇄ Recalibrate diversity boost`);
+      } else if (sourceMonth !== "recalibrate" && !isTargetRecalQueue) {
+        tipParts.push(`${sourceMonthLabel} Mix: ${sourceMixBefore} → ${sourceAfter}`);
+      }
+      return `<span class="swap-mix-delta-pill ${cls}${recalDiversityBoost > 0 ? " is-recal-boost" : ""}" title="${escapeHtml(tipParts.join(" · "))}">${txt}</span>`;
+    };
+
+    const candidatesHtml = enrichedList.length
+      ? enrichedList.map((row) => {
+          const { item, slotPrefix, swapKind, isDone } = row;
           let cUrl = item.cover_url || FALLBACK_PLACEHOLDER;
           if (cUrl.startsWith("../assets/")) cUrl = cUrl.replace(/^\.\.\//, "");
+          const primGenresStr = safeToArray(item.genres).slice(0, 2).join(" · ");
+          const recalReasonTag = isRecalEntry(item) ? `↻ ${getAlbumRelistenReason(item)}` : "";
+          const deltaPillHtml = fmtDeltaPill(row);
+          const doneTagHtml = isDone ? `<span class="swap-done-chip" title="Already listened">✓</span>` : "";
+          const isCrossNormalRecal = swapKind === "recal-to-normal" || swapKind === "normal-to-recal";
+          const titleTip = swapKind === "recal-to-normal"
+            ? `Schedule ${sourceAlbum.title} into ${targetMonthLabel} Recalibrate Row and move ${item.title} to ${overflowMonthLabel}`
+            : (swapKind === "normal-to-recal"
+                ? `Schedule ${item.title} into ${sourceMonthLabel} Recalibrate Row and move ${sourceAlbum.title} to ${overflowMonthLabel}`
+                : `Swap with ${slotPrefix}: ${item.artist} — ${item.title}`);
           return `
-            <button type="button" class="swap-cand-card" data-swap-target-id="${escapeHtml(item.id)}" title="Swap with #${slotNum}: ${escapeHtml(item.artist)} — ${escapeHtml(item.title)}">
+            <button type="button" class="swap-cand-card ${isDone ? "is-listened-cand" : ""} ${isCrossNormalRecal ? "is-cross-recal-cand" : ""}" data-swap-target-id="${escapeHtml(item.id)}" data-swap-kind="${escapeHtml(swapKind)}" title="${escapeHtml(titleTip)}">
               <img src="${escapeHtml(cUrl)}" alt="${escapeHtml(item.title)}" loading="lazy" onerror="this.src='${FALLBACK_PLACEHOLDER}'">
               <div class="swap-cand-meta">
-                <div class="swap-cand-title"><span class="swap-slot-num">#${slotNum}</span> • ${escapeHtml(item.title || "Untitled")}</div>
-                <div class="swap-cand-artist">${escapeHtml(item.artist || "Unknown Artist")}</div>
+                <div class="swap-cand-title"><span class="swap-slot-num">${escapeHtml(slotPrefix)}</span> • ${escapeHtml(item.title || "Untitled")} ${doneTagHtml}</div>
+                <div class="swap-cand-artist">${escapeHtml(item.artist || "Unknown Artist")}${primGenresStr ? ` <span class="swap-cand-genre">• ${escapeHtml(primGenresStr)}</span>` : ""}${recalReasonTag ? ` <span class="swap-recal-mini">${escapeHtml(recalReasonTag)}</span>` : ""}</div>
               </div>
+              ${deltaPillHtml}
               <span class="swap-cand-icon" aria-hidden="true"><i class='bx bx-transfer-alt'></i></span>
             </button>
           `;
         }).join("")
-      : `<div class="swap-empty-note">No matching albums found in ${escapeHtml(targetMonthLabel)}.</div>`;
+      : `<div class="swap-empty-note">${isSourceRecal
+          ? `No matching albums in ${escapeHtml(targetMonthLabel)}${canMoveToOpenSlot ? " — click “Add to Recal Row” above to schedule it!" : "."}`
+          : `No matching albums found in ${escapeHtml(targetMonthLabel)}.`}</div>`;
+
+    const overflowRowHtml = (isCrossTypeSwapAvailable && overflowMonthOptions.length) ? `
+      <div class="swap-overflow-bar">
+        <span class="swap-overflow-label"><i class='bx bx-revision'></i> Normal ⇄ Recalibrate (+Diversity Boost) · Send displaced normal album to:</span>
+        <select id="swapOverflowMonthSelect" class="swap-overflow-select" aria-label="Destination month for displaced normal album">
+          ${overflowMonthOptions.map(o => `<option value="${escapeHtml(o.key)}" ${o.key === swapOverflowMonth ? "selected" : ""}>${escapeHtml(o.label)} (${o.count}/${MAX_MONTHLY_ALBUMS})</option>`).join("")}
+        </select>
+      </div>
+    ` : "";
+
+    const sortToggleHtml = (isCrossMonth || isTargetRecalQueue) ? `
+      <div class="swap-sort-pills" role="group" aria-label="Sort swap candidates">
+        <button type="button" class="swap-sort-pill ${swapSortMode === "mix" ? "is-active" : ""}" data-swap-sort="mix" title="Show unlistened albums that best boost ${escapeHtml(activeMixMonthLabel)}'s Mix Score first">
+          <i class='bx bx-slider-alt'></i> Best Mix Fit
+        </button>
+        <button type="button" class="swap-sort-pill ${swapSortMode === "slot" ? "is-active" : ""}" data-swap-sort="slot">
+          <i class='bx bx-list-ol'></i> Slot Order
+        </button>
+      </div>
+    ` : "";
 
     swapModalBody.innerHTML = `
       <div class="swap-modal-inner">
@@ -5576,11 +5861,12 @@ document.addEventListener("DOMContentLoaded", async () => {
           <div class="swap-source-left">
             <img src="${escapeHtml(sourceCover)}" alt="${escapeHtml(sourceAlbum.title)}" onerror="this.src='${FALLBACK_PLACEHOLDER}'">
             <div class="swap-source-text">
-              <div class="swap-source-kicker">Swapping From ${escapeHtml(sourceMonthLabel)} • Slot #${sourceSlotNum}</div>
+              <div class="swap-source-kicker">${swapFromCuratorContext ? "Curator Sonic Bridge · " : ""}Swapping From ${escapeHtml(sourceMonthLabel)} • Slot #${sourceSlotNum}</div>
               <div class="swap-source-title">${escapeHtml(sourceAlbum.artist)} — ${escapeHtml(sourceAlbum.title)}${sourceAlbum.release_year ? ` <span class="swap-source-year">(${escapeHtml(sourceAlbum.release_year)})</span>` : ""}</div>
             </div>
           </div>
           <div class="swap-source-right">
+            ${(isCrossMonth || isTargetRecalQueue) ? `<span class="swap-month-mix-pill" title="Current genre Mix Score for ${escapeHtml(activeMixMonthLabel)}">${escapeHtml(activeMixMonthLabel)} Mix: <b>${activeMixBefore}</b></span>` : ""}
             ${moveDirectBtnHtml || `<span class="swap-badge-hint"><i class='bx bx-transfer-alt'></i> Trades Month + Slot</span>`}
           </div>
         </div>
@@ -5589,9 +5875,13 @@ document.addEventListener("DOMContentLoaded", async () => {
           <div class="swap-month-pills" role="tablist" aria-label="Target Month">
             ${monthPillsHtml}
           </div>
-          <div class="swap-search-wrap">
-            <i class='bx bx-search swap-search-icon'></i>
-            <input type="text" id="swapCandidateSearchInput" class="sosa-search-input swap-search-input" placeholder="Filter ${escapeHtml(targetMonthLabel)} albums..." value="${escapeHtml(swapSearchQuery)}">
+          ${overflowRowHtml}
+          <div class="swap-search-sort-row">
+            <div class="swap-search-wrap">
+              <i class='bx bx-search swap-search-icon'></i>
+              <input type="text" id="swapCandidateSearchInput" class="sosa-search-input swap-search-input" placeholder="Filter ${escapeHtml(targetMonthLabel)} albums or genres..." value="${escapeHtml(swapSearchQuery)}">
+            </div>
+            ${sortToggleHtml}
           </div>
         </div>
 
@@ -5608,6 +5898,21 @@ document.addEventListener("DOMContentLoaded", async () => {
         renderSwapModalContent();
       });
     });
+
+    swapModalBody.querySelectorAll(".swap-sort-pill[data-swap-sort]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        swapSortMode = btn.getAttribute("data-swap-sort") || "slot";
+        renderSwapModalContent();
+      });
+    });
+
+    const overflowSelEl = document.getElementById("swapOverflowMonthSelect");
+    if (overflowSelEl) {
+      overflowSelEl.addEventListener("change", () => {
+        swapOverflowMonth = overflowSelEl.value || swapOverflowMonth;
+        renderSwapModalContent();
+      });
+    }
 
     const searchInputEl = document.getElementById("swapCandidateSearchInput");
     if (searchInputEl) {
@@ -5633,9 +5938,120 @@ document.addEventListener("DOMContentLoaded", async () => {
     swapModalBody.querySelectorAll(".swap-cand-card[data-swap-target-id]").forEach(card => {
       card.addEventListener("click", () => {
         const targetId = card.getAttribute("data-swap-target-id");
-        if (targetId) executeAlbumSwap(sourceAlbum.id, targetId);
+        const swapKind = card.getAttribute("data-swap-kind") || "normal-to-normal";
+        if (!targetId) return;
+        if (swapKind === "recal-to-normal") {
+          executeRecalibrateReplaceNormal(sourceAlbum.id, targetId, swapTargetMonth, swapOverflowMonth);
+        } else if (swapKind === "normal-to-recal") {
+          executeRecalibrateReplaceNormal(targetId, sourceAlbum.id, sourceMonth, swapOverflowMonth);
+        } else {
+          executeAlbumSwap(sourceAlbum.id, targetId);
+        }
       });
     });
+  }
+
+  async function executeRecalibrateReplaceNormal(recalAlbumId, normalAlbumId, hostMonthKey, overflowDestMonthKey) {
+    if (!isAdmin) return;
+    const recalAlbum = backlogEntries.find(a => String(a.id) === String(recalAlbumId));
+    const normalAlbum = backlogEntries.find(a => String(a.id) === String(normalAlbumId));
+    if (!recalAlbum || !normalAlbum) return;
+
+    const hostMonth = String(hostMonthKey || activeMonth).toLowerCase().trim();
+    const overflowMonth = String(overflowDestMonthKey || "").toLowerCase().trim();
+    if (!hostMonth || !overflowMonth || hostMonth === overflowMonth) return;
+
+    const recalPrevMonth = String(recalAlbum.month || "recalibrate").toLowerCase().trim();
+    const recalPrevYear = recalAlbum.year || (recalPrevMonth === "recalibrate" ? 2026 : resolveBacklogMonthTabYear(recalPrevMonth));
+    const recalPrevPos = recalAlbum.position;
+    const normalPrevPos = normalAlbum.position;
+    const normalPrevYear = normalAlbum.year || resolveBacklogMonthTabYear(hostMonth);
+
+    const hostRecalList = getOrderedMonthRecalAlbums(hostMonth).filter(a => String(a.id) !== String(recalAlbum.id));
+    if (hostRecalList.length >= MAX_MONTHLY_RECALIBRATE) {
+      alert(`${formatMonthDisplay(hostMonth)} already has ${MAX_MONTHLY_RECALIBRATE} / ${MAX_MONTHLY_RECALIBRATE} Recalibrate slots filled.`);
+      return;
+    }
+
+    const hostNormalList = getOrderedMonthAlbums(hostMonth).filter(a => String(a.id) !== String(normalAlbum.id));
+    const overflowNormalList = getOrderedMonthAlbums(overflowMonth).filter(a => String(a.id) !== String(normalAlbum.id));
+    const recalSourceList = recalPrevMonth === hostMonth
+      ? hostRecalList
+      : getOrderedMonthRecalAlbums(recalPrevMonth).filter(a => String(a.id) !== String(recalAlbum.id));
+
+    recalAlbum.month = hostMonth;
+    recalAlbum.year = resolveBacklogMonthTabYear(hostMonth);
+    recalAlbum.position = hostRecalList.length;
+    if (!recalAlbum.relisten_reason) {
+      recalAlbum.relisten_reason = getAlbumRelistenReason(recalAlbum);
+    }
+    hostRecalList.push(recalAlbum);
+
+    normalAlbum.month = overflowMonth;
+    normalAlbum.year = resolveBacklogMonthTabYear(overflowMonth);
+    normalAlbum.position = overflowNormalList.length;
+    overflowNormalList.push(normalAlbum);
+
+    hostRecalList.forEach((item, idx) => { item.position = idx; });
+    hostNormalList.forEach((item, idx) => { item.position = idx; });
+    overflowNormalList.forEach((item, idx) => { item.position = idx; });
+    if (recalPrevMonth !== hostMonth) {
+      recalSourceList.forEach((item, idx) => { item.position = idx; });
+    }
+
+    if (typeof curatorState === "object" && curatorState) {
+      curatorState.lastMove = {
+        type: "recal-replace",
+        albumId: recalAlbum.id,
+        normalAlbumId: normalAlbum.id,
+        artist: recalAlbum.artist || "",
+        title: recalAlbum.title || "",
+        targetArtist: normalAlbum.artist || "",
+        targetTitle: normalAlbum.title || "",
+        recalFromMonth: recalPrevMonth,
+        recalFromYear: recalPrevYear,
+        recalFromPos: recalPrevPos,
+        toMonth: hostMonth,
+        normalFromYear: normalPrevYear,
+        normalFromPos: normalPrevPos,
+        overflowMonth,
+        overflowYear: resolveBacklogMonthTabYear(overflowMonth)
+      };
+    }
+    swapFromCuratorContext = false;
+
+    backlogEntries.sort((a, b) => {
+      const posA = a.position !== null && a.position !== undefined ? a.position : (Number(a.id) || 0);
+      const posB = b.position !== null && b.position !== undefined ? b.position : (Number(b.id) || 0);
+      return posA - posB;
+    });
+
+    closeSwapAlbumModal();
+    updateMonthPillCounts();
+    renderGrid();
+
+    try {
+      const affectedMap = new Map();
+      [...hostRecalList, ...hostNormalList, ...overflowNormalList, ...recalSourceList].forEach(it => {
+        affectedMap.set(String(it.id), it);
+      });
+      await Promise.all(
+        Array.from(affectedMap.values()).map(item => {
+          const payload = {
+            month: item.month,
+            year: String(item.month || "").toLowerCase() === "recalibrate" ? 2026 : resolveBacklogMonthTabYear(item.month),
+            position: item.position
+          };
+          if (String(item.id) === String(recalAlbum.id) && item.relisten_reason) {
+            payload.relisten_reason = item.relisten_reason;
+          }
+          return sb.from("challenge_backlog").update(payload).eq("id", item.id);
+        })
+      );
+    } catch (err) {
+      console.error("Failed to swap Recalibrate with normal album:", err);
+      alert("Failed to save Recalibrate swap: " + err.message);
+    }
   }
 
   async function executeAlbumSwap(sourceId, targetId) {
@@ -5646,9 +6062,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const sourceMonth = (sourceAlbum.month || activeMonth).toLowerCase().trim();
     const targetMonth = (targetAlbum.month || activeMonth).toLowerCase().trim();
+    const isRecalSwap = sourceMonth === "recalibrate" || targetMonth === "recalibrate" || isRecalEntry(sourceAlbum) || isRecalEntry(targetAlbum);
 
-    const sourceList = getOrderedMonthAlbums(sourceMonth);
-    const targetList = sourceMonth === targetMonth ? sourceList : getOrderedMonthAlbums(targetMonth);
+    const sourceList = isRecalSwap
+      ? getOrderedMonthRecalAlbums(sourceMonth)
+      : getOrderedMonthAlbums(sourceMonth);
+    const targetList = sourceMonth === targetMonth
+      ? sourceList
+      : (isRecalSwap ? getOrderedMonthRecalAlbums(targetMonth) : getOrderedMonthAlbums(targetMonth));
 
     // Ensure every item in both affected months has an explicit 0-based position index
     sourceList.forEach((item, idx) => { item.position = idx; });
@@ -5658,14 +6079,41 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const sourcePos = sourceAlbum.position;
     const targetPos = targetAlbum.position;
+    const sourceYearPrev = sourceAlbum.year || (sourceMonth === "recalibrate" ? 2026 : resolveBacklogMonthTabYear(sourceMonth));
+    const targetYearPrev = targetAlbum.year || (targetMonth === "recalibrate" ? 2026 : resolveBacklogMonthTabYear(targetMonth));
 
     // Keep year synchronized with the destination month tab when swapping across months
     sourceAlbum.month = targetMonth;
-    sourceAlbum.year = resolveBacklogMonthTabYear(targetMonth);
+    sourceAlbum.year = targetMonth === "recalibrate" ? 2026 : resolveBacklogMonthTabYear(targetMonth);
     sourceAlbum.position = targetPos;
+    if (isRecalSwap && !sourceAlbum.relisten_reason) {
+      sourceAlbum.relisten_reason = getAlbumRelistenReason(sourceAlbum);
+    }
     targetAlbum.month = sourceMonth;
-    targetAlbum.year = resolveBacklogMonthTabYear(sourceMonth);
+    targetAlbum.year = sourceMonth === "recalibrate" ? 2026 : resolveBacklogMonthTabYear(sourceMonth);
     targetAlbum.position = sourcePos;
+    if (isRecalSwap && !targetAlbum.relisten_reason) {
+      targetAlbum.relisten_reason = getAlbumRelistenReason(targetAlbum);
+    }
+
+    if (swapFromCuratorContext && typeof curatorState === "object" && curatorState) {
+      curatorState.lastMove = {
+        type: "swap",
+        albumId: sourceAlbum.id,
+        targetAlbumId: targetAlbum.id,
+        artist: sourceAlbum.artist || "",
+        title: sourceAlbum.title || "",
+        targetArtist: targetAlbum.artist || "",
+        targetTitle: targetAlbum.title || "",
+        fromMonth: sourceMonth,
+        fromYear: sourceYearPrev,
+        fromPosition: sourcePos,
+        toMonth: targetMonth,
+        toYear: targetYearPrev,
+        toPosition: targetPos
+      };
+    }
+    swapFromCuratorContext = false;
 
     backlogEntries.sort((a, b) => {
       const posA = a.position !== null && a.position !== undefined ? a.position : (Number(a.id) || 0);
@@ -5682,11 +6130,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         ? sourceList
         : [...sourceList, ...targetList];
       await Promise.all(
-        affectedItems.map(item =>
-          sb.from("challenge_backlog")
-            .update({ month: item.month, year: resolveBacklogMonthTabYear(item.month), position: item.position })
-            .eq("id", item.id)
-        )
+        affectedItems.map(item => {
+          const payload = {
+            month: item.month,
+            year: String(item.month || "").toLowerCase() === "recalibrate" ? 2026 : resolveBacklogMonthTabYear(item.month),
+            position: item.position
+          };
+          if (isRecalEntry(item) && item.relisten_reason) {
+            payload.relisten_reason = item.relisten_reason;
+          }
+          return sb.from("challenge_backlog").update(payload).eq("id", item.id);
+        })
       );
     } catch (err) {
       console.error("Failed to save swapped albums:", err);
@@ -5703,15 +6157,38 @@ document.addEventListener("DOMContentLoaded", async () => {
     const targetMonth = (destMonthKey || "").toLowerCase().trim();
     if (!targetMonth || sourceMonth === targetMonth) return;
 
-    const sourceList = getOrderedMonthAlbums(sourceMonth).filter(a => String(a.id) !== String(sourceAlbum.id));
-    const targetList = getOrderedMonthAlbums(targetMonth);
+    const isRecalMove = sourceMonth === "recalibrate" || targetMonth === "recalibrate" || isRecalEntry(sourceAlbum);
+    const sourceList = (isRecalMove ? getOrderedMonthRecalAlbums(sourceMonth) : getOrderedMonthAlbums(sourceMonth))
+      .filter(a => String(a.id) !== String(sourceAlbum.id));
+    const targetList = isRecalMove ? getOrderedMonthRecalAlbums(targetMonth) : getOrderedMonthAlbums(targetMonth);
 
     sourceList.forEach((item, idx) => { item.position = idx; });
     targetList.forEach((item, idx) => { item.position = idx; });
 
+    const sourcePosPrev = sourceAlbum.position;
+    const sourceYearPrev = sourceAlbum.year || (sourceMonth === "recalibrate" ? 2026 : resolveBacklogMonthTabYear(sourceMonth));
+
     sourceAlbum.month = targetMonth;
-    sourceAlbum.year = resolveBacklogMonthTabYear(targetMonth);
+    sourceAlbum.year = targetMonth === "recalibrate" ? 2026 : resolveBacklogMonthTabYear(targetMonth);
     sourceAlbum.position = targetList.length;
+    if (isRecalMove && !sourceAlbum.relisten_reason) {
+      sourceAlbum.relisten_reason = getAlbumRelistenReason(sourceAlbum);
+    }
+
+    if (swapFromCuratorContext && typeof curatorState === "object" && curatorState) {
+      curatorState.lastMove = {
+        type: "move",
+        albumId: sourceAlbum.id,
+        artist: sourceAlbum.artist || "",
+        title: sourceAlbum.title || "",
+        fromMonth: sourceMonth,
+        fromYear: sourceYearPrev,
+        fromPosition: sourcePosPrev,
+        toMonth: targetMonth,
+        toYear: resolveBacklogMonthTabYear(targetMonth)
+      };
+    }
+    swapFromCuratorContext = false;
 
     backlogEntries.sort((a, b) => {
       const posA = a.position !== null && a.position !== undefined ? a.position : (Number(a.id) || 0);
@@ -5726,16 +6203,966 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
       const affectedItems = [...sourceList, ...targetList, sourceAlbum];
       await Promise.all(
-        affectedItems.map(item =>
-          sb.from("challenge_backlog")
-            .update({ month: item.month, year: resolveBacklogMonthTabYear(item.month), position: item.position })
-            .eq("id", item.id)
-        )
+        affectedItems.map(item => {
+          const payload = {
+            month: item.month,
+            year: String(item.month || "").toLowerCase() === "recalibrate" ? 2026 : resolveBacklogMonthTabYear(item.month),
+            position: item.position
+          };
+          if (isRecalEntry(item) && item.relisten_reason) {
+            payload.relisten_reason = item.relisten_reason;
+          }
+          return sb.from("challenge_backlog").update(payload).eq("id", item.id);
+        })
       );
     } catch (err) {
       console.error("Failed to move album:", err);
       alert("Failed to move album: " + err.message);
     }
+  }
+
+  // ============================================================
+  // ADMIN-ONLY TAILORED CHALLENGE CURATOR (CONCEPT 1B)
+  // Future-Backlog-Only Sonic Bridges + Past Challenge Dampeners
+  // ============================================================
+  const curatorDrawerEl = document.getElementById("curatorDrawer");
+  const CURATOR_STOP_DESCRIPTORS = new Set([
+    "male vocalist", "female vocalist", "melodic", "rhythmic",
+    "love", "urban", "playful", "energetic", "passionate", "warm"
+  ]);
+  const CURATOR_PAGE_SIZE = 3;
+  const curatorState = {
+    collapsed: (() => {
+      try { return localStorage.getItem("sosa_curator_drawer_collapsed") === "true"; } catch { return false; }
+    })(),
+    sourceScope: "all_past", // "all_past" | "last_2" | "prev_1"
+    soloSparkKey: null,
+    missCoolOff: true,
+    spreadSparks: true,
+    softMixNudge: false,
+    includeDives: false,
+    includeRecalibrate: true,
+    showCooled: false,
+    page: 0,
+    lastMonthKey: "",
+    skippedIds: new Set(),
+    lastMove: null,
+    isBusy: false
+  };
+
+  function getCuratorMonthSortKey(monthStr, yearVal) {
+    const ml = String(monthStr || "").trim().toLowerCase();
+    const mIdx = MONTH_NAMES.findIndex(n => n.toLowerCase() === ml);
+    if (mIdx < 0) return -1;
+    const yr = Number(yearVal) || resolveBacklogMonthTabYear(ml) || new Date().getFullYear();
+    return yr * 12 + mIdx;
+  }
+
+  function formatCuratorShortMonth(monthStr, yearVal) {
+    const ml = String(monthStr || "").trim().toLowerCase();
+    const mIdx = MONTH_NAMES.findIndex(n => n.toLowerCase() === ml);
+    const abbr = mIdx >= 0 ? MONTH_NAMES[mIdx].slice(0, 3) : (ml ? ml.slice(0, 3) : "");
+    const yr = Number(yearVal) || resolveBacklogMonthTabYear(ml) || "";
+    return yr ? `${abbr} ${yr}` : abbr;
+  }
+
+  function formatCuratorMonthAbbr(monthStr) {
+    const ml = String(monthStr || "").trim().toLowerCase();
+    const mIdx = MONTH_NAMES.findIndex(n => n.toLowerCase() === ml);
+    return mIdx >= 0 ? MONTH_NAMES[mIdx].slice(0, 3) : ml.slice(0, 3);
+  }
+
+  function computeCuratorRecommendations(targetMonthKey, targetYearNum) {
+    const targetSortKey = getCuratorMonthSortKey(targetMonthKey, targetYearNum);
+    if (targetSortKey < 0) return null;
+
+    // 1. Descriptor IDF across the full challenge backlog
+    const df = Object.create(null);
+    let docCount = 0;
+    backlogEntries.forEach(entry => {
+      const ds = safeToArray(entry?.descriptors);
+      if (!ds.length) return;
+      docCount++;
+      const seen = new Set();
+      ds.forEach(d => {
+        const k = String(d || "").trim().toLowerCase();
+        if (k && !seen.has(k)) {
+          seen.add(k);
+          df[k] = (df[k] || 0) + 1;
+        }
+      });
+    });
+    const N = Math.max(docCount, 1);
+    const idf = (d) => CURATOR_STOP_DESCRIPTORS.has(d)
+      ? 0.12
+      : Math.log((N + 1) / ((df[d] || 1) + 1));
+
+    // 2. Collect strictly past CHALLENGE albums (including monthly Recalibrate spins, sortKey < targetSortKey) with ratings
+    const allPastRated = [];
+    const pastMonthKeysSet = new Set();
+    backlogEntries.forEach(entry => {
+      if (!entry) return;
+      const mLower = String(entry.month || "").trim().toLowerCase();
+      if (!mLower || mLower === "recalibrate" || mLower === "relisten") return;
+      const sKey = getCuratorMonthSortKey(mLower, entry.year);
+      if (sKey < 0 || sKey >= targetSortKey) return;
+      const entryIsRecal = isRecalEntry(entry);
+      const spin = getMatchingSpin(entry, entryIsRecal);
+      if (!spin || spin.rating === null || spin.rating === undefined || spin.rating === "") return;
+      const ratingNum = parseFloat(spin.rating);
+      if (Number.isNaN(ratingNum)) return;
+
+      const primGenres = safeToArray(spin.genres && spin.genres.length ? spin.genres : entry.genres);
+      const secGenres = safeToArray(spin.secondary_genres && spin.secondary_genres.length ? spin.secondary_genres : entry.secondary_genres);
+      const descs = safeToArray(spin.descriptors && spin.descriptors.length ? spin.descriptors : entry.descriptors);
+      const scenes = safeToArray(spin.scenes && spin.scenes.length ? spin.scenes : entry.scenes);
+      const movements = safeToArray(spin.movements && spin.movements.length ? spin.movements : entry.movements);
+      let cov = spin.cover_url || entry.cover_url || FALLBACK_PLACEHOLDER;
+      if (cov.startsWith("../assets/")) cov = cov.replace(/^\.\.\//, "");
+
+      pastMonthKeysSet.add(sKey);
+      allPastRated.push({
+        id: entry.id,
+        key: `${String(entry.artist || "").trim().toLowerCase()}|||${String(entry.title || "").trim().toLowerCase()}`,
+        artist: entry.artist || spin.artist || "Unknown",
+        title: entry.title || spin.title || "Untitled",
+        month: mLower,
+        year: Number(entry.year) || resolveBacklogMonthTabYear(mLower),
+        sortKey: sKey,
+        isRecal: entryIsRecal,
+        rating: ratingNum,
+        genres: primGenres,
+        secondary_genres: secGenres,
+        descriptors: descs,
+        scenes,
+        movements,
+        cover_url: cov
+      });
+    });
+
+    const sortedPastMonthsDesc = Array.from(pastMonthKeysSet).sort((a, b) => b - a);
+    let allowedPastMonths = new Set(sortedPastMonthsDesc);
+    if (curatorState.sourceScope === "prev_1") {
+      allowedPastMonths = new Set(sortedPastMonthsDesc.slice(0, 1));
+    } else if (curatorState.sourceScope === "last_2") {
+      allowedPastMonths = new Set(sortedPastMonthsDesc.slice(0, 2));
+    }
+
+    // Gentle recency decay by ordinal position among past challenge months
+    const monthRecencyMap = new Map();
+    sortedPastMonthsDesc.forEach((sk, idx) => {
+      monthRecencyMap.set(sk, idx === 0 ? 1.0 : (idx === 1 ? 0.78 : 0.6));
+    });
+
+    const scopedPast = allPastRated
+      .filter(x => allowedPastMonths.has(x.sortKey))
+      .map(x => ({ ...x, recency: monthRecencyMap.get(x.sortKey) || 0.6 }));
+
+    const allSparks = scopedPast
+      .filter(x => x.rating >= 4.0)
+      .sort((a, b) => (b.rating !== a.rating ? b.rating - a.rating : b.sortKey - a.sortKey));
+
+    const misses = scopedPast
+      .filter(x => x.rating <= 2.5)
+      .sort((a, b) => (a.rating !== b.rating ? a.rating - b.rating : b.sortKey - a.sortKey));
+
+    if (curatorState.soloSparkKey && !allSparks.some(s => s.key === curatorState.soloSparkKey)) {
+      curatorState.soloSparkKey = null;
+    }
+    const activeSparks = curatorState.soloSparkKey
+      ? allSparks.filter(s => s.key === curatorState.soloSparkKey)
+      : allSparks;
+
+    // 3. Target-month genre counts (used ONLY for optional whisper-light Soft Mix Nudge)
+    const targetGenreCounts = Object.create(null);
+    backlogEntries.forEach(entry => {
+      if (!entry || isRecalEntry(entry)) return;
+      if (String(entry.month || "").trim().toLowerCase() !== targetMonthKey) return;
+      safeToArray(entry.genres).forEach(g => {
+        const gl = String(g || "").trim().toLowerCase();
+        if (gl) targetGenreCounts[gl] = (targetGenreCounts[gl] || 0) + 1;
+      });
+    });
+
+    // 4. Collect future-vault candidates in LATER months (sortKey > targetSortKey) + optionally Recalibrate Queue
+    const futureCandidates = backlogEntries.filter(entry => {
+      if (!entry || String(entry.id || "").startsWith("spin_")) return false;
+      if (curatorState.skippedIds.has(String(entry.id))) return false;
+      const mLower = String(entry.month || "").trim().toLowerCase();
+      if (mLower === "recalibrate" || mLower === "relisten") {
+        if (!curatorState.includeRecalibrate) return false;
+        // Skip if already recalibrated
+        if (getMatchingSpin(entry, true)) return false;
+        return true;
+      }
+      if (isRecalEntry(entry)) return false;
+      const sKey = getCuratorMonthSortKey(mLower, entry.year);
+      if (sKey <= targetSortKey) return false;
+      // Don't recommend something already listened to
+      if (getMatchingSpin(entry, false)) return false;
+      return true;
+    });
+
+    const bridges = [];
+    const dives = [];
+    const cooledList = [];
+
+    futureCandidates.forEach(cand => {
+      const cArtLower = String(cand.artist || "").trim().toLowerCase();
+      const cPrimList = safeToArray(cand.genres);
+      const cSecList = safeToArray(cand.secondary_genres);
+      const cPrim = new Set(cPrimList.map(g => String(g).trim().toLowerCase()).filter(Boolean));
+      const cSec = new Set(cSecList.map(g => String(g).trim().toLowerCase()).filter(Boolean));
+      const cAllG = new Set([...cPrim, ...cSec]);
+      const cDesc = new Set(safeToArray(cand.descriptors).map(d => String(d).trim().toLowerCase()).filter(Boolean));
+      const cScenes = new Set([...safeToArray(cand.scenes), ...safeToArray(cand.movements)].map(x => String(x).trim().toLowerCase()).filter(Boolean));
+
+      let bestBridge = null, bestBridgeScore = 0, bridgeGenres = [], bridgeRare = [];
+      let bestDive = null, bestDiveScore = 0, diveGenres = [], diveRare = [];
+
+      for (const seed of activeSparks) {
+        const sameArtist = String(seed.artist || "").trim().toLowerCase() === cArtLower;
+        const seedWeight = (seed.rating >= 5 ? 1.35 : (seed.rating >= 4.5 ? 1.15 : 1.0)) * seed.recency;
+
+        let sc = 0;
+        const gHits = [];
+        seed.genres.forEach(g => {
+          const gl = String(g || "").trim().toLowerCase();
+          if (!gl) return;
+          if (cPrim.has(gl)) { sc += 4.2; gHits.push(g); }
+          else if (cSec.has(gl)) { sc += 2.0; gHits.push(g); }
+        });
+        seed.secondary_genres.forEach(g => {
+          const gl = String(g || "").trim().toLowerCase();
+          if (!gl) return;
+          if (cPrim.has(gl)) { sc += 2.2; gHits.push(g); }
+          else if (cSec.has(gl)) { sc += 1.0; gHits.push(g); }
+        });
+        [...seed.scenes, ...seed.movements].forEach(sm => {
+          const sml = String(sm || "").trim().toLowerCase();
+          if (sml && cScenes.has(sml)) { sc += 2.0; gHits.push(sm); }
+        });
+
+        const dHits = seed.descriptors
+          .map(d => String(d || "").trim().toLowerCase())
+          .filter(d => d && cDesc.has(d))
+          .map(d => ({ d, w: idf(d) }))
+          .sort((a, b) => b.w - a.w);
+        const seenD = new Set();
+        const uniqD = [];
+        for (const item of dHits) {
+          if (seenD.has(item.d)) continue;
+          seenD.add(item.d);
+          uniqD.push(item);
+          if (uniqD.length >= 6) break;
+        }
+        uniqD.forEach(x => { sc += x.w * 1.05; });
+
+        if (sameArtist) {
+          sc = (sc + 5.5) * seedWeight;
+          if (sc > bestDiveScore) {
+            bestDiveScore = sc;
+            bestDive = seed;
+            diveGenres = Array.from(new Set(gHits)).slice(0, 2);
+            diveRare = uniqD.filter(x => !CURATOR_STOP_DESCRIPTORS.has(x.d)).slice(0, 3).map(x => x.d);
+          }
+        } else {
+          sc *= seedWeight;
+          if (sc > bestBridgeScore) {
+            bestBridgeScore = sc;
+            bestBridge = seed;
+            bridgeGenres = Array.from(new Set(gHits)).slice(0, 2);
+            bridgeRare = uniqD.filter(x => !CURATOR_STOP_DESCRIPTORS.has(x.d)).slice(0, 3).map(x => x.d);
+          }
+        }
+      }
+
+      // Gated Miss Cool-Off (<= 2.5★ past challenge misses)
+      // Only fires when sharing same artist OR a genre OR >= 3 rare descriptors (idf >= 2.2)
+      let missPenalty = 0;
+      let missSeed = null;
+      let missReasons = [];
+      if (misses.length) {
+        for (const m of misses) {
+          const mSameArtist = String(m.artist || "").trim().toLowerCase() === cArtLower;
+          let sharedGenreCount = 0;
+          let pen = 0;
+          const reasons = [];
+          if (mSameArtist) {
+            pen += 4.5;
+            reasons.push("Same artist");
+          }
+          m.genres.forEach(g => {
+            const gl = String(g || "").trim().toLowerCase();
+            if (gl && cPrim.has(gl)) { pen += 3.5; sharedGenreCount++; reasons.push(g); }
+            else if (gl && cSec.has(gl)) { pen += 1.8; sharedGenreCount++; reasons.push(g); }
+          });
+          m.secondary_genres.forEach(g => {
+            const gl = String(g || "").trim().toLowerCase();
+            if (gl && cAllG.has(gl)) { pen += 1.2; sharedGenreCount++; reasons.push(g); }
+          });
+
+          const mdHits = m.descriptors
+            .map(d => String(d || "").trim().toLowerCase())
+            .filter(d => d && cDesc.has(d) && !CURATOR_STOP_DESCRIPTORS.has(d))
+            .map(d => ({ d, w: idf(d) }))
+            .sort((a, b) => b.w - a.w);
+          const rareMissCount = mdHits.filter(x => x.w >= 2.2).length;
+
+          if (!mSameArtist && sharedGenreCount === 0 && rareMissCount < 3) continue;
+
+          mdHits.slice(0, 3).forEach(x => {
+            pen += x.w * 0.7;
+            reasons.push(x.d);
+          });
+          const sev = (m.rating <= 2.0 ? 1.2 : 0.85) * m.recency;
+          pen *= sev;
+
+          if (pen > missPenalty) {
+            missPenalty = pen;
+            missSeed = m;
+            missReasons = Array.from(new Set(reasons)).slice(0, 4);
+          }
+        }
+      }
+
+      // Whisper-light optional Soft Mix Nudge (off by default)
+      let maxTargetGenreCount = 0;
+      cPrim.forEach(gl => {
+        if ((targetGenreCounts[gl] || 0) > maxTargetGenreCount) {
+          maxTargetGenreCount = targetGenreCounts[gl];
+        }
+      });
+      const softMixPenalty = (curatorState.softMixNudge && maxTargetGenreCount >= 4) ? 1.5 : 0;
+      const effectiveMissPenalty = curatorState.missCoolOff ? missPenalty : 0;
+
+      let cov = cand.cover_url || FALLBACK_PLACEHOLDER;
+      if (cov.startsWith("../assets/")) cov = cov.replace(/^\.\.\//, "");
+
+      const isDiveCandidate = bestDive !== null;
+      const chosenSeed = isDiveCandidate ? bestDive : bestBridge;
+      const chosenRaw = isDiveCandidate ? bestDiveScore : bestBridgeScore;
+      const chosenGenres = isDiveCandidate ? diveGenres : bridgeGenres;
+      const chosenRare = isDiveCandidate ? diveRare : bridgeRare;
+
+      if (!chosenSeed || chosenRaw <= 3.5) {
+        if (missPenalty >= 3.5 && missSeed) {
+          cooledList.push({
+            album: cand,
+            cover_url: cov,
+            missPenalty: Number(missPenalty.toFixed(1)),
+            missSeed,
+            missReasons
+          });
+        }
+        return;
+      }
+
+      const isRecalCand = String(cand.month || "").trim().toLowerCase() === "recalibrate" || String(cand.month || "").trim().toLowerCase() === "relisten";
+      const netScore = chosenRaw - effectiveMissPenalty * 0.75 - softMixPenalty;
+      const entryObj = {
+        album: cand,
+        cover_url: cov,
+        isDive: isDiveCandidate,
+        isRecalQueue: isRecalCand,
+        recalReason: isRecalCand ? getAlbumRelistenReason(cand) : "",
+        seed: chosenSeed,
+        rawScore: Number(chosenRaw.toFixed(1)),
+        netScore: Number(netScore.toFixed(1)),
+        matchedGenres: chosenGenres.length ? chosenGenres : cPrimList.slice(0, 2),
+        matchedRare: chosenRare,
+        missPenalty: Number(missPenalty.toFixed(1)),
+        missSeed,
+        missReasons
+      };
+
+      if (curatorState.missCoolOff && missPenalty >= 3.5 && missSeed) {
+        cooledList.push({
+          album: cand,
+          cover_url: cov,
+          missPenalty: Number(missPenalty.toFixed(1)),
+          missSeed,
+          missReasons
+        });
+      }
+
+      if (isDiveCandidate) {
+        dives.push(entryObj);
+      } else {
+        bridges.push(entryObj);
+      }
+    });
+
+    bridges.sort((a, b) => b.netScore - a.netScore);
+    dives.sort((a, b) => b.netScore - a.netScore);
+    cooledList.sort((a, b) => b.missPenalty - a.missPenalty);
+
+    let combined = curatorState.includeDives
+      ? [...bridges, ...dives].sort((a, b) => b.netScore - a.netScore)
+      : [...bridges];
+
+    // If Miss Cool-Off is ON, hide strongly cooled-off albums (penalty >= 5.0) from main picks so they live cleanly in "cooled off"
+    if (curatorState.missCoolOff) {
+      combined = combined.filter(item => item.missPenalty < 5.0);
+    }
+
+    // Spread Sparks Cap (max 2 per spark unless soloing a specific spark)
+    if (curatorState.spreadSparks && !curatorState.soloSparkKey) {
+      const sparkCounts = new Map();
+      const spread = [];
+      for (const item of combined) {
+        const sk = item.seed.key;
+        const cnt = sparkCounts.get(sk) || 0;
+        if (cnt >= 2) continue;
+        sparkCounts.set(sk, cnt + 1);
+        spread.push(item);
+      }
+      combined = spread;
+    }
+
+    // Scope label for header dropdown
+    const pastMonthAbbrs = sortedPastMonthsDesc
+      .filter(sk => allowedPastMonths.has(sk))
+      .reverse()
+      .map(sk => MONTH_NAMES[sk % 12].slice(0, 3));
+    const rangeStr = pastMonthAbbrs.length > 1
+      ? `${pastMonthAbbrs[0]}–${pastMonthAbbrs[pastMonthAbbrs.length - 1]}`
+      : (pastMonthAbbrs[0] || "Past");
+
+    return {
+      targetMonthKey,
+      targetYearNum,
+      scopedPastCount: scopedPast.length,
+      pastRangeLabel: rangeStr,
+      sparks: allSparks,
+      misses,
+      recommendations: combined,
+      cooledList,
+      futureCount: futureCandidates.length
+    };
+  }
+
+  async function pullCuratorAlbumToActiveMonth(albumId) {
+    if (!isAdmin || curatorState.isBusy) return;
+    const sourceAlbum = backlogEntries.find(a => String(a.id) === String(albumId));
+    if (!sourceAlbum) return;
+
+    const targetMonth = String(activeMonth || "").toLowerCase().trim();
+    if (!targetMonth || targetMonth === "recalibrate" || targetMonth === "relisten") return;
+
+    const currentMonthEntries = backlogEntries.filter(item => String(item.month || "").toLowerCase() === targetMonth);
+    if (currentMonthEntries.length >= MAX_MONTHLY_ALBUMS) {
+      alert(`${formatMonthDisplay(targetMonth)} already has ${MAX_MONTHLY_ALBUMS} / ${MAX_MONTHLY_ALBUMS} albums.`);
+      return;
+    }
+
+    const sourceMonth = String(sourceAlbum.month || "").toLowerCase().trim();
+    const sourceYear = sourceAlbum.year || resolveBacklogMonthTabYear(sourceMonth);
+    const sourcePosition = sourceAlbum.position;
+    if (!sourceMonth || sourceMonth === targetMonth) return;
+
+    curatorState.isBusy = true;
+    try {
+      const sourceList = getOrderedMonthAlbums(sourceMonth).filter(a => String(a.id) !== String(sourceAlbum.id));
+      const targetList = getOrderedMonthAlbums(targetMonth);
+
+      sourceList.forEach((item, idx) => { item.position = idx; });
+      targetList.forEach((item, idx) => { item.position = idx; });
+
+      const targetYear = resolveBacklogMonthTabYear(targetMonth);
+      sourceAlbum.month = targetMonth;
+      sourceAlbum.year = targetYear;
+      sourceAlbum.position = targetList.length;
+
+      curatorState.lastMove = {
+        albumId: sourceAlbum.id,
+        artist: sourceAlbum.artist || "",
+        title: sourceAlbum.title || "",
+        fromMonth: sourceMonth,
+        fromYear: sourceYear,
+        fromPosition: sourcePosition,
+        toMonth: targetMonth,
+        toYear: targetYear
+      };
+
+      backlogEntries.sort((a, b) => {
+        const posA = a.position !== null && a.position !== undefined ? a.position : (Number(a.id) || 0);
+        const posB = b.position !== null && b.position !== undefined ? b.position : (Number(b.id) || 0);
+        return posA - posB;
+      });
+
+      updateMonthPillCounts();
+      renderGrid();
+
+      const affectedItems = [...sourceList, ...targetList, sourceAlbum];
+      await Promise.all(
+        affectedItems.map(item => {
+          const payload = {
+            month: item.month,
+            year: String(item.month || "").toLowerCase() === "recalibrate" ? 2026 : resolveBacklogMonthTabYear(item.month),
+            position: item.position
+          };
+          if (isRecalEntry(item) && item.relisten_reason) {
+            payload.relisten_reason = item.relisten_reason;
+          }
+          return sb.from("challenge_backlog").update(payload).eq("id", item.id);
+        })
+      );
+    } catch (err) {
+      console.error("Failed to pull recommended album:", err);
+      alert("Failed to pull album into month: " + err.message);
+    } finally {
+      curatorState.isBusy = false;
+    }
+  }
+
+  function openCuratorSwapModal(albumId) {
+    if (!isAdmin || !swapAlbumModal) return;
+    const album = backlogEntries.find(a => String(a.id) === String(albumId));
+    if (!album) return;
+    swapSourceAlbumId = album.id;
+    swapTargetMonth = String(activeMonth || "").toLowerCase().trim();
+    swapSearchQuery = "";
+    swapSortMode = "mix";
+    swapFromCuratorContext = true;
+    renderSwapModalContent();
+    openAeroModal(swapAlbumModal);
+  }
+
+  async function undoLastCuratorPull() {
+    if (!isAdmin || curatorState.isBusy || !curatorState.lastMove) return;
+    const mv = curatorState.lastMove;
+    const album = backlogEntries.find(a => String(a.id) === String(mv.albumId));
+    if (!album) {
+      curatorState.lastMove = null;
+      renderCuratorDrawer();
+      return;
+    }
+
+    if (mv.type === "swap" && mv.targetAlbumId) {
+      curatorState.lastMove = null;
+      swapFromCuratorContext = false;
+      await executeAlbumSwap(mv.albumId, mv.targetAlbumId);
+      return;
+    }
+
+    if (mv.type === "recal-replace" && mv.normalAlbumId) {
+      const normalAlbum = backlogEntries.find(a => String(a.id) === String(mv.normalAlbumId));
+      curatorState.isBusy = true;
+      try {
+        const hostRecalList = getOrderedMonthRecalAlbums(mv.toMonth).filter(a => String(a.id) !== String(album.id));
+        const recalRestoreList = getOrderedMonthRecalAlbums(mv.recalFromMonth).filter(a => String(a.id) !== String(album.id));
+        const recalIdx = Math.max(0, Math.min(Number.isFinite(Number(mv.recalFromPos)) ? Number(mv.recalFromPos) : recalRestoreList.length, recalRestoreList.length));
+        album.month = mv.recalFromMonth;
+        album.year = mv.recalFromMonth === "recalibrate" ? 2026 : (mv.recalFromYear || resolveBacklogMonthTabYear(mv.recalFromMonth));
+        recalRestoreList.splice(recalIdx, 0, album);
+
+        const affected = [...hostRecalList, ...recalRestoreList];
+        if (normalAlbum) {
+          const overflowList = getOrderedMonthAlbums(mv.overflowMonth).filter(a => String(a.id) !== String(normalAlbum.id));
+          const hostNormalList = getOrderedMonthAlbums(mv.toMonth).filter(a => String(a.id) !== String(normalAlbum.id));
+          const normIdx = Math.max(0, Math.min(Number.isFinite(Number(mv.normalFromPos)) ? Number(mv.normalFromPos) : hostNormalList.length, hostNormalList.length));
+          normalAlbum.month = mv.toMonth;
+          normalAlbum.year = mv.normalFromYear || resolveBacklogMonthTabYear(mv.toMonth);
+          hostNormalList.splice(normIdx, 0, normalAlbum);
+          overflowList.forEach((it, idx) => { it.position = idx; });
+          hostNormalList.forEach((it, idx) => { it.position = idx; });
+          affected.push(...overflowList, ...hostNormalList);
+        }
+        hostRecalList.forEach((it, idx) => { it.position = idx; });
+        recalRestoreList.forEach((it, idx) => { it.position = idx; });
+
+        curatorState.lastMove = null;
+        backlogEntries.sort((a, b) => {
+          const posA = a.position !== null && a.position !== undefined ? a.position : (Number(a.id) || 0);
+          const posB = b.position !== null && b.position !== undefined ? b.position : (Number(b.id) || 0);
+          return posA - posB;
+        });
+        updateMonthPillCounts();
+        renderGrid();
+
+        const dedup = new Map();
+        affected.forEach(it => dedup.set(String(it.id), it));
+        await Promise.all(
+          Array.from(dedup.values()).map(item =>
+            sb.from("challenge_backlog")
+              .update({
+                month: item.month,
+                year: String(item.month || "").toLowerCase() === "recalibrate" ? 2026 : resolveBacklogMonthTabYear(item.month),
+                position: item.position
+              })
+              .eq("id", item.id)
+          )
+        );
+      } catch (err) {
+        console.error("Failed to undo Recalibrate swap:", err);
+        alert("Failed to undo swap: " + err.message);
+      } finally {
+        curatorState.isBusy = false;
+      }
+      return;
+    }
+
+    curatorState.isBusy = true;
+    try {
+      const isRecalUndo = mv.fromMonth === "recalibrate" || mv.toMonth === "recalibrate" || isRecalEntry(album);
+      const fromList = (isRecalUndo ? getOrderedMonthRecalAlbums(mv.toMonth) : getOrderedMonthAlbums(mv.toMonth))
+        .filter(a => String(a.id) !== String(album.id));
+      const restoreList = (isRecalUndo ? getOrderedMonthRecalAlbums(mv.fromMonth) : getOrderedMonthAlbums(mv.fromMonth))
+        .filter(a => String(a.id) !== String(album.id));
+      const insertIdx = Math.max(0, Math.min(Number.isFinite(Number(mv.fromPosition)) ? Number(mv.fromPosition) : restoreList.length, restoreList.length));
+      restoreList.splice(insertIdx, 0, album);
+
+      album.month = mv.fromMonth;
+      album.year = mv.fromMonth === "recalibrate" ? 2026 : (mv.fromYear || resolveBacklogMonthTabYear(mv.fromMonth));
+
+      fromList.forEach((item, idx) => { item.position = idx; });
+      restoreList.forEach((item, idx) => { item.position = idx; });
+
+      curatorState.lastMove = null;
+      backlogEntries.sort((a, b) => {
+        const posA = a.position !== null && a.position !== undefined ? a.position : (Number(a.id) || 0);
+        const posB = b.position !== null && b.position !== undefined ? b.position : (Number(b.id) || 0);
+        return posA - posB;
+      });
+
+      updateMonthPillCounts();
+      renderGrid();
+
+      const affectedItems = [...fromList, ...restoreList];
+      await Promise.all(
+        affectedItems.map(item => {
+          const payload = {
+            month: item.month,
+            year: String(item.month || "").toLowerCase() === "recalibrate" ? 2026 : resolveBacklogMonthTabYear(item.month),
+            position: item.position
+          };
+          if (isRecalEntry(item) && item.relisten_reason) {
+            payload.relisten_reason = item.relisten_reason;
+          }
+          return sb.from("challenge_backlog").update(payload).eq("id", item.id);
+        })
+      );
+    } catch (err) {
+      console.error("Failed to undo curator pull:", err);
+      alert("Failed to undo pull: " + err.message);
+    } finally {
+      curatorState.isBusy = false;
+    }
+  }
+
+  function renderCuratorDrawer(opts = null) {
+    if (!curatorDrawerEl) return;
+
+    const trimmedSearch = (backlogSearchQuery || "").trim();
+    const isRelistenTab = (activeMonth === "recalibrate" || activeMonth === "relisten");
+    const isMonthlyView = opts ? !!opts.isMonthlyView : (!trimmedSearch && !isRelistenTab);
+
+    if (!isAdmin || !isDataLoaded || !isMonthlyView) {
+      curatorDrawerEl.style.display = "none";
+      return;
+    }
+
+    const now = new Date();
+    const currentCalendarSortKey = now.getFullYear() * 12 + now.getMonth();
+    const activeTabBtn = document.querySelector(`menu.w7-month-tabs button[data-month="${activeMonth}"]`);
+    const activeYearNum = (opts && opts.activeYearNum)
+      ? opts.activeYearNum
+      : (activeTabBtn && activeTabBtn.getAttribute("data-year")
+          ? parseInt(activeTabBtn.getAttribute("data-year"), 10)
+          : resolveBacklogMonthTabYear(activeMonth));
+
+    const targetSortKey = getCuratorMonthSortKey(activeMonth, activeYearNum);
+    if (targetSortKey < currentCalendarSortKey) {
+      curatorDrawerEl.style.display = "none";
+      return;
+    }
+
+    const monthIdentity = `${activeMonth}-${activeYearNum}`;
+    if (curatorState.lastMonthKey !== monthIdentity) {
+      curatorState.lastMonthKey = monthIdentity;
+      curatorState.page = 0;
+      curatorState.soloSparkKey = null;
+    }
+
+    const data = computeCuratorRecommendations(activeMonth, activeYearNum);
+    if (!data || !data.sparks.length || data.futureCount === 0) {
+      curatorDrawerEl.style.display = "none";
+      return;
+    }
+
+    const targetCount = (opts && typeof opts.targetCount === "number")
+      ? opts.targetCount
+      : backlogEntries.filter(item => String(item.month || "").toLowerCase() === activeMonth).length;
+    const openSlots = Math.max(0, MAX_MONTHLY_ALBUMS - targetCount);
+    const displayMonth = formatMonthDisplay(activeMonth, activeYearNum);
+    const shortTargetName = activeMonth.charAt(0).toUpperCase() + activeMonth.slice(1);
+
+    const totalRecs = data.recommendations.length;
+    const totalPages = Math.max(1, Math.ceil(totalRecs / CURATOR_PAGE_SIZE));
+    if (curatorState.page >= totalPages) curatorState.page = totalPages - 1;
+    if (curatorState.page < 0) curatorState.page = 0;
+    const pageSlice = data.recommendations.slice(
+      curatorState.page * CURATOR_PAGE_SIZE,
+      (curatorState.page + 1) * CURATOR_PAGE_SIZE
+    );
+
+    const sparkChipsHtml = [
+      `<button type="button" class="curator-spark-chip is-all ${!curatorState.soloSparkKey ? "is-active" : ""}" data-curator-spark="">All Past ≥4★ (${data.sparks.length})</button>`,
+      ...data.sparks.slice(0, 14).map(sp => {
+        const isActive = curatorState.soloSparkKey === sp.key;
+        const shortTitle = sp.title.length > 20 ? sp.title.slice(0, 19).trim() + "…" : sp.title;
+        return `
+          <button type="button" class="curator-spark-chip ${isActive ? "is-active" : ""}" data-curator-spark="${escapeHtml(sp.key)}" title="${escapeHtml(`${sp.artist} — ${sp.title} (${sp.rating.toFixed(1)}★ · ${sp.isRecal ? "Recalibrate · " : ""}${formatCuratorMonthAbbr(sp.month)})`)}">
+            <img src="${escapeHtml(sp.cover_url)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_PLACEHOLDER}';">
+            <span>${escapeHtml(shortTitle)}</span>
+            <em>${Number.isInteger(sp.rating) ? sp.rating : sp.rating.toFixed(1)}★</em>
+            <small>${sp.isRecal ? "↻ " : ""}${escapeHtml(formatCuratorMonthAbbr(sp.month))}</small>
+          </button>`;
+      })
+    ].join("");
+
+    const cardsHtml = pageSlice.length
+      ? pageSlice.map(rec => {
+          const alb = rec.album;
+          const rymStr = alb.rym_rating ? ` · RYM ${parseFloat(alb.rym_rating).toFixed(2)}` : "";
+          const fromLabel = formatCuratorShortMonth(alb.month, alb.year);
+          const seedMonthAbbr = formatCuratorMonthAbbr(rec.seed.month);
+          const seedStar = Number.isInteger(rec.seed.rating) ? rec.seed.rating : rec.seed.rating.toFixed(1);
+          const genresPills = rec.matchedGenres.length
+            ? rec.matchedGenres.map(g => `<span class="curator-dna-pill is-genre">${escapeHtml(g)}</span>`).join("")
+            : "";
+          const rarePills = rec.matchedRare.length
+            ? rec.matchedRare.map(d => `<span class="curator-dna-pill is-rare">✦ ${escapeHtml(d)}</span>`).join("")
+            : "";
+
+          const isRecalCard = !!rec.isRecalQueue;
+          const badgeCls = isRecalCard ? "is-recal" : (rec.isDive ? "is-dive" : "");
+          const badgeText = isRecalCard
+            ? `↻ ${rec.recalReason || "Recalibrate"}`
+            : (rec.isDive ? `Dive · ${fromLabel}` : `${fromLabel}${rymStr}`);
+          const bridgeGlyph = isRecalCard ? "↻" : (rec.isDive ? "♪" : "⇄");
+
+          return `
+            <div class="curator-card ${isRecalCard ? "is-recal-card" : ""}">
+              <div class="curator-card-media">
+                <div class="curator-pair-art" data-curator-open="${escapeHtml(String(alb.id))}" title="Inspect ${escapeHtml(alb.artist)} — ${escapeHtml(alb.title)}">
+                  <img src="${escapeHtml(rec.cover_url)}" alt="${escapeHtml(alb.title)}" class="curator-main-cov" onerror="this.onerror=null;this.src='${FALLBACK_PLACEHOLDER}';">
+                  <img src="${escapeHtml(rec.seed.cover_url)}" alt="" class="curator-spark-pip" title="Spark: ${escapeHtml(rec.seed.artist)} — ${escapeHtml(rec.seed.title)} (${seedStar}★, ${seedMonthAbbr})" onerror="this.onerror=null;this.src='${FALLBACK_PLACEHOLDER}';">
+                  <span class="curator-bridge-dot ${badgeCls}" aria-hidden="true">${bridgeGlyph}</span>
+                </div>
+                <div class="curator-card-meta">
+                  <div class="curator-card-meta-top">
+                    <span class="curator-month-tag ${badgeCls}">${escapeHtml(badgeText)}</span>
+                    <button type="button" class="curator-skip-btn" data-curator-skip="${escapeHtml(String(alb.id))}" title="Skip for now">&times;</button>
+                  </div>
+                  <div class="curator-card-title" data-curator-open="${escapeHtml(String(alb.id))}" title="${escapeHtml(alb.title)}">${escapeHtml(alb.title)}</div>
+                  <div class="curator-card-artist">${escapeHtml(alb.artist)}${alb.release_year ? ` · ${escapeHtml(String(alb.release_year))}` : ""}</div>
+                  <div class="curator-card-spark-ref">from <b>${escapeHtml(rec.seed.title)}</b> (${seedStar}★ · ${rec.seed.isRecal ? "↻ " : ""}${escapeHtml(seedMonthAbbr)})</div>
+                </div>
+              </div>
+              <div class="curator-dna-box">
+                ${genresPills ? `<div class="curator-dna-line"><span class="curator-dna-key">${rec.isDive ? "DIVE" : "GENRES"}</span>${genresPills}</div>` : ""}
+                ${rarePills ? `<div class="curator-dna-line"><span class="curator-dna-key">RARE DNA</span>${rarePills}</div>` : ""}
+              </div>
+              <button type="button" class="curator-pull-btn ${isRecalCard ? "is-recal" : ""}" data-curator-swap="${escapeHtml(String(alb.id))}">
+                ${isRecalCard ? `Swap / Add Recal ⇄` : `Swap into ${escapeHtml(shortTargetName)} ⇄`}
+              </button>
+            </div>`;
+        }).join("")
+      : `<div class="curator-empty-note">No future-vault Sonic Bridges match these exact filters. Try clearing the solo spark or enabling Discog Dives.</div>`;
+
+    const cooledCount = data.cooledList.length;
+    const cooledPanelHtml = (curatorState.showCooled && cooledCount > 0)
+      ? `
+        <div class="curator-cooled-panel">
+          <div class="curator-cooled-head">
+            <span class="curator-cooled-title">❄️ Cooled Off by Past Challenge Misses (≤ 2.5★)</span>
+            <div class="curator-cooled-seeds">
+              ${data.misses.slice(0, 3).map(m => `
+                <span class="curator-cooled-seed-pill">
+                  <img src="${escapeHtml(m.cover_url)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_PLACEHOLDER}';">
+                  ${escapeHtml(m.artist)} — <b>${escapeHtml(m.title)}</b> (${m.rating.toFixed(1)}★ · ${escapeHtml(formatCuratorMonthAbbr(m.month))})
+                </span>`).join("")}
+            </div>
+          </div>
+          <div class="curator-cooled-list">
+            ${data.cooledList.slice(0, 6).map(item => `
+              <div class="curator-cooled-row">
+                <img src="${escapeHtml(item.cover_url)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_PLACEHOLDER}';">
+                <div class="curator-cooled-name" title="${escapeHtml(item.album.artist)} — ${escapeHtml(item.album.title)}">
+                  <b>${escapeHtml(item.album.artist)} — ${escapeHtml(item.album.title)}</b> <span>(${escapeHtml(formatCuratorShortMonth(item.album.month, item.album.year))})</span>
+                </div>
+                <div class="curator-cooled-why">−${item.missPenalty.toFixed(1)} · ${escapeHtml(item.missReasons.join(", "))}</div>
+                <button type="button" class="curator-override-btn" data-curator-swap="${escapeHtml(String(item.album.id))}">Swap anyway ⇄</button>
+              </div>`).join("")}
+          </div>
+        </div>`
+      : "";
+
+    const undoBannerHtml = (curatorState.lastMove && curatorState.lastMove.toMonth === activeMonth)
+      ? `
+        <div class="curator-undo-banner">
+          <span>${curatorState.lastMove.type === "recal-replace"
+            ? `Scheduled <b>${escapeHtml(curatorState.lastMove.artist)} — ${escapeHtml(curatorState.lastMove.title)}</b> (↻ Recal) &amp; moved <b>${escapeHtml(curatorState.lastMove.targetArtist)} — ${escapeHtml(curatorState.lastMove.targetTitle)}</b> to ${escapeHtml(formatCuratorShortMonth(curatorState.lastMove.overflowMonth, curatorState.lastMove.overflowYear))}.`
+            : (curatorState.lastMove.type === "swap"
+                ? `Swapped <b>${escapeHtml(curatorState.lastMove.artist)} — ${escapeHtml(curatorState.lastMove.title)}</b> (${escapeHtml(formatCuratorShortMonth(curatorState.lastMove.fromMonth, curatorState.lastMove.fromYear))}) ⇄ <b>${escapeHtml(curatorState.lastMove.targetArtist)} — ${escapeHtml(curatorState.lastMove.targetTitle)}</b>.`
+                : `Moved <b>${escapeHtml(curatorState.lastMove.artist)} — ${escapeHtml(curatorState.lastMove.title)}</b> from ${escapeHtml(formatCuratorShortMonth(curatorState.lastMove.fromMonth, curatorState.lastMove.fromYear))} into ${escapeHtml(shortTargetName)}.`)
+          }</span>
+          <button type="button" class="curator-undo-btn" data-curator-action="undo">Undo</button>
+        </div>`
+      : "";
+
+    curatorDrawerEl.classList.toggle("is-collapsed", curatorState.collapsed);
+    curatorDrawerEl.style.display = "block";
+    curatorDrawerEl.innerHTML = `
+      <div class="curator-header-bar">
+        <div class="curator-header-left">
+          <span class="curator-admin-badge"><i class='bx bx-lock-open-alt'></i> Admin</span>
+          <span class="curator-title"><b>Tailored for ${escapeHtml(displayMonth)}</b> · Vault Sonic Bridges</span>
+        </div>
+        <div class="curator-header-right">
+          <select class="curator-scope-select" data-curator-scope aria-label="Past challenge source scope">
+            <option value="all_past" ${curatorState.sourceScope === "all_past" ? "selected" : ""}>Source: All Past Challenge (${escapeHtml(data.pastRangeLabel)} · ${data.scopedPastCount})</option>
+            <option value="last_2" ${curatorState.sourceScope === "last_2" ? "selected" : ""}>Source: Last 2 Months</option>
+            <option value="prev_1" ${curatorState.sourceScope === "prev_1" ? "selected" : ""}>Source: Previous Month Only</option>
+          </select>
+          <span class="curator-slots-pill ${openSlots === 0 ? "is-full" : ""}">${targetCount} / ${MAX_MONTHLY_ALBUMS} · <b>${openSlots === 0 ? "Full" : `${openSlots} Open`}</b></span>
+          <button type="button" class="curator-collapse-btn" data-curator-action="toggle-collapse" aria-expanded="${!curatorState.collapsed}">
+            ${curatorState.collapsed ? "Show ▾" : "Hide ▴"}
+          </button>
+        </div>
+      </div>
+      ${curatorState.collapsed ? "" : `
+        <div class="curator-body">
+          ${undoBannerHtml}
+          <div class="curator-spark-row">
+            <span class="curator-row-lbl">SPARKS:</span>
+            <div class="curator-spark-track">${sparkChipsHtml}</div>
+          </div>
+          <div class="curator-damp-row">
+            <span class="curator-row-lbl">DAMPENERS:</span>
+            <button type="button" class="curator-toggle-chip ${curatorState.missCoolOff ? "is-on" : ""}" data-curator-toggle="missCoolOff" title="Softly cool off future albums sharing an artist or genre with ≤2.5★ past challenge misses">
+              ${curatorState.missCoolOff ? "✓ " : ""}Miss Cool-Off <small>(≤2.5★ · ${data.misses.length} active)</small>
+            </button>
+            <button type="button" class="curator-toggle-chip ${curatorState.spreadSparks ? "is-on" : ""}" data-curator-toggle="spreadSparks" title="Cap each spark album at max 2 cards unless soloed">
+              ${curatorState.spreadSparks ? "✓ " : ""}Spread Sparks <small>(max 2)</small>
+            </button>
+            <button type="button" class="curator-toggle-chip is-soft ${curatorState.softMixNudge ? "is-on" : ""}" data-curator-toggle="softMixNudge" title="Optional light tie-breaker when a genre already appears 4+ times in ${escapeHtml(shortTargetName)}">
+              ${curatorState.softMixNudge ? "✓ " : ""}Soft Mix Nudge <small>(${curatorState.softMixNudge ? "on" : "off"})</small>
+            </button>
+            <button type="button" class="curator-toggle-chip is-dive ${curatorState.includeDives ? "is-on" : ""}" data-curator-toggle="includeDives" title="Include same-artist Discog Dive continuations alongside cross-artist Sonic Bridges">
+              ${curatorState.includeDives ? "✓ " : ""}Include Discog Dives
+            </button>
+            <button type="button" class="curator-toggle-chip is-recal-tog ${curatorState.includeRecalibrate ? "is-on" : ""}" data-curator-toggle="includeRecalibrate" title="Include queued Recalibrate albums as Sonic Bridge candidates">
+              ${curatorState.includeRecalibrate ? "✓ " : ""}Include Recalibrate
+            </button>
+            ${cooledCount > 0 ? `
+              <button type="button" class="curator-cooled-peek-btn" data-curator-action="toggle-cooled">
+                ${cooledCount} cooled off ${curatorState.showCooled ? "▴" : "▾"}
+              </button>` : ""}
+          </div>
+          <div class="curator-cards-grid">${cardsHtml}</div>
+          ${totalRecs > 0 ? `
+            <div class="curator-pager-row">
+              <span class="curator-pager-meta">Showing ${curatorState.page * CURATOR_PAGE_SIZE + 1}–${Math.min((curatorState.page + 1) * CURATOR_PAGE_SIZE, totalRecs)} of ${totalRecs} future-vault ${curatorState.includeDives ? "picks" : "Sonic Bridges"} (${escapeHtml(data.pastRangeLabel)})</span>
+              <div class="curator-pager-controls">
+                <button type="button" class="curator-pg-btn" data-curator-action="prev-page" ${curatorState.page === 0 ? "disabled" : ""}>◂ Prev</button>
+                <span class="curator-pager-meta">${curatorState.page + 1} / ${totalPages}</span>
+                <button type="button" class="curator-pg-btn" data-curator-action="next-page" ${curatorState.page >= totalPages - 1 ? "disabled" : ""}>Next ▸</button>
+              </div>
+            </div>` : ""}
+          ${cooledPanelHtml}
+        </div>
+      `}
+    `;
+  }
+
+  if (curatorDrawerEl) {
+    curatorDrawerEl.addEventListener("change", (e) => {
+      const sel = e.target.closest("[data-curator-scope]");
+      if (!sel) return;
+      curatorState.sourceScope = sel.value || "all_past";
+      curatorState.page = 0;
+      curatorState.soloSparkKey = null;
+      renderCuratorDrawer();
+    });
+
+    curatorDrawerEl.addEventListener("click", (e) => {
+      const actionBtn = e.target.closest("[data-curator-action]");
+      if (actionBtn) {
+        const act = actionBtn.getAttribute("data-curator-action");
+        if (act === "toggle-collapse") {
+          curatorState.collapsed = !curatorState.collapsed;
+          try { localStorage.setItem("sosa_curator_drawer_collapsed", String(curatorState.collapsed)); } catch {}
+          renderCuratorDrawer();
+        } else if (act === "toggle-cooled") {
+          curatorState.showCooled = !curatorState.showCooled;
+          renderCuratorDrawer();
+        } else if (act === "prev-page") {
+          curatorState.page = Math.max(0, curatorState.page - 1);
+          renderCuratorDrawer();
+        } else if (act === "next-page") {
+          curatorState.page += 1;
+          renderCuratorDrawer();
+        } else if (act === "undo") {
+          undoLastCuratorPull();
+        }
+        return;
+      }
+
+      const sparkBtn = e.target.closest("[data-curator-spark]");
+      if (sparkBtn) {
+        const key = sparkBtn.getAttribute("data-curator-spark") || "";
+        curatorState.soloSparkKey = (key && curatorState.soloSparkKey === key) ? null : (key || null);
+        curatorState.page = 0;
+        renderCuratorDrawer();
+        return;
+      }
+
+      const toggleBtn = e.target.closest("[data-curator-toggle]");
+      if (toggleBtn) {
+        const prop = toggleBtn.getAttribute("data-curator-toggle");
+        if (prop && Object.prototype.hasOwnProperty.call(curatorState, prop)) {
+          curatorState[prop] = !curatorState[prop];
+          curatorState.page = 0;
+          renderCuratorDrawer();
+        }
+        return;
+      }
+
+      const skipBtn = e.target.closest("[data-curator-skip]");
+      if (skipBtn) {
+        const skipId = skipBtn.getAttribute("data-curator-skip");
+        if (skipId) {
+          curatorState.skippedIds.add(String(skipId));
+          renderCuratorDrawer();
+        }
+        return;
+      }
+
+      const swapBtn = e.target.closest("[data-curator-swap]");
+      if (swapBtn && !swapBtn.disabled) {
+        const swapId = swapBtn.getAttribute("data-curator-swap");
+        if (swapId) openCuratorSwapModal(swapId);
+        return;
+      }
+
+      const pullBtn = e.target.closest("[data-curator-pull]");
+      if (pullBtn && !pullBtn.disabled) {
+        const pullId = pullBtn.getAttribute("data-curator-pull");
+        if (pullId) pullCuratorAlbumToActiveMonth(pullId);
+        return;
+      }
+
+      const openTarget = e.target.closest("[data-curator-open]");
+      if (openTarget) {
+        const albId = openTarget.getAttribute("data-curator-open");
+        if (albId && typeof window.openAlbumDetail === "function") {
+          window.openAlbumDetail(albId);
+        }
+      }
+    });
   }
 
   window.openSwapAlbumModal = function(e, albumId) {
@@ -5747,6 +7174,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     swapSourceAlbumId = album.id;
     swapSearchQuery = "";
+    swapSortMode = "mix";
+    swapFromCuratorContext = false;
     const srcMonth = (album.month || activeMonth).toLowerCase().trim();
     if (!swapTargetMonth || swapTargetMonth === srcMonth) {
       swapTargetMonth = "";
