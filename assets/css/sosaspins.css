@@ -2427,8 +2427,8 @@ body.dark-mode .spin-rating-num {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  margin-top: 0.52rem !important;
-  margin-bottom: 0.25rem !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
   font-size: 1.32rem;
   color: var(--glass-hover-text-color);
   white-space: nowrap;
