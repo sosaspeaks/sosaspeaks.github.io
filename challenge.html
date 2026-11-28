@@ -21,7 +21,7 @@
   <meta property="og:description" content="Explore Sosa's 6x6 monthly album listening challenge backlog and completed spins.">
   <meta property="og:image" content="https://sosaspeaks.org/assets/images/homepics/Sosa-Icon-V3.png">
   <link rel="icon" type="image/png" href="assets/images/homepics/Sosa-Icon-V3.png">
-  <link rel="stylesheet" href="assets/css/challenge.css?v=20261127b">
+  <link rel="stylesheet" href="assets/css/challenge.css?v=20261127c">
   <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
   <link rel="stylesheet" href="assets/css/track-url-fetcher.css?v=20261122b">
   <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
@@ -77,17 +77,26 @@
 
       <!-- Tabs -->
       <div class="tabs-and-actions-left">
-        <menu role="tablist" class="w7-month-tabs" id="monthTabsList">
-          <button type="button" role="tab" aria-selected="false" data-month="october" data-year="2026">October (36)</button>
-          <button type="button" role="tab" class="active" aria-selected="true" data-month="november" data-year="2026">November (0)</button>
-          <button type="button" role="tab" aria-selected="false" data-month="recalibrate" data-tab-type="relisten" id="recalibrateTabBtn" style="display: none;">Recalibrate (<span id="relistenCount">0</span>)</button>
-        </menu>
+        <div class="month-tabs-strip-wrap" id="monthTabsStripWrap">
+          <button type="button" id="monthTabsScrollLeft" class="aero-tab-scroll-btn is-left" aria-label="Scroll earlier months" title="Scroll earlier months" style="display: none;">
+            <i class='bx bx-chevron-left'></i>
+          </button>
+          <menu role="tablist" class="w7-month-tabs" id="monthTabsList">
+            <button type="button" role="tab" aria-selected="false" data-month="october" data-year="2026">October (36)</button>
+            <button type="button" role="tab" class="active" aria-selected="true" data-month="november" data-year="2026">November (0)</button>
+            <button type="button" role="tab" aria-selected="false" data-month="recalibrate" data-tab-type="relisten" id="recalibrateTabBtn" style="display: none;">Recalibrate (<span id="relistenCount">0</span>)</button>
+          </menu>
+          <button type="button" id="monthTabsScrollRight" class="aero-tab-scroll-btn is-right" aria-label="Scroll later months" title="Scroll later months" style="display: none;">
+            <i class='bx bx-chevron-right'></i>
+          </button>
+        </div>
 
         <div class="folder-right-controls">
           <!-- Subtle Calendar Icon Trigger + Aero Month Picker Popover -->
           <div class="month-picker-wrap" id="monthPickerWrap">
             <button type="button" id="monthPickerToggleBtn" class="aero-calendar-tab-btn" aria-haspopup="true" aria-expanded="false" title="Jump to any Challenge Month">
               <i class='bx bx-calendar'></i>
+              <span class="cal-count-badge" id="monthPickerCountBadge" style="display: none;"></span>
               <i class='bx bx-chevron-down cal-caret'></i>
             </button>
             <div class="aero-month-popover" id="monthPickerPopover" role="menu" aria-label="Jump to Challenge Month" style="display: none;"></div>
@@ -771,7 +780,7 @@
   <script src="assets/js/sosa-auth.js?v=20261121a"></script>
   <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
   <script src="assets/js/track-url-fetcher.js?v=20261123a"></script>
-  <script src="assets/js/challenge.js?v=20261127b"></script>
+  <script src="assets/js/challenge.js?v=20261127c"></script>
   <script src="assets/js/miniplayer-drag.js?v=20261123a" defer></script>
   <script src="assets/js/dock.js?v=20261123a"></script>
   <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>
