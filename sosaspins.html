@@ -25,7 +25,7 @@
     <meta name="apple-mobile-web-app-title" content="SosaSpeaks" />
     <link rel="manifest" href="assets/images/homepics/site.webmanifest?v=20260527" />
     <!-- Link to CSS -->
-    <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261127a">
+    <link rel="stylesheet" href="assets/css/sosaspins.css?v=20261127b">
     <link rel="stylesheet" href="assets/css/dock.css?v=20261115c">
     <link rel="stylesheet" href="assets/css/track-url-fetcher.css?v=20261122b">
     <!-- Box icons -->
@@ -545,9 +545,37 @@
                   <div class="memo-ribbon-group">
                     <button type="button" class="memo-ribbon-btn is-embed-track" id="memoEmbedTrackBtn" title="Insert Track Reference (Auto-pulls stream link from Track Ratings)"><i class="bx bx-music"></i><span>Track</span></button>
                     <button type="button" class="memo-ribbon-btn is-embed-spin" id="memoEmbedSpinBtn" title="Hyperlink &amp; Embed an Album Spin"><i class="bx bx-disc"></i><span>Embed Spin</span></button>
+                    <button type="button" class="memo-ribbon-btn is-embed-img" id="memoEmbedImgBtn" title="Embed an Image or GIF (URL, Upload, or Paste into Memo)"><i class="bx bx-image-add"></i><span>Image / GIF</span></button>
                   </div>
                 </div>
-                <textarea id="logMemo" placeholder="Notes &amp; Thoughts..." rows="6" class="sosa-search-input spin-memo-textarea"></textarea>
+                <textarea id="logMemo" placeholder="Notes &amp; Thoughts... (Paste or drop an image/GIF to upload)" rows="6" class="sosa-search-input spin-memo-textarea"></textarea>
+              </div>
+              <div class="memo-embed-popover memo-img-popover" id="memoEmbedImgPopover" style="display: none;">
+                <div class="memo-embed-popover-header">
+                  <span><i class="bx bx-image-add"></i> Embed Image or GIF</span>
+                  <button type="button" id="memoImgCloseBtn" class="memo-embed-close-btn" title="Close">&times;</button>
+                </div>
+                <div class="memo-img-popover-body">
+                  <div class="memo-img-input-row">
+                    <input type="url" id="memoImgUrlInput" class="sosa-search-input memo-embed-search-input" placeholder="Paste image or GIF URL (https://...)..." autocomplete="off">
+                    <button type="button" id="memoImgUploadBtn" class="memo-ribbon-btn is-embed-img" title="Upload local image or GIF to R2 CDN"><i class="bx bx-upload"></i><span>Upload</span></button>
+                    <input type="file" id="memoImgFileInput" accept="image/*,.gif,.webp,.avif" style="display: none;">
+                  </div>
+                  <div class="memo-img-input-row">
+                    <input type="text" id="memoImgCaptionInput" class="sosa-search-input memo-embed-search-input" placeholder="Optional caption..." autocomplete="off">
+                    <button type="button" id="memoImgInsertBtn" class="memo-img-insert-btn">Insert</button>
+                  </div>
+                  <div class="memo-img-footer-row">
+                    <label class="memo-img-mirror-lbl" title="Mirror external URLs to assets.sosaspeaks.org so images/GIFs never link-rot">
+                      <input type="checkbox" id="memoImgMirrorR2" checked>
+                      <span>Save copy to R2 CDN</span>
+                    </label>
+                    <span class="memo-img-status" id="memoImgStatus"></span>
+                  </div>
+                  <div class="memo-img-preview-box" id="memoImgPreviewBox" style="display: none;">
+                    <img id="memoImgPreviewThumb" alt="Preview">
+                  </div>
+                </div>
               </div>
               <div class="memo-embed-popover" id="memoEmbedTrackPopover" style="display: none;">
                 <div class="memo-embed-search-row">
@@ -1081,7 +1109,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
   <script src="assets/js/track-url-fetcher.js?v=20261123a"></script>
-  <script src="assets/js/sosaspins.js?v=20261124e"></script>
+  <script src="assets/js/sosaspins.js?v=20261127a"></script>
   <script src="assets/js/miniplayer-drag.js?v=20261123a" defer></script>
   <script src="assets/js/dock.js?v=20261123a"></script>
   <script src="assets/js/aero-capsules.js?v=20261116d" defer></script>

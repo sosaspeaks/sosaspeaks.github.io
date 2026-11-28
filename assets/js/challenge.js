@@ -3214,6 +3214,33 @@ document.addEventListener("DOMContentLoaded", async () => {
       return txt ? stash(renderInlineLyric(txt)) : "";
     });
 
+    // 3b. Explicit [[img:URL]] / [[img:URL|Caption]] and markdown ![Caption](URL) embeds
+    const renderChallengeMemoImg = (rawUrl, rawCap = "") => {
+      const clean = String(rawUrl || "").trim();
+      let safeUrl = "";
+      if (/^https?:\/\/[^\s"'<>]+$/i.test(clean)) safeUrl = normalizeLegacyStorageUrl(clean);
+      else if (/^(?:\.\.\/)?assets\/[^\s"'<>]+$/i.test(clean)) safeUrl = clean.replace(/^\.\.\//, "");
+      if (!safeUrl) return "";
+      const cap = String(rawCap || "").trim();
+      const isGif = /\.gif(?:$|\?|#)/i.test(safeUrl) || /giphy\.com\/|tenor\.com\//i.test(safeUrl);
+      const gifBadge = isGif ? `<span class="memo-embed-gif-badge" aria-hidden="true">GIF</span>` : "";
+      const eUrl = escapeHtml(safeUrl);
+      const eCap = escapeHtml(cap);
+      const capHtml = cap ? `<figcaption class="memo-embed-caption">${eCap}</figcaption>` : "";
+      return `<figure class="memo-embed-media" data-memo-media-src="${eUrl}" data-memo-media-cap="${eCap}"><div class="memo-embed-img-wrap" onclick="event.stopPropagation(); window.openMemoMediaLightbox && window.openMemoMediaLightbox(this.parentElement.dataset.memoMediaSrc, this.parentElement.dataset.memoMediaCap);" title="Click to expand">${gifBadge}<img src="${eUrl}" alt="${eCap || "Memo image"}" loading="lazy" decoding="async" onerror="this.closest('.memo-embed-media')?.classList.add('is-broken')"></div>${capHtml}</figure>`;
+    };
+
+    cleanText = cleanText.replace(/\[\[img:([^\]\r\n]+?)\]\]/gi, (_, payload) => {
+      const pipeIdx = payload.indexOf("|");
+      const url = (pipeIdx >= 0 ? payload.slice(0, pipeIdx) : payload).trim();
+      const cap = (pipeIdx >= 0 ? payload.slice(pipeIdx + 1) : "").trim();
+      return stash(renderChallengeMemoImg(url, cap));
+    });
+
+    cleanText = cleanText.replace(/!\[([^\]\r\n]*)\]\((https?:\/\/[^\s)]+|(?:\.\.\/)?assets\/[^\s)]+)\)/gi, (_, alt, url) => {
+      return stash(renderChallengeMemoImg(url, alt));
+    });
+
     // 4. Legacy markdown audio links [Track](https://...) -> Playable Concept #3 pill
     cleanText = cleanText.replace(
       /\[["“]?([^"”\]]+?)["”]?(?=\])\s*\]\((https?:\/\/[^\s)]+)\)/g,
@@ -3260,11 +3287,67 @@ document.addEventListener("DOMContentLoaded", async () => {
       .replace(/<(blockquote|bilingual)([^>]*)>(?:\s*<br\s*\/?>\s*)+/gi, "<$1$2>")
       .replace(/(?:\s*<br\s*\/?>\s*)+<\/(blockquote|bilingual)>/gi, "</$1>")
       .replace(/<\/(blockquote|bilingual)>\s*(?:<br\s*\/?>\s*)+<(blockquote|bilingual)\b/gi, "</$1><$2")
+      .replace(/(?:<br\s*\/?>\s*)+(<figure class="memo-embed-media")/gi, "$1")
+      .replace(/(<\/figure>)(?:\s*<br\s*\/?>)+/gi, "$1")
       .replace(/<(div|p)([^>]*)>(?:\s*<br\s*\/?>\s*)+/gi, "<$1$2>")
       .replace(/(?:\s*<br\s*\/?>\s*)+<\/(div|p)>/gi, "</$1>")
       .replace(/<\/(div|p)>\s*(?:<br\s*\/?>\s*)+<(div|p)/gi, "</$1><$2");
 
     return formatted;
+  }
+
+  let challengeMemoLightboxEl = null;
+  function closeChallengeMemoLightbox() {
+    if (!challengeMemoLightboxEl) return;
+    challengeMemoLightboxEl.classList.remove("is-open");
+    setTimeout(() => {
+      if (challengeMemoLightboxEl && !challengeMemoLightboxEl.classList.contains("is-open")) {
+        challengeMemoLightboxEl.style.display = "none";
+      }
+    }, 180);
+  }
+  if (!window.openMemoMediaLightbox) {
+    window.openMemoMediaLightbox = function openChallengeMemoLightbox(src, caption = "") {
+      const clean = String(src || "").trim();
+      if (!/^https?:\/\/[^\s"'<>]+$/i.test(clean) && !/^assets\/[^\s"'<>]+$/i.test(clean)) return;
+      if (!challengeMemoLightboxEl) {
+        challengeMemoLightboxEl = document.createElement("div");
+        challengeMemoLightboxEl.id = "sosaMemoLightbox";
+        challengeMemoLightboxEl.className = "memo-media-lightbox";
+        challengeMemoLightboxEl.setAttribute("role", "dialog");
+        challengeMemoLightboxEl.setAttribute("aria-modal", "true");
+        challengeMemoLightboxEl.innerHTML = `
+          <div class="memo-lightbox-window">
+            <div class="memo-lightbox-titlebar">
+              <span class="memo-lightbox-title"><i class="bx bx-image"></i> <span id="memoLightboxLabel">Image Preview</span></span>
+              <button type="button" class="memo-lightbox-close" id="memoLightboxCloseBtn" aria-label="Close preview">&times;</button>
+            </div>
+            <div class="memo-lightbox-stage">
+              <img id="memoLightboxImg" alt="">
+              <div class="memo-lightbox-caption" id="memoLightboxCaption"></div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(challengeMemoLightboxEl);
+        challengeMemoLightboxEl.addEventListener("click", (e) => {
+          if (e.target === challengeMemoLightboxEl) closeChallengeMemoLightbox();
+        });
+        challengeMemoLightboxEl.querySelector("#memoLightboxCloseBtn")?.addEventListener("click", closeChallengeMemoLightbox);
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" && challengeMemoLightboxEl && challengeMemoLightboxEl.classList.contains("is-open")) {
+            closeChallengeMemoLightbox();
+          }
+        });
+      }
+      const imgEl = challengeMemoLightboxEl.querySelector("#memoLightboxImg");
+      const capEl = challengeMemoLightboxEl.querySelector("#memoLightboxCaption");
+      const lblEl = challengeMemoLightboxEl.querySelector("#memoLightboxLabel");
+      if (imgEl) { imgEl.src = clean; imgEl.alt = caption || "Expanded memo media"; }
+      if (lblEl) lblEl.textContent = /\.gif(?:$|\?|#)/i.test(clean) ? "GIF Preview" : "Image Preview";
+      if (capEl) { capEl.textContent = caption || ""; capEl.style.display = caption ? "block" : "none"; }
+      challengeMemoLightboxEl.style.display = "flex";
+      requestAnimationFrame(() => challengeMemoLightboxEl.classList.add("is-open"));
+    };
   }
 
   window.toggleChallengeTrackRatings = function(panelId, btn) {

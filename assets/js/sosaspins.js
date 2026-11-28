@@ -597,6 +597,18 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
   const memoEmbedSearchInput = document.getElementById("memoEmbedSearchInput");
   const memoEmbedCloseBtn = document.getElementById("memoEmbedCloseBtn");
   const memoEmbedResults = document.getElementById("memoEmbedResults");
+  const memoEmbedImgBtn = document.getElementById("memoEmbedImgBtn");
+  const memoEmbedImgPopover = document.getElementById("memoEmbedImgPopover");
+  const memoImgCloseBtn = document.getElementById("memoImgCloseBtn");
+  const memoImgUrlInput = document.getElementById("memoImgUrlInput");
+  const memoImgCaptionInput = document.getElementById("memoImgCaptionInput");
+  const memoImgUploadBtn = document.getElementById("memoImgUploadBtn");
+  const memoImgFileInput = document.getElementById("memoImgFileInput");
+  const memoImgInsertBtn = document.getElementById("memoImgInsertBtn");
+  const memoImgMirrorR2 = document.getElementById("memoImgMirrorR2");
+  const memoImgStatus = document.getElementById("memoImgStatus");
+  const memoImgPreviewBox = document.getElementById("memoImgPreviewBox");
+  const memoImgPreviewThumb = document.getElementById("memoImgPreviewThumb");
   const recordHistoryModal = document.getElementById("recordHistoryModal");
   const closeRecordHistoryModalBtn = document.getElementById("closeRecordHistoryModalBtn");
   const recordHistoryModalTitleText = document.getElementById("recordHistoryModalTitleText");
@@ -2508,6 +2520,7 @@ function getDominantColorFromImg(imgUrl) {
   function openMemoEmbedPopover() {
     if (!memoEmbedSpinPopover) return;
     if (typeof closeMemoTrackPopover === "function") closeMemoTrackPopover();
+    if (typeof closeMemoImgPopover === "function") closeMemoImgPopover();
     if (logMemo) {
       savedMemoSelection = {
         start: logMemo.selectionStart || 0,
@@ -2717,6 +2730,7 @@ function getDominantColorFromImg(imgUrl) {
   function openMemoTrackPopover() {
     if (!memoEmbedTrackPopover) return;
     closeMemoEmbedPopover();
+    if (typeof closeMemoImgPopover === "function") closeMemoImgPopover();
     if (logMemo) {
       savedMemoSelection = {
         start: logMemo.selectionStart || 0,
@@ -2756,6 +2770,182 @@ function getDominantColorFromImg(imgUrl) {
     closeMemoTrackPopover();
     insertMemoTextAtCursor(token, "", "", range);
   }
+
+  function sanitizeMemoImageUrl(rawUrl) {
+    const clean = String(rawUrl || "").trim();
+    if (!clean) return "";
+    if (/^https?:\/\/[^\s"'<>]+$/i.test(clean)) {
+      return normalizeLegacyStorageUrl(clean);
+    }
+    if (/^(?:\.\.\/)?assets\/[^\s"'<>]+$/i.test(clean)) {
+      return clean.replace(/^\.\.\//, "");
+    }
+    return "";
+  }
+
+  function isLikelyGifUrl(url) {
+    const u = String(url || "").toLowerCase();
+    return /\.gif(?:$|\?|#)/.test(u) || u.includes("giphy.com/") || u.includes("tenor.com/");
+  }
+
+  function renderMemoMediaFigure(rawUrl, rawCaption = "") {
+    const safeUrl = sanitizeMemoImageUrl(rawUrl);
+    if (!safeUrl) return "";
+    const caption = String(rawCaption || "").trim();
+    const gifBadge = isLikelyGifUrl(safeUrl)
+      ? `<span class="memo-embed-gif-badge" aria-hidden="true">GIF</span>`
+      : "";
+    const escapedUrl = escapeHtml(safeUrl);
+    const escapedCap = escapeHtml(caption);
+    const capHtml = caption ? `<figcaption class="memo-embed-caption">${escapedCap}</figcaption>` : "";
+    return `<figure class="memo-embed-media" data-memo-media-src="${escapedUrl}" data-memo-media-cap="${escapedCap}"><div class="memo-embed-img-wrap" onclick="event.stopPropagation(); window.openMemoMediaLightbox && window.openMemoMediaLightbox(this.parentElement.dataset.memoMediaSrc, this.parentElement.dataset.memoMediaCap);" title="Click to expand">${gifBadge}<img src="${escapedUrl}" alt="${escapedCap || "Memo image"}" loading="lazy" decoding="async" onerror="this.closest('.memo-embed-media')?.classList.add('is-broken')"></div>${capHtml}</figure>`;
+  }
+
+  function closeMemoImgPopover() {
+    if (memoEmbedImgPopover) memoEmbedImgPopover.style.display = "none";
+    if (memoEmbedImgBtn) memoEmbedImgBtn.classList.remove("is-active");
+    if (memoImgStatus) {
+      memoImgStatus.textContent = "";
+      memoImgStatus.classList.remove("is-err");
+    }
+  }
+
+  function updateMemoImgPreview(rawUrl) {
+    if (!memoImgPreviewBox || !memoImgPreviewThumb) return;
+    const safeUrl = sanitizeMemoImageUrl(rawUrl);
+    if (!safeUrl) {
+      memoImgPreviewBox.style.display = "none";
+      memoImgPreviewThumb.removeAttribute("src");
+      return;
+    }
+    memoImgPreviewThumb.src = safeUrl;
+    memoImgPreviewBox.style.display = "flex";
+  }
+
+  function openMemoImgPopover() {
+    if (!memoEmbedImgPopover) return;
+    closeMemoEmbedPopover();
+    closeMemoTrackPopover();
+    if (logMemo) {
+      savedMemoSelection = {
+        start: logMemo.selectionStart || 0,
+        end: logMemo.selectionEnd || 0
+      };
+    }
+    if (memoImgUrlInput) memoImgUrlInput.value = "";
+    if (memoImgCaptionInput) memoImgCaptionInput.value = "";
+    if (memoImgStatus) {
+      memoImgStatus.textContent = "";
+      memoImgStatus.classList.remove("is-err");
+    }
+    updateMemoImgPreview("");
+    const fieldWrap = memoEmbedImgPopover.closest(".spin-memo-field-wrap");
+    const editorBox = fieldWrap ? fieldWrap.querySelector(".spin-memo-editor-box") : null;
+    if (memoRibbonToolbar && fieldWrap) {
+      const topOffset = (editorBox ? editorBox.offsetTop : 22) + memoRibbonToolbar.offsetHeight + 4;
+      memoEmbedImgPopover.style.top = `${topOffset}px`;
+    }
+    memoEmbedImgPopover.style.display = "block";
+    if (memoEmbedImgBtn) memoEmbedImgBtn.classList.add("is-active");
+    if (memoImgUrlInput) setTimeout(() => memoImgUrlInput.focus(), 20);
+  }
+
+  async function uploadMemoImageBlobToR2(blobOrFile) {
+    if (!blobOrFile) throw new Error("No image file selected.");
+    const artistSlug = (logArtist && logArtist.value ? logArtist.value : "spin")
+      .toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 28) || "spin";
+    const ext = getImageExtFromMime(blobOrFile.type, blobOrFile.name || "");
+    const fileName = `memo_${artistSlug}_${Date.now()}.${ext}`;
+    const token = await getAdminAccessToken();
+
+    const form = new FormData();
+    form.append("file", blobOrFile, fileName);
+    form.append("folder", COVERS_STORAGE_BUCKET);
+    form.append("filename", fileName);
+
+    const res = await fetch(R2_UPLOAD_ENDPOINT, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok || !payload.url) {
+      throw new Error(payload.error || `Upload failed (HTTP ${res.status})`);
+    }
+    return payload.url;
+  }
+
+  function insertMemoImageToken(url, caption = "", customRange = null) {
+    const safeUrl = sanitizeMemoImageUrl(url);
+    if (!safeUrl) return;
+    const cleanCap = String(caption || "").replace(/[\]\r\n]+/g, " ").trim();
+    const token = cleanCap ? `[[img:${safeUrl}|${cleanCap}]]` : `[[img:${safeUrl}]]`;
+    const range = customRange || savedMemoSelection || (logMemo
+      ? { start: logMemo.selectionStart || 0, end: logMemo.selectionEnd || 0 }
+      : { start: 0, end: 0 });
+    const curVal = logMemo ? String(logMemo.value || "") : "";
+    const before = curVal.slice(0, range.start);
+    const after = curVal.slice(range.end);
+    const leadNl = before.length > 0 && !/\n$/.test(before) ? "\n" : "";
+    const trailNl = after.length > 0 && !/^\n/.test(after) ? "\n" : "";
+    closeMemoImgPopover();
+    insertMemoTextAtCursor(`${leadNl}${token}${trailNl}`, "", "", range);
+  }
+
+  let memoLightboxEl = null;
+  function closeMemoMediaLightbox() {
+    if (!memoLightboxEl) return;
+    memoLightboxEl.classList.remove("is-open");
+    setTimeout(() => {
+      if (memoLightboxEl && !memoLightboxEl.classList.contains("is-open")) {
+        memoLightboxEl.style.display = "none";
+      }
+    }, 180);
+  }
+
+  window.openMemoMediaLightbox = function openMemoMediaLightbox(src, caption = "") {
+    const safeUrl = sanitizeMemoImageUrl(src);
+    if (!safeUrl) return;
+    if (!memoLightboxEl) {
+      memoLightboxEl = document.createElement("div");
+      memoLightboxEl.id = "sosaMemoLightbox";
+      memoLightboxEl.className = "memo-media-lightbox";
+      memoLightboxEl.setAttribute("role", "dialog");
+      memoLightboxEl.setAttribute("aria-modal", "true");
+      memoLightboxEl.setAttribute("aria-label", "Expanded memo media");
+      memoLightboxEl.innerHTML = `
+        <div class="memo-lightbox-window">
+          <div class="memo-lightbox-titlebar">
+            <span class="memo-lightbox-title"><i class="bx bx-image"></i> <span id="memoLightboxLabel">Image Preview</span></span>
+            <button type="button" class="memo-lightbox-close" id="memoLightboxCloseBtn" aria-label="Close preview">&times;</button>
+          </div>
+          <div class="memo-lightbox-stage">
+            <img id="memoLightboxImg" alt="">
+            <div class="memo-lightbox-caption" id="memoLightboxCaption"></div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(memoLightboxEl);
+      memoLightboxEl.addEventListener("click", (e) => {
+        if (e.target === memoLightboxEl) closeMemoMediaLightbox();
+      });
+      memoLightboxEl.querySelector("#memoLightboxCloseBtn")?.addEventListener("click", closeMemoMediaLightbox);
+    }
+    const imgEl = memoLightboxEl.querySelector("#memoLightboxImg");
+    const capEl = memoLightboxEl.querySelector("#memoLightboxCaption");
+    const lblEl = memoLightboxEl.querySelector("#memoLightboxLabel");
+    if (imgEl) {
+      imgEl.src = safeUrl;
+      imgEl.alt = caption || "Expanded memo media";
+    }
+    if (lblEl) lblEl.textContent = isLikelyGifUrl(safeUrl) ? "GIF Preview" : "Image Preview";
+    if (capEl) {
+      capEl.textContent = caption || "";
+      capEl.style.display = caption ? "block" : "none";
+    }
+    memoLightboxEl.style.display = "flex";
+    requestAnimationFrame(() => memoLightboxEl.classList.add("is-open"));
+  };
 
   function isLikelyInlineQuote(rawText) {
     const text = String(rawText || "").trim();
@@ -2878,6 +3068,18 @@ function getDominantColorFromImg(imgUrl) {
       return txt ? stash(renderInlineLyric(txt)) : "";
     });
 
+    // 3b. Explicit [[img:URL]] / [[img:URL|Caption]] and markdown ![Caption](URL) embeds
+    cleanText = cleanText.replace(/\[\[img:([^\]\r\n]+?)\]\]/gi, (_, payload) => {
+      const pipeIdx = payload.indexOf("|");
+      const url = (pipeIdx >= 0 ? payload.slice(0, pipeIdx) : payload).trim();
+      const cap = (pipeIdx >= 0 ? payload.slice(pipeIdx + 1) : "").trim();
+      return stash(renderMemoMediaFigure(url, cap));
+    });
+
+    cleanText = cleanText.replace(/!\[([^\]\r\n]*)\]\((https?:\/\/[^\s)]+|(?:\.\.\/)?assets\/[^\s)]+)\)/gi, (_, alt, url) => {
+      return stash(renderMemoMediaFigure(url, alt));
+    });
+
     // 4. Legacy markdown audio links [Track](https://...) -> Playable Concept #3 pill
     cleanText = cleanText.replace(
       /\[["“]?([^"”\]]+?)["”]?(?=\])\s*\]\((https?:\/\/[^\s)]+)\)/g,
@@ -2926,6 +3128,8 @@ function getDominantColorFromImg(imgUrl) {
       .replace(/<(blockquote|bilingual)([^>]*)>(?:\s*<br\s*\/?>\s*)+/gi, "<$1$2>")
       .replace(/(?:\s*<br\s*\/?>\s*)+<\/(blockquote|bilingual)>/gi, "</$1>")
       .replace(/<\/(blockquote|bilingual)>\s*(?:<br\s*\/?>\s*)+<(blockquote|bilingual)\b/gi, "</$1><$2")
+      .replace(/(?:<br\s*\/?>\s*)+(<figure class="memo-embed-media")/gi, "$1")
+      .replace(/(<\/figure>)(?:\s*<br\s*\/?>)+/gi, "$1")
       .replace(/<(div|p)([^>]*)>(?:\s*<br\s*\/?>\s*)+/gi, "<$1$2>")
       .replace(/(?:\s*<br\s*\/?>\s*)+<\/(div|p)>/gi, "</$1>")
       .replace(/<\/(div|p)>\s*(?:<br\s*\/?>\s*)+<(div|p)/gi, "</$1><$2");
@@ -3360,6 +3564,176 @@ function getDominantColorFromImg(imgUrl) {
     });
   }
 
+  if (memoEmbedImgBtn) {
+    memoEmbedImgBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (memoEmbedImgPopover && memoEmbedImgPopover.style.display !== "none") {
+        closeMemoImgPopover();
+      } else {
+        openMemoImgPopover();
+      }
+    });
+  }
+
+  if (memoImgCloseBtn) {
+    memoImgCloseBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      closeMemoImgPopover();
+      if (logMemo) logMemo.focus();
+    });
+  }
+
+  if (memoImgUrlInput) {
+    memoImgUrlInput.addEventListener("input", () => {
+      updateMemoImgPreview(memoImgUrlInput.value);
+      if (memoImgStatus) {
+        memoImgStatus.textContent = "";
+        memoImgStatus.classList.remove("is-err");
+      }
+    });
+    memoImgUrlInput.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeMemoImgPopover();
+        if (logMemo) logMemo.focus();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        memoImgInsertBtn?.click();
+      }
+    });
+  }
+
+  if (memoImgCaptionInput) {
+    memoImgCaptionInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        memoImgInsertBtn?.click();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        closeMemoImgPopover();
+        if (logMemo) logMemo.focus();
+      }
+    });
+  }
+
+  if (memoImgUploadBtn && memoImgFileInput) {
+    memoImgUploadBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      memoImgFileInput.value = "";
+      memoImgFileInput.click();
+    });
+    memoImgFileInput.addEventListener("change", async () => {
+      const file = memoImgFileInput.files && memoImgFileInput.files[0];
+      if (!file) return;
+      if (memoImgStatus) {
+        memoImgStatus.classList.remove("is-err");
+        memoImgStatus.textContent = "Uploading to R2…";
+      }
+      memoImgUploadBtn.disabled = true;
+      try {
+        const uploadedUrl = await uploadMemoImageBlobToR2(file);
+        if (memoImgUrlInput) memoImgUrlInput.value = uploadedUrl;
+        updateMemoImgPreview(uploadedUrl);
+        if (memoImgStatus) memoImgStatus.textContent = "Uploaded to R2 ✓";
+      } catch (err) {
+        console.error("Memo image upload failed:", err);
+        if (memoImgStatus) {
+          memoImgStatus.classList.add("is-err");
+          memoImgStatus.textContent = err.message || "Upload failed";
+        }
+      } finally {
+        memoImgUploadBtn.disabled = false;
+      }
+    });
+  }
+
+  if (memoImgInsertBtn) {
+    memoImgInsertBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const rawUrl = (memoImgUrlInput ? memoImgUrlInput.value : "").trim();
+      const safeUrl = sanitizeMemoImageUrl(rawUrl);
+      if (!safeUrl) {
+        if (memoImgStatus) {
+          memoImgStatus.classList.add("is-err");
+          memoImgStatus.textContent = "Enter a valid http(s) image/GIF URL or upload a file.";
+        }
+        return;
+      }
+      let finalUrl = safeUrl;
+      const shouldMirror = memoImgMirrorR2 && memoImgMirrorR2.checked && /^https?:\/\//i.test(safeUrl) && !isHostedAssetUrl(safeUrl);
+      if (shouldMirror) {
+        memoImgInsertBtn.disabled = true;
+        if (memoImgStatus) {
+          memoImgStatus.classList.remove("is-err");
+          memoImgStatus.textContent = "Mirroring to R2…";
+        }
+        try {
+          const artistHint = (logArtist && logArtist.value) || "memo";
+          const titleHint = `memo_${Date.now()}`;
+          finalUrl = await uploadCoverToSupabase(safeUrl, artistHint, titleHint, COVERS_STORAGE_BUCKET);
+        } catch (err) {
+          console.warn("Mirror to R2 fell back to original URL:", err);
+          finalUrl = safeUrl;
+        } finally {
+          memoImgInsertBtn.disabled = false;
+        }
+      }
+      const caption = memoImgCaptionInput ? memoImgCaptionInput.value.trim() : "";
+      insertMemoImageToken(finalUrl, caption);
+    });
+  }
+
+  // Direct clipboard image/GIF paste & drag-and-drop upload onto #logMemo
+  if (logMemo) {
+    const handleMemoMediaFileDropOrPaste = async (file) => {
+      if (!file || !/^image\//i.test(file.type || "")) return;
+      const range = { start: logMemo.selectionStart || 0, end: logMemo.selectionEnd || 0 };
+      const placeholder = `[[uploading ${file.name || "image"}...]]`;
+      insertMemoTextAtCursor(placeholder, "", "", range);
+      try {
+        const uploadedUrl = await uploadMemoImageBlobToR2(file);
+        const cur = logMemo.value || "";
+        const idx = cur.indexOf(placeholder);
+        if (idx !== -1) {
+          logMemo.value = cur.slice(0, idx) + `[[img:${uploadedUrl}]]` + cur.slice(idx + placeholder.length);
+        } else {
+          insertMemoImageToken(uploadedUrl, "");
+        }
+      } catch (err) {
+        console.error("Direct memo image upload failed:", err);
+        logMemo.value = (logMemo.value || "").replace(placeholder, "");
+        alert("Could not upload pasted/dropped image: " + (err.message || "Unknown error"));
+      }
+    };
+
+    logMemo.addEventListener("paste", (e) => {
+      const items = e.clipboardData && e.clipboardData.items ? Array.from(e.clipboardData.items) : [];
+      const imgItem = items.find(it => it.kind === "file" && /^image\//i.test(it.type || ""));
+      if (!imgItem) return;
+      const file = imgItem.getAsFile();
+      if (!file) return;
+      e.preventDefault();
+      handleMemoMediaFileDropOrPaste(file);
+    });
+
+    logMemo.addEventListener("dragover", (e) => {
+      if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files")) {
+        e.preventDefault();
+        logMemo.classList.add("is-drop-target");
+      }
+    });
+    logMemo.addEventListener("dragleave", () => logMemo.classList.remove("is-drop-target"));
+    logMemo.addEventListener("drop", (e) => {
+      logMemo.classList.remove("is-drop-target");
+      const files = e.dataTransfer && e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
+      const imgFile = files.find(f => /^image\//i.test(f.type || ""));
+      if (!imgFile) return;
+      e.preventDefault();
+      handleMemoMediaFileDropOrPaste(imgFile);
+    });
+  }
+
   if (closeRecordHistoryModalBtn) {
     closeRecordHistoryModalBtn.addEventListener("click", closeRecordHistoryModal);
   }
@@ -3386,10 +3760,22 @@ function getDominantColorFromImg(imgUrl) {
     ) {
       closeMemoTrackPopover();
     }
+    if (
+      memoEmbedImgPopover &&
+      memoEmbedImgPopover.style.display !== "none" &&
+      !e.target.closest("#memoEmbedImgPopover") &&
+      !e.target.closest("#memoEmbedImgBtn")
+    ) {
+      closeMemoImgPopover();
+    }
   });
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
+      if (memoLightboxEl && memoLightboxEl.classList.contains("is-open")) {
+        closeMemoMediaLightbox();
+        return;
+      }
       if (recordHistoryModal && recordHistoryModal.style.display !== "none") {
         closeRecordHistoryModal();
         return;
@@ -3399,6 +3785,9 @@ function getDominantColorFromImg(imgUrl) {
       }
       if (memoEmbedTrackPopover && memoEmbedTrackPopover.style.display !== "none") {
         closeMemoTrackPopover();
+      }
+      if (memoEmbedImgPopover && memoEmbedImgPopover.style.display !== "none") {
+        closeMemoImgPopover();
       }
     }
   });
