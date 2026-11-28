@@ -3214,31 +3214,70 @@ document.addEventListener("DOMContentLoaded", async () => {
       return txt ? stash(renderInlineLyric(txt)) : "";
     });
 
-    // 3b. Explicit [[img:URL]] / [[img:URL|Caption]] and markdown ![Caption](URL) embeds
-    const renderChallengeMemoImg = (rawUrl, rawCap = "") => {
+    // 3b. Explicit [[img:URL|size|Caption]] and markdown ![Caption|size](URL) embeds
+    const parseChallengeImgSize = (rawSpec) => {
+      const s = String(rawSpec || "").trim().toLowerCase();
+      if (!s) return null;
+      if (s === "xs" || s === "xsmall") return { preset: "xs", widthCss: "150px", isCustom: false };
+      if (s === "sm" || s === "small") return { preset: "sm", widthCss: "220px", isCustom: false };
+      if (s === "md" || s === "medium") return { preset: "md", widthCss: "420px", isCustom: false };
+      if (s === "lg" || s === "large") return { preset: "lg", widthCss: "620px", isCustom: false };
+      if (s === "full" || s === "100%") return { preset: "full", widthCss: "100%", isCustom: false };
+      const pxM = s.match(/^(\d{2,4})px$/);
+      if (pxM) {
+        const n = Math.min(900, Math.max(80, parseInt(pxM[1], 10)));
+        return { preset: "custom", widthCss: `${n}px`, isCustom: true };
+      }
+      const pctM = s.match(/^(\d{2,3})%$/);
+      if (pctM) {
+        const n = Math.min(100, Math.max(20, parseInt(pctM[1], 10)));
+        return { preset: "custom", widthCss: `${n}%`, isCustom: true };
+      }
+      return null;
+    };
+
+    const splitImgMetaParts = (parts) => {
+      let sizeSpec = null;
+      const capParts = [];
+      for (const raw of parts) {
+        const part = String(raw || "").trim();
+        if (!part) continue;
+        if (!sizeSpec) {
+          const parsedSize = parseChallengeImgSize(part);
+          if (parsedSize) { sizeSpec = parsedSize; continue; }
+        }
+        capParts.push(part);
+      }
+      return { cap: capParts.join(" | "), sizeSpec };
+    };
+
+    const renderChallengeMemoImg = (rawUrl, rawCap = "", sizeSpec = null) => {
       const clean = String(rawUrl || "").trim();
       let safeUrl = "";
       if (/^https?:\/\/[^\s"'<>]+$/i.test(clean)) safeUrl = normalizeLegacyStorageUrl(clean);
       else if (/^(?:\.\.\/)?assets\/[^\s"'<>]+$/i.test(clean)) safeUrl = clean.replace(/^\.\.\//, "");
       if (!safeUrl) return "";
       const cap = String(rawCap || "").trim();
+      const sizeClass = sizeSpec ? `is-size-${sizeSpec.preset}` : "is-size-md";
+      const styleAttr = sizeSpec && sizeSpec.isCustom ? ` style="--memo-img-w:${sizeSpec.widthCss};"` : "";
       const isGif = /\.gif(?:$|\?|#)/i.test(safeUrl) || /giphy\.com\/|tenor\.com\//i.test(safeUrl);
       const gifBadge = isGif ? `<span class="memo-embed-gif-badge" aria-hidden="true">GIF</span>` : "";
       const eUrl = escapeHtml(safeUrl);
       const eCap = escapeHtml(cap);
       const capHtml = cap ? `<figcaption class="memo-embed-caption">${eCap}</figcaption>` : "";
-      return `<figure class="memo-embed-media" data-memo-media-src="${eUrl}" data-memo-media-cap="${eCap}"><div class="memo-embed-img-wrap" onclick="event.stopPropagation(); window.openMemoMediaLightbox && window.openMemoMediaLightbox(this.parentElement.dataset.memoMediaSrc, this.parentElement.dataset.memoMediaCap);" title="Click to expand">${gifBadge}<img src="${eUrl}" alt="${eCap || "Memo image"}" loading="lazy" decoding="async" onerror="this.closest('.memo-embed-media')?.classList.add('is-broken')"></div>${capHtml}</figure>`;
+      return `<figure class="memo-embed-media ${sizeClass}"${styleAttr} data-memo-media-src="${eUrl}" data-memo-media-cap="${eCap}"><div class="memo-embed-img-wrap" onclick="event.stopPropagation(); window.openMemoMediaLightbox && window.openMemoMediaLightbox(this.parentElement.dataset.memoMediaSrc, this.parentElement.dataset.memoMediaCap);" title="Click to expand">${gifBadge}<img src="${eUrl}" alt="${eCap || "Memo image"}" loading="lazy" decoding="async" onerror="this.closest('.memo-embed-media')?.classList.add('is-broken')"></div>${capHtml}</figure>`;
     };
 
     cleanText = cleanText.replace(/\[\[img:([^\]\r\n]+?)\]\]/gi, (_, payload) => {
-      const pipeIdx = payload.indexOf("|");
-      const url = (pipeIdx >= 0 ? payload.slice(0, pipeIdx) : payload).trim();
-      const cap = (pipeIdx >= 0 ? payload.slice(pipeIdx + 1) : "").trim();
-      return stash(renderChallengeMemoImg(url, cap));
+      const parts = String(payload || "").split("|");
+      const url = (parts[0] || "").trim();
+      const { cap, sizeSpec } = splitImgMetaParts(parts.slice(1));
+      return stash(renderChallengeMemoImg(url, cap, sizeSpec));
     });
 
     cleanText = cleanText.replace(/!\[([^\]\r\n]*)\]\((https?:\/\/[^\s)]+|(?:\.\.\/)?assets\/[^\s)]+)\)/gi, (_, alt, url) => {
-      return stash(renderChallengeMemoImg(url, alt));
+      const { cap, sizeSpec } = splitImgMetaParts(String(alt || "").split("|"));
+      return stash(renderChallengeMemoImg(url, cap, sizeSpec));
     });
 
     // 4. Legacy markdown audio links [Track](https://...) -> Playable Concept #3 pill

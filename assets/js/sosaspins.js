@@ -605,6 +605,8 @@ const batchFetchRuntimesBtn = document.getElementById("batchFetchRuntimesBtn");
   const memoImgUploadBtn = document.getElementById("memoImgUploadBtn");
   const memoImgFileInput = document.getElementById("memoImgFileInput");
   const memoImgInsertBtn = document.getElementById("memoImgInsertBtn");
+  const memoImgSizeGroup = document.getElementById("memoImgSizeGroup");
+  const memoImgWidthInput = document.getElementById("memoImgWidthInput");
   const memoImgMirrorR2 = document.getElementById("memoImgMirrorR2");
   const memoImgStatus = document.getElementById("memoImgStatus");
   const memoImgPreviewBox = document.getElementById("memoImgPreviewBox");
@@ -2788,17 +2790,99 @@ function getDominantColorFromImg(imgUrl) {
     return /\.gif(?:$|\?|#)/.test(u) || u.includes("giphy.com/") || u.includes("tenor.com/");
   }
 
-  function renderMemoMediaFigure(rawUrl, rawCaption = "") {
+  function parseMemoImageSizeSpec(rawSpec) {
+    const s = String(rawSpec || "").trim().toLowerCase();
+    if (!s) return null;
+    if (s === "xs" || s === "xsmall") return { preset: "xs", token: "xs", widthCss: "150px", isCustom: false };
+    if (s === "sm" || s === "small") return { preset: "sm", token: "sm", widthCss: "220px", isCustom: false };
+    if (s === "md" || s === "medium") return { preset: "md", token: "md", widthCss: "420px", isCustom: false };
+    if (s === "lg" || s === "large") return { preset: "lg", token: "lg", widthCss: "620px", isCustom: false };
+    if (s === "full" || s === "100%") return { preset: "full", token: "full", widthCss: "100%", isCustom: false };
+    const pxMatch = s.match(/^(\d{2,4})px$/);
+    if (pxMatch) {
+      const n = Math.min(900, Math.max(80, parseInt(pxMatch[1], 10)));
+      return { preset: "custom", token: `${n}px`, widthCss: `${n}px`, isCustom: true };
+    }
+    const pctMatch = s.match(/^(\d{2,3})%$/);
+    if (pctMatch) {
+      const n = Math.min(100, Math.max(20, parseInt(pctMatch[1], 10)));
+      return { preset: "custom", token: `${n}%`, widthCss: `${n}%`, isCustom: true };
+    }
+    return null;
+  }
+
+  function parseMemoImageTokenPayload(payload) {
+    const parts = String(payload || "").split("|").map(p => p.trim());
+    const url = parts[0] || "";
+    let sizeSpec = null;
+    const capParts = [];
+    for (let i = 1; i < parts.length; i++) {
+      const part = parts[i];
+      if (!part) continue;
+      if (!sizeSpec) {
+        const parsedSize = parseMemoImageSizeSpec(part);
+        if (parsedSize) {
+          sizeSpec = parsedSize;
+          continue;
+        }
+      }
+      capParts.push(part);
+    }
+    return { url, caption: capParts.join(" | "), sizeSpec };
+  }
+
+  function parseMemoMarkdownAlt(rawAlt) {
+    const parts = String(rawAlt || "").split("|").map(p => p.trim());
+    let sizeSpec = null;
+    const capParts = [];
+    for (const part of parts) {
+      if (!part) continue;
+      if (!sizeSpec) {
+        const parsedSize = parseMemoImageSizeSpec(part);
+        if (parsedSize) {
+          sizeSpec = parsedSize;
+          continue;
+        }
+      }
+      capParts.push(part);
+    }
+    return { caption: capParts.join(" | "), sizeSpec };
+  }
+
+  function renderMemoMediaFigure(rawUrl, rawCaption = "", rawSizeSpec = null) {
     const safeUrl = sanitizeMemoImageUrl(rawUrl);
     if (!safeUrl) return "";
     const caption = String(rawCaption || "").trim();
+    const sizeSpec = typeof rawSizeSpec === "string" ? parseMemoImageSizeSpec(rawSizeSpec) : rawSizeSpec;
+    const sizeClass = sizeSpec ? `is-size-${sizeSpec.preset}` : "is-size-md";
+    const styleAttr = sizeSpec && sizeSpec.isCustom ? ` style="--memo-img-w:${sizeSpec.widthCss};"` : "";
     const gifBadge = isLikelyGifUrl(safeUrl)
       ? `<span class="memo-embed-gif-badge" aria-hidden="true">GIF</span>`
       : "";
     const escapedUrl = escapeHtml(safeUrl);
     const escapedCap = escapeHtml(caption);
     const capHtml = caption ? `<figcaption class="memo-embed-caption">${escapedCap}</figcaption>` : "";
-    return `<figure class="memo-embed-media" data-memo-media-src="${escapedUrl}" data-memo-media-cap="${escapedCap}"><div class="memo-embed-img-wrap" onclick="event.stopPropagation(); window.openMemoMediaLightbox && window.openMemoMediaLightbox(this.parentElement.dataset.memoMediaSrc, this.parentElement.dataset.memoMediaCap);" title="Click to expand">${gifBadge}<img src="${escapedUrl}" alt="${escapedCap || "Memo image"}" loading="lazy" decoding="async" onerror="this.closest('.memo-embed-media')?.classList.add('is-broken')"></div>${capHtml}</figure>`;
+    return `<figure class="memo-embed-media ${sizeClass}"${styleAttr} data-memo-media-src="${escapedUrl}" data-memo-media-cap="${escapedCap}"><div class="memo-embed-img-wrap" onclick="event.stopPropagation(); window.openMemoMediaLightbox && window.openMemoMediaLightbox(this.parentElement.dataset.memoMediaSrc, this.parentElement.dataset.memoMediaCap);" title="Click to expand">${gifBadge}<img src="${escapedUrl}" alt="${escapedCap || "Memo image"}" loading="lazy" decoding="async" onerror="this.closest('.memo-embed-media')?.classList.add('is-broken')"></div>${capHtml}</figure>`;
+  }
+
+  let selectedMemoImgSize = "md";
+
+  function syncMemoImgSizeControls(nextSize = "md", fromCustomInput = false) {
+    const spec = parseMemoImageSizeSpec(nextSize) || { preset: "md", token: "md", widthCss: "420px", isCustom: false };
+    selectedMemoImgSize = spec.token;
+    if (memoImgSizeGroup) {
+      memoImgSizeGroup.querySelectorAll(".memo-img-size-btn").forEach(btn => {
+        const key = btn.getAttribute("data-img-size");
+        btn.classList.toggle("is-active", !spec.isCustom && key === spec.preset);
+      });
+    }
+    if (memoImgWidthInput && !fromCustomInput) {
+      if (spec.preset === "sm") { memoImgWidthInput.value = ""; memoImgWidthInput.placeholder = "220"; }
+      else if (spec.preset === "md") { memoImgWidthInput.value = ""; memoImgWidthInput.placeholder = "420"; }
+      else if (spec.preset === "lg") { memoImgWidthInput.value = ""; memoImgWidthInput.placeholder = "620"; }
+      else if (spec.preset === "full") { memoImgWidthInput.value = ""; memoImgWidthInput.placeholder = "100%"; }
+      else if (spec.isCustom) { memoImgWidthInput.value = spec.widthCss.replace(/px$/i, ""); }
+    }
   }
 
   function closeMemoImgPopover() {
@@ -2834,6 +2918,7 @@ function getDominantColorFromImg(imgUrl) {
     }
     if (memoImgUrlInput) memoImgUrlInput.value = "";
     if (memoImgCaptionInput) memoImgCaptionInput.value = "";
+    syncMemoImgSizeControls("md");
     if (memoImgStatus) {
       memoImgStatus.textContent = "";
       memoImgStatus.classList.remove("is-err");
@@ -2875,11 +2960,16 @@ function getDominantColorFromImg(imgUrl) {
     return payload.url;
   }
 
-  function insertMemoImageToken(url, caption = "", customRange = null) {
+  function insertMemoImageToken(url, caption = "", sizeSpec = "md", customRange = null) {
     const safeUrl = sanitizeMemoImageUrl(url);
     if (!safeUrl) return;
     const cleanCap = String(caption || "").replace(/[\]\r\n]+/g, " ").trim();
-    const token = cleanCap ? `[[img:${safeUrl}|${cleanCap}]]` : `[[img:${safeUrl}]]`;
+    const parsedSize = typeof sizeSpec === "string" ? parseMemoImageSizeSpec(sizeSpec) : sizeSpec;
+    const sizePart = parsedSize && parsedSize.token !== "md" ? parsedSize.token : "";
+    const segments = [safeUrl];
+    if (sizePart) segments.push(sizePart);
+    if (cleanCap) segments.push(cleanCap);
+    const token = `[[img:${segments.join("|")}]]`;
     const range = customRange || savedMemoSelection || (logMemo
       ? { start: logMemo.selectionStart || 0, end: logMemo.selectionEnd || 0 }
       : { start: 0, end: 0 });
@@ -3068,16 +3158,15 @@ function getDominantColorFromImg(imgUrl) {
       return txt ? stash(renderInlineLyric(txt)) : "";
     });
 
-    // 3b. Explicit [[img:URL]] / [[img:URL|Caption]] and markdown ![Caption](URL) embeds
+    // 3b. Explicit [[img:URL|size|Caption]] and markdown ![Caption|size](URL) embeds
     cleanText = cleanText.replace(/\[\[img:([^\]\r\n]+?)\]\]/gi, (_, payload) => {
-      const pipeIdx = payload.indexOf("|");
-      const url = (pipeIdx >= 0 ? payload.slice(0, pipeIdx) : payload).trim();
-      const cap = (pipeIdx >= 0 ? payload.slice(pipeIdx + 1) : "").trim();
-      return stash(renderMemoMediaFigure(url, cap));
+      const parsed = parseMemoImageTokenPayload(payload);
+      return stash(renderMemoMediaFigure(parsed.url, parsed.caption, parsed.sizeSpec));
     });
 
     cleanText = cleanText.replace(/!\[([^\]\r\n]*)\]\((https?:\/\/[^\s)]+|(?:\.\.\/)?assets\/[^\s)]+)\)/gi, (_, alt, url) => {
-      return stash(renderMemoMediaFigure(url, alt));
+      const parsedAlt = parseMemoMarkdownAlt(alt);
+      return stash(renderMemoMediaFigure(url, parsedAlt.caption, parsedAlt.sizeSpec));
     });
 
     // 4. Legacy markdown audio links [Track](https://...) -> Playable Concept #3 pill
@@ -3648,6 +3737,45 @@ function getDominantColorFromImg(imgUrl) {
     });
   }
 
+  if (memoImgSizeGroup) {
+    memoImgSizeGroup.addEventListener("click", (e) => {
+      const btn = e.target.closest(".memo-img-size-btn[data-img-size]");
+      if (!btn) return;
+      e.preventDefault();
+      syncMemoImgSizeControls(btn.getAttribute("data-img-size") || "md");
+    });
+  }
+
+  if (memoImgWidthInput) {
+    memoImgWidthInput.addEventListener("input", () => {
+      const raw = memoImgWidthInput.value.trim();
+      if (!raw) {
+        syncMemoImgSizeControls("md", true);
+        if (memoImgSizeGroup) {
+          memoImgSizeGroup.querySelectorAll(".memo-img-size-btn").forEach(btn => {
+            btn.classList.toggle("is-active", btn.getAttribute("data-img-size") === "md");
+          });
+        }
+        return;
+      }
+      const num = parseInt(raw, 10);
+      if (!isNaN(num) && num >= 40) {
+        const clamped = Math.min(900, Math.max(80, num));
+        syncMemoImgSizeControls(`${clamped}px`, true);
+      }
+    });
+    memoImgWidthInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        memoImgInsertBtn?.click();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        closeMemoImgPopover();
+        if (logMemo) logMemo.focus();
+      }
+    });
+  }
+
   if (memoImgInsertBtn) {
     memoImgInsertBtn.addEventListener("click", async (e) => {
       e.preventDefault();
@@ -3680,7 +3808,11 @@ function getDominantColorFromImg(imgUrl) {
         }
       }
       const caption = memoImgCaptionInput ? memoImgCaptionInput.value.trim() : "";
-      insertMemoImageToken(finalUrl, caption);
+      const customRaw = memoImgWidthInput ? memoImgWidthInput.value.trim() : "";
+      const chosenSize = customRaw && !isNaN(parseInt(customRaw, 10))
+        ? `${Math.min(900, Math.max(80, parseInt(customRaw, 10)))}px`
+        : selectedMemoImgSize;
+      insertMemoImageToken(finalUrl, caption, chosenSize);
     });
   }
 
